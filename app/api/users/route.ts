@@ -115,7 +115,15 @@ async function uploadAvatar(
   userId: string,
   dataUrl: string
 ): Promise<UploadResult> {
-  const match = const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/); const mimeType = match?.[1]; const base64Content = match?.[2]; if (!mimeType || !base64Content) return { ok: false, error: "photo_invalid" }; const buffer = Buffer.from(base64Content, "base64");
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  // tsconfig имеет noUncheckedIndexedAccess: true, поэтому match[1]/match[2]
+  // типизированы как `string | undefined`, хотя regex гарантирует их наличие
+  // при успешном match — явная проверка вместо non-null assertion.
+  const mimeType = match?.[1];
+  const base64Content = match?.[2];
+  if (!mimeType || !base64Content) return { ok: false, error: "photo_invalid" };
+
+  const buffer = Buffer.from(base64Content, "base64");
 
   if (buffer.byteLength > MAX_PHOTO_BYTES) {
     return { ok: false, error: "photo_too_large" };
