@@ -38,6 +38,15 @@ export async function GET(req: NextRequest) {
 
   await admin.from("events").update({ status: "completed" }).in("id", finishedIds).eq("status", "published");
 
+  const { data: allFinishedMembers } = await admin
+    .from("event_members")
+    .select("user_id")
+    .in("event_id", finishedIds);
+  const uniqueMemberIds = Array.from(new Set((allFinishedMembers ?? []).map((m) => m.user_id)));
+  if (uniqueMemberIds.length > 0) {
+    await admin.rpc("increment_completed_meetings", { p_user_ids: uniqueMemberIds });
+  }
+
   const { data: alreadyNotified } = await admin
     .from("notifications")
     .select("payload")
