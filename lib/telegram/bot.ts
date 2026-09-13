@@ -15,11 +15,15 @@ export function getBot(): Bot {
 
   const appUrl = process.env.APP_URL;
   if (!appUrl) throw new Error("Отсутствует APP_URL в переменных окружения");
+  // Присваиваем в новую переменную: TypeScript не переносит сужение типа
+  // (narrowing) из внешней области видимости внутрь вложенных функций —
+  // без этого openAppKeyboard() ниже видел бы appUrl как `string | undefined`.
+  const validatedAppUrl: string = appUrl;
 
   const bot = new Bot(token);
 
   function openAppKeyboard() {
-    return new InlineKeyboard().webApp("Открыть приложение", appUrl);
+    return new InlineKeyboard().webApp("Открыть приложение", validatedAppUrl);
   }
 
   bot.command("start", async (ctx) => {
