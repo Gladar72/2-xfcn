@@ -19,6 +19,7 @@ interface TelegramWebApp {
   expand: () => void;
   colorScheme: "light" | "dark";
   themeParams: Record<string, string>;
+  openInvoice: (url: string, callback: (status: "paid" | "cancelled" | "failed" | "pending") => void) => void;
   MainButton: {
     show: () => void;
     hide: () => void;

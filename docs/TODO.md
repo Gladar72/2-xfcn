@@ -57,15 +57,19 @@
 - ⬜ Настоящий infinite scroll (сейчас — кнопка; можно заменить на IntersectionObserver позже, не блокирует MVP)
 
 ## Этап 7 — Создание встречи
-- ⬜ Мастер из 8 шагов (по одному вопросу на экран)
-- ⬜ Проверка активной подписки перед доступом к шагу 1
-- ⬜ Проверка лимита events_limit на сервере
-- ⬜ Preview + публикация
+- ✅ Мастер из 7 экранов (превью и публикация объединены в один финальный шаг) — по одному вопросу на экран
+- ✅ Проверка активной подписки перед доступом (гейт в `app/(app)/create/page.tsx`)
+- ✅ Проверка лимита `events_limit` и размера группы (`groupMax`) на сервере — `POST /api/events`
+- ✅ Preview + публикация
 
 ## Этап 8 — Подписки / paywall
-- ⬜ Таблица тарифов (экран paywall, без публичного отображения тарифа других юзеров)
-- ⬜ Серверная проверка active_subscription
-- ⬜ Начальная интеграция Telegram Stars (инвойс)
+- ✅ `lib/subscriptions/limits.ts` — единственный источник истины по лимитам/ценам тарифов
+- ✅ Экран paywall (`components/paywall/`) — появляется только при попытке создать встречу (п.11 ТЗ)
+- ✅ Серверная проверка `active_subscription` (`getActiveSubscriptionInfo`)
+- ✅ Начальная интеграция Telegram Stars — `createStarsInvoiceLink` + `/api/subscriptions/create-invoice`
+- ✅ Атомарный инкремент usage-счётчиков (SQL-миграция 0012, RPC, без гонок)
+- ⬜ Полная активация подписки по факту оплаты — это Этап 25 (webhook), контракт уже задокументирован в `app/api/payments/telegram-webhook/route.ts`
+- ⬜ Цены в Telegram Stars (`priceStars` в limits.ts) — placeholder-значения, нужно сверить с актуальным курсом перед запуском
 
 ## Этап 9 — Отклики (applications)
 - ⬜ Кнопка "Хочу пойти" → создание application (pending)
