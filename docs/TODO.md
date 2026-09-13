@@ -80,9 +80,14 @@
 - ✅ Автоматическое создание чата при принятии заявки (п.15 ТЗ — чат только после подтверждения)
 
 ## Этап 10 — Чаты
-- ⬜ Supabase Realtime канал сообщений
-- ⬜ Список чатов, unread count, read status
-- ⬜ Блокировка / скрытие чата
+- ✅ Supabase Realtime канал сообщений — `lib/supabase/browser-realtime.ts`, подписка на INSERT в `messages`
+- ✅ Отдельный короткоживущий токен для WebSocket-авторизации (`/api/auth/realtime-token`) — основная сессия остаётся в httpOnly cookie
+- ✅ Список чатов (`/chats`) — превью последнего сообщения, unread count, данные собеседника
+- ✅ Экран чата (`/chats/[id]`, вынесен из-под общего layout, чтобы нижнее меню не перекрывало поле ввода)
+- ✅ text, timestamp, unread count, read status, список чатов — всё есть
+- ✅ Блокировка и скрытие чата — `PATCH /api/conversations/[id]` (hide/unhide/block/unblock)
+- ✅ Realtime включён на таблице `messages` (миграция 0015, подтверждено запросом к `pg_publication_tables`)
+- ⬜ Картинки в сообщениях — сознательно не делаем в MVP (п.15 ТЗ это разрешает)
 
 ## Этап 11 — Карта
 - ⬜ Интеграция Yandex Maps
