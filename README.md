@@ -80,7 +80,7 @@ _Будет дополнено на Этапе 15 (production hardening)._
 
 ## n8n — настройка автоматизаций
 
-_Будет дополнено на Этапе 12._ Описание workflow: [`n8n/workflows`](./n8n/workflows).
+Подробная инструкция и все 6 готовых workflow: [`n8n/README.md`](./n8n/README.md).
 
 ## Разработка
 

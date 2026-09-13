@@ -1,0 +1,59 @@
+{
+  "name": "01 — Новая встреча: уведомить релевантных пользователей",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "event-created",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-event-created",
+      "name": "Webhook: event-created",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body.telegramIds",
+        "options": {}
+      },
+      "id": "split-telegram-ids",
+      "name": "Split telegramIds",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [520, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.telegramIds }}",
+        "text": "=✨ Рядом появилась новая встреча: «{{ $('Webhook: event-created').item.json.body.title }}». Загляни в приложение — возможно, тебе интересно!",
+        "additionalFields": {}
+      },
+      "id": "telegram-send",
+      "name": "Telegram: Send Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [780, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Meetup Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: event-created": {
+      "main": [[{ "node": "Split telegramIds", "type": "main", "index": 0 }]]
+    },
+    "Split telegramIds": {
+      "main": [[{ "node": "Telegram: Send Message", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

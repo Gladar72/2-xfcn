@@ -1,0 +1,71 @@
+{
+  "name": "06 — Мало участников: предложить буст",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": { "interval": [{ "field": "hours", "hoursInterval": 1 }] }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule: каждый час",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.APP_URL }}/api/n8n/low-attendance",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [{ "name": "x-n8n-api-key", "value": "={{ $env.N8N_API_KEY }}" }]
+        },
+        "options": {}
+      },
+      "id": "http-low-attendance",
+      "name": "GET /api/n8n/low-attendance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [520, 300]
+    },
+    {
+      "parameters": { "fieldToSplitOut": "items", "options": {} },
+      "id": "split-events",
+      "name": "Split events",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [780, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.organizerTelegramId }}",
+        "text": "=Скоро начнётся «{{ $json.title }}», но заполнено только {{ $json.seatsTaken }} из {{ $json.seatsTotal }} мест. Попробуйте поднять встречу в приложении, чтобы её увидело больше людей.",
+        "additionalFields": {}
+      },
+      "id": "telegram-send",
+      "name": "Telegram: Send Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1040, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Meetup Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule: каждый час": {
+      "main": [[{ "node": "GET /api/n8n/low-attendance", "type": "main", "index": 0 }]]
+    },
+    "GET /api/n8n/low-attendance": {
+      "main": [[{ "node": "Split events", "type": "main", "index": 0 }]]
+    },
+    "Split events": {
+      "main": [[{ "node": "Telegram: Send Message", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

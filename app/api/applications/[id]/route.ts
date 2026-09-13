@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyN8n } from "@/lib/n8n/notify";
 
 type Action = "accept" | "reject" | "cancel";
 
@@ -92,6 +93,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     type: "application_accepted",
     payload: { eventId: application.event_id, applicationId },
   });
+
+  const { data: participant } = await admin
+    .from("users")
+    .select("telegram_id")
+    .eq("id", application.user_id)
+    .maybeSingle();
+  if (participant) {
+    notifyN8n("application-accepted", {
+      eventId: application.event_id,
+      telegramId: participant.telegram_id,
+    }).catch(() => {});
+  }
 
   return NextResponse.json({ status: "accepted" });
 }

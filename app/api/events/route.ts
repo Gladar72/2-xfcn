@@ -5,6 +5,7 @@ import { rankEvents, type EventForScoring, type SubscriptionPlan } from "@/lib/s
 import { getActiveSubscriptionInfo, incrementEventsCreated } from "@/lib/subscriptions/server";
 import { canCreateMoreEvents, PLAN_LIMITS } from "@/lib/subscriptions/limits";
 import { createEventSchema } from "@/lib/validation/create-event";
+import { notifyN8n } from "@/lib/n8n/notify";
 
 const PAGE_SIZE = 20;
 // Сколько кандидатов тянем из БД до ranking (больше видимого лимита,
@@ -319,5 +320,74 @@ export async function POST(req: NextRequest) {
 
   await incrementEventsCreated(admin, subscriptionInfo.subscriptionId, subscriptionInfo.currentPeriodStart);
 
+  // Workflow 1 (п.27 ТЗ): находим потенциально релевантных пользователей —
+  // та же логика интересов, что и в ranking (lib/scoring), но здесь как
+  // одноразовый список получателей для n8n, а не как скоринг.
+  notifyRelevantUsers(admin, {
+    eventId: createdEvent.id,
+    organizerId: currentUser.userId,
+    city: organizerProfile?.city ?? "",
+    categorySlug: input.categorySlug,
+    trainingTypeSlug: input.trainingTypeSlug ?? null,
+    title: input.title,
+  }).catch(() => {});
+
   return NextResponse.json({ status: "created", eventId: createdEvent.id });
+}
+
+async function notifyRelevantUsers(
+  admin: ReturnType<typeof createAdminClient>,
+  params: {
+    eventId: string;
+    organizerId: string;
+    city: string;
+    categorySlug: string;
+    trainingTypeSlug: string | null;
+    title: string;
+  }
+) {
+  // "Релевантные пользователи" — те, у кого в интересах есть название
+  // категории или типа тренировки, живут в том же городе, не заблокированы
+  // организатором и не он сам.
+  const interestNames = [params.categorySlug, params.trainingTypeSlug].filter(Boolean) as string[];
+  if (interestNames.length === 0) return;
+
+  const { data: matchingInterests } = await admin.from("interests").select("id, name");
+  const relevantInterestIds = (matchingInterests ?? [])
+    .filter((i) => interestNames.some((n) => i.name.toLowerCase().includes(n.toLowerCase())))
+    .map((i) => i.id);
+  if (relevantInterestIds.length === 0) return;
+
+  const { data: candidateRows } = await admin
+    .from("user_interests")
+    .select("user_id, users!inner(id, telegram_id, city)")
+    .in("interest_id", relevantInterestIds);
+
+  const { data: blocks } = await admin
+    .from("blocks")
+    .select("blocker_id, blocked_id")
+    .or(`blocker_id.eq.${params.organizerId},blocked_id.eq.${params.organizerId}`);
+  const blockedIds = new Set(
+    (blocks ?? []).map((b) => (b.blocker_id === params.organizerId ? b.blocked_id : b.blocker_id))
+  );
+
+  const recipients = Array.from(
+    new Map(
+      (candidateRows ?? [])
+        .map((r) => r.users as unknown as { id: string; telegram_id: number; city: string } | null)
+        .filter(
+          (u): u is { id: string; telegram_id: number; city: string } =>
+            !!u && u.id !== params.organizerId && u.city === params.city && !blockedIds.has(u.id)
+        )
+        .map((u) => [u.id, u.telegram_id])
+    ).values()
+  );
+
+  if (recipients.length === 0) return;
+
+  await notifyN8n("event-created", {
+    eventId: params.eventId,
+    title: params.title,
+    telegramIds: recipients,
+  });
 }

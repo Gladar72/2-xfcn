@@ -1,0 +1,45 @@
+{
+  "name": "02 — Новый отклик: уведомить организатора",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "new-application",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-new-application",
+      "name": "Webhook: new-application",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.body.telegramId }}",
+        "text": "🎉 Кто-то откликнулся на вашу встречу! Откройте приложение, чтобы посмотреть анкету и принять или отклонить заявку.",
+        "additionalFields": {}
+      },
+      "id": "telegram-send",
+      "name": "Telegram: Send Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [520, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Meetup Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: new-application": {
+      "main": [[{ "node": "Telegram: Send Message", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "03 — Заявка принята: уведомить участника",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "application-accepted",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "webhook-application-accepted",
+      "name": "Webhook: application-accepted",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $json.body.telegramId }}",
+        "text": "🎉 Вас пригласили на встречу! Чат с организатором уже открылся в приложении.",
+        "additionalFields": {}
+      },
+      "id": "telegram-send",
+      "name": "Telegram: Send Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [520, 300],
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_WITH_YOUR_TELEGRAM_CREDENTIAL_ID",
+          "name": "Meetup Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook: application-accepted": {
+      "main": [[{ "node": "Telegram: Send Message", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": { "executionOrder": "v1" }
+}
