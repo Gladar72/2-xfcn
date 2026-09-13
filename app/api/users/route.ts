@@ -115,12 +115,7 @@ async function uploadAvatar(
   userId: string,
   dataUrl: string
 ): Promise<UploadResult> {
-  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  if (!match) return { ok: false, error: "photo_invalid" };
-
-  const mimeType = match[1];
-  const base64Content = match[2];
-  const buffer = Buffer.from(base64Content, "base64");
+  const match = const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/); const mimeType = match?.[1]; const base64Content = match?.[2]; if (!mimeType || !base64Content) return { ok: false, error: "photo_invalid" }; const buffer = Buffer.from(base64Content, "base64");
 
   if (buffer.byteLength > MAX_PHOTO_BYTES) {
     return { ok: false, error: "photo_too_large" };
