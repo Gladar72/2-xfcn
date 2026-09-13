@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { StepProgress } from "@/components/ui/StepProgress";
+import { LocationPicker } from "@/components/map/LocationPicker";
 import { getInitData } from "@/lib/telegram/webapp-client";
 
 interface Category {
@@ -42,6 +43,8 @@ export function CreateEventWizard() {
   const [trainingTypeSlug, setTrainingTypeSlug] = useState<string | null>(null);
   const [placeName, setPlaceName] = useState("");
   const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | undefined>();
+  const [longitude, setLongitude] = useState<number | undefined>();
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [seatsTotal, setSeatsTotal] = useState(4);
@@ -99,6 +102,8 @@ export function CreateEventWizard() {
           trainingTypeSlug: trainingTypeSlug ?? undefined,
           placeName,
           address,
+          latitude,
+          longitude,
           eventDate,
           eventTime,
           seatsTotal,
@@ -186,7 +191,7 @@ export function CreateEventWizard() {
         )}
 
         {step === "where" && (
-          <StepBlock title="Где?" subtitle="Поиск на карте появится позже — пока просто впиши место.">
+          <StepBlock title="Где?" subtitle="Впиши название места и отметь его на карте.">
             <input
               autoFocus
               value={placeName}
@@ -198,8 +203,12 @@ export function CreateEventWizard() {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Адрес (необязательно)"
-              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
+              className="mb-3 w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
             />
+            <LocationPicker onPick={({ latitude, longitude }) => {
+              setLatitude(latitude);
+              setLongitude(longitude);
+            }} />
           </StepBlock>
         )}
 
