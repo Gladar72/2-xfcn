@@ -27,11 +27,14 @@ export interface EventCardData {
 interface EventCardProps {
   event: EventCardData;
   onApplyPress?: (eventId: string) => void;
+  applied?: boolean;
+  applying?: boolean;
 }
 
-export function EventCard({ event, onApplyPress }: EventCardProps) {
+export function EventCard({ event, onApplyPress, applied = false, applying = false }: EventCardProps) {
   const seatsLeft = event.seatsTotal - event.seatsTaken;
   const isFull = seatsLeft <= 0;
+  const isDisabled = isFull || applied || applying;
   const categoryLabel = event.trainingType?.name ?? event.category?.name;
   const categoryEmoji = event.trainingType?.emoji ?? event.category?.emoji;
 
@@ -82,13 +85,13 @@ export function EventCard({ event, onApplyPress }: EventCardProps) {
         </span>
         <button
           onClick={() => onApplyPress?.(event.id)}
-          disabled={isFull}
+          disabled={isDisabled}
           className={clsx(
             "rounded-pill px-5 py-2 text-sm font-semibold",
-            isFull ? "bg-ink-400/10 text-ink-400" : "bg-accent text-white active:scale-95"
+            isDisabled ? "bg-ink-400/10 text-ink-400" : "bg-accent text-white active:scale-95"
           )}
         >
-          Хочу пойти
+          {applied ? "Отклик отправлен" : applying ? "Отправляем..." : "Хочу пойти"}
         </button>
       </div>
     </div>

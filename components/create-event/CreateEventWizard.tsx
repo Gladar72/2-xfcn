@@ -123,7 +123,7 @@ export function CreateEventWizard() {
         return;
       }
 
-      router.push("/feed");
+      router.push(`/events/${data.eventId}/applications`);
     } catch {
       setError("Проблема с соединением.");
       setSubmitting(false);

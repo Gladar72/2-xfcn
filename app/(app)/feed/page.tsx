@@ -45,6 +45,9 @@ function FeedPageContent() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
+  const [applyingEventId, setApplyingEventId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -92,6 +95,38 @@ function FeedPageContent() {
     }
   }
 
+  async function handleApply(eventId: string) {
+    if (appliedEventIds.has(eventId) || applyingEventId) return;
+    setApplyingEventId(eventId);
+    try {
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        setAppliedEventIds((prev) => new Set(prev).add(eventId));
+        setToast("Отклик отправлен! Организатор скоро ответит.");
+      } else if (data.error === "already_applied") {
+        setAppliedEventIds((prev) => new Set(prev).add(eventId));
+        setToast("Ты уже откликался на эту встречу.");
+      } else if (data.error === "event_full") {
+        setToast("Мест уже не осталось.");
+      } else if (data.error === "cannot_apply_to_own_event") {
+        setToast("Это твоя встреча — не нужно откликаться на неё самому.");
+      } else {
+        setToast("Не получилось отправить отклик.");
+      }
+    } catch {
+      setToast("Проблема с соединением.");
+    } finally {
+      setApplyingEventId(null);
+      setTimeout(() => setToast(null), 3000);
+    }
+  }
+
   return (
     <div>
       <TopBar city="Тюмень" />
@@ -125,9 +160,9 @@ function FeedPageContent() {
           <EventCard
             key={event.id}
             event={event}
-            onApplyPress={() => {
-              /* Создание отклика — Этап 9 */
-            }}
+            applied={appliedEventIds.has(event.id)}
+            applying={applyingEventId === event.id}
+            onApplyPress={handleApply}
           />
         ))}
 
@@ -143,6 +178,12 @@ function FeedPageContent() {
         trainingTypes={trainingTypes}
         onClose={() => setSheetOpen(false)}
       />
+
+      {toast && (
+        <div className="fixed inset-x-5 bottom-24 z-50 rounded-card bg-ink-900 px-4 py-3 text-center text-sm text-white shadow-card">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
