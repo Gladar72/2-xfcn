@@ -19,8 +19,7 @@
 - ✅ SQL-миграция: доверие и безопасность (reviews, reports, blocks, notifications)
 - ✅ RLS policies для всех таблиц из п.24 ТЗ
 - ✅ Seed категорий и типов тренировок
-- ⬜ Реально накатить миграции в твою Supabase (нужны твои ключи или доступ к SQL Editor)
-- ⬜ От тебя: создать проект в Supabase и прислать URL + anon key + service role key + JWT secret
+- ✅ Реально накатить миграции в твою Supabase — **выполнено 13.09, подтверждено напрямую SQL-запросом**: 20 таблиц, 34 RLS-политики, bucket `avatars`, 7 категорий, 8 типов тренировок, 15 интересов.
 
 ## Этап 3 — Telegram аутентификация
 - ✅ `lib/telegram/validate-init-data.ts` — проверка подписи initData (HMAC-SHA256 по алгоритму Telegram)
