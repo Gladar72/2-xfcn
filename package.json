@@ -21,6 +21,7 @@
     "@supabase/ssr": "0.5.1",
     "@telegram-apps/sdk": "2.5.0",
     "grammy": "1.28.0",
+    "jsonwebtoken": "9.0.2",
     "zod": "3.23.8",
     "date-fns": "3.6.0",
     "clsx": "2.1.1"
@@ -30,6 +31,7 @@
     "@types/node": "20.14.15",
     "@types/react": "18.3.3",
     "@types/react-dom": "18.3.0",
+    "@types/jsonwebtoken": "9.0.7",
     "tailwindcss": "3.4.10",
     "postcss": "8.4.41",
     "autoprefixer": "10.4.20",

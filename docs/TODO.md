@@ -23,11 +23,12 @@
 - ⬜ От тебя: создать проект в Supabase и прислать URL + anon key + service role key + JWT secret
 
 ## Этап 3 — Telegram аутентификация
-- ⬜ `lib/telegram/validate-init-data.ts` — проверка подписи initData
-- ⬜ `/api/auth` route
-- ⬜ Сессия/cookie слой
-- ⬜ Тест на валидацию initData (валидные/невалидные данные)
-- ⬜ От тебя: TELEGRAM_BOT_TOKEN из @BotFather
+- ✅ `lib/telegram/validate-init-data.ts` — проверка подписи initData (HMAC-SHA256 по алгоритму Telegram)
+- ✅ `/api/auth` route — проверка initData → поиск/создание пользователя → выдача сессии
+- ✅ Сессия: `lib/telegram/session.ts` (свой JWT, совместимый с Supabase auth.uid()) + httpOnly cookie
+- ✅ `lib/supabase/admin.ts` (service_role, только сервер) и `lib/supabase/server.ts` (от имени пользователя, через RLS)
+- ✅ Тесты на валидацию initData (5 сценариев) — логика вручную прогнана на чистом Node, все прошли
+- ⬜ От тебя: TELEGRAM_BOT_TOKEN из @BotFather (нужен для реального теста на живом боте)
 
 ## Этап 4 — Регистрация
 - ⬜ Экран онбординга (фото, имя, дата рождения, город, bio, интересы)
