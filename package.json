@@ -1,0 +1,45 @@
+{
+  "name": "meetup-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "migrate": "supabase db push",
+    "bot:set-webhook": "tsx scripts/set-telegram-webhook.ts"
+  },
+  "dependencies": {
+    "next": "14.2.15",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "@supabase/supabase-js": "2.45.4",
+    "@supabase/ssr": "0.5.1",
+    "@telegram-apps/sdk": "2.5.0",
+    "grammy": "1.28.0",
+    "zod": "3.23.8",
+    "date-fns": "3.6.0",
+    "clsx": "2.1.1"
+  },
+  "devDependencies": {
+    "typescript": "5.5.4",
+    "@types/node": "20.14.15",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0",
+    "tailwindcss": "3.4.10",
+    "postcss": "8.4.41",
+    "autoprefixer": "10.4.20",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.15",
+    "vitest": "2.0.5",
+    "tsx": "4.16.5",
+    "supabase": "1.191.3"
+  },
+  "engines": {
+    "node": ">=18.18.0"
+  }
+}
