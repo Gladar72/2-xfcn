@@ -12,13 +12,15 @@
 - ⬜ От тебя: создать пустой репозиторий на GitHub и прислать мне URL (или сказать, что сам запушишь)
 
 ## Этап 2 — Supabase schema + миграции
-- ⬜ SQL-миграция: базовые таблицы (users, categories, training_types, interests, user_interests, user_photos)
-- ⬜ SQL-миграция: события (events, event_members, applications)
-- ⬜ SQL-миграция: чаты (conversations, conversation_members, messages)
-- ⬜ SQL-миграция: монетизация (subscriptions, subscription_usage, boosts, payments)
-- ⬜ SQL-миграция: доверие и безопасность (reviews, reports, blocks, notifications)
-- ⬜ RLS policies для всех таблиц из п.24 ТЗ
-- ⬜ От тебя: создать проект в Supabase и прислать URL + anon key + service role key
+- ✅ SQL-миграция: базовые таблицы (users, categories, training_types, interests, user_interests, user_photos)
+- ✅ SQL-миграция: события (events, event_members, applications)
+- ✅ SQL-миграция: чаты (conversations, conversation_members, messages)
+- ✅ SQL-миграция: монетизация (subscriptions, subscription_usage, boosts, payments)
+- ✅ SQL-миграция: доверие и безопасность (reviews, reports, blocks, notifications)
+- ✅ RLS policies для всех таблиц из п.24 ТЗ
+- ✅ Seed категорий и типов тренировок
+- ⬜ Реально накатить миграции в твою Supabase (нужны твои ключи или доступ к SQL Editor)
+- ⬜ От тебя: создать проект в Supabase и прислать URL + anon key + service role key + JWT secret
 
 ## Этап 3 — Telegram аутентификация
 - ⬜ `lib/telegram/validate-init-data.ts` — проверка подписи initData

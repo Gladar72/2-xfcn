@@ -50,9 +50,17 @@ npm run dev
 
 ## Supabase — настройка
 
-_Будет дополнено на Этапе 2 (миграции)._ Кратко: создать проект в Supabase,
-скопировать `Project URL`, `anon key`, `service_role key` в `.env.local`,
-затем накатить миграции из `supabase/migrations`.
+1. Создать проект на supabase.com.
+2. Скопировать `Project URL`, `anon key`, `service_role key` и `JWT Secret`
+   (Project Settings → API) в `.env.local`.
+3. Накатить миграции — самый простой способ без установки CLI:
+   - Открыть в Supabase раздел **SQL Editor**.
+   - Скопировать содержимое файлов из `supabase/migrations/` **по порядку номеров**
+     (0001, 0002, 0003 …) и выполнить каждый файл отдельным запросом.
+   - Либо, если установлен Supabase CLI: `supabase link` → `supabase db push`.
+4. Проверить в разделе **Table Editor**, что появились все таблицы
+   (users, events, applications, conversations, messages, subscriptions и т.д.)
+   и что в `categories`/`training_types` есть строки (seed из 0009-миграции).
 
 ## Telegram Bot — настройка
 
