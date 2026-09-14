@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Button } from "@/components/ui/Button";
 import { type Plan } from "@/lib/subscriptions/limits";
 
 interface Profile {
@@ -162,21 +161,33 @@ export default function ProfilePage() {
           href="/subscriptions"
           className="mb-6 flex items-center justify-between rounded-card-lg bg-ink-900 p-5 text-white shadow-card-lg"
         >
-          <div>
-            <span className="text-lg font-bold">{PLAN_TITLES[subscription.plan!]}</span>
-            <p className="text-sm text-white/70">
-              до {new Date(subscription.periodEnd!).toLocaleDateString("ru-RU")}
-            </p>
+          <div className="flex items-center gap-3">
+            <div className="relative h-12 w-16 shrink-0">
+              <Image src="/brand/3d/subscription-coins.png" alt="" fill className="object-contain" sizes="64px" />
+            </div>
+            <div>
+              <span className="text-lg font-bold">{PLAN_TITLES[subscription.plan!]}</span>
+              <p className="text-sm text-white/70">
+                до {new Date(subscription.periodEnd!).toLocaleDateString("ru-RU")}
+              </p>
+            </div>
           </div>
           <span className="text-white/70">→</span>
         </Link>
       ) : (
-        <div className="mb-6 rounded-card bg-white p-5 text-center shadow-card">
-          <p className="mb-3 text-sm text-ink-600">Подписки пока нет — она нужна для создания встреч.</p>
-          <Link href="/subscriptions">
-            <Button className="w-auto px-6">Оформить подписку</Button>
-          </Link>
-        </div>
+        <Link
+          href="/subscriptions"
+          className="mb-6 flex items-center gap-3 rounded-card-lg bg-white p-5 shadow-card-lg"
+        >
+          <div className="relative h-12 w-16 shrink-0">
+            <Image src="/brand/3d/subscription-coins.png" alt="" fill className="object-contain" sizes="64px" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-ink-900">Оформить подписку</p>
+            <p className="text-xs text-ink-600">Нужна для создания встреч</p>
+          </div>
+          <span className="ml-auto text-accent">→</span>
+        </Link>
       )}
 
       <Link

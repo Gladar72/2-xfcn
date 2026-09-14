@@ -26,8 +26,16 @@ const CANDIDATE_POOL_SIZE = 150;
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const categorySlug = searchParams.get("category");
+  const categorySlugsParam = searchParams.get("categories"); // новое: несколько категорий через запятую (экран поиска)
   const typeSlug = searchParams.get("type");
   const page = Math.max(0, Number(searchParams.get("page") ?? 0) || 0);
+  // Новые фильтры экрана поиска (п. запроса пользователя) — все опциональны,
+  // лента (feed) их не передаёт и продолжает работать как раньше.
+  const dateFilter = searchParams.get("date"); // 'today' | 'tomorrow' | 'weekend' | 'any' | 'YYYY-MM-DD'
+  const timeOfDay = searchParams.get("timeOfDay"); // 'morning' | 'day' | 'evening' | 'any'
+  const costTypeParam = searchParams.get("costType"); // одно значение cost_type или 'any'
+  const ageMin = searchParams.get("ageMin") ? Number(searchParams.get("ageMin")) : null;
+  const ageMax = searchParams.get("ageMax") ? Number(searchParams.get("ageMax")) : null;
 
   const currentUser = await getCurrentUser();
   const admin = createAdminClient();
@@ -73,7 +81,7 @@ export async function GET(req: NextRequest) {
     .select(
       `
       id, title, description, city, latitude, longitude, place_name, address,
-      event_date, event_time, seats_total, seats_taken, boosted_at, created_at,
+      event_date, event_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
       category:categories(slug, name, emoji),
       training_type:training_types(slug, name, emoji),
       organizer:users(id, name, avatar_url, birth_date, rating_avg, completed_meetings_count)
@@ -85,7 +93,14 @@ export async function GET(req: NextRequest) {
     .order("event_date", { ascending: true })
     .limit(CANDIDATE_POOL_SIZE);
 
-  if (categorySlug) {
+  if (categorySlugsParam) {
+    const slugs = categorySlugsParam.split(",").map((s) => s.trim()).filter(Boolean);
+    if (slugs.length > 0) {
+      const { data: categoryRows } = await admin.from("categories").select("id").in("slug", slugs);
+      const ids = (categoryRows ?? []).map((c) => c.id);
+      if (ids.length > 0) query = query.in("category_id", ids);
+    }
+  } else if (categorySlug) {
     const { data: category } = await admin
       .from("categories")
       .select("id")
@@ -103,14 +118,55 @@ export async function GET(req: NextRequest) {
     if (trainingType) query = query.eq("training_type_id", trainingType.id);
   }
 
+  if (costTypeParam && costTypeParam !== "any") {
+    query = query.eq("cost_type", costTypeParam);
+  }
+
+  // Дата: конкретный день, либо "выходные" (ближайшие сб/вс от сегодня).
+  if (dateFilter === "today") {
+    query = query.eq("event_date", todayIso);
+  } else if (dateFilter === "tomorrow") {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    query = query.eq("event_date", tomorrow.toISOString().slice(0, 10));
+  } else if (dateFilter === "weekend") {
+    const { from, to } = getUpcomingWeekendRange();
+    query = query.gte("event_date", from).lte("event_date", to);
+  } else if (dateFilter && dateFilter !== "any" && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
+    query = query.eq("event_date", dateFilter);
+  }
+
+  // Время суток: утро/день/вечер по времени начала встречи.
+  if (timeOfDay === "morning") {
+    query = query.gte("event_time", "05:00:00").lt("event_time", "12:00:00");
+  } else if (timeOfDay === "day") {
+    query = query.gte("event_time", "12:00:00").lt("event_time", "18:00:00");
+  } else if (timeOfDay === "evening") {
+    query = query.gte("event_time", "18:00:00").lt("event_time", "23:59:59");
+  }
+
   const { data: rows, error } = await query;
   if (error) {
+    console.error("GET /api/events — ошибка запроса к Supabase:", error);
     return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
   }
 
-  const visibleRows = (rows ?? []).filter(
+  let visibleRows = (rows ?? []).filter(
     (row) => !blockedOrganizerIds.includes((row.organizer as unknown as { id: string } | null)?.id ?? "")
   );
+
+  // Возраст организатора — фильтруется на нашей стороне (не в SQL), т.к.
+  // считается из birth_date, а кандидатов и так не более CANDIDATE_POOL_SIZE.
+  if (ageMin !== null || ageMax !== null) {
+    visibleRows = visibleRows.filter((row) => {
+      const organizer = row.organizer as unknown as { birth_date: string } | null;
+      if (!organizer) return false;
+      const age = calculateAge(organizer.birth_date);
+      if (ageMin !== null && age < ageMin) return false;
+      if (ageMax !== null && age > ageMax) return false;
+      return true;
+    });
+  }
 
   // Подтягиваем активные подписки организаторов одним запросом — для planCoefficient в ranking.
   const organizerIds = Array.from(
@@ -184,6 +240,7 @@ export async function GET(req: NextRequest) {
       eventTime: _row.event_time,
       seatsTotal: _row.seats_total,
       seatsTaken: _row.seats_taken,
+      costType: _row.cost_type,
       organizer: organizer
         ? {
             id: organizer.id,
@@ -213,6 +270,24 @@ function calculateAge(birthDateIso: string): number {
     age--;
   }
   return age;
+}
+
+/** Диапазон ближайших выходных: если сегодня сб/вс — начиная с сегодня, иначе следующие сб-вс. */
+function getUpcomingWeekendRange(): { from: string; to: string } {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = вс, 6 = сб
+
+  if (dayOfWeek === 0) {
+    const iso = today.toISOString().slice(0, 10);
+    return { from: iso, to: iso };
+  }
+
+  const daysUntilSaturday = dayOfWeek === 6 ? 0 : 6 - dayOfWeek;
+  const saturday = new Date(today);
+  saturday.setDate(today.getDate() + daysUntilSaturday);
+  const sunday = new Date(saturday);
+  sunday.setDate(saturday.getDate() + 1);
+  return { from: saturday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) };
 }
 
 /**
@@ -311,6 +386,7 @@ export async function POST(req: NextRequest) {
       event_time: input.eventTime,
       seats_total: input.seatsTotal,
       seats_taken: 0,
+      cost_type: input.costType,
       status: "published",
     })
     .select("id")

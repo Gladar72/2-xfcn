@@ -17,6 +17,7 @@ interface EventDetails {
   eventTime: string;
   seatsTotal: number;
   seatsTaken: number;
+  status: string;
   organizer: {
     id: string;
     name: string;
@@ -53,6 +54,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   useEffect(() => {
     fetch(`/api/events/${eventId}`)
@@ -89,6 +92,25 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
       setEvent((prev) => (prev ? { ...prev, viewerStatus: "pending" } : prev));
     } finally {
       setApplying(false);
+    }
+  }
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+      if (res.ok) {
+        setEvent((prev) => (prev ? { ...prev, status: "cancelled" } : prev));
+        setConfirmingCancel(false);
+      } else {
+        setError("Не получилось отменить встречу.");
+      }
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -200,17 +222,57 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         )}
 
         {error && <p className="mb-3 text-center text-sm text-red-600">{error}</p>}
+
+        {event.status === "cancelled" && (
+          <div className="mb-3 rounded-card bg-red-50 p-4 text-center text-sm text-red-600">
+            Эта встреча отменена организатором.
+          </div>
+        )}
+
+        {event.viewerStatus === "organizer" && event.status === "published" && (
+          <div className="mb-3">
+            {!confirmingCancel ? (
+              <button
+                onClick={() => setConfirmingCancel(true)}
+                className="w-full text-center text-sm font-medium text-red-600"
+              >
+                Отменить встречу
+              </button>
+            ) : (
+              <div className="rounded-card bg-red-50 p-4 text-center">
+                <p className="mb-3 text-sm text-ink-900">Точно отменить встречу? Лимит тарифа вернётся.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmingCancel(false)}
+                    className="flex-1 rounded-pill bg-white py-2.5 text-sm font-medium text-ink-600 shadow-card"
+                  >
+                    Не отменять
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                    className="flex-1 rounded-pill bg-red-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {cancelling ? "Отменяем..." : "Да, отменить"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="fixed inset-x-0 bottom-24 z-40 px-5">
-        <BottomAction
-          viewerStatus={event.viewerStatus}
-          isFull={isFull}
-          applying={applying}
-          onApply={handleApply}
-          eventId={event.id}
-        />
-      </div>
+      {event.status === "published" && (
+        <div className="fixed inset-x-0 bottom-24 z-40 px-5">
+          <BottomAction
+            viewerStatus={event.viewerStatus}
+            isFull={isFull}
+            applying={applying}
+            onApply={handleApply}
+            eventId={event.id}
+          />
+        </div>
+      )}
     </div>
   );
 }

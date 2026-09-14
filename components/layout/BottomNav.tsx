@@ -5,11 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 
-// Финальная навигация МЕСТО (см. бриф п.16-19): центральный "+" убран,
-// вместо него — фирменные 3D-монеты, ведущие на экран тарифов/подписки.
-// Создание встречи теперь отдельная CTA на главном экране (п.27), а не
-// кнопка в навигации. Иконки — SVG с отдельными default/active файлами
-// (currentColor не работает при подключении через <img>/next/image).
+// Финальная навигация МЕСТО: по центру — переход к полному списку встреч
+// с фильтрами (раньше здесь были монеты подписки; монеты переехали в
+// профиль — см. app/(app)/profile/page.tsx, карточка "Мой пакет").
 const TABS = [
   { href: "/feed", label: "Главная", icon: "nav-home" },
   { href: "/map", label: "Карта", icon: "nav-map" },
@@ -29,13 +27,27 @@ export function BottomNav() {
         ))}
 
         <Link
-          href="/subscriptions"
-          aria-label="Тарифы и подписка"
-          className="-mt-7 flex flex-col items-center active:scale-95"
+          href="/search"
+          aria-label="Поиск встреч"
+          className="-mt-5 flex flex-col items-center gap-1 active:scale-95"
         >
-          <div className="relative h-14 w-16 drop-shadow-[0_8px_16px_rgba(255,138,42,0.35)]">
-            <Image src="/brand/3d/subscription-coins.png" alt="" fill className="object-contain" sizes="64px" />
+          <div
+            className={clsx(
+              "flex h-12 w-12 items-center justify-center rounded-full shadow-cta",
+              pathname === "/search" ? "bg-brand-gradient" : "bg-ink-900"
+            )}
+          >
+            <Image
+              src="/brand/icons/location.svg"
+              alt=""
+              width={22}
+              height={22}
+              style={{ filter: "brightness(0) invert(1)" }}
+            />
           </div>
+          <span className={clsx("text-xs", pathname === "/search" ? "text-accent font-medium" : "text-ink-400")}>
+            Встречи
+          </span>
         </Link>
 
         {right.map((tab) => (

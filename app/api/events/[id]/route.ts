@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
+import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
 
 /**
  * GET /api/events/[id]
@@ -103,4 +104,54 @@ function calculateAge(birthDateIso: string): number {
   const monthDiff = now.getMonth() - birthDate.getMonth();
   if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) age--;
   return age;
+}
+
+/**
+ * PATCH /api/events/[id]
+ * Body: { action: "cancel" }
+ *
+ * Отмена своей встречи организатором. По запросу пользователя: "при отмене
+ * встреча не списывается с баланса" — возвращаем счётчик "создано встреч за
+ * период" назад (best-effort: против ТЕКУЩЕЙ активной подписки организатора,
+ * а не обязательно той же, что была на момент создания — в подавляющем
+ * большинстве случаев это один и тот же период).
+ */
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  const { id: eventId } = params;
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  if (body?.action !== "cancel") {
+    return NextResponse.json({ error: "unknown_action" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+
+  const { data: event } = await admin
+    .from("events")
+    .select("id, organizer_id, status")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (!event) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (event.organizer_id !== currentUser.userId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  if (event.status !== "published") {
+    return NextResponse.json({ error: "cannot_cancel" }, { status: 422 });
+  }
+
+  await admin.from("events").update({ status: "cancelled" }).eq("id", eventId);
+
+  const subscriptionInfo = await getActiveSubscriptionInfo(admin, currentUser.userId);
+  if (subscriptionInfo) {
+    await admin.rpc("decrement_subscription_usage_field", {
+      p_subscription_id: subscriptionInfo.subscriptionId,
+      p_period_start: subscriptionInfo.currentPeriodStart,
+      p_field: "events_created_count",
+    });
+  }
+
+  return NextResponse.json({ status: "cancelled" });
 }

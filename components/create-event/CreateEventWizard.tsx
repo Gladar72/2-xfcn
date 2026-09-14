@@ -21,7 +21,7 @@ interface TrainingType {
   emoji: string | null;
 }
 
-type Step = "category" | "trainingType" | "where" | "when" | "time" | "seats" | "details" | "review";
+type Step = "category" | "trainingType" | "where" | "when" | "time" | "seats" | "cost" | "details" | "review";
 
 const DATE_PRESETS = [
   { label: "Сегодня", offsetDays: 0 },
@@ -69,6 +69,7 @@ export function CreateEventWizard() {
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
   const [seatsTotal, setSeatsTotal] = useState(4);
+  const [costType, setCostType] = useState<"each_pays" | "organizer_treats" | "free" | "negotiable">("each_pays");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
@@ -82,8 +83,8 @@ export function CreateEventWizard() {
   }, []);
 
   const steps: Step[] = categorySlug === "training"
-    ? ["category", "trainingType", "where", "when", "time", "seats", "details", "review"]
-    : ["category", "where", "when", "time", "seats", "details", "review"];
+    ? ["category", "trainingType", "where", "when", "time", "seats", "cost", "details", "review"]
+    : ["category", "where", "when", "time", "seats", "cost", "details", "review"];
 
   const step = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
@@ -128,6 +129,7 @@ export function CreateEventWizard() {
           eventDate,
           eventTime,
           seatsTotal,
+          costType,
           title,
           description,
         }),
@@ -159,10 +161,11 @@ export function CreateEventWizard() {
   const canGoNext =
     (step === "category" && categorySlug !== null) ||
     (step === "trainingType" && trainingTypeSlug !== null) ||
-    (step === "where" && placeName.trim().length >= 2) ||
+    (step === "where" && placeName.trim().length >= 2 && latitude !== undefined && longitude !== undefined) ||
     (step === "when" && eventDate.length > 0) ||
     (step === "time" && eventTime.length > 0) ||
     (step === "seats" && seatsTotal >= 1) ||
+    step === "cost" ||
     (step === "details" && title.trim().length >= 3);
 
   return (
@@ -243,6 +246,11 @@ export function CreateEventWizard() {
               setLatitude(latitude);
               setLongitude(longitude);
             }} />
+            {placeName.trim().length >= 2 && latitude === undefined && (
+              <p className="mt-2 shrink-0 text-center text-xs font-medium text-accent">
+                Отметь точку на карте, чтобы продолжить
+              </p>
+            )}
           </StepBlock>
         )}
 
@@ -300,6 +308,31 @@ export function CreateEventWizard() {
           </StepBlock>
         )}
 
+        {step === "cost" && (
+          <StepBlock title="Как насчёт расходов?">
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  ["each_pays", "Каждый за себя"],
+                  ["organizer_treats", "Автор угощает"],
+                  ["free", "Без расходов"],
+                  ["negotiable", "По договорённости"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setCostType(value)}
+                  className={`rounded-card p-4 text-left text-sm font-medium transition ${
+                    costType === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </StepBlock>
+        )}
+
         {step === "details" && (
           <StepBlock title="Название и описание">
             <input
@@ -329,6 +362,14 @@ export function CreateEventWizard() {
               <ReviewRow label="Дата" value={eventDate} />
               <ReviewRow label="Время" value={eventTime} />
               <ReviewRow label="Участников" value={String(seatsTotal)} />
+              <ReviewRow
+                label="Расходы"
+                value={
+                  { each_pays: "Каждый за себя", organizer_treats: "Автор угощает", free: "Без расходов", negotiable: "По договорённости" }[
+                    costType
+                  ]
+                }
+              />
               {description && <ReviewRow label="Описание" value={description} />}
             </div>
           </StepBlock>

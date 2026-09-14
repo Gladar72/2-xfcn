@@ -16,6 +16,8 @@ export const createEventSchema = z.object({
 
   seatsTotal: z.number().int().min(1, "Минимум 1 участник").max(30, "Максимум 30 участников"),
 
+  costType: z.enum(["each_pays", "organizer_treats", "free", "negotiable"]).default("each_pays"),
+
   title: z.string().trim().min(3, "Слишком коротко").max(100),
   description: z.string().trim().max(500).optional().default(""),
 });
