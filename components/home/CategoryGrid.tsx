@@ -68,13 +68,16 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
 
       {customCategory && (
         <button
-          onClick={() => router.push("/create?category=custom")}
+          onClick={() => router.push("/create")}
           className="mt-3 flex w-full items-center gap-3 rounded-card bg-brand-gradient p-4 text-left shadow-card"
         >
           <div className="relative h-9 w-9 shrink-0">
             <Image src="/brand/categories/custom-proposal.png" alt="" fill className="object-contain" sizes="36px" />
           </div>
-          <span className="text-sm font-semibold text-white">{customCategory.name}</span>
+          <div>
+            <span className="block text-sm font-semibold text-white">{customCategory.name}</span>
+            <span className="block text-xs text-white/80">Создай свою встречу</span>
+          </div>
         </button>
       )}
     </div>
