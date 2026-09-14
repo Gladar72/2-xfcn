@@ -15,9 +15,9 @@ interface SubscriptionStatus {
 
 const PLAN_TITLES: Record<Plan, string> = { start: "Старт", medium: "Медиум", premium: "Премьер" };
 const PLAN_ICON: Record<Plan, string> = {
-  start: "/brand/subscription/plan-start-rocket.png",
-  medium: "/brand/subscription/plan-medium-crown.png",
-  premium: "/brand/subscription/plan-premier-diamond.png",
+  start: "/brand/3d/plan-start.png",
+  medium: "/brand/3d/plan-medium.png",
+  premium: "/brand/3d/plan-premier.png",
 };
 
 /**

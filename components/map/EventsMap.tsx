@@ -22,17 +22,20 @@ interface EventsMapProps {
 
 const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень, запасной центр
 
-// Соответствие slug категории (см. supabase/migrations/0003_categories.sql) фирменным 3D-маркерам МЕСТО.
+// Новые SVG-маркеры (viewBox 256×288, "кончик" пина на y≈269/288 — см.
+// CLAUDE_INTEGRATION.md из пакета ассетов). Соответствие slug категории
+// (см. supabase/migrations/0003_categories.sql) маркерам МЕСТО.
 const MARKER_BY_SLUG: Record<string, string> = {
-  training: "/brand/markers/marker-workout.png",
-  cinema: "/brand/markers/marker-movie.png",
-  coffee: "/brand/markers/marker-coffee.png",
-  breakfast: "/brand/markers/marker-breakfast.png",
-  dinner: "/brand/markers/marker-dinner.png",
-  walk: "/brand/markers/marker-walk.png",
-  custom: "/brand/markers/marker-custom.png",
+  training: "/brand/markers/marker-workout.svg",
+  cinema: "/brand/markers/marker-movie.svg",
+  coffee: "/brand/markers/marker-coffee.svg",
+  breakfast: "/brand/markers/marker-breakfast.svg",
+  dinner: "/brand/markers/marker-dinner.svg",
+  walk: "/brand/markers/marker-walk.svg",
+  custom: "/brand/markers/marker-custom.svg",
 };
-const FALLBACK_MARKER = "/brand/markers/marker-custom.png";
+const FALLBACK_MARKER = "/brand/markers/marker-custom.svg";
+const MARKER_ASPECT = 288 / 256; // высота/ширина viewBox маркера
 
 export function EventsMap({ events, onSelect }: EventsMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -87,9 +90,11 @@ export function EventsMap({ events, onSelect }: EventsMapProps) {
       function markerRenderer(feature: (typeof features)[number]) {
         const el = document.createElement("div");
         const src = MARKER_BY_SLUG[feature.properties.event.category?.slug ?? ""] ?? FALLBACK_MARKER;
+        const width = 40;
+        const height = Math.round(width * MARKER_ASPECT);
         el.style.cssText =
-          "display:flex;align-items:flex-end;justify-content:center;width:44px;height:56px;cursor:pointer;transition:transform 200ms ease;transform-origin:bottom center;";
-        el.innerHTML = `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.25));" />`;
+          `position:relative;width:${width}px;height:${height}px;cursor:pointer;transition:transform 200ms ease;transform-origin:bottom center;`;
+        el.innerHTML = `<img src="${src}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.25));" />`;
         el.addEventListener("click", () => onSelectRef.current([feature.properties.event]));
         return new YMapMarker({ coordinates: feature.geometry.coordinates, source: "events-source" }, el);
       }
@@ -98,12 +103,20 @@ export function EventsMap({ events, onSelect }: EventsMapProps) {
         coordinates: [number, number],
         clusterFeatures: typeof features
       ) {
-        // Белый круглый бейдж с мягкой тенью (см. бриф п.35) — не фирменный цвет,
-        // чтобы не спорить визуально с самими маркерами.
+        // Контейнер кластера из нового пакета ассетов + настоящее число поверх
+        // (см. CLAUDE_INTEGRATION.md п.9 — рендерить число отдельным слоем, а не
+        // вписывать в саму картинку).
+        const width = 40;
+        const height = Math.round(width * MARKER_ASPECT);
         const el = document.createElement("div");
-        el.style.cssText =
-          "display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:999px;background:#FFFFFF;color:#111111;font-weight:700;font-size:15px;box-shadow:0 6px 16px rgba(90,65,150,0.18);cursor:pointer;";
-        el.textContent = String(clusterFeatures.length);
+        el.style.cssText = `position:relative;width:${width}px;height:${height}px;cursor:pointer;`;
+        el.innerHTML = `
+          <img src="/brand/markers/marker-cluster.svg" alt="" width="${width}" height="${height}"
+            style="display:block;width:100%;height:100%;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.25));" />
+          <span style="position:absolute;left:0;top:0;width:100%;height:${Math.round(width * 0.85)}px;
+            display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:14px;">
+            ${clusterFeatures.length}
+          </span>`;
         el.addEventListener("click", () =>
           onSelectRef.current(clusterFeatures.map((f) => f.properties.event))
         );

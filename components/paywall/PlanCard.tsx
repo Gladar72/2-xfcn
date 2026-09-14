@@ -26,21 +26,21 @@ const PLAN_VISUALS: Record<
   { icon: string; cardClass: string; titleClass: string; textClass: string; buttonVariant: "primary" | "secondary" }
 > = {
   start: {
-    icon: "/brand/subscription/plan-start-rocket.png",
+    icon: "/brand/3d/plan-start.png",
     cardClass: "bg-white border border-lavender-200",
     titleClass: "text-ink-900",
     textClass: "text-ink-600",
     buttonVariant: "secondary",
   },
   medium: {
-    icon: "/brand/subscription/plan-medium-crown.png",
+    icon: "/brand/3d/plan-medium.png",
     cardClass: "bg-brand-gradient",
     titleClass: "text-white",
     textClass: "text-white/80",
     buttonVariant: "primary",
   },
   premium: {
-    icon: "/brand/subscription/plan-premier-diamond.png",
+    icon: "/brand/3d/plan-premier.png",
     cardClass: "bg-ink-900",
     titleClass: "text-white",
     textClass: "text-white/70",

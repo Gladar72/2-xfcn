@@ -15,15 +15,15 @@ interface CategoryGridProps {
   onTrainingPress: () => void;
 }
 
-// 3D-иконки категорий МЕСТО (см. бриф п.9). emoji остаётся как запасной
-// вариант, если у какой-то категории вдруг не найдётся своей иконки.
+// 3D-иконки категорий МЕСТО (новый комплект ассетов, см. бриф). emoji остаётся
+// как запасной вариант, если у какой-то категории вдруг не найдётся своей иконки.
 const CATEGORY_ICON: Record<string, string> = {
-  training: "/brand/categories/workout.png",
-  cinema: "/brand/categories/movie.png",
-  coffee: "/brand/categories/coffee.png",
-  breakfast: "/brand/categories/breakfast.png",
-  dinner: "/brand/categories/dinner.png",
-  walk: "/brand/categories/walk.png",
+  training: "/brand/3d/workout.png",
+  cinema: "/brand/3d/movie.png",
+  coffee: "/brand/3d/coffee.png",
+  breakfast: "/brand/3d/breakfast.png",
+  dinner: "/brand/3d/dinner.png",
+  walk: "/brand/3d/walk.png",
 };
 
 export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps) {
@@ -72,7 +72,7 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
           className="mt-3 flex w-full items-center gap-3 rounded-card bg-brand-gradient p-4 text-left shadow-card"
         >
           <div className="relative h-9 w-9 shrink-0">
-            <Image src="/brand/categories/custom-proposal.png" alt="" fill className="object-contain" sizes="36px" />
+            <Image src="/brand/3d/custom-proposal.png" alt="" fill className="object-contain" sizes="36px" />
           </div>
           <div>
             <span className="block text-sm font-semibold text-white">{customCategory.name}</span>

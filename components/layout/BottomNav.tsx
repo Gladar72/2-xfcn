@@ -33,7 +33,7 @@ export function BottomNav() {
           className="-mt-7 flex flex-col items-center active:scale-95"
         >
           <div className="relative h-14 w-16 drop-shadow-[0_8px_16px_rgba(255,138,42,0.35)]">
-            <Image src="/brand/subscription/subscription-coins.png" alt="" fill className="object-contain" sizes="64px" />
+            <Image src="/brand/3d/subscription-coins.png" alt="" fill className="object-contain" sizes="64px" />
           </div>
         </Link>
 

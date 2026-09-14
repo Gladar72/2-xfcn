@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Onest } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-// Onest — основной фирменный шрифт МЕСТО (см. MESTO_FINAL_assets/README_FINAL.md).
-// Подключаем штатным способом через next/font — без коммита файлов шрифта.
-// Кириллица обязательна: весь интерфейс на русском.
-const onest = Onest({
-  subsets: ["latin", "cyrillic"],
+// Onest — подлинный вариативный файл шрифта из пакета ассетов (не Google Fonts CDN):
+// полностью локально, без внешних сетевых запросов, с поддержкой кириллицы.
+const onest = localFont({
+  src: "../public/brand/fonts/Onest-Variable.ttf",
   variable: "--font-onest",
   display: "swap",
+  weight: "100 900",
 });
 
 export const metadata: Metadata = {
