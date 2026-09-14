@@ -1,14 +1,17 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ApplicantCard, type ApplicantCardData } from "@/components/applications/ApplicantCard";
 
 interface EventApplicationsPageProps {
-  params: Promise<{ id: string }>;
+  // См. пояснение в app/chats/[id]/page.tsx — params здесь плоский объект
+  // (Next.js 14), а не Promise (Next.js 15). use(params) реально ронял
+  // страницу с "client-side exception" сразу после первого создания встречи.
+  params: { id: string };
 }
 
 export default function EventApplicationsPage({ params }: EventApplicationsPageProps) {
-  const { id: eventId } = use(params);
+  const { id: eventId } = params;
 
   const [eventTitle, setEventTitle] = useState("");
   const [seats, setSeats] = useState<{ total: number; taken: number } | null>(null);
