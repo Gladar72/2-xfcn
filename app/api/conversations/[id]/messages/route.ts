@@ -80,5 +80,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     p_exclude_user_id: currentUser.userId,
   });
 
+  // Уведомляем остальных участников диалога о новом сообщении (кроме
+  // отправителя) — иначе у людей нет способа узнать о непрочитанном,
+  // кроме как самим зайти в чат.
+  const { data: otherMembers } = await admin
+    .from("conversation_members")
+    .select("user_id")
+    .eq("conversation_id", conversationId)
+    .neq("user_id", currentUser.userId);
+
+  if (otherMembers && otherMembers.length > 0) {
+    await admin.from("notifications").insert(
+      otherMembers.map((m) => ({
+        user_id: m.user_id,
+        type: "new_message",
+        payload: { conversationId },
+      }))
+    );
+  }
+
   return NextResponse.json({ status: "sent", messageId: message.id, createdAt: message.created_at });
 }

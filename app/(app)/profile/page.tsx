@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { type Plan } from "@/lib/subscriptions/limits";
 
@@ -101,7 +102,8 @@ export default function ProfilePage() {
 
   return (
     <div className="px-5 py-6">
-      <div className="mb-6 flex items-center gap-4">
+      <div className="mb-6 flex items-start justify-between">
+        <div className="flex items-center gap-4">
         <div className="relative shrink-0">
           <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white text-2xl font-semibold text-ink-600 shadow-card">
             {profile.avatarUrl ? (
@@ -133,6 +135,11 @@ export default function ProfilePage() {
           </h1>
           <p className="text-sm text-ink-600">{profile.city}</p>
         </div>
+        </div>
+
+        <Link href="/settings" aria-label="Настройки" className="mt-1 shrink-0">
+          <Image src="/brand/icons/settings.svg" alt="" width={22} height={22} />
+        </Link>
       </div>
 
       {uploadError && <p className="mb-4 text-center text-sm text-red-600">{uploadError}</p>}
