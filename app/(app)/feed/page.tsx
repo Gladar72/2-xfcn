@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Image from "next/image";
 import { TopBar } from "@/components/layout/TopBar";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
@@ -161,8 +162,11 @@ function FeedPageContent() {
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
         {!loading && !error && events.length === 0 && (
-          <div className="rounded-card bg-white p-6 text-center text-sm text-ink-600 shadow-card">
-            Сегодня пока тихо. Создайте первый план в своём городе.
+          <div className="flex flex-col items-center px-6 py-10 text-center">
+            <div className="relative mb-4 h-32 w-32">
+              <Image src="/brand/3d/empty-quiet.png" alt="" fill className="object-contain" sizes="128px" />
+            </div>
+            <p className="text-sm text-ink-600">Сегодня пока тихо. Создайте первый план в своём городе.</p>
           </div>
         )}
 

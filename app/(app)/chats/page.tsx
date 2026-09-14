@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { ChatListItem, type ChatListItemData } from "@/components/chat/ChatListItem";
 
@@ -21,8 +22,11 @@ export default function ChatsPage() {
       {loading && <p className="text-center text-ink-600">Загрузка...</p>}
 
       {!loading && chats.length === 0 && (
-        <div className="rounded-card bg-white p-6 text-center text-sm text-ink-600 shadow-card">
-          Когда вас пригласят на встречу, чат появится здесь.
+        <div className="flex flex-col items-center px-6 py-10 text-center">
+          <div className="relative mb-4 h-32 w-32">
+            <Image src="/brand/3d/empty-chats.png" alt="" fill className="object-contain" sizes="128px" />
+          </div>
+          <p className="text-sm text-ink-600">Когда вас пригласят на встречу, чат появится здесь.</p>
         </div>
       )}
 

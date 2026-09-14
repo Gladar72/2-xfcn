@@ -2,6 +2,7 @@
 
 import { use, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { MessageBubble, type MessageData } from "@/components/chat/MessageBubble";
 import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
@@ -135,9 +136,9 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <div className="flex items-center gap-3 border-b border-ink-400/10 bg-white px-4 py-3">
-        <button onClick={() => router.push("/chats")} className="text-lg">
-          ←
+      <div className="flex items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3">
+        <button onClick={() => router.push("/chats")} aria-label="Назад">
+          <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
         </button>
         <span className="font-medium">Чат</span>
       </div>
@@ -152,7 +153,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         <div ref={scrollRef} />
       </div>
 
-      <div className="flex items-center gap-2 border-t border-ink-400/10 bg-white p-3">
+      <div className="flex items-center gap-2 border-t border-lavender-100 bg-white p-3">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -160,14 +161,21 @@ export default function ChatPage({ params }: ChatPageProps) {
             if (e.key === "Enter") handleSend();
           }}
           placeholder="Написать сообщение..."
-          className="flex-1 rounded-pill border border-ink-400/20 px-4 py-2 text-sm outline-none focus:border-accent"
+          className="flex-1 rounded-pill border border-lavender-200 bg-background px-4 py-2.5 text-sm outline-none focus:border-accent"
         />
         <button
           onClick={handleSend}
           disabled={sending || !draft.trim()}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white disabled:opacity-40"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-gradient disabled:opacity-40"
+          aria-label="Отправить"
         >
-          →
+          <Image
+            src="/brand/icons/send.svg"
+            alt=""
+            width={18}
+            height={18}
+            style={{ filter: "brightness(0) invert(1)" }}
+          />
         </button>
       </div>
     </div>

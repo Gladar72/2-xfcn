@@ -19,8 +19,10 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
     <div className={clsx("flex", isOwn ? "justify-end" : "justify-start")}>
       <div
         className={clsx(
-          "max-w-[75%] rounded-2xl px-4 py-2 text-sm",
-          isOwn ? "bg-accent text-white" : "bg-white text-ink-900 shadow-card"
+          "max-w-[75%] px-4 py-2.5 text-sm",
+          isOwn
+            ? "bg-accent text-white rounded-[22px_22px_6px_22px]"
+            : "bg-lavender-100 text-ink-900 rounded-[22px_22px_22px_6px]"
         )}
       >
         <p className="whitespace-pre-wrap break-words">{message.content}</p>

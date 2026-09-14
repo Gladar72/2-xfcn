@@ -8,12 +8,13 @@ import clsx from "clsx";
 // Финальная навигация МЕСТО (см. бриф п.16-19): центральный "+" убран,
 // вместо него — фирменные 3D-монеты, ведущие на экран тарифов/подписки.
 // Создание встречи теперь отдельная CTA на главном экране (п.27), а не
-// кнопка в навигации.
+// кнопка в навигации. Иконки — SVG с отдельными default/active файлами
+// (currentColor не работает при подключении через <img>/next/image).
 const TABS = [
-  { href: "/feed", label: "Главная", emoji: "🏠" },
-  { href: "/map", label: "Карта", emoji: "📍" },
-  { href: "/chats", label: "Чаты", emoji: "💬" },
-  { href: "/profile", label: "Профиль", emoji: "👤" },
+  { href: "/feed", label: "Главная", icon: "nav-home" },
+  { href: "/map", label: "Карта", icon: "nav-map" },
+  { href: "/chats", label: "Чаты", icon: "nav-chat" },
+  { href: "/profile", label: "Профиль", icon: "nav-profile" },
 ];
 
 export function BottomNav() {
@@ -46,15 +47,16 @@ export function BottomNav() {
 }
 
 function NavTab({ tab, active }: { tab: (typeof TABS)[number]; active: boolean }) {
+  const src = `/brand/navigation/${tab.icon}-${active ? "active" : "default"}.svg`;
   return (
     <Link
       href={tab.href}
       className={clsx(
         "flex flex-col items-center gap-1 rounded-lg px-3 py-1 text-xs",
-        active ? "text-accent" : "text-ink-400"
+        active ? "text-accent font-medium" : "text-ink-400"
       )}
     >
-      <span className="text-xl">{tab.emoji}</span>
+      <Image src={src} alt="" width={24} height={24} />
       {tab.label}
     </Link>
   );

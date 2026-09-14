@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 
 interface TopBarProps {
@@ -32,7 +33,7 @@ export function TopBar({
           className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-card"
           aria-label="Уведомления"
         >
-          🔔
+          <Image src="/brand/icons/bell.svg" alt="" width={20} height={20} />
           {hasUnreadNotifications && (
             <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />
           )}

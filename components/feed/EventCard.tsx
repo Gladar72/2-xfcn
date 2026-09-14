@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import clsx from "clsx";
 
 export interface EventCardData {
@@ -31,17 +32,35 @@ interface EventCardProps {
   applying?: boolean;
 }
 
+// 3D-иконки категорий МЕСТО (тот же комплект, что и на главном экране).
+const CATEGORY_ICON: Record<string, string> = {
+  training: "/brand/3d/workout.png",
+  cinema: "/brand/3d/movie.png",
+  coffee: "/brand/3d/coffee.png",
+  breakfast: "/brand/3d/breakfast.png",
+  dinner: "/brand/3d/dinner.png",
+  walk: "/brand/3d/walk.png",
+  custom: "/brand/3d/custom-proposal.png",
+};
+
 export function EventCard({ event, onApplyPress, applied = false, applying = false }: EventCardProps) {
   const seatsLeft = event.seatsTotal - event.seatsTaken;
   const isFull = seatsLeft <= 0;
   const isDisabled = isFull || applied || applying;
   const categoryLabel = event.trainingType?.name ?? event.category?.name;
   const categoryEmoji = event.trainingType?.emoji ?? event.category?.emoji;
+  const categoryIcon = event.category ? CATEGORY_ICON[event.category.slug] : undefined;
 
   return (
     <div className="rounded-card bg-white p-4 shadow-card">
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-accent-700">
-        <span>{categoryEmoji}</span>
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-accent">
+        {categoryIcon ? (
+          <div className="relative h-4 w-4 shrink-0">
+            <Image src={categoryIcon} alt="" fill className="object-contain" sizes="16px" />
+          </div>
+        ) : (
+          <span>{categoryEmoji}</span>
+        )}
         <span>{categoryLabel}</span>
       </div>
 
@@ -88,10 +107,10 @@ export function EventCard({ event, onApplyPress, applied = false, applying = fal
           disabled={isDisabled}
           className={clsx(
             "rounded-pill px-5 py-2 text-sm font-semibold",
-            isDisabled ? "bg-ink-400/10 text-ink-400" : "bg-accent text-white active:scale-95"
+            isDisabled ? "bg-ink-400/10 text-ink-400" : "bg-brand-gradient text-white shadow-cta active:scale-95"
           )}
         >
-          {applied ? "Отклик отправлен" : applying ? "Отправляем..." : "Хочу пойти"}
+          {applied ? "Отклик отправлен" : applying ? "Отправляем..." : "Я иду"}
         </button>
       </div>
     </div>
