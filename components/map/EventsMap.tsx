@@ -22,6 +22,18 @@ interface EventsMapProps {
 
 const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень, запасной центр
 
+// Соответствие slug категории (см. supabase/migrations/0003_categories.sql) фирменным 3D-маркерам МЕСТО.
+const MARKER_BY_SLUG: Record<string, string> = {
+  training: "/brand/markers/marker-workout.png",
+  cinema: "/brand/markers/marker-movie.png",
+  coffee: "/brand/markers/marker-coffee.png",
+  breakfast: "/brand/markers/marker-breakfast.png",
+  dinner: "/brand/markers/marker-dinner.png",
+  walk: "/brand/markers/marker-walk.png",
+  custom: "/brand/markers/marker-custom.png",
+};
+const FALLBACK_MARKER = "/brand/markers/marker-custom.png";
+
 export function EventsMap({ events, onSelect }: EventsMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onSelectRef = useRef(onSelect);
@@ -74,9 +86,10 @@ export function EventsMap({ events, onSelect }: EventsMapProps) {
 
       function markerRenderer(feature: (typeof features)[number]) {
         const el = document.createElement("div");
+        const src = MARKER_BY_SLUG[feature.properties.event.category?.slug ?? ""] ?? FALLBACK_MARKER;
         el.style.cssText =
-          "display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:999px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.2);font-size:18px;cursor:pointer;";
-        el.textContent = feature.properties.event.category?.emoji ?? "📍";
+          "display:flex;align-items:flex-end;justify-content:center;width:44px;height:56px;cursor:pointer;transition:transform 200ms ease;transform-origin:bottom center;";
+        el.innerHTML = `<img src="${src}" alt="" style="width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.25));" />`;
         el.addEventListener("click", () => onSelectRef.current([feature.properties.event]));
         return new YMapMarker({ coordinates: feature.geometry.coordinates, source: "events-source" }, el);
       }
@@ -85,9 +98,11 @@ export function EventsMap({ events, onSelect }: EventsMapProps) {
         coordinates: [number, number],
         clusterFeatures: typeof features
       ) {
+        // Белый круглый бейдж с мягкой тенью (см. бриф п.35) — не фирменный цвет,
+        // чтобы не спорить визуально с самими маркерами.
         const el = document.createElement("div");
         el.style.cssText =
-          "display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:999px;background:#FF5A36;color:#fff;font-weight:600;font-size:14px;box-shadow:0 2px 8px rgba(0,0,0,.25);cursor:pointer;";
+          "display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:999px;background:#FFFFFF;color:#111111;font-weight:700;font-size:15px;box-shadow:0 6px 16px rgba(90,65,150,0.18);cursor:pointer;";
         el.textContent = String(clusterFeatures.length);
         el.addEventListener("click", () =>
           onSelectRef.current(clusterFeatures.map((f) => f.properties.event))

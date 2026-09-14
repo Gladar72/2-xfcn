@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 interface Category {
@@ -13,6 +14,17 @@ interface CategoryGridProps {
   categories: Category[];
   onTrainingPress: () => void;
 }
+
+// 3D-иконки категорий МЕСТО (см. бриф п.9). emoji остаётся как запасной
+// вариант, если у какой-то категории вдруг не найдётся своей иконки.
+const CATEGORY_ICON: Record<string, string> = {
+  training: "/brand/categories/workout.png",
+  cinema: "/brand/categories/movie.png",
+  coffee: "/brand/categories/coffee.png",
+  breakfast: "/brand/categories/breakfast.png",
+  dinner: "/brand/categories/dinner.png",
+  walk: "/brand/categories/walk.png",
+};
 
 export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps) {
   const router = useRouter();
@@ -37,7 +49,13 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
             onClick={() => handlePress(category)}
             className="flex flex-col items-start gap-2 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98]"
           >
-            <span className="text-2xl">{category.emoji}</span>
+            {CATEGORY_ICON[category.slug] ? (
+              <div className="relative h-11 w-11">
+                <Image src={CATEGORY_ICON[category.slug]} alt="" fill className="object-contain" sizes="44px" />
+              </div>
+            ) : (
+              <span className="text-2xl">{category.emoji}</span>
+            )}
             <span className="text-sm font-medium leading-tight text-ink-900">
               {category.name}
             </span>
@@ -48,10 +66,12 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
       {customCategory && (
         <button
           onClick={() => router.push("/create?category=custom")}
-          className="mt-3 flex w-full items-center gap-2 rounded-card bg-accent-50 p-4 text-left text-sm font-medium text-accent-700"
+          className="mt-3 flex w-full items-center gap-3 rounded-card bg-brand-gradient p-4 text-left shadow-card"
         >
-          <span className="text-xl">{customCategory.emoji}</span>
-          {customCategory.name}
+          <div className="relative h-9 w-9 shrink-0">
+            <Image src="/brand/categories/custom-proposal.png" alt="" fill className="object-contain" sizes="36px" />
+          </div>
+          <span className="text-sm font-semibold text-white">{customCategory.name}</span>
         </button>
       )}
     </div>

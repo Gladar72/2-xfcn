@@ -2,6 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { TopBar } from "@/components/layout/TopBar";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
@@ -48,6 +49,14 @@ function FeedPageContent() {
   const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
   const [applyingEventId, setApplyingEventId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/me/profile")
+      .then((r) => r.json())
+      .then((data) => setAvatarUrl(data.avatarUrl ?? null))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -129,16 +138,24 @@ function FeedPageContent() {
 
   return (
     <div>
-      <TopBar city="Тюмень" />
+      <TopBar city="Тюмень" avatarUrl={avatarUrl} />
 
       <div className="px-5 pb-2 pt-6">
-        <h1 className="text-display">Что хочешь сделать сегодня?</h1>
+        <h1 className="text-display">
+          Что хочешь сделать <span className="text-accent">сегодня?</span>
+        </h1>
       </div>
 
       <CategoryGrid categories={categories} onTrainingPress={() => setSheetOpen(true)} />
 
+      <div className="mt-4 px-5">
+        <Link href="/create">
+          <Button>Создать встречу</Button>
+        </Link>
+      </div>
+
       <div className="mt-8 space-y-3 px-5">
-        <h2 className="text-title">Сегодня рядом</h2>
+        <h2 className="text-title">Интересные встречи рядом</h2>
 
         {loading && events.length === 0 && (
           <div className="space-y-3">

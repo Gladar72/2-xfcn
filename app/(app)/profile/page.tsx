@@ -27,7 +27,7 @@ interface SubscriptionStatus {
   boosts?: { used: number; limit: number };
 }
 
-const PLAN_TITLES: Record<Plan, string> = { start: "START", medium: "MEDIUM", premium: "PREMIUM" };
+const PLAN_TITLES: Record<Plan, string> = { start: "Старт", medium: "Медиум", premium: "Премьер" };
 
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -151,26 +151,22 @@ export default function ProfilePage() {
 
       <h2 className="text-title mb-3">Мой пакет</h2>
       {subscription?.active ? (
-        <div className="mb-6 rounded-card bg-ink-900 p-5 text-white shadow-card">
-          <div className="mb-3 flex items-baseline justify-between">
+        <Link
+          href="/subscriptions"
+          className="mb-6 flex items-center justify-between rounded-card-lg bg-ink-900 p-5 text-white shadow-card-lg"
+        >
+          <div>
             <span className="text-lg font-bold">{PLAN_TITLES[subscription.plan!]}</span>
-            <span className="text-sm text-white/70">
+            <p className="text-sm text-white/70">
               до {new Date(subscription.periodEnd!).toLocaleDateString("ru-RU")}
-            </span>
+            </p>
           </div>
-          <div className="space-y-2 text-sm">
-            <UsageRow
-              label="Встречи"
-              used={subscription.events!.used}
-              limit={subscription.events!.limit}
-            />
-            <UsageRow label="Поднятия" used={subscription.boosts!.used} limit={subscription.boosts!.limit} />
-          </div>
-        </div>
+          <span className="text-white/70">→</span>
+        </Link>
       ) : (
         <div className="mb-6 rounded-card bg-white p-5 text-center shadow-card">
           <p className="mb-3 text-sm text-ink-600">Подписки пока нет — она нужна для создания встреч.</p>
-          <Link href="/create">
+          <Link href="/subscriptions">
             <Button className="w-auto px-6">Оформить подписку</Button>
           </Link>
         </div>
@@ -193,25 +189,6 @@ function StatCard({ label, value, emoji }: { label: string; value: string; emoji
       <div className="text-lg">{emoji}</div>
       <div className="text-lg font-bold text-ink-900">{value}</div>
       <div className="text-[11px] leading-tight text-ink-600">{label}</div>
-    </div>
-  );
-}
-
-function UsageRow({ label, used, limit }: { label: string; used: number; limit: number | null }) {
-  const isUnlimited = limit === null;
-  const ratio = isUnlimited ? 0 : Math.min(1, used / Math.max(1, limit));
-
-  return (
-    <div>
-      <div className="mb-1 flex justify-between text-white/90">
-        <span>{label}</span>
-        <span>{isUnlimited ? `${used} · без ограничений` : `${used} / ${limit}`}</span>
-      </div>
-      {!isUnlimited && (
-        <div className="h-1.5 overflow-hidden rounded-pill bg-white/20">
-          <div className="h-full rounded-pill bg-accent" style={{ width: `${ratio * 100}%` }} />
-        </div>
-      )}
     </div>
   );
 }

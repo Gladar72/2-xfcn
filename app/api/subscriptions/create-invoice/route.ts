@@ -4,9 +4,9 @@ import { createStarsInvoiceLink } from "@/lib/telegram/bot-api";
 import { PLAN_LIMITS, type Plan } from "@/lib/subscriptions/limits";
 
 const PLAN_TITLES: Record<Plan, string> = {
-  start: "Подписка START",
-  medium: "Подписка MEDIUM",
-  premium: "Подписка PREMIUM",
+  start: "Подписка «Старт»",
+  medium: "Подписка «Медиум»",
+  premium: "Подписка «Премьер»",
 };
 
 /**
