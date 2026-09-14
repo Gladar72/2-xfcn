@@ -80,7 +80,9 @@ function MapPageContent() {
       {selected && (
         <div className="fixed inset-x-0 bottom-20 z-50 max-h-[50vh] overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-card">
           <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" onClick={() => setSelected(null)} />
-          <h2 className="text-title mb-3">Встречи здесь</h2>
+          <h2 className="text-title mb-3 truncate">
+            {selected[0]?.placeName || selected[0]?.address || "Место встречи"}
+          </h2>
           <div className="space-y-2">
             {selected.map((event) => (
               <Link

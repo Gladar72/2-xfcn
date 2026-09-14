@@ -11,6 +11,7 @@ export interface MapEventItem {
   latitude: number;
   longitude: number;
   placeName: string | null;
+  address: string | null;
   seatsLeft: number;
   category: { slug: string; name: string; emoji: string | null } | null;
 }
