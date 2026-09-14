@@ -1,3 +1,35 @@
+mkdir -p "lib/admin"
+cat > "lib/admin/is-admin.ts" << 'ENDOFFILE'
+import { getCurrentUser } from "@/lib/telegram/current-user";
+
+/**
+ * Список telegram_id админов задаётся через ADMIN_TELEGRAM_IDS в .env
+ * (числа через запятую, см. .env.example). Никакой отдельной роли в БД —
+ * это сознательное упрощение для MVP (п.29 ТЗ просто требует "доступ
+ * только admin user IDs", не заводя полноценную RBAC-систему).
+ */
+function getAdminIds(): number[] {
+  return (process.env.ADMIN_TELEGRAM_IDS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .map(Number);
+}
+
+export function isAdminTelegramId(telegramId: number): boolean {
+  return getAdminIds().includes(telegramId);
+}
+
+export async function getAdminUser() {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  if (!isAdminTelegramId(user.telegramId)) return null;
+  return user;
+}
+ENDOFFILE
+
+mkdir -p "app/api/events"
+cat > "app/api/events/route.ts" << 'ENDOFFILE'
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -403,3 +435,57 @@ async function notifyRelevantUsers(
     telegramIds: recipients,
   });
 }
+ENDOFFILE
+
+mkdir -p "app/api/subscriptions"
+cat > "app/api/subscriptions/route.ts" << 'ENDOFFILE'
+import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/telegram/current-user";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
+import { PLAN_LIMITS } from "@/lib/subscriptions/limits";
+import { isAdminTelegramId } from "@/lib/admin/is-admin";
+
+/**
+ * GET /api/subscriptions
+ * Возвращает статус подписки текущего пользователя: активна ли, план,
+ * лимиты и текущее использование. Используется paywall'ом (решить,
+ * пускать ли сразу в создание встречи) и экраном профиля ("Мой пакет").
+ */
+export async function GET() {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const admin = createAdminClient();
+  const info = await getActiveSubscriptionInfo(admin, user.userId);
+
+  if (!info) {
+    // Админ тестирует приложение без реальной оплаты — показываем ему
+    // синтетический безлимитный премиум вместо paywall'а.
+    if (isAdminTelegramId(user.telegramId)) {
+      const limits = PLAN_LIMITS.premium;
+      const now = new Date();
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      return NextResponse.json({
+        active: true,
+        plan: "premium",
+        periodEnd: periodEnd.toISOString(),
+        events: { used: 0, limit: limits.eventsLimit },
+        boosts: { used: 0, limit: limits.boostLimit },
+      });
+    }
+    return NextResponse.json({ active: false });
+  }
+
+  const limits = PLAN_LIMITS[info.plan];
+
+  return NextResponse.json({
+    active: true,
+    plan: info.plan,
+    periodEnd: info.currentPeriodEnd,
+    events: { used: info.eventsCreatedCount, limit: limits.eventsLimit },
+    boosts: { used: info.boostsUsedCount, limit: limits.boostLimit },
+  });
+}
+ENDOFFILE
+

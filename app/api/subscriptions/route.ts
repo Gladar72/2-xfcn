@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
 import { PLAN_LIMITS } from "@/lib/subscriptions/limits";
+import { isAdminTelegramId } from "@/lib/admin/is-admin";
 
 /**
  * GET /api/subscriptions
@@ -18,6 +19,20 @@ export async function GET() {
   const info = await getActiveSubscriptionInfo(admin, user.userId);
 
   if (!info) {
+    // Админ тестирует приложение без реальной оплаты — показываем ему
+    // синтетический безлимитный премиум вместо paywall'а.
+    if (isAdminTelegramId(user.telegramId)) {
+      const limits = PLAN_LIMITS.premium;
+      const now = new Date();
+      const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+      return NextResponse.json({
+        active: true,
+        plan: "premium",
+        periodEnd: periodEnd.toISOString(),
+        events: { used: 0, limit: limits.eventsLimit },
+        boosts: { used: 0, limit: limits.boostLimit },
+      });
+    }
     return NextResponse.json({ active: false });
   }
 
