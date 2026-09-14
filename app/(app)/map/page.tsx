@@ -20,27 +20,59 @@ function MapPageContent() {
   const [events, setEvents] = useState<MapEventItem[]>([]);
   const [selected, setSelected] = useState<MapEventItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  function load(isRetry = false) {
+    setLoading(true);
+    setError(null);
     const query = cityOverride ? `?city=${encodeURIComponent(cityOverride)}` : "";
     fetch(`/api/events/map${query}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
+          // "Не удалось загрузить карту" бывает из-за редких кратковременных
+          // сбоев соединения с базой — один автоматический повтор решает
+          // подавляющее большинство таких случаев без участия пользователя.
+          if (data.error !== "city_required" && !isRetry) {
+            setTimeout(() => load(true), 800);
+            return;
+          }
           setError(data.error === "city_required" ? "Сначала заверши регистрацию." : "Не удалось загрузить карту.");
           return;
         }
         setEvents(data.items ?? []);
       })
-      .catch(() => setError("Проблема с соединением."));
+      .catch(() => {
+        if (!isRetry) {
+          setTimeout(() => load(true), 800);
+          return;
+        }
+        setError("Проблема с соединением.");
+      })
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cityOverride]);
 
   return (
     <div className="relative h-[calc(100vh-5rem)]">
       {error ? (
-        <div className="flex h-full items-center justify-center px-6 text-center text-sm text-red-600">
-          {error}
+        <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+          <p className="text-sm text-red-600">{error}</p>
+          {error !== "Сначала заверши регистрацию." && (
+            <button
+              onClick={() => load()}
+              className="rounded-pill bg-brand-gradient px-6 py-2.5 text-sm font-semibold text-white shadow-cta active:scale-95"
+            >
+              Попробовать снова
+            </button>
+          )}
         </div>
+      ) : loading && events.length === 0 ? (
+        <div className="flex h-full items-center justify-center text-sm text-ink-600">Загрузка карты...</div>
       ) : (
         <EventsMap events={events} onSelect={setSelected} />
       )}

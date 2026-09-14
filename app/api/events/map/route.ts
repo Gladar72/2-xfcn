@@ -44,7 +44,13 @@ export async function GET(req: NextRequest) {
     .not("longitude", "is", null)
     .limit(300);
 
-  if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
+  if (error) {
+    // Логируем настоящую причину — раньше ошибка "проглатывалась" и в
+    // Vercel Logs было видно только код 500 без деталей, что мешало
+    // диагностировать редкие сбои соединения с Supabase.
+    console.error("GET /api/events/map — ошибка запроса к Supabase:", error);
+    return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
+  }
 
   const items = (events ?? []).map((e) => ({
     id: e.id,

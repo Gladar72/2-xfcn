@@ -21,18 +21,40 @@ declare global {
 // а сторонние @types часто отстают от версии. Расширяем по мере необходимости.
 export interface YMaps3Namespace {
   ready: Promise<void>;
-  import: (moduleName: string) => Promise<Record<string, unknown>>;
+  import: {
+    (moduleName: string): Promise<Record<string, unknown>>;
+    loaders: Array<(pkg: string) => Promise<unknown>>;
+    script: (url: string) => Promise<void>;
+  };
   [key: string]: unknown;
 }
 
 let loadPromise: Promise<YMaps3Namespace> | null = null;
+
+/**
+ * Сторонние пакеты Yandex Maps JS API 3.0 (кластеризатор и т.п.) НЕ входят
+ * в основной скрипт api-maps.yandex.ru — для них нужно явно зарегистрировать
+ * "загрузчик", который подтянет код пакета с CDN (unpkg). Без этого
+ * ymaps3.import("@yandex/ymaps3-...") падает с ошибкой
+ * "no loader for pkg ...". См. https://www.npmjs.com/package/@yandex/ymaps3-clusterer
+ */
+function registerThirdPartyPackageLoader(ymaps3: YMaps3Namespace) {
+  ymaps3.import.loaders.unshift(async (pkg: string) => {
+    if (!pkg.startsWith("@yandex/")) return undefined;
+    await ymaps3.import.script(`https://unpkg.com/${pkg}/dist/index.js`);
+    return (window as unknown as Record<string, unknown>)[pkg];
+  });
+}
 
 export function loadYandexMaps(): Promise<YMaps3Namespace> {
   if (loadPromise) return loadPromise;
 
   loadPromise = new Promise((resolve, reject) => {
     if (window.ymaps3) {
-      window.ymaps3.ready.then(() => resolve(window.ymaps3!));
+      window.ymaps3.ready.then(() => {
+        registerThirdPartyPackageLoader(window.ymaps3!);
+        resolve(window.ymaps3!);
+      });
       return;
     }
 
@@ -50,7 +72,10 @@ export function loadYandexMaps(): Promise<YMaps3Namespace> {
         reject(new Error("ymaps3 не появился после загрузки скрипта"));
         return;
       }
-      window.ymaps3.ready.then(() => resolve(window.ymaps3!));
+      window.ymaps3.ready.then(() => {
+        registerThirdPartyPackageLoader(window.ymaps3!);
+        resolve(window.ymaps3!);
+      });
     };
     script.onerror = () => reject(new Error("Не удалось загрузить Yandex Maps JS API"));
     document.head.appendChild(script);
