@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { type Plan } from "@/lib/subscriptions/limits";
@@ -33,6 +33,9 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     Promise.all([
@@ -62,16 +65,67 @@ export default function ProfilePage() {
     );
   }
 
+  async function handlePhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // чтобы повторный выбор того же файла тоже сработал
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setUploadError("Файл больше 5 МБ — выбери другое фото.");
+      setTimeout(() => setUploadError(null), 3000);
+      return;
+    }
+
+    setUploadingPhoto(true);
+    setUploadError(null);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const res = await fetch("/api/me/avatar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ photoBase64: dataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setUploadError("Не получилось загрузить фото.");
+        return;
+      }
+      setProfile((prev) => (prev ? { ...prev, avatarUrl: data.avatarUrl } : prev));
+    } catch {
+      setUploadError("Проблема с соединением.");
+    } finally {
+      setUploadingPhoto(false);
+      setTimeout(() => setUploadError(null), 3000);
+    }
+  }
+
   return (
     <div className="px-5 py-6">
       <div className="mb-6 flex items-center gap-4">
-        <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white text-2xl font-semibold text-ink-600 shadow-card">
-          {profile.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.avatarUrl} alt={profile.name} className="h-full w-full object-cover" />
-          ) : (
-            profile.name.charAt(0).toUpperCase()
-          )}
+        <div className="relative shrink-0">
+          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white text-2xl font-semibold text-ink-600 shadow-card">
+            {profile.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.avatarUrl} alt={profile.name} className="h-full w-full object-cover" />
+            ) : (
+              profile.name.charAt(0).toUpperCase()
+            )}
+          </div>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploadingPhoto}
+            className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-accent text-sm text-white shadow-card active:scale-95"
+            aria-label="Изменить фото"
+          >
+            {uploadingPhoto ? "…" : "✏️"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handlePhotoSelected}
+          />
         </div>
         <div className="min-w-0">
           <h1 className="text-display truncate">
@@ -80,6 +134,8 @@ export default function ProfilePage() {
           <p className="text-sm text-ink-600">{profile.city}</p>
         </div>
       </div>
+
+      {uploadError && <p className="mb-4 text-center text-sm text-red-600">{uploadError}</p>}
 
       {profile.bio && <p className="mb-6 text-sm text-ink-900">{profile.bio}</p>}
 
@@ -158,4 +214,13 @@ function UsageRow({ label, used, limit }: { label: string; used: number; limit: 
       )}
     </div>
   );
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
 }
