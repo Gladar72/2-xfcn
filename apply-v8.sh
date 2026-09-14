@@ -1,3 +1,4 @@
+cat > "components/create-event/CreateEventWizard.tsx" << 'ENDOFFILE'
 "use client";
 
 import Image from "next/image";
@@ -385,3 +386,4 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+ENDOFFILE
