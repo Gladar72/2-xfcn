@@ -82,10 +82,10 @@ export function LocationPicker({ initialCenter, onPick }: LocationPickerProps) {
   }, []);
 
   return (
-    <div className="overflow-hidden rounded-card shadow-card">
-      <div ref={containerRef} className="h-52 w-full" />
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card shadow-card">
+      <div ref={containerRef} className="min-h-[120px] w-full flex-1" />
       {!hasPin && (
-        <p className="bg-white px-3 py-2 text-center text-xs text-ink-600">
+        <p className="shrink-0 bg-white px-3 py-1.5 text-center text-xs text-ink-600">
           Нажми на карту, чтобы отметить место встречи
         </p>
       )}
