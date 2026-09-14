@@ -14,9 +14,8 @@
 /build
 
 # env files — СЕКРЕТЫ, НИКОГДА не коммитить
-.env
-.env.local
-.env.*.local
+.env*
+!.env.example
 
 # supabase local
 /supabase/.branches
