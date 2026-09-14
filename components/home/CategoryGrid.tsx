@@ -43,24 +43,27 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
   return (
     <div className="px-5">
       <div className="grid grid-cols-2 gap-3">
-        {gridCategories.map((category) => (
-          <button
-            key={category.id}
-            onClick={() => handlePress(category)}
-            className="flex flex-col items-start gap-2 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98]"
-          >
-            {CATEGORY_ICON[category.slug] ? (
-              <div className="relative h-11 w-11">
-                <Image src={CATEGORY_ICON[category.slug]} alt="" fill className="object-contain" sizes="44px" />
-              </div>
-            ) : (
-              <span className="text-2xl">{category.emoji}</span>
-            )}
-            <span className="text-sm font-medium leading-tight text-ink-900">
-              {category.name}
-            </span>
-          </button>
-        ))}
+        {gridCategories.map((category) => {
+          const iconSrc = CATEGORY_ICON[category.slug];
+          return (
+            <button
+              key={category.id}
+              onClick={() => handlePress(category)}
+              className="flex flex-col items-start gap-2 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98]"
+            >
+              {iconSrc ? (
+                <div className="relative h-11 w-11">
+                  <Image src={iconSrc} alt="" fill className="object-contain" sizes="44px" />
+                </div>
+              ) : (
+                <span className="text-2xl">{category.emoji}</span>
+              )}
+              <span className="text-sm font-medium leading-tight text-ink-900">
+                {category.name}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {customCategory && (
