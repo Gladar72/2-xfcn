@@ -6,3 +6,10 @@ html, body {
   max-width: 100vw;
   overflow-x: hidden;
 }
+
+/* Скрываем необязательную кнопку "Открыть Яндекс Карты" — это удобство,
+   а не обязательная атрибуция. Условия использования (обязательная ссылка,
+   класс ymaps3--map-copyrights__user-agreements) остаются на месте. */
+.ymaps3--controls_bottom.ymaps3--controls_left.ymaps3--controls_horizontal {
+  display: none !important;
+}

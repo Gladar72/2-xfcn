@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import clsx from "clsx";
 
 export interface EventCardData {
@@ -52,7 +53,7 @@ export function EventCard({ event, onApplyPress, applied = false, applying = fal
   const categoryIcon = event.category ? CATEGORY_ICON[event.category.slug] : undefined;
 
   return (
-    <div className="rounded-card bg-white p-4 shadow-card">
+    <Link href={`/events/${event.id}`} className="block rounded-card bg-white p-4 shadow-card">
       <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-accent">
         {categoryIcon ? (
           <div className="relative h-4 w-4 shrink-0">
@@ -103,7 +104,11 @@ export function EventCard({ event, onApplyPress, applied = false, applying = fal
           {isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}
         </span>
         <button
-          onClick={() => onApplyPress?.(event.id)}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onApplyPress?.(event.id);
+          }}
           disabled={isDisabled}
           className={clsx(
             "rounded-pill px-5 py-2 text-sm font-semibold",
@@ -113,7 +118,7 @@ export function EventCard({ event, onApplyPress, applied = false, applying = fal
           {applied ? "Отклик отправлен" : applying ? "Отправляем..." : "Я иду"}
         </button>
       </div>
-    </div>
+    </Link>
   );
 }
 

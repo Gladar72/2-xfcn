@@ -85,7 +85,7 @@ function MapPageContent() {
             {selected.map((event) => (
               <Link
                 key={event.id}
-                href={`/feed?category=${event.category?.slug ?? ""}`}
+                href={`/events/${event.id}`}
                 className="flex items-center gap-3 rounded-card bg-background p-3"
               >
                 <span className="text-xl">{event.category?.emoji}</span>
