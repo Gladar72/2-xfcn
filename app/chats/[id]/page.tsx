@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
-import { MessageBubble, type MessageData } from "@/components/chat/MessageBubble";
+import { MessageBubble, formatDayLabel, type MessageData } from "@/components/chat/MessageBubble";
 import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
 
 interface ChatPageProps {
@@ -22,6 +22,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -58,6 +59,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
         setMyUserId(me.userId);
         setMessages(history.messages ?? []);
+        setOtherLastReadAt(history.otherMemberLastReadAt ?? null);
 
         const client = createBrowserRealtimeClient(tokenData.token);
         clientRef.current = client;
@@ -84,6 +86,21 @@ export default function ChatPage({ params }: ChatPageProps) {
                   ? prev
                   : [...prev, { id: row.id, senderId: row.sender_id, content: row.content, createdAt: row.created_at }]
               );
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "UPDATE",
+              schema: "public",
+              table: "conversation_members",
+              filter: `conversation_id=eq.${conversationId}`,
+            },
+            (payload) => {
+              const row = payload.new as { user_id: string; last_read_at: string | null };
+              // Интересует только собеседник — свою же запись о прочтении
+              // мы обновляем сами при открытии чата.
+              if (row.user_id !== me.userId) setOtherLastReadAt(row.last_read_at);
             }
           )
           .subscribe();
@@ -140,25 +157,41 @@ export default function ChatPage({ params }: ChatPageProps) {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <div className="flex items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
+      <div className="flex shrink-0 items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3">
         <button onClick={() => router.push("/chats")} aria-label="Назад">
           <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
         </button>
         <span className="font-medium">Чат</span>
       </div>
 
-      <div className="flex-1 space-y-2 overflow-y-auto p-4">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
         {loading && <p className="text-center text-ink-600">Загрузка...</p>}
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} isOwn={message.senderId === myUserId} />
-        ))}
+        {messages.map((message, index) => {
+          const prev = messages[index - 1];
+          const showDaySeparator = !prev || !isSameDay(prev.createdAt, message.createdAt);
+          const isOwn = message.senderId === myUserId;
+          const isRead = Boolean(otherLastReadAt && message.createdAt <= otherLastReadAt);
+
+          return (
+            <div key={message.id}>
+              {showDaySeparator && (
+                <div className="my-3 flex justify-center">
+                  <span className="rounded-pill bg-lavender-100 px-3 py-1 text-[11px] font-medium text-ink-600">
+                    {formatDayLabel(message.createdAt)}
+                  </span>
+                </div>
+              )}
+              <MessageBubble message={message} isOwn={isOwn} readStatus={isRead ? "read" : "sent"} />
+            </div>
+          );
+        })}
         <div ref={scrollRef} />
       </div>
 
-      <div className="flex items-center gap-2 border-t border-lavender-100 bg-white p-3">
+      <div className="flex shrink-0 items-center gap-2 border-t border-lavender-100 bg-white p-3">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -166,7 +199,7 @@ export default function ChatPage({ params }: ChatPageProps) {
             if (e.key === "Enter") handleSend();
           }}
           placeholder="Написать сообщение..."
-          className="flex-1 rounded-pill border border-lavender-200 bg-background px-4 py-2.5 text-sm outline-none focus:border-accent"
+          className="min-w-0 flex-1 rounded-pill border border-lavender-200 bg-background px-4 py-2.5 text-sm outline-none focus:border-accent"
         />
         <button
           onClick={handleSend}
@@ -185,4 +218,10 @@ export default function ChatPage({ params }: ChatPageProps) {
       </div>
     </div>
   );
+}
+
+function isSameDay(isoA: string, isoB: string): boolean {
+  const a = new Date(isoA);
+  const b = new Date(isoB);
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }

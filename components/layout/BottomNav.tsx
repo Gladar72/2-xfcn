@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -18,6 +19,20 @@ const TABS = [
 export function BottomNav() {
   const pathname = usePathname();
   const [left, right] = [TABS.slice(0, 2), TABS.slice(2)];
+  const [unreadChats, setUnreadChats] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((data) => {
+        const total = (data.items ?? []).reduce(
+          (sum: number, item: { unreadCount: number }) => sum + (item.unreadCount || 0),
+          0
+        );
+        setUnreadChats(total);
+      })
+      .catch(() => {});
+  }, [pathname]);
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 rounded-t-sheet border-t border-lavender-100 bg-white/95 shadow-card-lg backdrop-blur">
@@ -51,24 +66,44 @@ export function BottomNav() {
         </Link>
 
         {right.map((tab) => (
-          <NavTab key={tab.href} tab={tab} active={pathname === tab.href} />
+          <NavTab
+            key={tab.href}
+            tab={tab}
+            active={pathname === tab.href}
+            badge={tab.href === "/chats" ? unreadChats : 0}
+          />
         ))}
       </div>
     </nav>
   );
 }
 
-function NavTab({ tab, active }: { tab: (typeof TABS)[number]; active: boolean }) {
+function NavTab({
+  tab,
+  active,
+  badge = 0,
+}: {
+  tab: (typeof TABS)[number];
+  active: boolean;
+  badge?: number;
+}) {
   const src = `/brand/navigation/${tab.icon}-${active ? "active" : "default"}.svg`;
   return (
     <Link
       href={tab.href}
       className={clsx(
-        "flex flex-col items-center gap-1 rounded-lg px-3 py-1 text-xs",
+        "relative flex flex-col items-center gap-1 rounded-lg px-3 py-1 text-xs",
         active ? "text-accent font-medium" : "text-ink-400"
       )}
     >
-      <Image src={src} alt="" width={24} height={24} />
+      <span className="relative">
+        <Image src={src} alt="" width={24} height={24} />
+        {badge > 0 && (
+          <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-white">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </span>
       {tab.label}
     </Link>
   );

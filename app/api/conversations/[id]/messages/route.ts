@@ -32,16 +32,30 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const membership = await assertMembership(admin, conversationId, currentUser.userId);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const { data: messages, error } = await admin
-    .from("messages")
-    .select("id, sender_id, content, created_at")
-    .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: false })
-    .limit(MESSAGE_HISTORY_LIMIT);
+  const [{ data: messages, error }, { data: otherMember }] = await Promise.all([
+    admin
+      .from("messages")
+      .select("id, sender_id, content, created_at")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(MESSAGE_HISTORY_LIMIT),
+    // last_read_at собеседника — используется на фронте для галочек
+    // "доставлено" / "прочитано" (упрощённо: сообщение считается
+    // прочитанным, если оно старше last_read_at собеседника).
+    admin
+      .from("conversation_members")
+      .select("last_read_at")
+      .eq("conversation_id", conversationId)
+      .neq("user_id", currentUser.userId)
+      .maybeSingle(),
+  ]);
 
   if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
 
-  return NextResponse.json({ messages: (messages ?? []).reverse() });
+  return NextResponse.json({
+    messages: (messages ?? []).reverse(),
+    otherMemberLastReadAt: otherMember?.last_read_at ?? null,
+  });
 }
 
 /**

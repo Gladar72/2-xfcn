@@ -1,5 +1,3 @@
-"use client";
-
 import clsx from "clsx";
 
 export interface MessageData {
@@ -12,9 +10,11 @@ export interface MessageData {
 interface MessageBubbleProps {
   message: MessageData;
   isOwn: boolean;
+  /** Только для своих сообщений: показать ли и какую галочку. */
+  readStatus?: "sent" | "read";
 }
 
-export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, readStatus }: MessageBubbleProps) {
   return (
     <div className={clsx("flex", isOwn ? "justify-end" : "justify-start")}>
       <div
@@ -26,14 +26,59 @@ export function MessageBubble({ message, isOwn }: MessageBubbleProps) {
         )}
       >
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
-        <span className={clsx("mt-1 block text-right text-[10px]", isOwn ? "text-white/70" : "text-ink-400")}>
+        <span
+          className={clsx(
+            "mt-1 flex items-center justify-end gap-1 text-[10px]",
+            isOwn ? "text-white/70" : "text-ink-400"
+          )}
+        >
           {formatTime(message.createdAt)}
+          {isOwn && <ReadTicks status={readStatus ?? "sent"} />}
         </span>
       </div>
     </div>
   );
 }
 
+// Одна галочка — отправлено/доставлено, две (подсвеченные) — собеседник прочитал.
+function ReadTicks({ status }: { status: "sent" | "read" }) {
+  return (
+    <svg width="14" height="10" viewBox="0 0 16 11" fill="none" className="shrink-0">
+      <path
+        d="M1 5.5L4.5 9L10.5 1.5"
+        stroke={status === "read" ? "#7CF29A" : "currentColor"}
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {status === "read" && (
+        <path
+          d="M5.5 5.5L9 9L15 1.5"
+          stroke="#7CF29A"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      )}
+    </svg>
+  );
+}
+
 function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  const date = new Date(iso);
+  return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+}
+
+export function formatDayLabel(iso: string): string {
+  const date = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(today.getDate() - 1);
+
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  if (isSameDay(date, today)) return "Сегодня";
+  if (isSameDay(date, yesterday)) return "Вчера";
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
