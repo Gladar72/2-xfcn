@@ -41,6 +41,8 @@ export function PendingReviewModal() {
 
   const current = queue[0];
   if (!current) return null;
+  const currentEventId = current.eventId;
+  const currentMember = current.member;
 
   async function handleSubmit(data: {
     rating: number;
@@ -53,8 +55,8 @@ export function PendingReviewModal() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        eventId: current.eventId,
-        revieweeId: current.member.id,
+        eventId: currentEventId,
+        revieweeId: currentMember.id,
         ...data,
       }),
     });
@@ -68,7 +70,7 @@ export function PendingReviewModal() {
   return (
     <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 px-4 pb-4">
       <div className="w-full max-w-md">
-        <ReviewForm personName={current.member.name} onSubmit={handleSubmit} onCancel={handleSkip} />
+        <ReviewForm personName={currentMember.name} onSubmit={handleSubmit} onCancel={handleSkip} />
       </div>
     </div>
   );
