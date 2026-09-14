@@ -10,7 +10,7 @@ export function StepProgress({ currentStep, totalSteps }: StepProgressProps) {
         <div
           key={step}
           className={`h-1.5 flex-1 rounded-pill ${
-            step <= currentStep ? "bg-accent" : "bg-ink-400/20"
+            step <= currentStep ? "bg-brand-gradient" : "bg-lavender-100"
           }`}
         />
       ))}

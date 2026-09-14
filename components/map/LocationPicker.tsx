@@ -59,8 +59,8 @@ export function LocationPicker({ initialCenter, onPick }: LocationPickerProps) {
               markerEntity.update({ coordinates: event.coordinates });
             } else {
               const el = document.createElement("div");
-              el.style.cssText = "font-size:32px;line-height:1;transform:translateY(-16px);";
-              el.textContent = "📍";
+              el.style.cssText = "width:32px;height:36px;transform:translateY(-18px);filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));";
+              el.innerHTML = '<img src="/brand/markers/marker-custom.svg" alt="" width="32" height="36" style="display:block;width:100%;height:100%;" />';
               markerEntity = new YMapMarker(
                 { coordinates: event.coordinates, source: "picker-source" },
                 el
