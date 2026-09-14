@@ -1,16 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { EventsMap, type MapEventItem } from "@/components/map/EventsMap";
 
 export default function MapPage() {
+  return (
+    <Suspense>
+      <MapPageContent />
+    </Suspense>
+  );
+}
+
+function MapPageContent() {
+  const searchParams = useSearchParams();
+  const cityOverride = searchParams.get("city"); // позволяет посмотреть карту другого города по ссылке — заодно удобно для отладки
+
   const [events, setEvents] = useState<MapEventItem[]>([]);
   const [selected, setSelected] = useState<MapEventItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/events/map")
+    const query = cityOverride ? `?city=${encodeURIComponent(cityOverride)}` : "";
+    fetch(`/api/events/map${query}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.error) {
@@ -20,7 +33,7 @@ export default function MapPage() {
         setEvents(data.items ?? []);
       })
       .catch(() => setError("Проблема с соединением."));
-  }, []);
+  }, [cityOverride]);
 
   return (
     <div className="relative h-[calc(100vh-5rem)]">
