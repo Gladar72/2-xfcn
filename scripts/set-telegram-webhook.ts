@@ -7,6 +7,11 @@
  * деплоя на Vercel, когда появляется реальный домен).
  */
 import "dotenv/config";
+import { config } from "dotenv";
+
+// dotenv по умолчанию читает файл .env — а у нас, как принято в Next.js,
+// секреты лежат в .env.local. Догружаем его явно поверх.
+config({ path: ".env.local" });
 
 async function main() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
