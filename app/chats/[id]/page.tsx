@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { MessageBubble, formatDayLabel, type MessageData } from "@/components/chat/MessageBubble";
 import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
+import { useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
 
 interface ChatPageProps {
   // Next.js 14 (в этом проекте) передаёт params клиентским компонентам
@@ -19,6 +20,7 @@ interface ChatPageProps {
 export default function ChatPage({ params }: ChatPageProps) {
   const { id: conversationId } = params;
   const router = useRouter();
+  const telegramViewportHeight = useTelegramViewportHeight();
 
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [myUserId, setMyUserId] = useState<string | null>(null);
@@ -130,7 +132,9 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    // Пересчитываем при появлении клавиатуры (telegramViewportHeight
+    // меняется) — иначе последнее сообщение может оказаться под ней.
+  }, [messages.length, telegramViewportHeight]);
 
   async function handleSend() {
     const content = draft.trim();
@@ -157,7 +161,10 @@ export default function ChatPage({ params }: ChatPageProps) {
   }
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-background">
+    <div
+      className="flex flex-col overflow-hidden bg-background"
+      style={{ height: telegramViewportHeight ? `${telegramViewportHeight}px` : "100dvh" }}
+    >
       <div className="flex shrink-0 items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3">
         <button onClick={() => router.push("/chats")} aria-label="Назад">
           <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
