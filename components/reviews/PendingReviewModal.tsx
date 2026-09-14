@@ -40,6 +40,7 @@ export function PendingReviewModal() {
   if (queue.length === 0) return null;
 
   const current = queue[0];
+  if (!current) return null;
 
   async function handleSubmit(data: {
     rating: number;
