@@ -1,7 +1,6 @@
 "use client";
 
 import Image from "next/image";
-import { Button } from "@/components/ui/Button";
 import type { Plan, PlanLimits } from "@/lib/subscriptions/limits";
 
 interface PlanCardProps {
@@ -9,9 +8,7 @@ interface PlanCardProps {
   limits: PlanLimits;
   features: string[];
   highlighted?: boolean;
-  loading?: boolean;
   loadingCard?: boolean;
-  onSelect: (plan: Plan) => void;
   onSelectCard: (plan: Plan) => void;
 }
 
@@ -50,16 +47,7 @@ const PLAN_VISUALS: Record<
   },
 };
 
-export function PlanCard({
-  plan,
-  limits,
-  features,
-  highlighted,
-  loading,
-  loadingCard,
-  onSelect,
-  onSelectCard,
-}: PlanCardProps) {
+export function PlanCard({ plan, limits, features, highlighted, loadingCard, onSelectCard }: PlanCardProps) {
   const visual = PLAN_VISUALS[plan];
 
   return (
@@ -89,15 +77,16 @@ export function PlanCard({
         ))}
       </ul>
 
-      <Button variant={visual.buttonVariant} onClick={() => onSelect(plan)} disabled={loading || loadingCard}>
-        {loading ? "Открываем оплату..." : `Оплатить ${limits.priceStars} ⭐`}
-      </Button>
       <button
         onClick={() => onSelectCard(plan)}
-        disabled={loading || loadingCard}
-        className={`mt-2 w-full rounded-pill py-2.5 text-sm font-medium underline ${visual.textClass}`}
+        disabled={loadingCard}
+        className={`w-full rounded-pill py-3.5 text-sm font-semibold ${
+          visual.buttonVariant === "primary"
+            ? "bg-white text-ink-900 shadow-cta active:scale-[0.98]"
+            : "bg-brand-gradient text-white shadow-cta active:scale-[0.98]"
+        }`}
       >
-        {loadingCard ? "Открываем оплату..." : "Оплатить картой / СБП"}
+        {loadingCard ? "Открываем оплату..." : "Оплата картой / СБП"}
       </button>
     </div>
   );
