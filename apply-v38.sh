@@ -1,3 +1,4 @@
+cat > "app/(app)/search/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -369,3 +370,4 @@ function ChoiceRow({
     </div>
   );
 }
+ENDOFFILE
