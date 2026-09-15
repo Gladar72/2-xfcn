@@ -9,6 +9,10 @@ interface CityPickerProps {
   placeholder?: string;
   className?: string;
   autoFocus?: boolean;
+  /** Куда раскрывается список вариантов. "down" (по умолчанию) подходит,
+   * когда под полем есть место; "up" — когда поле снизу экрана (например,
+   * в нижнем листе) и список иначе перекрывается клавиатурой. */
+  dropdownDirection?: "down" | "up";
 }
 
 /**
@@ -17,7 +21,14 @@ interface CityPickerProps {
  * фильтруется живьём; если не выбрать город из выпадающего списка, при
  * потере фокуса поле откатывается к последнему реально выбранному значению.
  */
-export function CityPicker({ value, onChange, placeholder = "Город", className = "", autoFocus }: CityPickerProps) {
+export function CityPicker({
+  value,
+  onChange,
+  placeholder = "Город",
+  className = "",
+  autoFocus,
+  dropdownDirection = "down",
+}: CityPickerProps) {
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -59,7 +70,11 @@ export function CityPicker({ value, onChange, placeholder = "Город", classN
         className={className}
       />
       {open && (
-        <div className="absolute inset-x-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-card bg-white shadow-card-lg">
+        <div
+          className={`absolute inset-x-0 z-50 max-h-64 overflow-y-auto rounded-card bg-white shadow-card-lg ${
+            dropdownDirection === "up" ? "bottom-full mb-1" : "top-full mt-1"
+          }`}
+        >
           {filtered.length === 0 ? (
             <p className="px-4 py-3 text-sm text-ink-400">Такого города нет в списке</p>
           ) : (
