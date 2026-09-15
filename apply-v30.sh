@@ -1,3 +1,4 @@
+cat > "app/api/geocode/route.ts" << 'ENDOFFILE'
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -40,3 +41,4 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ address: null });
   }
 }
+ENDOFFILE
