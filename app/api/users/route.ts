@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
       telegram_username: telegramUser.username ?? null,
       name: profile.name,
       birth_date: profile.birthDate,
+      gender: profile.gender,
       city: profile.city,
       bio: profile.bio,
     })

@@ -37,6 +37,7 @@ export default function SearchPage() {
   const [costFilter, setCostFilter] = useState<CostFilter>("any");
   const [ageMin, setAgeMin] = useState("");
   const [ageMax, setAgeMax] = useState("");
+  const [genderFilter, setGenderFilter] = useState<"any" | "male" | "female">("any");
 
   const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
   const [applyingEventId, setApplyingEventId] = useState<string | null>(null);
@@ -62,8 +63,9 @@ export default function SearchPage() {
     if (timeFilter !== "any") count++;
     if (costFilter !== "any") count++;
     if (ageMin || ageMax) count++;
+    if (genderFilter !== "any") count++;
     return count;
-  }, [selectedCategorySlugs, dateFilter, timeFilter, costFilter, ageMin, ageMax]);
+  }, [selectedCategorySlugs, dateFilter, timeFilter, costFilter, ageMin, ageMax, genderFilter]);
 
   function load() {
     setLoading(true);
@@ -76,6 +78,7 @@ export default function SearchPage() {
     if (costFilter !== "any") params.set("costType", costFilter);
     if (ageMin) params.set("ageMin", ageMin);
     if (ageMax) params.set("ageMax", ageMax);
+    if (genderFilter !== "any") params.set("gender", genderFilter);
 
     fetch(`/api/events?${params.toString()}`)
       .then((r) => r.json())
@@ -111,6 +114,7 @@ export default function SearchPage() {
     setCostFilter("any");
     setAgeMin("");
     setAgeMax("");
+    setGenderFilter("any");
   }
 
   async function handleApply(eventId: string) {
@@ -275,9 +279,17 @@ export default function SearchPage() {
               <p className="mt-1 text-xs text-ink-400">По умолчанию без ограничений</p>
             </FilterSection>
 
-            <p className="mb-3 text-xs text-ink-400">
-              Пол автора встречи — фильтр появится позже, когда эта информация будет собираться в профиле.
-            </p>
+            <FilterSection title="Кто создал встречу">
+              <ChoiceRow
+                options={[
+                  ["any", "Неважно"],
+                  ["male", "Мужчина"],
+                  ["female", "Женщина"],
+                ]}
+                value={genderFilter}
+                onChange={(v) => setGenderFilter(v as "any" | "male" | "female")}
+              />
+            </FilterSection>
 
             <div className="flex gap-3">
               <button

@@ -11,8 +11,8 @@ interface Interest {
   emoji: string | null;
 }
 
-type Step = "photo" | "name" | "birthDate" | "city" | "bio" | "interests" | "review";
-const STEPS: Step[] = ["photo", "name", "birthDate", "city", "bio", "interests", "review"];
+type Step = "photo" | "name" | "birthDate" | "gender" | "city" | "bio" | "interests" | "review";
+const STEPS: Step[] = ["photo", "name", "birthDate", "gender", "city", "bio", "interests", "review"];
 
 export function OnboardingWizard() {
   const [stepIndex, setStepIndex] = useState(0);
@@ -23,6 +23,7 @@ export function OnboardingWizard() {
   const [photoBase64, setPhotoBase64] = useState<string | undefined>();
   const [name, setName] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [gender, setGender] = useState<"male" | "female" | null>(null);
   const [city, setCity] = useState("");
   const [bio, setBio] = useState("");
   const [selectedInterestIds, setSelectedInterestIds] = useState<string[]>([]);
@@ -80,6 +81,7 @@ export function OnboardingWizard() {
           profile: {
             name,
             birthDate,
+            gender,
             city,
             bio,
             interestIds: selectedInterestIds,
@@ -113,6 +115,7 @@ export function OnboardingWizard() {
     (step === "photo") ||
     (step === "name" && name.trim().length >= 2) ||
     (step === "birthDate" && birthDate.length > 0) ||
+    (step === "gender" && gender !== null) ||
     (step === "city" && city.trim().length >= 2) ||
     (step === "bio") ||
     (step === "interests");
@@ -156,6 +159,32 @@ export function OnboardingWizard() {
               onChange={(e) => setBirthDate(e.target.value)}
               className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-lg outline-none focus:border-accent"
             />
+          </StepBlock>
+        )}
+
+        {step === "gender" && (
+          <StepBlock title="Твой пол">
+            <div className="flex gap-3">
+              {(
+                [
+                  ["male", "Мужчина"],
+                  ["female", "Женщина"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setGender(value)}
+                  className={`flex-1 rounded-card border p-5 text-center text-base font-medium transition ${
+                    gender === value
+                      ? "border-accent bg-brand-gradient text-white shadow-cta"
+                      : "border-ink-400/20 bg-white text-ink-900"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </StepBlock>
         )}
 
@@ -213,6 +242,7 @@ export function OnboardingWizard() {
             <div className="space-y-2 rounded-card bg-white p-5 shadow-card">
               <ReviewRow label="Имя" value={name} />
               <ReviewRow label="Дата рождения" value={birthDate} />
+              <ReviewRow label="Пол" value={gender === "male" ? "Мужчина" : "Женщина"} />
               <ReviewRow label="Город" value={city} />
               {bio && <ReviewRow label="О себе" value={bio} />}
             </div>

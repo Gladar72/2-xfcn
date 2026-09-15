@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
   const costTypeParam = searchParams.get("costType"); // одно значение cost_type или 'any'
   const ageMin = searchParams.get("ageMin") ? Number(searchParams.get("ageMin")) : null;
   const ageMax = searchParams.get("ageMax") ? Number(searchParams.get("ageMax")) : null;
+  const genderParam = searchParams.get("gender"); // 'male' | 'female' | null (нет фильтра)
 
   const currentUser = await getCurrentUser();
   const admin = createAdminClient();
@@ -84,7 +85,7 @@ export async function GET(req: NextRequest) {
       event_date, event_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
       category:categories(slug, name, emoji),
       training_type:training_types(slug, name, emoji),
-      organizer:users(id, name, avatar_url, birth_date, rating_avg, completed_meetings_count)
+      organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count)
       `
     )
     .eq("status", "published")
@@ -165,6 +166,13 @@ export async function GET(req: NextRequest) {
       if (ageMin !== null && age < ageMin) return false;
       if (ageMax !== null && age > ageMax) return false;
       return true;
+    });
+  }
+
+  if (genderParam === "male" || genderParam === "female") {
+    visibleRows = visibleRows.filter((row) => {
+      const organizer = row.organizer as unknown as { gender: string | null } | null;
+      return organizer?.gender === genderParam;
     });
   }
 
