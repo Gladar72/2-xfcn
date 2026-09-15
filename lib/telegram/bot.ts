@@ -1,4 +1,11 @@
 import { Bot, InlineKeyboard } from "grammy";
+import { getSupportAiReply } from "@/lib/telegram/support-ai";
+
+function getAdminId(): number | null {
+  const first = (process.env.ADMIN_TELEGRAM_IDS ?? "").split(",")[0]?.trim();
+  const id = Number(first);
+  return first && !Number.isNaN(id) ? id : null;
+}
 
 /**
  * Бот собирается лениво (не на верхнем уровне модуля) — токен читается из
@@ -62,6 +69,27 @@ export function getBot(): Bot {
       "Вопросы по оплате подписки (Telegram Stars): опиши проблему здесь, " +
         "укажи дату и тариф — разберёмся и, если нужно, оформим возврат через Telegram."
     );
+  });
+
+  // Свободный текст (не команда) в чате с ботом = обращение в поддержку.
+  // Правило порядка: обработчики выше (.command(...)) уже "съедают" команды
+  // и не вызывают next(), так что сюда попадают только обычные сообщения.
+  bot.on("message:text", async (ctx) => {
+    const userMessage = ctx.message.text;
+    const { reply, needsHuman } = await getSupportAiReply(userMessage);
+    await ctx.reply(reply);
+
+    const adminId = getAdminId();
+    if (needsHuman && adminId) {
+      const from = ctx.from;
+      const who = from?.username ? `@${from.username}` : from?.first_name ?? "пользователь";
+      await ctx.api
+        .sendMessage(
+          adminId,
+          `📩 Вопрос в поддержку от ${who} (id ${from?.id}):\n\n${userMessage}\n\n— Ответ бота: ${reply}`
+        )
+        .catch((err) => console.error("Не удалось переслать вопрос админу:", err));
+    }
   });
 
   bot.catch((err) => {
