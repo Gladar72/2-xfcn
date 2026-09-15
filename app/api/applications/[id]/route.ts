@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { buildNotificationText } from "@/lib/notifications/text";
 
 type Action = "accept" | "reject" | "cancel";
 
@@ -35,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!application) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const organizerId = (application.events as unknown as { organizer_id: string } | null)?.organizer_id;
-  const eventTitle = (application.events as unknown as { title: string } | null)?.title ?? "встречу";
+  const eventTitle = (application.events as unknown as { title: string } | null)?.title;
 
   if (action === "cancel") {
     if (application.user_id !== currentUser.userId) {
@@ -101,7 +102,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq("id", application.user_id)
     .maybeSingle();
   if (participant) {
-    notifyTelegram(participant.telegram_id, `🎉 Твой отклик на «${eventTitle}» приняли! Организатор ждёт тебя.`).catch(
+    notifyTelegram(participant.telegram_id, buildNotificationText("application_accepted", eventTitle)).catch(
       () => {}
     );
   }

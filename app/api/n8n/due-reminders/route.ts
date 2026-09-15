@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidN8nRequest } from "@/lib/n8n/auth";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { buildNotificationText } from "@/lib/notifications/text";
 
 const REMINDER_WINDOW_MINUTES = 15; // n8n дёргает раз в 15 минут — окно должно совпадать с частотой опроса
 
@@ -90,14 +91,10 @@ export async function GET(req: NextRequest) {
     // сам разошлёт сообщения по возвращённому списку items) — так
     // напоминание точно дойдёт, даже если workflow в n8n не настроен.
     await Promise.all(
-      items.flatMap((item) =>
-        item.recipients.map((telegramId) =>
-          notifyTelegram(
-            telegramId,
-            `⏰ Скоро встреча «${item.title}»${item.placeName ? ` в «${item.placeName}»` : ""} — в ${item.eventTime.slice(0, 5)}`
-          )
-        )
-      )
+      items.flatMap((item) => {
+        const text = buildNotificationText("event_reminder", item.title);
+        return item.recipients.map((telegramId) => notifyTelegram(telegramId, text));
+      })
     );
   }
 

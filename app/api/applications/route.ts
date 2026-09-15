@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { buildNotificationText } from "@/lib/notifications/text";
 
 /**
  * POST /api/applications
@@ -66,15 +67,13 @@ export async function POST(req: NextRequest) {
     payload: { eventId, applicationId: application.id, applicantId: currentUser.userId },
   });
 
-  const [{ data: organizer }, { data: applicant }] = await Promise.all([
-    admin.from("users").select("telegram_id").eq("id", event.organizer_id).maybeSingle(),
-    admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
-  ]);
+  const { data: organizer } = await admin
+    .from("users")
+    .select("telegram_id")
+    .eq("id", event.organizer_id)
+    .maybeSingle();
   if (organizer) {
-    notifyTelegram(
-      organizer.telegram_id,
-      `🙋 ${applicant?.name ?? "Кто-то"} откликнулся(-ась) на твою встречу «${event.title}»`
-    ).catch(() => {});
+    notifyTelegram(organizer.telegram_id, buildNotificationText("new_application", event.title)).catch(() => {});
   }
 
   return NextResponse.json({ status: "created", applicationId: application.id });

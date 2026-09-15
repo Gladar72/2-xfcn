@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { buildNotificationText } from "@/lib/notifications/text";
 
 const NOTIFICATIONS_LIMIT = 50;
 
@@ -82,24 +83,4 @@ export async function PATCH(_req: NextRequest) {
     .eq("is_read", false);
 
   return NextResponse.json({ status: "ok" });
-}
-
-function buildNotificationText(type: string, eventTitle: string | undefined): string {
-  const title = eventTitle ? `«${eventTitle}»` : "встречу";
-  switch (type) {
-    case "new_application":
-      return `Новый отклик на ${title}`;
-    case "application_accepted":
-      return `Тебя приняли на ${title}`;
-    case "event_reminder":
-      return `Скоро начнётся ${title}`;
-    case "review_request":
-      return `Оцени, как прошла ${title}`;
-    case "boost_suggestion":
-      return `Мало откликов на ${title} — можно поднять её в ленте`;
-    case "new_message":
-      return "Новое сообщение в чате";
-    default:
-      return "Новое уведомление";
-  }
 }
