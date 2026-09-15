@@ -8,6 +8,7 @@ import { MessageBubble, formatDayLabel, type MessageData } from "@/components/ch
 import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
 import { useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
+import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 
 interface ChatPageProps {
   // Next.js 14 (в этом проекте) передаёт params клиентским компонентам
@@ -27,6 +28,7 @@ interface OtherUser {
 export default function ChatPage({ params }: ChatPageProps) {
   const { id: conversationId } = params;
   const router = useRouter();
+  useLockBodyScroll();
 
   // visualViewport — основной источник (надёжнее в разных клиентах
   // Telegram), Telegram.WebApp.viewportHeight — запасной вариант.
