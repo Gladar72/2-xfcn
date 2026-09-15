@@ -1,343 +1,133 @@
-mkdir -p "components/ui"
-cat > "components/ui/CityPicker.tsx" << 'ENDOFFILE'
-"use client";
+mkdir -p "app"
+cat > "app/globals.css" << 'ENDOFFILE'
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-import { useEffect, useRef, useState } from "react";
-import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
-
-interface CityPickerProps {
-  value: string;
-  onChange: (city: string) => void;
-  placeholder?: string;
-  className?: string;
-  autoFocus?: boolean;
-  /** Куда раскрывается список вариантов. "down" (по умолчанию) подходит,
-   * когда под полем есть место; "up" — когда поле снизу экрана (например,
-   * в нижнем листе) и список иначе перекрывается клавиатурой. */
-  dropdownDirection?: "down" | "up";
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
-/**
- * Выбор города — только из списка городов России (lib/data/russian-cities.ts),
- * свободный ввод произвольного текста не сохраняется. Печатаешь — список
- * фильтруется живьём; если не выбрать город из выпадающего списка, при
- * потере фокуса поле откатывается к последнему реально выбранному значению.
- */
-export function CityPicker({
-  value,
-  onChange,
-  placeholder = "Город",
-  className = "",
-  autoFocus,
-  dropdownDirection = "down",
-}: CityPickerProps) {
-  const [query, setQuery] = useState(value);
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+/* Полоса загрузки на стартовом экране (app/page.tsx) — плавно наполняется,
+   не привязана к реальному прогрессу (сама проверка занимает доли секунды),
+   просто даёт ощущение "приложение открывается", а не мгновенный скачок. */
+@keyframes splash-progress {
+  0% { width: 0%; }
+  70% { width: 88%; }
+  100% { width: 96%; }
+}
+.splash-progress-bar {
+  animation: splash-progress 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
 
-  useEffect(() => setQuery(value), [value]);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-        setQuery(value); // отменяем недописанный/невыбранный ввод
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [value]);
-
-  const filtered = query.trim()
-    ? RUSSIAN_CITIES.filter((c) => c.toLowerCase().startsWith(query.trim().toLowerCase())).slice(0, 50)
-    : RUSSIAN_CITIES;
-
-  function selectCity(city: string) {
-    onChange(city);
-    setQuery(city);
-    setOpen(false);
-  }
-
-  return (
-    <div ref={containerRef} className="relative">
-      <input
-        autoFocus={autoFocus}
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-          setOpen(true);
-        }}
-        onFocus={() => setOpen(true)}
-        placeholder={placeholder}
-        className={className}
-      />
-      {open && (
-        <div
-          className={`absolute inset-x-0 z-50 max-h-64 overflow-y-auto rounded-card bg-white shadow-card-lg ${
-            dropdownDirection === "up" ? "bottom-full mb-1" : "top-full mt-1"
-          }`}
-        >
-          {filtered.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-ink-400">Такого города нет в списке</p>
-          ) : (
-            filtered.map((city) => (
-              <button
-                key={city}
-                type="button"
-                onClick={() => selectCity(city)}
-                className="block w-full px-4 py-2.5 text-left text-sm text-ink-900 hover:bg-lavender-50"
-              >
-                {city}
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
+/* Скрываем необязательную кнопку "Открыть Яндекс Карты" — это удобство,
+   а не обязательная атрибуция. Условия использования (обязательная ссылка,
+   класс ymaps3--map-copyrights__user-agreements) остаются на месте. */
+.ymaps3--controls_bottom.ymaps3--controls_left.ymaps3--controls_horizontal {
+  display: none !important;
 }
 ENDOFFILE
 
-mkdir -p "app/(app)/feed"
-cat > "app/(app)/feed/page.tsx" << 'ENDOFFILE'
+mkdir -p "components/layout"
+cat > "components/layout/BottomNav.tsx" << 'ENDOFFILE'
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { TopBar } from "@/components/layout/TopBar";
-import { CategoryGrid } from "@/components/home/CategoryGrid";
-import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
-import { EventCard, type EventCardData } from "@/components/feed/EventCard";
-import { Button } from "@/components/ui/Button";
-import { CityPicker } from "@/components/ui/CityPicker";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import clsx from "clsx";
 
-interface Category {
-  id: string;
-  slug: string;
-  name: string;
-  emoji: string | null;
-}
+// Финальная навигация МЕСТО: по центру — переход к полному списку встреч
+// с фильтрами (раньше здесь были монеты подписки; монеты переехали в
+// профиль — см. app/(app)/profile/page.tsx, карточка "Мой пакет").
+const TABS = [
+  { href: "/feed", label: "Главная", icon: "nav-home" },
+  { href: "/map", label: "Карта", icon: "nav-map" },
+  { href: "/chats", label: "Чаты", icon: "nav-chat" },
+  { href: "/profile", label: "Профиль", icon: "nav-profile" },
+];
 
-interface TrainingType {
-  id: string;
-  slug: string;
-  name: string;
-  emoji: string | null;
-}
+export function BottomNav() {
+  const pathname = usePathname();
+  const [left, right] = [TABS.slice(0, 2), TABS.slice(2)];
+  const [unreadChats, setUnreadChats] = useState(0);
 
-export default function FeedPage() {
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((data) => {
+        const total = (data.items ?? []).reduce(
+          (sum: number, item: { unreadCount: number }) => sum + (item.unreadCount || 0),
+          0
+        );
+        setUnreadChats(total);
+      })
+      .catch(() => {});
+  }, [pathname]);
+
   return (
-    // useSearchParams требует Suspense-границу в Next.js App Router
-    <Suspense>
-      <FeedPageContent />
-    </Suspense>
+    <nav className="fixed inset-x-0 bottom-0 z-40 rounded-t-sheet border-t border-lavender-100 bg-white/95 shadow-card-lg backdrop-blur">
+      <div className="mx-auto flex max-w-md items-end justify-between px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2">
+        {left.map((tab) => (
+          <NavTab key={tab.href} tab={tab} active={pathname === tab.href} />
+        ))}
+
+        <Link
+          href="/search"
+          aria-label="Поиск встреч"
+          className="-mt-5 flex flex-col items-center gap-1 active:scale-95"
+        >
+          <div className="relative h-12 w-12 drop-shadow-[0_6px_14px_rgba(108,59,255,0.35)]">
+            <Image src="/brand/3d/location-pin.png" alt="" fill className="object-contain" sizes="48px" />
+          </div>
+          <span className={clsx("text-xs", pathname === "/search" ? "text-accent font-medium" : "text-ink-400")}>
+            Встречи
+          </span>
+        </Link>
+
+        {right.map((tab) => (
+          <NavTab
+            key={tab.href}
+            tab={tab}
+            active={pathname === tab.href}
+            badge={tab.href === "/chats" ? unreadChats : 0}
+          />
+        ))}
+      </div>
+    </nav>
   );
 }
 
-function FeedPageContent() {
-  const searchParams = useSearchParams();
-  const categoryFilter = searchParams.get("category");
-  const typeFilter = searchParams.get("type");
-
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
-  const [sheetOpen, setSheetOpen] = useState(false);
-
-  const [events, setEvents] = useState<EventCardData[]>([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
-  const [applyingEventId, setApplyingEventId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [city, setCity] = useState("Тюмень");
-  const [citySheetOpen, setCitySheetOpen] = useState(false);
-  const [cityInput, setCityInput] = useState("");
-
-  useEffect(() => {
-    fetch("/api/me/profile")
-      .then((r) => r.json())
-      .then((data) => {
-        setAvatarUrl(data.avatarUrl ?? null);
-        if (data.city) {
-          setCity(data.city);
-          setCityInput(data.city);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    fetch("/api/categories")
-      .then((r) => r.json())
-      .then((data) => {
-        setCategories(data.categories ?? []);
-        setTrainingTypes(data.trainingTypes ?? []);
-      })
-      .catch(() => {
-        setCategories([]);
-        setTrainingTypes([]);
-      });
-  }, []);
-
-  useEffect(() => {
-    setEvents([]);
-    setPage(0);
-    loadPage(0, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryFilter, typeFilter, city]);
-
-  async function loadPage(pageToLoad: number, replace: boolean) {
-    setLoading(true);
-    setError(null);
-    try {
-      const params = new URLSearchParams({ page: String(pageToLoad), city });
-      if (categoryFilter) params.set("category", categoryFilter);
-      if (typeFilter) params.set("type", typeFilter);
-
-      const res = await fetch(`/api/events?${params.toString()}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error === "city_required" ? "Сначала заверши регистрацию." : "Не удалось загрузить ленту.");
-        return;
-      }
-
-      setEvents((prev) => (replace ? data.items : [...prev, ...data.items]));
-      setHasMore(Boolean(data.hasMore));
-      setPage(pageToLoad);
-    } catch {
-      setError("Проблема с соединением.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function handleApply(eventId: string) {
-    if (appliedEventIds.has(eventId) || applyingEventId) return;
-    setApplyingEventId(eventId);
-    try {
-      const res = await fetch("/api/applications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId }),
-      });
-      const data = await res.json();
-
-      if (res.ok) {
-        setAppliedEventIds((prev) => new Set(prev).add(eventId));
-        setToast("Отклик отправлен! Организатор скоро ответит.");
-      } else if (data.error === "already_applied") {
-        setAppliedEventIds((prev) => new Set(prev).add(eventId));
-        setToast("Ты уже откликался на эту встречу.");
-      } else if (data.error === "event_full") {
-        setToast("Мест уже не осталось.");
-      } else if (data.error === "cannot_apply_to_own_event") {
-        setToast("Это твоя встреча — не нужно откликаться на неё самому.");
-      } else {
-        setToast("Не получилось отправить отклик.");
-      }
-    } catch {
-      setToast("Проблема с соединением.");
-    } finally {
-      setApplyingEventId(null);
-      setTimeout(() => setToast(null), 3000);
-    }
-  }
-
+function NavTab({
+  tab,
+  active,
+  badge = 0,
+}: {
+  tab: (typeof TABS)[number];
+  active: boolean;
+  badge?: number;
+}) {
+  const src = `/brand/navigation/${tab.icon}-${active ? "active" : "default"}.svg`;
   return (
-    <div>
-      <TopBar city={city} avatarUrl={avatarUrl} onCityPress={() => setCitySheetOpen(true)} />
-
-      <div className="px-5 pb-2 pt-6">
-        <h1 className="text-display">
-          Что ищешь <span className="text-accent">сегодня?</span>
-        </h1>
-      </div>
-
-      <CategoryGrid categories={categories} onTrainingPress={() => setSheetOpen(true)} />
-
-      <div className="mt-8 space-y-3 px-5">
-        <h2 className="text-title">Интересные встречи рядом</h2>
-
-        {loading && events.length === 0 && (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="h-32 animate-pulse rounded-card bg-white shadow-card" />
-            ))}
-          </div>
-        )}
-
-        {error && <p className="text-center text-sm text-red-600">{error}</p>}
-
-        {!loading && !error && events.length === 0 && (
-          <div className="flex flex-col items-center px-6 py-10 text-center">
-            <div className="relative mb-4 h-32 w-32">
-              <Image src="/brand/3d/empty-quiet.png" alt="" fill className="object-contain" sizes="128px" />
-            </div>
-            <p className="text-sm text-ink-600">Сегодня пока тихо. Создайте первый план в своём городе.</p>
-          </div>
-        )}
-
-        {events.map((event) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            applied={appliedEventIds.has(event.id)}
-            applying={applyingEventId === event.id}
-            onApplyPress={handleApply}
-          />
-        ))}
-
-        {hasMore && (
-          <Button variant="secondary" onClick={() => loadPage(page + 1, false)} disabled={loading}>
-            {loading ? "Загружаем..." : "Показать ещё"}
-          </Button>
-        )}
-      </div>
-
-      <TrainingTypeSheet
-        open={sheetOpen}
-        trainingTypes={trainingTypes}
-        onClose={() => setSheetOpen(false)}
-      />
-
-      {toast && (
-        <div className="fixed inset-x-5 bottom-24 z-50 rounded-card bg-ink-900 px-4 py-3 text-center text-sm text-white shadow-card">
-          {toast}
-        </div>
+    <Link
+      href={tab.href}
+      className={clsx(
+        "relative flex flex-col items-center gap-1 rounded-lg px-3 py-1 text-xs",
+        active ? "text-accent font-medium" : "text-ink-400"
       )}
-
-      {citySheetOpen && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30"
-          onClick={() => setCitySheetOpen(false)}
-        >
-          <div
-            className="rounded-t-sheet bg-white p-5 pb-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <h2 className="text-title mb-4">Выбери город</h2>
-            <CityPicker
-              autoFocus
-              value={cityInput}
-              onChange={(selected) => {
-                setCityInput(selected);
-                setCity(selected);
-                setCitySheetOpen(false);
-              }}
-              placeholder="Начни вводить город"
-              dropdownDirection="up"
-              className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-background px-4 py-3 text-base outline-none focus:border-accent"
-            />
-          </div>
-        </div>
-      )}
-    </div>
+    >
+      <span className="relative">
+        <Image src={src} alt="" width={24} height={24} />
+        {badge > 0 && (
+          <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-white">
+            {badge > 9 ? "9+" : badge}
+          </span>
+        )}
+      </span>
+      {tab.label}
+    </Link>
   );
 }
 ENDOFFILE

@@ -46,19 +46,8 @@ export function BottomNav() {
           aria-label="Поиск встреч"
           className="-mt-5 flex flex-col items-center gap-1 active:scale-95"
         >
-          <div
-            className={clsx(
-              "flex h-12 w-12 items-center justify-center rounded-full shadow-cta",
-              pathname === "/search" ? "bg-brand-gradient" : "bg-ink-900"
-            )}
-          >
-            <Image
-              src="/brand/icons/location.svg"
-              alt=""
-              width={22}
-              height={22}
-              style={{ filter: "brightness(0) invert(1)" }}
-            />
+          <div className="relative h-12 w-12 drop-shadow-[0_6px_14px_rgba(108,59,255,0.35)]">
+            <Image src="/brand/3d/location-pin.png" alt="" fill className="object-contain" sizes="48px" />
           </div>
           <span className={clsx("text-xs", pathname === "/search" ? "text-accent font-medium" : "text-ink-400")}>
             Встречи
