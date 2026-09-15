@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       name: profile.name,
       birth_date: profile.birthDate,
       gender: profile.gender,
+      terms_accepted_at: new Date().toISOString(),
       city: profile.city,
       bio: profile.bio,
     })

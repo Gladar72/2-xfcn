@@ -20,6 +20,9 @@ export const onboardingSchema = z.object({
     .refine((v) => !Number.isNaN(new Date(v).getTime()), "Некорректная дата")
     .refine((v) => isAtLeast18(v), "Сервис доступен только пользователям 18+"),
   gender: z.enum(["male", "female"], { errorMap: () => ({ message: "Укажите пол" }) }),
+  agreedToTerms: z.literal(true, {
+    errorMap: () => ({ message: "Нужно принять условия оферты и политики конфиденциальности" }),
+  }),
   city: z.string().trim().min(2, "Укажите город").max(80),
   bio: z.string().trim().max(300).optional().default(""),
   interestIds: z.array(z.string().uuid()).max(15).default([]),

@@ -48,11 +48,28 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="О приложении">
-        <div className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
-          <div className="relative h-6 w-24">
+        <div className="rounded-card bg-white p-4 shadow-card">
+          <div className="relative mb-4 h-6 w-24">
             <Image src="/brand/logo/wordmark-purple.svg" alt="МЕСТО" fill className="object-contain object-left" />
           </div>
+          <p className="mb-2 text-sm font-medium text-ink-900">
+            МЕСТО — когда есть куда пойти, но не с кем.
+          </p>
+          <p className="mb-2 text-sm text-ink-600">
+            Приложение, которое объединяет людей через реальные планы и события.
+          </p>
+          <p className="mb-2 text-sm text-ink-600">
+            Хочешь сходить в кино, позавтракать, выпить кофе, поужинать, прогуляться или потренироваться —
+            создай встречу или присоединись к уже существующей.
+          </p>
+          <p className="text-sm text-ink-600">
+            Здесь не нужно бесконечно листать анкеты и искать повод для знакомства. Сначала появляется место,
+            идея или занятие — потом люди, которые хотят того же.
+          </p>
         </div>
+
+        <Row href="/legal/offer" label="Публичная оферта" icon="/brand/icons/info.svg" />
+        <Row href="/legal/privacy" label="Политика конфиденциальности" icon="/brand/icons/lock.svg" />
       </Section>
 
       <button
