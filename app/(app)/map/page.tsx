@@ -15,7 +15,11 @@ export default function MapPage() {
 
 function MapPageContent() {
   const searchParams = useSearchParams();
-  const cityOverride = searchParams.get("city"); // позволяет посмотреть карту другого города по ссылке — заодно удобно для отладки
+  // Все параметры (city/categories/date/timeOfDay/costType/gender/
+  // ageMin/ageMax) просто пробрасываем как есть — /api/events/map
+  // понимает тот же набор фильтров, что и экран поиска (см. кнопку
+  // "Показать на карте" на /search).
+  const forwardedParams = searchParams.toString();
 
   const [events, setEvents] = useState<MapEventItem[]>([]);
   const [selected, setSelected] = useState<MapEventItem[] | null>(null);
@@ -25,7 +29,7 @@ function MapPageContent() {
   function load(isRetry = false) {
     setLoading(true);
     setError(null);
-    const query = cityOverride ? `?city=${encodeURIComponent(cityOverride)}` : "";
+    const query = forwardedParams ? `?${forwardedParams}` : "";
     fetch(`/api/events/map${query}`)
       .then((r) => r.json())
       .then((data) => {
@@ -55,7 +59,7 @@ function MapPageContent() {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cityOverride]);
+  }, [forwardedParams]);
 
   return (
     <div className="relative h-[calc(100vh-5rem)]">

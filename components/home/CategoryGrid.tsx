@@ -64,6 +64,20 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
             </button>
           );
         })}
+
+        {/* "Другое" — не категория из базы, а прямой переход в раздел
+            "Встречи" (экран /search, тот же, что открывается по центру
+            нижней навигации), без предустановленного фильтра категории —
+            там можно выбрать любую встречу и применить любые фильтры. */}
+        <button
+          onClick={() => router.push("/search")}
+          className="flex flex-col items-start gap-2 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98]"
+        >
+          <div className="relative h-11 w-11">
+            <Image src="/brand/3d/other.png" alt="" fill className="object-contain" sizes="44px" />
+          </div>
+          <span className="text-sm font-medium leading-tight text-ink-900">Другое</span>
+        </button>
       </div>
 
       {customCategory && (

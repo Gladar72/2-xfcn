@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
 
 interface Category {
@@ -67,9 +68,7 @@ export default function SearchPage() {
     return count;
   }, [selectedCategorySlugs, dateFilter, timeFilter, costFilter, ageMin, ageMax, genderFilter]);
 
-  function load() {
-    setLoading(true);
-    setError(null);
+  function buildFilterParams(): URLSearchParams {
     const params = new URLSearchParams();
     params.set("city", city);
     if (selectedCategorySlugs.length > 0) params.set("categories", selectedCategorySlugs.join(","));
@@ -79,6 +78,13 @@ export default function SearchPage() {
     if (ageMin) params.set("ageMin", ageMin);
     if (ageMax) params.set("ageMax", ageMax);
     if (genderFilter !== "any") params.set("gender", genderFilter);
+    return params;
+  }
+
+  function load() {
+    setLoading(true);
+    setError(null);
+    const params = buildFilterParams();
 
     fetch(`/api/events?${params.toString()}`)
       .then((r) => r.json())
@@ -159,6 +165,14 @@ export default function SearchPage() {
           )}
         </button>
       </div>
+
+      <Link
+        href={`/map?${buildFilterParams().toString()}`}
+        className="mb-4 flex items-center justify-center gap-2 rounded-pill bg-white py-2.5 text-sm font-medium text-accent shadow-card"
+      >
+        <Image src="/brand/icons/map.svg" alt="" width={16} height={16} />
+        Показать на карте
+      </Link>
 
       {loading && <p className="text-center text-sm text-ink-600">Загрузка...</p>}
       {error && <p className="text-center text-sm text-red-600">{error}</p>}

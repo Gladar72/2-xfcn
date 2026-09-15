@@ -151,7 +151,7 @@ function FeedPageContent() {
 
       <div className="px-5 pb-2 pt-6">
         <h1 className="text-display">
-          Что хочешь сделать <span className="text-accent">сегодня?</span>
+          Что ищешь <span className="text-accent">сегодня?</span>
         </h1>
       </div>
 
