@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { type Plan } from "@/lib/subscriptions/limits";
+import { AvatarViewer } from "@/components/profile/AvatarViewer";
 
 interface Profile {
   name: string;
@@ -23,8 +24,6 @@ interface SubscriptionStatus {
   active: boolean;
   plan?: Plan;
   periodEnd?: string;
-  events?: { used: number; limit: number | null };
-  boosts?: { used: number; limit: number };
 }
 
 const PLAN_TITLES: Record<Plan, string> = { start: "Старт", medium: "Медиум", premium: "Премьер" };
@@ -35,6 +34,10 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editBio, setEditBio] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,7 +46,11 @@ export default function ProfilePage() {
       fetch("/api/subscriptions").then((r) => r.json()),
     ])
       .then(([profileData, subData]) => {
-        if (!profileData.error) setProfile(profileData);
+        if (!profileData.error) {
+          setProfile(profileData);
+          setEditName(profileData.name);
+          setEditBio(profileData.bio ?? "");
+        }
         setSubscription(subData);
       })
       .finally(() => setLoading(false));
@@ -67,7 +74,7 @@ export default function ProfilePage() {
 
   async function handlePhotoSelected(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    e.target.value = ""; // чтобы повторный выбор того же файла тоже сработал
+    e.target.value = "";
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
@@ -99,23 +106,49 @@ export default function ProfilePage() {
     }
   }
 
+  async function saveEdit() {
+    setSavingEdit(true);
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: editName, bio: editBio }),
+      });
+      if (res.ok) {
+        setProfile((prev) => (prev ? { ...prev, name: editName, bio: editBio } : prev));
+        setEditing(false);
+      }
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
   return (
     <div className="px-5 py-6">
-      <div className="mb-6 flex items-start justify-between">
-        <div className="flex items-center gap-4">
-        <div className="relative shrink-0">
-          <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white text-2xl font-semibold text-ink-600 shadow-card">
-            {profile.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={profile.avatarUrl} alt={profile.name} className="h-full w-full object-cover" />
-            ) : (
-              profile.name.charAt(0).toUpperCase()
-            )}
-          </div>
+      <div className="mb-2 flex justify-end">
+        <Link href="/settings" aria-label="Настройки">
+          <Image src="/brand/icons/settings.svg" alt="" width={22} height={22} />
+        </Link>
+      </div>
+
+      <div className="mb-4 flex flex-col items-center text-center">
+        <div className="relative mb-3">
+          {profile.avatarUrl ? (
+            <AvatarViewer src={profile.avatarUrl} alt={profile.name}>
+              <div className="h-24 w-24 overflow-hidden rounded-full bg-white shadow-card">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={profile.avatarUrl} alt={profile.name} className="h-full w-full object-cover" />
+              </div>
+            </AvatarViewer>
+          ) : (
+            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white text-2xl font-semibold text-ink-600 shadow-card">
+              {profile.name.charAt(0).toUpperCase()}
+            </div>
+          )}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingPhoto}
-            className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full bg-accent text-sm text-white shadow-card active:scale-95"
+            className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm text-white shadow-card active:scale-95"
             aria-label="Изменить фото"
           >
             {uploadingPhoto ? "…" : "✏️"}
@@ -128,87 +161,126 @@ export default function ProfilePage() {
             onChange={handlePhotoSelected}
           />
         </div>
-        <div className="min-w-0">
-          <h1 className="text-display truncate">
-            {profile.name}, {profile.age}
-          </h1>
-          <p className="text-sm text-ink-600">{profile.city}</p>
-        </div>
-        </div>
 
-        <Link href="/settings" aria-label="Настройки" className="mt-1 shrink-0">
-          <Image src="/brand/icons/settings.svg" alt="" width={22} height={22} />
-        </Link>
+        <h1 className="text-title">
+          {profile.name}, {profile.age}
+        </h1>
+        <p className="mt-1 flex items-center gap-1 text-sm text-ink-600">
+          <Image src="/brand/icons/location.svg" alt="" width={14} height={14} />
+          {profile.city}
+        </p>
+        {profile.ratingCount > 0 && (
+          <p className="mt-1 flex items-center gap-1 text-sm text-ink-600">
+            <Image src="/brand/icons/star.svg" alt="" width={14} height={14} />
+            {profile.ratingAvg.toFixed(1)} ({profile.ratingCount}{" "}
+            {pluralize(profile.ratingCount, "оценка", "оценки", "оценок")})
+          </p>
+        )}
+
+        <button
+          onClick={() => setEditing((v) => !v)}
+          className="mt-3 rounded-pill bg-lavender-100 px-5 py-2 text-sm font-medium text-accent"
+        >
+          Редактировать профиль
+        </button>
       </div>
+
+      {editing && (
+        <div className="mb-5 space-y-2 rounded-card bg-white p-4 shadow-card">
+          <input
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+            placeholder="Имя"
+            maxLength={50}
+            className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          <textarea
+            value={editBio}
+            onChange={(e) => setEditBio(e.target.value)}
+            placeholder="О себе"
+            maxLength={300}
+            rows={3}
+            className="w-full min-w-0 box-border resize-none rounded-card border border-lavender-200 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+          />
+          <div className="flex gap-2">
+            <button
+              onClick={() => setEditing(false)}
+              className="flex-1 rounded-pill border border-lavender-200 bg-white py-2.5 text-sm font-medium text-ink-600"
+            >
+              Отмена
+            </button>
+            <button
+              onClick={saveEdit}
+              disabled={savingEdit || editName.trim().length < 2}
+              className="flex-1 rounded-pill bg-brand-gradient py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              {savingEdit ? "Сохраняем..." : "Сохранить"}
+            </button>
+          </div>
+        </div>
+      )}
 
       {uploadError && <p className="mb-4 text-center text-sm text-red-600">{uploadError}</p>}
 
-      {profile.bio && <p className="mb-6 text-sm text-ink-900">{profile.bio}</p>}
+      {!editing && profile.bio && <p className="mb-6 text-center text-sm text-ink-900">{profile.bio}</p>}
 
-      <div className="mb-6 grid grid-cols-3 gap-2">
-        <StatCard
-          label="Рейтинг"
-          value={profile.ratingCount > 0 ? profile.ratingAvg.toFixed(1) : "—"}
-          emoji="⭐"
-        />
-        <StatCard label="Встреч состоялось" value={String(profile.completedMeetingsCount)} emoji="🤝" />
-        <StatCard label="Создано встреч" value={String(profile.eventsOrganizedCount)} emoji="📋" />
+      <div className="mb-6 grid grid-cols-3 gap-2 rounded-card-lg bg-white py-4 shadow-card">
+        <StatItem value={String(profile.eventsOrganizedCount)} label="создано" />
+        <StatItem value={String(profile.eventsAttendedCount)} label="посещено" />
+        <StatItem value={String(profile.completedMeetingsCount)} label="состоялось" />
       </div>
 
-      <h2 className="text-title mb-3">Мой пакет</h2>
-      {subscription?.active ? (
-        <Link
+      <div className="space-y-1.5 rounded-card-lg bg-white p-1.5 shadow-card">
+        <MenuRow href="/my-events" icon="/brand/icons/calendar.svg" label="Мои встречи" />
+        <MenuRow href="/notifications" icon="/brand/icons/bell.svg" label="Уведомления" />
+        <MenuRow
           href="/subscriptions"
-          className="mb-6 flex items-center justify-between rounded-card-lg bg-ink-900 p-5 text-white shadow-card-lg"
-        >
-          <div className="flex items-center gap-3">
-            <div className="relative h-12 w-16 shrink-0">
-              <Image src="/brand/3d/subscription-coins.png" alt="" fill className="object-contain" sizes="64px" />
-            </div>
-            <div>
-              <span className="text-lg font-bold">{PLAN_TITLES[subscription.plan!]}</span>
-              <p className="text-sm text-white/70">
-                до {new Date(subscription.periodEnd!).toLocaleDateString("ru-RU")}
-              </p>
-            </div>
-          </div>
-          <span className="text-white/70">→</span>
-        </Link>
-      ) : (
-        <Link
-          href="/subscriptions"
-          className="mb-6 flex items-center gap-3 rounded-card-lg bg-white p-5 shadow-card-lg"
-        >
-          <div className="relative h-12 w-16 shrink-0">
-            <Image src="/brand/3d/subscription-coins.png" alt="" fill className="object-contain" sizes="64px" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-ink-900">Оформить подписку</p>
-            <p className="text-xs text-ink-600">Нужна для создания встреч</p>
-          </div>
-          <span className="ml-auto text-accent">→</span>
-        </Link>
-      )}
-
-      <Link
-        href="/reviews"
-        className="flex items-center justify-between rounded-card bg-white p-4 shadow-card"
-      >
-        <span className="text-sm font-medium text-ink-900">Отзывы после встреч</span>
-        <span className="text-accent">→</span>
-      </Link>
+          icon="/brand/icons/gift.svg"
+          label="Подписка"
+          value={subscription?.active ? PLAN_TITLES[subscription.plan!] : "не оформлена"}
+        />
+        <MenuRow href="/reviews" icon="/brand/icons/star.svg" label="Отзывы после встреч" />
+      </div>
     </div>
   );
 }
 
-function StatCard({ label, value, emoji }: { label: string; value: string; emoji: string }) {
+function StatItem({ value, label }: { value: string; label: string }) {
   return (
-    <div className="rounded-card bg-white p-3 text-center shadow-card">
-      <div className="text-lg">{emoji}</div>
+    <div className="text-center">
       <div className="text-lg font-bold text-ink-900">{value}</div>
-      <div className="text-[11px] leading-tight text-ink-600">{label}</div>
+      <div className="text-xs text-ink-600">{label}</div>
     </div>
   );
+}
+
+function MenuRow({
+  href,
+  icon,
+  label,
+  value,
+}: {
+  href: string;
+  icon: string;
+  label: string;
+  value?: string;
+}) {
+  return (
+    <Link href={href} className="flex items-center gap-3 rounded-card px-3 py-3">
+      <Image src={icon} alt="" width={18} height={18} />
+      <span className="flex-1 text-sm text-ink-900">{label}</span>
+      {value && <span className="text-sm text-ink-400">{value}</span>}
+      <span className="text-ink-400">›</span>
+    </Link>
+  );
+}
+
+function pluralize(count: number, one: string, few: string, many: string): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return few;
+  return many;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {

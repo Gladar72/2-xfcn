@@ -55,3 +55,42 @@ function calculateAge(birthDateIso: string): number {
   if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) age--;
   return age;
 }
+
+/**
+ * PATCH /api/me/profile
+ * Body: { name?: string, bio?: string }
+ * Минимальное редактирование профиля — имя и "о себе" (единственные
+ * текстовые поля, которые у нас реально есть; смена города/даты рождения
+ * не поддержана нарочно, это отдельная задача с более серьёзной проверкой).
+ */
+export async function PATCH(req: Request) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  const update: Record<string, string> = {};
+
+  if (typeof body?.name === "string") {
+    const name = body.name.trim();
+    if (name.length < 2 || name.length > 50) {
+      return NextResponse.json({ error: "invalid_name" }, { status: 422 });
+    }
+    update.name = name;
+  }
+
+  if (typeof body?.bio === "string") {
+    const bio = body.bio.trim();
+    if (bio.length > 300) return NextResponse.json({ error: "bio_too_long" }, { status: 422 });
+    update.bio = bio;
+  }
+
+  if (Object.keys(update).length === 0) {
+    return NextResponse.json({ error: "nothing_to_update" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.from("users").update(update).eq("id", currentUser.userId);
+  if (error) return NextResponse.json({ error: "update_failed" }, { status: 500 });
+
+  return NextResponse.json({ status: "ok" });
+}
