@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyN8n } from "@/lib/n8n/notify";
+import { notifyTelegram } from "@/lib/telegram/notify";
 
 type Action = "accept" | "reject" | "cancel";
 
@@ -28,13 +28,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: application } = await admin
     .from("applications")
-    .select("id, event_id, user_id, status, events(organizer_id)")
+    .select("id, event_id, user_id, status, events(organizer_id, title)")
     .eq("id", applicationId)
     .maybeSingle();
 
   if (!application) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const organizerId = (application.events as unknown as { organizer_id: string } | null)?.organizer_id;
+  const eventTitle = (application.events as unknown as { title: string } | null)?.title ?? "встречу";
 
   if (action === "cancel") {
     if (application.user_id !== currentUser.userId) {
@@ -100,10 +101,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq("id", application.user_id)
     .maybeSingle();
   if (participant) {
-    notifyN8n("application-accepted", {
-      eventId: application.event_id,
-      telegramId: participant.telegram_id,
-    }).catch(() => {});
+    notifyTelegram(participant.telegram_id, `🎉 Твой отклик на «${eventTitle}» приняли! Организатор ждёт тебя.`).catch(
+      () => {}
+    );
   }
 
   return NextResponse.json({ status: "accepted" });

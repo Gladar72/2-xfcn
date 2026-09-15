@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyN8n } from "@/lib/n8n/notify";
+import { notifyTelegram } from "@/lib/telegram/notify";
 
 /**
  * POST /api/applications
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const { data: event } = await admin
     .from("events")
-    .select("id, organizer_id, status, seats_total, seats_taken")
+    .select("id, title, organizer_id, status, seats_total, seats_taken")
     .eq("id", eventId)
     .maybeSingle();
 
@@ -66,13 +66,15 @@ export async function POST(req: NextRequest) {
     payload: { eventId, applicationId: application.id, applicantId: currentUser.userId },
   });
 
-  const { data: organizer } = await admin
-    .from("users")
-    .select("telegram_id")
-    .eq("id", event.organizer_id)
-    .maybeSingle();
+  const [{ data: organizer }, { data: applicant }] = await Promise.all([
+    admin.from("users").select("telegram_id").eq("id", event.organizer_id).maybeSingle(),
+    admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
+  ]);
   if (organizer) {
-    notifyN8n("new-application", { eventId, telegramId: organizer.telegram_id }).catch(() => {});
+    notifyTelegram(
+      organizer.telegram_id,
+      `🙋 ${applicant?.name ?? "Кто-то"} откликнулся(-ась) на твою встречу «${event.title}»`
+    ).catch(() => {});
   }
 
   return NextResponse.json({ status: "created", applicationId: application.id });

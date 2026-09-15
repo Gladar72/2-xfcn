@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidN8nRequest } from "@/lib/n8n/auth";
+import { notifyTelegram } from "@/lib/telegram/notify";
 
 const LOOKAHEAD_HOURS = 24;
 const LOW_ATTENDANCE_THRESHOLD = 0.5; // меньше половины мест занято
@@ -62,6 +63,17 @@ export async function GET(req: NextRequest) {
           type: "boost_suggestion",
           payload: { eventId: e.id },
         }))
+    );
+
+    // Отправляем напрямую через бота — та же логика, что и в due-reminders:
+    // не полагаемся исключительно на то, что n8n сам разошлёт по items.
+    await Promise.all(
+      items.map((item) =>
+        notifyTelegram(
+          item.organizerTelegramId!,
+          `👀 На встречу «${item.title}» пока записалось только ${item.seatsTaken} из ${item.seatsTotal}. Можно поднять её в ленте — загляни в приложение.`
+        )
+      )
     );
   }
 

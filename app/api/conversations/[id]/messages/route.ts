@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyTelegram } from "@/lib/telegram/notify";
 
 const MESSAGE_HISTORY_LIMIT = 50;
 
@@ -114,11 +115,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Уведомляем остальных участников диалога о новом сообщении (кроме
   // отправителя) — иначе у людей нет способа узнать о непрочитанном,
   // кроме как самим зайти в чат.
-  const { data: otherMembers } = await admin
-    .from("conversation_members")
-    .select("user_id")
-    .eq("conversation_id", conversationId)
-    .neq("user_id", currentUser.userId);
+  const [{ data: otherMembers }, { data: sender }] = await Promise.all([
+    admin
+      .from("conversation_members")
+      .select("user_id, users(telegram_id)")
+      .eq("conversation_id", conversationId)
+      .neq("user_id", currentUser.userId),
+    admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
+  ]);
 
   if (otherMembers && otherMembers.length > 0) {
     await admin.from("notifications").insert(
@@ -127,6 +131,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         type: "new_message",
         payload: { conversationId },
       }))
+    );
+
+    const senderName = sender?.name ?? "Собеседник";
+    const preview = content.length > 120 ? `${content.slice(0, 120)}…` : content;
+    await Promise.all(
+      otherMembers.map((m) => {
+        const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
+        if (!telegramId) return Promise.resolve();
+        return notifyTelegram(telegramId, `💬 ${senderName}: ${preview}`);
+      })
     );
   }
 
