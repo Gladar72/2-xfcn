@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { StepProgress } from "@/components/ui/StepProgress";
+import { CityPicker } from "@/components/ui/CityPicker";
 import { getInitData } from "@/lib/telegram/webapp-client";
 
 interface Interest {
@@ -190,11 +191,11 @@ export function OnboardingWizard() {
 
         {step === "city" && (
           <StepBlock title="Твой город">
-            <input
+            <CityPicker
               autoFocus
               value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder="Например, Тюмень"
+              onChange={setCity}
+              placeholder="Начни вводить город"
               className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-lg outline-none focus:border-accent"
             />
           </StepBlock>

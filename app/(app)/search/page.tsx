@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
+import { CityPicker } from "@/components/ui/CityPicker";
 
 interface Category {
   id: string;
@@ -142,16 +143,17 @@ export default function SearchPage() {
       <h1 className="text-display mb-4">Поиск встреч</h1>
 
       <div className="mb-4 flex gap-2">
-        <input
-          value={cityInput}
-          onChange={(e) => setCityInput(e.target.value)}
-          onBlur={() => cityInput.trim() && setCity(cityInput.trim())}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && cityInput.trim()) setCity(cityInput.trim());
-          }}
-          placeholder="Город"
-          className="flex-1 rounded-pill border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
-        />
+        <div className="flex-1">
+          <CityPicker
+            value={cityInput}
+            onChange={(selected) => {
+              setCityInput(selected);
+              setCity(selected);
+            }}
+            placeholder="Город"
+            className="w-full min-w-0 box-border rounded-pill border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
+          />
+        </div>
         <button
           onClick={() => setSheetOpen(true)}
           className="relative flex items-center gap-1.5 rounded-pill bg-white px-4 py-2.5 text-sm font-medium shadow-card"

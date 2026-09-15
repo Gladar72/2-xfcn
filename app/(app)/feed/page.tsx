@@ -8,6 +8,7 @@ import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
 import { Button } from "@/components/ui/Button";
+import { CityPicker } from "@/components/ui/CityPicker";
 
 interface Category {
   id: string;
@@ -219,24 +220,17 @@ function FeedPageContent() {
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
             <h2 className="text-title mb-4">Выбери город</h2>
-            <input
+            <CityPicker
               autoFocus
               value={cityInput}
-              onChange={(e) => setCityInput(e.target.value)}
-              placeholder="Например, Тюмень"
-              className="mb-4 w-full min-w-0 box-border rounded-card border border-lavender-200 bg-background px-4 py-3 text-base outline-none focus:border-accent"
-            />
-            <button
-              onClick={() => {
-                if (cityInput.trim()) {
-                  setCity(cityInput.trim());
-                  setCitySheetOpen(false);
-                }
+              onChange={(selected) => {
+                setCityInput(selected);
+                setCity(selected);
+                setCitySheetOpen(false);
               }}
-              className="w-full rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta"
-            >
-              Показать встречи здесь
-            </button>
+              placeholder="Начни вводить город"
+              className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-background px-4 py-3 text-base outline-none focus:border-accent"
+            />
           </div>
         </div>
       )}
