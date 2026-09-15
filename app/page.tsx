@@ -1,21 +1,38 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { getInitData } from "@/lib/telegram/webapp-client";
 
 /**
  * Точка входа Mini App. Ждёт initData от Telegram, вызывает /api/auth и
  * редиректит:
- *   - "authenticated"       → /feed
+ *   - "authenticated"       → /feed (или на ?goto=..., см. EntryPageInner)
  *   - "needs_registration"  → /onboarding
  *   - ошибка / initData нет → показываем сообщение "открой через Telegram"
  *
  * Пока идёт проверка — показываем брендированный экран загрузки (логотип +
  * полоса загрузки + слоган), а не голый текст.
+ *
+ * Suspense обязателен: useSearchParams() в клиентском компоненте требует
+ * границу Suspense при статической генерации страницы, иначе сборка Next.js
+ * падает с ошибкой.
  */
 export default function EntryPage() {
+  return (
+    <Suspense fallback={<SplashScreen status="loading" />}>
+      <EntryPageInner />
+    </Suspense>
+  );
+}
+
+function EntryPageInner() {
   const [status, setStatus] = useState<"loading" | "no_telegram" | "error">("loading");
+  const searchParams = useSearchParams();
+  // Кнопка "Купить подписку" в боте открывает приложение с ?goto=subscriptions —
+  // после обычной проверки авторизации ниже редиректим сразу туда, а не в /feed.
+  const goto = searchParams.get("goto");
 
   useEffect(() => {
     const initData = getInitData();
@@ -35,7 +52,8 @@ export default function EntryPage() {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.status === "authenticated") {
-          window.location.href = "/feed";
+          const allowedGotoPaths = new Set(["subscriptions"]);
+          window.location.href = goto && allowedGotoPaths.has(goto) ? `/${goto}` : "/feed";
         } else if (res.ok && data.status === "needs_registration") {
           window.location.href = "/onboarding";
         } else {
@@ -45,6 +63,10 @@ export default function EntryPage() {
       .catch(() => setStatus("error"));
   }, []);
 
+  return <SplashScreen status={status} />;
+}
+
+function SplashScreen({ status }: { status: "loading" | "no_telegram" | "error" }) {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-8 text-center">
       <div className="relative h-[75px] w-[220px]">

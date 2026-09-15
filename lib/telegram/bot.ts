@@ -1,5 +1,8 @@
 import { Bot, InlineKeyboard } from "grammy";
 import { getSupportAiReply } from "@/lib/telegram/support-ai";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { activateSubscription } from "@/lib/subscriptions/server";
+import type { Plan } from "@/lib/subscriptions/limits";
 
 function getAdminId(): number | null {
   const first = (process.env.ADMIN_TELEGRAM_IDS ?? "").split(",")[0]?.trim();
@@ -44,6 +47,12 @@ export function getBot(): Bot {
     await ctx.reply("Открыть приложение:", { reply_markup: openAppKeyboard() });
   });
 
+  bot.command("subscribe", async (ctx) => {
+    await ctx.reply("Оформить или продлить подписку — картой, СБП или Telegram Stars:", {
+      reply_markup: new InlineKeyboard().webApp("Купить подписку", `${validatedAppUrl}?goto=subscriptions`),
+    });
+  });
+
   bot.command("help", async (ctx) => {
     await ctx.reply(
       "Как это работает:\n" +
@@ -69,6 +78,48 @@ export function getBot(): Bot {
       "Вопросы по оплате подписки (Telegram Stars): опиши проблему здесь, " +
         "укажи дату и тариф — разберёмся и, если нужно, оформим возврат через Telegram."
     );
+  });
+
+  // Оплата Telegram Stars — обязательное подтверждение ДО списания (10
+  // секунд на ответ, иначе Telegram сам отменит платёж). Мы уже проверили
+  // план и создали инвойс на сервере (см. create-invoice route), так что
+  // здесь просто подтверждаем без дополнительных проверок.
+  bot.on("pre_checkout_query", async (ctx) => {
+    await ctx.answerPreCheckoutQuery(true).catch((err) => {
+      console.error("answerPreCheckoutQuery failed:", err);
+    });
+  });
+
+  // Реальное списание произошло — вот этот апдейт и есть источник истины
+  // (п.25 ТЗ: "не доверять client-side подтверждению оплаты"). Активируем
+  // подписку той же функцией, что и для оплаты через ЮKassa.
+  bot.on("message:successful_payment", async (ctx) => {
+    const payment = ctx.message.successful_payment;
+
+    let payload: { userId: string; plan: Plan };
+    try {
+      payload = JSON.parse(payment.invoice_payload);
+    } catch {
+      console.error("successful_payment: не удалось разобрать invoice_payload:", payment.invoice_payload);
+      return;
+    }
+
+    const admin = createAdminClient();
+    const { subscriptionId } = await activateSubscription(admin, payload.userId, payload.plan);
+
+    await admin.from("payments").insert({
+      user_id: payload.userId,
+      subscription_id: subscriptionId,
+      plan: payload.plan,
+      amount: payment.total_amount,
+      currency: payment.currency,
+      telegram_payment_charge_id: payment.telegram_payment_charge_id,
+      status: "succeeded",
+    });
+
+    await ctx.reply(`✅ Оплата прошла — подписка «${payload.plan.toUpperCase()}» активирована на 30 дней.`, {
+      reply_markup: openAppKeyboard(),
+    });
   });
 
   // Свободный текст (не команда) в чате с ботом = обращение в поддержку.

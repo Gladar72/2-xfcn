@@ -33,6 +33,7 @@ interface PaywallProps {
 
 export function Paywall({ onActivated }: PaywallProps) {
   const [loadingPlan, setLoadingPlan] = useState<Plan | null>(null);
+  const [loadingCardPlan, setLoadingCardPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSelect(plan: Plan) {
@@ -64,8 +65,8 @@ export function Paywall({ onActivated }: PaywallProps) {
         setLoadingPlan(null);
         if (status === "paid") {
           // Реальная активация подписки происходит на бэкенде после
-          // webhook'а от Telegram (Этап 25). Здесь просто перепроверяем
-          // статус — к моменту колбэка webhook обычно уже успевает отработать.
+          // successful_payment от Telegram (см. lib/telegram/bot.ts). Здесь
+          // просто перепроверяем статус — к моменту колбэка обычно уже успевает отработать.
           onActivated();
         } else if (status === "failed") {
           setError("Платёж не прошёл. Попробуй ещё раз.");
@@ -74,6 +75,42 @@ export function Paywall({ onActivated }: PaywallProps) {
     } catch {
       setError("Проблема с соединением.");
       setLoadingPlan(null);
+    }
+  }
+
+  async function handleSelectCard(plan: Plan) {
+    setLoadingCardPlan(plan);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/subscriptions/yookassa/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.confirmationUrl) {
+        setError("Не получилось открыть оплату. Попробуй ещё раз.");
+        setLoadingCardPlan(null);
+        return;
+      }
+
+      // Страница оплаты ЮKassa — не Mini App, а обычный внешний сайт,
+      // открываем во встроенном браузере Telegram (openLink), а не внутри
+      // самого мини-приложения. Активация подписки произойдёт по вебхуку
+      // (см. app/api/webhooks/yookassa/route.ts) — когда человек вернётся
+      // в приложение, статус уже должен обновиться.
+      const webApp = getTelegramWebApp();
+      if (webApp) {
+        webApp.openLink(data.confirmationUrl);
+      } else {
+        window.location.href = data.confirmationUrl;
+      }
+      setLoadingCardPlan(null);
+    } catch {
+      setError("Проблема с соединением.");
+      setLoadingCardPlan(null);
     }
   }
 
@@ -91,7 +128,9 @@ export function Paywall({ onActivated }: PaywallProps) {
         limits={PLAN_LIMITS.start}
         features={FEATURES.start}
         loading={loadingPlan === "start"}
+        loadingCard={loadingCardPlan === "start"}
         onSelect={handleSelect}
+        onSelectCard={handleSelectCard}
       />
       <PlanCard
         plan="medium"
@@ -99,14 +138,18 @@ export function Paywall({ onActivated }: PaywallProps) {
         features={FEATURES.medium}
         highlighted
         loading={loadingPlan === "medium"}
+        loadingCard={loadingCardPlan === "medium"}
         onSelect={handleSelect}
+        onSelectCard={handleSelectCard}
       />
       <PlanCard
         plan="premium"
         limits={PLAN_LIMITS.premium}
         features={FEATURES.premium}
         loading={loadingPlan === "premium"}
+        loadingCard={loadingCardPlan === "premium"}
         onSelect={handleSelect}
+        onSelectCard={handleSelectCard}
       />
     </div>
   );

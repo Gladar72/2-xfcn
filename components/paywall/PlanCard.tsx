@@ -10,7 +10,9 @@ interface PlanCardProps {
   features: string[];
   highlighted?: boolean;
   loading?: boolean;
+  loadingCard?: boolean;
   onSelect: (plan: Plan) => void;
+  onSelectCard: (plan: Plan) => void;
 }
 
 // Визуальные названия МЕСТО. Backend-идентификаторы (start/medium/premium)
@@ -48,7 +50,16 @@ const PLAN_VISUALS: Record<
   },
 };
 
-export function PlanCard({ plan, limits, features, highlighted, loading, onSelect }: PlanCardProps) {
+export function PlanCard({
+  plan,
+  limits,
+  features,
+  highlighted,
+  loading,
+  loadingCard,
+  onSelect,
+  onSelectCard,
+}: PlanCardProps) {
   const visual = PLAN_VISUALS[plan];
 
   return (
@@ -78,9 +89,16 @@ export function PlanCard({ plan, limits, features, highlighted, loading, onSelec
         ))}
       </ul>
 
-      <Button variant={visual.buttonVariant} onClick={() => onSelect(plan)} disabled={loading}>
-        {loading ? "Открываем оплату..." : "Выбрать"}
+      <Button variant={visual.buttonVariant} onClick={() => onSelect(plan)} disabled={loading || loadingCard}>
+        {loading ? "Открываем оплату..." : `Оплатить ${limits.priceStars} ⭐`}
       </Button>
+      <button
+        onClick={() => onSelectCard(plan)}
+        disabled={loading || loadingCard}
+        className={`mt-2 w-full rounded-pill py-2.5 text-sm font-medium underline ${visual.textClass}`}
+      >
+        {loadingCard ? "Открываем оплату..." : "Оплатить картой / СБП"}
+      </button>
     </div>
   );
 }

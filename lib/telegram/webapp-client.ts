@@ -22,6 +22,7 @@ interface TelegramWebApp {
   colorScheme: "light" | "dark";
   themeParams: Record<string, string>;
   openInvoice: (url: string, callback: (status: "paid" | "cancelled" | "failed" | "pending") => void) => void;
+  openLink: (url: string, options?: { try_instant_view?: boolean }) => void;
   close: () => void;
   // viewportHeight — реальная видимая высота окна Mini App, которую Telegram
   // сам пересчитывает при появлении/скрытии клавиатуры. Обычный CSS

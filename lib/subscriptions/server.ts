@@ -99,3 +99,61 @@ export async function incrementBoostsUsed(
     p_field: "boosts_used_count",
   });
 }
+
+const SUBSCRIPTION_PERIOD_DAYS = 30;
+
+/**
+ * Активирует (или продлевает/меняет тариф) подписку пользователя после
+ * РЕАЛЬНО подтверждённой оплаты — источник истины всегда сервер платёжной
+ * системы (Telegram после successful_payment, ЮKassa после проверки
+ * статуса платежа через её API), никогда клиент.
+ *
+ * Общая для обоих способов оплаты (Stars и ЮKassa) — чтобы активация не
+ * расходилась в двух местах. У пользователя может быть максимум одна
+ * активная подписка (см. unique index subscriptions_one_active_per_user) —
+ * если уже есть активная, продлеваем/меняем её тариф на месте, а не
+ * создаём вторую строку.
+ */
+export async function activateSubscription(
+  admin: AdminClient,
+  userId: string,
+  plan: Plan
+): Promise<{ subscriptionId: string; periodStart: string; periodEnd: string }> {
+  const now = new Date();
+  const periodEnd = new Date(now.getTime() + SUBSCRIPTION_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+  const periodStartIso = now.toISOString();
+  const periodEndIso = periodEnd.toISOString();
+
+  const { data: existing } = await admin
+    .from("subscriptions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (existing) {
+    await admin
+      .from("subscriptions")
+      .update({ plan, current_period_start: periodStartIso, current_period_end: periodEndIso })
+      .eq("id", existing.id);
+    return { subscriptionId: existing.id, periodStart: periodStartIso, periodEnd: periodEndIso };
+  }
+
+  const { data: created, error } = await admin
+    .from("subscriptions")
+    .insert({
+      user_id: userId,
+      plan,
+      status: "active",
+      current_period_start: periodStartIso,
+      current_period_end: periodEndIso,
+    })
+    .select("id")
+    .single();
+
+  if (error || !created) {
+    throw new Error(`Не удалось активировать подписку для ${userId}: ${error?.message}`);
+  }
+
+  return { subscriptionId: created.id, periodStart: periodStartIso, periodEnd: periodEndIso };
+}
