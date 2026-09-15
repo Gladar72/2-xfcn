@@ -20,7 +20,10 @@ async function assertMembership(
 
 /**
  * GET /api/conversations/[id]/messages
- * История сообщений (последние 50, по возрастанию времени).
+ * История сообщений (последние 50, по возрастанию времени) + имя
+ * собеседника (для шапки чата и подписи над входящими сообщениями —
+ * иначе непонятно "кто кому пишет", особенно когда все сообщения на вид
+ * одинаковые).
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: conversationId } = await params;
@@ -32,19 +35,20 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const membership = await assertMembership(admin, conversationId, currentUser.userId);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const [{ data: messages, error }, { data: otherMember }] = await Promise.all([
+  const [{ data: messages, error }, { data: otherMemberRow }] = await Promise.all([
     admin
       .from("messages")
       .select("id, sender_id, content, created_at")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: false })
       .limit(MESSAGE_HISTORY_LIMIT),
-    // last_read_at собеседника — используется на фронте для галочек
-    // "доставлено" / "прочитано" (упрощённо: сообщение считается
-    // прочитанным, если оно старше last_read_at собеседника).
+    // Имя и last_read_at собеседника одним запросом: имя — для шапки чата и
+    // подписи над входящими сообщениями, last_read_at — для галочек
+    // "доставлено"/"прочитано" (сообщение считается прочитанным, если оно
+    // старше last_read_at собеседника).
     admin
       .from("conversation_members")
-      .select("last_read_at")
+      .select("last_read_at, user:users(id, name, avatar_url)")
       .eq("conversation_id", conversationId)
       .neq("user_id", currentUser.userId)
       .maybeSingle(),
@@ -52,9 +56,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
 
+  const otherUser = otherMemberRow?.user as unknown as
+    | { id: string; name: string; avatar_url: string | null }
+    | null;
+
   return NextResponse.json({
-    messages: (messages ?? []).reverse(),
-    otherMemberLastReadAt: otherMember?.last_read_at ?? null,
+    // ВАЖНО: преобразуем snake_case из базы (sender_id, created_at) в
+    // camelCase (senderId, createdAt), который ждёт фронтенд — раньше эта
+    // строка отдавала сырые строки БД напрямую, из-за чего даты не
+    // парсились ("Invalid Date") и определение "моё/чужое" сообщение
+    // всегда давало false (senderId был undefined) — все сообщения
+    // выглядели одинаково.
+    messages: (messages ?? [])
+      .reverse()
+      .map((m) => ({ id: m.id, senderId: m.sender_id, content: m.content, createdAt: m.created_at })),
+    otherMemberLastReadAt: otherMemberRow?.last_read_at ?? null,
+    otherUser: otherUser ? { id: otherUser.id, name: otherUser.name, avatarUrl: otherUser.avatar_url } : null,
   });
 }
 

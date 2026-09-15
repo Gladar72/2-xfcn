@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { StepProgress } from "@/components/ui/StepProgress";
 import { LocationPicker } from "@/components/map/LocationPicker";
 import { getInitData, useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
+import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
 
 interface Category {
   id: string;
@@ -53,6 +54,8 @@ export function CreateEventWizard() {
   const searchParams = useSearchParams();
   const preselectedCategory = searchParams.get("category");
   const telegramViewportHeight = useTelegramViewportHeight();
+  const visualViewportHeight = useVisualViewportHeight();
+  const liveHeight = visualViewportHeight ?? telegramViewportHeight;
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
@@ -172,7 +175,7 @@ export function CreateEventWizard() {
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background px-5 pb-3 pt-4"
-      style={{ height: telegramViewportHeight ? `${telegramViewportHeight}px` : "100dvh" }}
+      style={{ height: liveHeight ? `${liveHeight}px` : "100dvh" }}
     >
       <StepProgress currentStep={stepIndex + 1} totalSteps={steps.length} />
 

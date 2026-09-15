@@ -7,6 +7,7 @@ import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { MessageBubble, formatDayLabel, type MessageData } from "@/components/chat/MessageBubble";
 import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
 import { useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
+import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
 
 interface ChatPageProps {
   // Next.js 14 (в этом проекте) передаёт params клиентским компонентам
@@ -17,13 +18,25 @@ interface ChatPageProps {
   params: { id: string };
 }
 
+interface OtherUser {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
 export default function ChatPage({ params }: ChatPageProps) {
   const { id: conversationId } = params;
   const router = useRouter();
+
+  // visualViewport — основной источник (надёжнее в разных клиентах
+  // Telegram), Telegram.WebApp.viewportHeight — запасной вариант.
+  const visualViewportHeight = useVisualViewportHeight();
   const telegramViewportHeight = useTelegramViewportHeight();
+  const liveHeight = visualViewportHeight ?? telegramViewportHeight;
 
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [myUserId, setMyUserId] = useState<string | null>(null);
+  const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
   const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -62,6 +75,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         setMyUserId(me.userId);
         setMessages(history.messages ?? []);
         setOtherLastReadAt(history.otherMemberLastReadAt ?? null);
+        setOtherUser(history.otherUser ?? null);
 
         const client = createBrowserRealtimeClient(tokenData.token);
         clientRef.current = client;
@@ -132,9 +146,9 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-    // Пересчитываем при появлении клавиатуры (telegramViewportHeight
-    // меняется) — иначе последнее сообщение может оказаться под ней.
-  }, [messages.length, telegramViewportHeight]);
+    // Пересчитываем при появлении клавиатуры (liveHeight меняется) —
+    // иначе последнее сообщение может оказаться под ней.
+  }, [messages.length, liveHeight]);
 
   async function handleSend() {
     const content = draft.trim();
@@ -163,13 +177,21 @@ export default function ChatPage({ params }: ChatPageProps) {
   return (
     <div
       className="flex flex-col overflow-hidden bg-background"
-      style={{ height: telegramViewportHeight ? `${telegramViewportHeight}px` : "100dvh" }}
+      style={{ height: liveHeight ? `${liveHeight}px` : "100dvh" }}
     >
       <div className="flex shrink-0 items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3">
         <button onClick={() => router.push("/chats")} aria-label="Назад">
           <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
         </button>
-        <span className="font-medium">Чат</span>
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-xs font-semibold text-ink-600">
+          {otherUser?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={otherUser.avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            otherUser?.name?.charAt(0).toUpperCase() ?? "?"
+          )}
+        </div>
+        <span className="font-medium">{otherUser?.name ?? "Чат"}</span>
       </div>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
@@ -181,6 +203,10 @@ export default function ChatPage({ params }: ChatPageProps) {
           const showDaySeparator = !prev || !isSameDay(prev.createdAt, message.createdAt);
           const isOwn = message.senderId === myUserId;
           const isRead = Boolean(otherLastReadAt && message.createdAt <= otherLastReadAt);
+          // Подпись с именем над входящим сообщением показываем только у
+          // первого сообщения в подряд идущей группе от одного автора —
+          // не над каждым, чтобы не загромождать чат.
+          const showSenderLabel = !isOwn && (!prev || prev.senderId !== message.senderId || showDaySeparator);
 
           return (
             <div key={message.id}>
@@ -190,6 +216,9 @@ export default function ChatPage({ params }: ChatPageProps) {
                     {formatDayLabel(message.createdAt)}
                   </span>
                 </div>
+              )}
+              {showSenderLabel && (
+                <p className="mb-1 ml-1 text-xs font-medium text-ink-600">{otherUser?.name ?? "Собеседник"}</p>
               )}
               <MessageBubble message={message} isOwn={isOwn} readStatus={isRead ? "read" : "sent"} />
             </div>
