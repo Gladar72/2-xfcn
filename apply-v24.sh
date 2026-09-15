@@ -1,3 +1,4 @@
+cat > "app/api/subscriptions/route.ts" << 'ENDOFFILE'
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -61,3 +62,4 @@ export async function GET() {
     boosts: { used: info.boostsUsedCount, limit: limits.boostLimit },
   });
 }
+ENDOFFILE
