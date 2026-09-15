@@ -2,19 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import { loadYandexMaps } from "@/lib/maps/load-yandex-maps";
+import { reverseGeocode } from "@/lib/maps/reverse-geocode";
 
 interface LocationPickerProps {
   initialCenter?: [number, number]; // [lng, lat]
   onPick: (coords: { latitude: number; longitude: number }) => void;
+  /** Вызывается отдельно, как только адрес определится (может прийти
+   * позже самого onPick — геокодирование асинхронное и не блокирует
+   * основной поток выбора точки). */
+  onAddressResolved?: (address: string) => void;
 }
 
 const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень
 
-export function LocationPicker({ initialCenter, onPick }: LocationPickerProps) {
+export function LocationPicker({ initialCenter, onPick, onAddressResolved }: LocationPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
+  const onAddressResolvedRef = useRef(onAddressResolved);
+  onAddressResolvedRef.current = onAddressResolved;
   const [hasPin, setHasPin] = useState(false);
+  const [resolvingAddress, setResolvingAddress] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +63,13 @@ export function LocationPicker({ initialCenter, onPick }: LocationPickerProps) {
             setHasPin(true);
             onPickRef.current({ latitude, longitude });
 
+            setResolvingAddress(true);
+            reverseGeocode(latitude, longitude)
+              .then((address) => {
+                if (address) onAddressResolvedRef.current?.(address);
+              })
+              .finally(() => setResolvingAddress(false));
+
             if (markerEntity?.update) {
               markerEntity.update({ coordinates: event.coordinates });
             } else {
@@ -88,6 +103,9 @@ export function LocationPicker({ initialCenter, onPick }: LocationPickerProps) {
         <p className="shrink-0 bg-white px-3 py-1.5 text-center text-xs text-ink-600">
           Нажми на карту, чтобы отметить место встречи
         </p>
+      )}
+      {resolvingAddress && (
+        <p className="shrink-0 bg-white px-3 py-1.5 text-center text-xs text-ink-400">Определяем адрес...</p>
       )}
     </div>
   );
