@@ -19,7 +19,7 @@ export interface PlanLimits {
  * Меняешь тариф здесь — меняется везде: в paywall, в проверках API, в ranking.
  */
 export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
-  start: { eventsLimit: 5, boostLimit: 1, groupMax: 4, priceRub: 299, priceStars: 150, rankingCoefficient: 0 },
+  start: { eventsLimit: 3, boostLimit: 1, groupMax: 4, priceRub: 299, priceStars: 150, rankingCoefficient: 0 },
   medium: { eventsLimit: 15, boostLimit: 5, groupMax: 10, priceRub: 599, priceStars: 300, rankingCoefficient: 3 },
   premium: { eventsLimit: null, boostLimit: 10, groupMax: 30, priceRub: 999, priceStars: 500, rankingCoefficient: 6 },
 };

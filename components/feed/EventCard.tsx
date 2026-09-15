@@ -24,6 +24,8 @@ export interface EventCardData {
     ratingAvg: number;
     completedMeetingsCount: number;
   } | null;
+  /** Лёгкое визуальное выделение — привилегия тарифов Медиум и Премьер. */
+  isHighlighted?: boolean;
 }
 
 interface EventCardProps {
@@ -53,7 +55,15 @@ export function EventCard({ event, onApplyPress, applied = false, applying = fal
   const categoryIcon = event.category ? CATEGORY_ICON[event.category.slug] : undefined;
 
   return (
-    <Link href={`/events/${event.id}`} className="block rounded-card bg-white p-4 shadow-card">
+    <Link
+      href={`/events/${event.id}`}
+      className={clsx(
+        "block rounded-card p-4 shadow-card",
+        event.isHighlighted
+          ? "bg-gradient-to-br from-lavender-50 to-white ring-1 ring-accent/25"
+          : "bg-white"
+      )}
+    >
       <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-accent">
         {categoryIcon ? (
           <div className="relative h-4 w-4 shrink-0">

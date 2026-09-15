@@ -6,7 +6,7 @@ import { PLAN_LIMITS, type Plan } from "@/lib/subscriptions/limits";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 
 const FEATURES: Record<Plan, string[]> = {
-  start: ["До 5 встреч за период", "1 поднятие", "Весь город", "Чат после подтверждения", "Группа до 4 человек"],
+  start: ["До 3 встреч за период", "1 поднятие", "Весь город", "Чат после подтверждения", "Группа до 4 человек"],
   medium: [
     "До 15 встреч за период",
     "5 поднятий",
@@ -19,6 +19,7 @@ const FEATURES: Record<Plan, string[]> = {
   premium: [
     "Встречи без ограничений",
     "10 поднятий",
+    "Выделение встречи",
     "Максимальный вес в рекомендациях",
     "Закрытые встречи",
     "Группа до 30 человек",

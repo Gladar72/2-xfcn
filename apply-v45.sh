@@ -1,3 +1,161 @@
+mkdir -p "lib/subscriptions"
+cat > "lib/subscriptions/limits.ts" << 'ENDOFFILE'
+export type Plan = "start" | "medium" | "premium";
+
+export interface PlanLimits {
+  eventsLimit: number | null; // null = без ограничений (PREMIUM)
+  boostLimit: number;
+  groupMax: number;
+  priceRub: number;
+  /**
+   * Цена в Telegram Stars (XTR). Курс Stars к рублю периодически меняется
+   * на стороне Telegram — эти значения ПРИБЛИЗИТЕЛЬНЫЕ и требуют сверки
+   * с актуальным курсом перед запуском в продакшн (см. lib/telegram/bot-api.ts).
+   */
+  priceStars: number;
+  rankingCoefficient: number; // используется в lib/scoring/rank-events.ts
+}
+
+/**
+ * Единственное место, где живут лимиты и цены тарифов (п.12, п.26 ТЗ).
+ * Меняешь тариф здесь — меняется везде: в paywall, в проверках API, в ranking.
+ */
+export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
+  start: { eventsLimit: 3, boostLimit: 1, groupMax: 4, priceRub: 299, priceStars: 150, rankingCoefficient: 0 },
+  medium: { eventsLimit: 15, boostLimit: 5, groupMax: 10, priceRub: 599, priceStars: 300, rankingCoefficient: 3 },
+  premium: { eventsLimit: null, boostLimit: 10, groupMax: 30, priceRub: 999, priceStars: 500, rankingCoefficient: 6 },
+};
+
+export function canCreateMoreEvents(plan: Plan, eventsCreatedInPeriod: number): boolean {
+  const limit = PLAN_LIMITS[plan].eventsLimit;
+  if (limit === null) return true;
+  return eventsCreatedInPeriod < limit;
+}
+
+export function canUseBoost(plan: Plan, boostsUsedInPeriod: number): boolean {
+  return boostsUsedInPeriod < PLAN_LIMITS[plan].boostLimit;
+}
+ENDOFFILE
+
+mkdir -p "components/paywall"
+cat > "components/paywall/Paywall.tsx" << 'ENDOFFILE'
+"use client";
+
+import { useState } from "react";
+import { PlanCard } from "./PlanCard";
+import { PLAN_LIMITS, type Plan } from "@/lib/subscriptions/limits";
+import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
+
+const FEATURES: Record<Plan, string[]> = {
+  start: ["До 3 встреч за период", "1 поднятие", "Весь город", "Чат после подтверждения", "Группа до 4 человек"],
+  medium: [
+    "До 15 встреч за период",
+    "5 поднятий",
+    "Расширенные фильтры",
+    "Выделение встречи",
+    "Закрытые встречи",
+    "Группа до 10 человек",
+    "Скрытие профиля",
+  ],
+  premium: [
+    "Встречи без ограничений",
+    "10 поднятий",
+    "Выделение встречи",
+    "Максимальный вес в рекомендациях",
+    "Закрытые встречи",
+    "Группа до 30 человек",
+    "Скрытие профиля",
+  ],
+};
+
+interface PaywallProps {
+  onActivated: () => void;
+}
+
+export function Paywall({ onActivated }: PaywallProps) {
+  const [loadingPlan, setLoadingPlan] = useState<Plan | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleSelect(plan: Plan) {
+    setLoadingPlan(plan);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/subscriptions/create-invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.invoiceLink) {
+        setError("Не получилось открыть оплату. Попробуй ещё раз.");
+        setLoadingPlan(null);
+        return;
+      }
+
+      const webApp = getTelegramWebApp();
+      if (!webApp) {
+        setError("Открой приложение через Telegram, чтобы оплатить.");
+        setLoadingPlan(null);
+        return;
+      }
+
+      webApp.openInvoice(data.invoiceLink, (status) => {
+        setLoadingPlan(null);
+        if (status === "paid") {
+          // Реальная активация подписки происходит на бэкенде после
+          // webhook'а от Telegram (Этап 25). Здесь просто перепроверяем
+          // статус — к моменту колбэка webhook обычно уже успевает отработать.
+          onActivated();
+        } else if (status === "failed") {
+          setError("Платёж не прошёл. Попробуй ещё раз.");
+        }
+      });
+    } catch {
+      setError("Проблема с соединением.");
+      setLoadingPlan(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4 px-5 py-6">
+      <div className="text-center">
+        <h1 className="text-display">Выбери тариф</h1>
+        <p className="mt-1 text-sm text-ink-600">Чтобы создавать встречи, нужна подписка.</p>
+      </div>
+
+      {error && <p className="text-center text-sm text-red-600">{error}</p>}
+
+      <PlanCard
+        plan="start"
+        limits={PLAN_LIMITS.start}
+        features={FEATURES.start}
+        loading={loadingPlan === "start"}
+        onSelect={handleSelect}
+      />
+      <PlanCard
+        plan="medium"
+        limits={PLAN_LIMITS.medium}
+        features={FEATURES.medium}
+        highlighted
+        loading={loadingPlan === "medium"}
+        onSelect={handleSelect}
+      />
+      <PlanCard
+        plan="premium"
+        limits={PLAN_LIMITS.premium}
+        features={FEATURES.premium}
+        loading={loadingPlan === "premium"}
+        onSelect={handleSelect}
+      />
+    </div>
+  );
+}
+ENDOFFILE
+
+mkdir -p "app/api/events"
+cat > "app/api/events/route.ts" << 'ENDOFFILE'
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -490,3 +648,151 @@ async function notifyRelevantUsers(
     telegramIds: recipients,
   });
 }
+ENDOFFILE
+
+mkdir -p "components/feed"
+cat > "components/feed/EventCard.tsx" << 'ENDOFFILE'
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import clsx from "clsx";
+
+export interface EventCardData {
+  id: string;
+  title: string;
+  description: string | null;
+  category: { slug: string; name: string; emoji: string | null } | null;
+  trainingType: { slug: string; name: string; emoji: string | null } | null;
+  placeName: string | null;
+  address: string | null;
+  eventDate: string;
+  eventTime: string;
+  seatsTotal: number;
+  seatsTaken: number;
+  organizer: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+    age: number;
+    ratingAvg: number;
+    completedMeetingsCount: number;
+  } | null;
+  /** Лёгкое визуальное выделение — привилегия тарифов Медиум и Премьер. */
+  isHighlighted?: boolean;
+}
+
+interface EventCardProps {
+  event: EventCardData;
+  onApplyPress?: (eventId: string) => void;
+  applied?: boolean;
+  applying?: boolean;
+}
+
+// 3D-иконки категорий МЕСТО (тот же комплект, что и на главном экране).
+const CATEGORY_ICON: Record<string, string> = {
+  training: "/brand/3d/workout.png",
+  cinema: "/brand/3d/movie.png",
+  coffee: "/brand/3d/coffee.png",
+  breakfast: "/brand/3d/breakfast.png",
+  dinner: "/brand/3d/dinner.png",
+  walk: "/brand/3d/walk.png",
+  custom: "/brand/3d/custom-proposal.png",
+};
+
+export function EventCard({ event, onApplyPress, applied = false, applying = false }: EventCardProps) {
+  const seatsLeft = event.seatsTotal - event.seatsTaken;
+  const isFull = seatsLeft <= 0;
+  const isDisabled = isFull || applied || applying;
+  const categoryLabel = event.trainingType?.name ?? event.category?.name;
+  const categoryEmoji = event.trainingType?.emoji ?? event.category?.emoji;
+  const categoryIcon = event.category ? CATEGORY_ICON[event.category.slug] : undefined;
+
+  return (
+    <Link
+      href={`/events/${event.id}`}
+      className={clsx(
+        "block rounded-card p-4 shadow-card",
+        event.isHighlighted
+          ? "bg-gradient-to-br from-lavender-50 to-white ring-1 ring-accent/25"
+          : "bg-white"
+      )}
+    >
+      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-accent">
+        {categoryIcon ? (
+          <div className="relative h-4 w-4 shrink-0">
+            <Image src={categoryIcon} alt="" fill className="object-contain" sizes="16px" />
+          </div>
+        ) : (
+          <span>{categoryEmoji}</span>
+        )}
+        <span>{categoryLabel}</span>
+      </div>
+
+      <h3 className="text-title mb-1">{event.title}</h3>
+
+      <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-600">
+        <span>{formatDate(event.eventDate)}</span>
+        <span>{formatTime(event.eventTime)}</span>
+        {event.placeName && <span>{event.placeName}</span>}
+      </div>
+
+      {event.description && (
+        <p className="mb-3 line-clamp-2 text-sm text-ink-600">{event.description}</p>
+      )}
+
+      {event.organizer && (
+        <div className="mb-3 flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
+            {event.organizer.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={event.organizer.avatarUrl} alt={event.organizer.name} className="h-full w-full object-cover" />
+            ) : (
+              event.organizer.name.charAt(0).toUpperCase()
+            )}
+          </div>
+          <div className="text-sm">
+            <span className="font-medium text-ink-900">{event.organizer.name}</span>
+            <span className="text-ink-400">, {event.organizer.age}</span>
+            {event.organizer.ratingAvg > 0 && (
+              <span className="ml-2 text-ink-600">
+                ⭐ {event.organizer.ratingAvg.toFixed(1)} · {event.organizer.completedMeetingsCount} встреч
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-ink-600">
+          {isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}
+        </span>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onApplyPress?.(event.id);
+          }}
+          disabled={isDisabled}
+          className={clsx(
+            "rounded-pill px-5 py-2 text-sm font-semibold",
+            isDisabled ? "bg-ink-400/10 text-ink-400" : "bg-brand-gradient text-white shadow-cta active:scale-95"
+          )}
+        >
+          {applied ? "Отклик отправлен" : applying ? "Отправляем..." : "Я иду"}
+        </button>
+      </div>
+    </Link>
+  );
+}
+
+function formatDate(dateIso: string): string {
+  const date = new Date(dateIso);
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+function formatTime(timeString: string): string {
+  return timeString.slice(0, 5);
+}
+ENDOFFILE
+
