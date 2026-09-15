@@ -18,7 +18,7 @@ export async function GET() {
     .select(
       `
       conversation_id, unread_count, is_hidden, is_blocked,
-      conversations(id, event_id, events(title))
+      conversations(id, event_id, events(title, category:categories(slug, name, emoji)))
       `
     )
     .eq("user_id", currentUser.userId)
@@ -50,20 +50,29 @@ export async function GET() {
     ])
   );
 
-  const lastMessageByConversation = new Map<string, { content: string; createdAt: string }>();
+  const lastMessageByConversation = new Map<string, { content: string; createdAt: string; isMine: boolean }>();
   for (const msg of lastMessages ?? []) {
     if (!lastMessageByConversation.has(msg.conversation_id)) {
-      lastMessageByConversation.set(msg.conversation_id, { content: msg.content, createdAt: msg.created_at });
+      lastMessageByConversation.set(msg.conversation_id, {
+        content: msg.content,
+        createdAt: msg.created_at,
+        isMine: msg.sender_id === currentUser.userId,
+      });
     }
   }
 
   const items = (memberships ?? []).map((m) => {
-    const conversation = m.conversations as unknown as { id: string; event_id: string | null; events: { title: string } | null } | null;
+    const conversation = m.conversations as unknown as {
+      id: string;
+      event_id: string | null;
+      events: { title: string; category: { slug: string; name: string; emoji: string | null } | null } | null;
+    } | null;
     return {
       conversationId: m.conversation_id,
       unreadCount: m.unread_count,
       isBlocked: m.is_blocked,
       eventTitle: conversation?.events?.title ?? null,
+      category: conversation?.events?.category ?? null,
       otherUser: otherMemberByConversation.get(m.conversation_id) ?? null,
       lastMessage: lastMessageByConversation.get(m.conversation_id) ?? null,
     };
