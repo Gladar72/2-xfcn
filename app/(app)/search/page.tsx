@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
 import { CityPicker } from "@/components/ui/CityPicker";
+import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 
 interface Category {
   id: string;
@@ -32,6 +33,11 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // Блокируем прокрутку body, только пока открыта шторка фильтров — в ней
+  // есть текстовые поля (возраст, дата), фокус на них без этой блокировки
+  // заставляет WebView Telegram сдвигать экран, чтобы подвести поле под
+  // клавиатуру (та же причина, что чинили в чате и мастере создания).
+  useLockBodyScroll(sheetOpen);
 
   const [selectedCategorySlugs, setSelectedCategorySlugs] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>("any");

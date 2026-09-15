@@ -11,13 +11,17 @@ import { useEffect } from "react";
  * подвести поле под клавиатуру. Если у body физически нет возможности
  * скроллиться, скроллить нечего — экран остаётся на месте.
  *
- * Используется ТОЛЬКО на полноэкранных страницах с собственной внутренней
+ * Используется на полноэкранных страницах с собственной внутренней
  * прокруткой (чат, мастер создания встречи) — не глобально, иначе сломает
  * обычные страницы (ленту, профиль и т.д.), которые полагаются на обычный
- * скролл всей страницы браузером.
+ * скролл всей страницы браузером. Также можно включать/выключать точечно —
+ * например, только пока открыта шторка с фильтрами поверх обычной страницы
+ * (см. app/(app)/search/page.tsx).
  */
-export function useLockBodyScroll() {
+export function useLockBodyScroll(enabled: boolean = true) {
   useEffect(() => {
+    if (!enabled) return;
+
     const original = {
       position: document.body.style.position,
       overflow: document.body.style.overflow,
@@ -36,5 +40,5 @@ export function useLockBodyScroll() {
       document.body.style.width = original.width;
       document.body.style.height = original.height;
     };
-  }, []);
+  }, [enabled]);
 }
