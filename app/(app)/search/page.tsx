@@ -140,7 +140,7 @@ export default function SearchPage() {
             if (e.key === "Enter" && cityInput.trim()) setCity(cityInput.trim());
           }}
           placeholder="Город"
-          className="flex-1 rounded-pill border border-lavender-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-accent"
+          className="flex-1 rounded-pill border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
         />
         <button
           onClick={() => setSheetOpen(true)}
@@ -223,7 +223,7 @@ export default function SearchPage() {
                 value={!["any", "today", "tomorrow", "weekend"].includes(dateFilter) ? dateFilter : ""}
                 onChange={(e) => setDateFilter(e.target.value || "any")}
                 min={new Date().toISOString().slice(0, 10)}
-                className="mt-2 w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-accent"
+                className="mt-2 w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
               />
             </FilterSection>
 
@@ -261,7 +261,7 @@ export default function SearchPage() {
                   value={ageMin}
                   onChange={(e) => setAgeMin(e.target.value)}
                   placeholder="От"
-                  className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-accent"
+                  className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
                 />
                 <span className="text-ink-400">—</span>
                 <input
@@ -269,7 +269,7 @@ export default function SearchPage() {
                   value={ageMax}
                   onChange={(e) => setAgeMax(e.target.value)}
                   placeholder="До"
-                  className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-accent"
+                  className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
                 />
               </div>
               <p className="mt-1 text-xs text-ink-400">По умолчанию без ограничений</p>

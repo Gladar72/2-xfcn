@@ -192,7 +192,7 @@ export default function ProfilePage() {
             onChange={(e) => setEditName(e.target.value)}
             placeholder="Имя"
             maxLength={50}
-            className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-background px-3 py-2 text-base outline-none focus:border-accent"
           />
           <textarea
             value={editBio}
@@ -200,7 +200,7 @@ export default function ProfilePage() {
             placeholder="О себе"
             maxLength={300}
             rows={3}
-            className="w-full min-w-0 box-border resize-none rounded-card border border-lavender-200 bg-background px-3 py-2 text-sm outline-none focus:border-accent"
+            className="w-full min-w-0 box-border resize-none rounded-card border border-lavender-200 bg-background px-3 py-2 text-base outline-none focus:border-accent"
           />
           <div className="flex gap-2">
             <button

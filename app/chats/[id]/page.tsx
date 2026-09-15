@@ -251,7 +251,7 @@ export default function ChatPage({ params }: ChatPageProps) {
             if (e.key === "Enter") handleSend();
           }}
           placeholder="Написать сообщение..."
-          className="min-w-0 flex-1 rounded-pill border border-lavender-200 bg-background px-4 py-2.5 text-sm outline-none focus:border-accent"
+          className="min-w-0 flex-1 rounded-pill border border-lavender-200 bg-background px-4 py-2.5 text-base outline-none focus:border-accent"
         />
         <button
           onClick={handleSend}
