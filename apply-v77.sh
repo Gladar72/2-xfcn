@@ -1,3 +1,266 @@
+mkdir -p "app/api/geocode"
+cat > "app/api/geocode/route.ts" << 'ENDOFFILE'
+import { NextRequest, NextResponse } from "next/server";
+
+/**
+ * GET /api/geocode?lat=...&lng=...  — обратное геокодирование (точка → адрес)
+ * GET /api/geocode?query=...&city=...  — прямое геокодирование (текст → варианты адресов с координатами),
+ *   используется для автодополнения при ручном вводе адреса (см. AddressAutocomplete.tsx)
+ *
+ * Прокси к Yandex Geocoder API. Ключ (YANDEX_GEOCODER_API_KEY) — БЕЗ
+ * префикса NEXT_PUBLIC_, то есть доступен только на сервере и никогда не
+ * попадает в код браузера. Это платный тариф (от 20 800 ₽/мес за 1000
+ * запросов/сутки) — если бы ключ был публичным, кто угодно мог бы вытащить
+ * его из бандла сайта и накрутить лишних запросов за наш счёт.
+ */
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const lat = searchParams.get("lat");
+  const lng = searchParams.get("lng");
+  const query = searchParams.get("query");
+  const city = searchParams.get("city");
+
+  const apiKey = process.env.YANDEX_GEOCODER_API_KEY;
+  if (!apiKey) return NextResponse.json(query ? { suggestions: [] } : { address: null });
+
+  if (query) {
+    if (query.trim().length < 3) return NextResponse.json({ suggestions: [] });
+
+    try {
+      // Город добавляем в сам текст запроса — так надёжнее ограничивает
+      // выдачу нужным городом, чем параметр rspn/bbox (без известных
+      // границ города их пришлось бы высчитывать отдельно).
+      const geocodeText = city ? `${city}, ${query}` : query;
+      const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${encodeURIComponent(geocodeText)}&format=json&results=5&lang=ru_RU`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        console.error(`GET /api/geocode?query — Yandex Geocoder ответил ${res.status}:`, body.slice(0, 300));
+        return NextResponse.json({ suggestions: [] });
+      }
+
+      const data = await res.json();
+      const members = data?.response?.GeoObjectCollection?.featureMember ?? [];
+      const suggestions = members
+        .map((m: unknown) => {
+          const obj = (m as { GeoObject?: Record<string, unknown> })?.GeoObject;
+          const text = (
+            obj?.metaDataProperty as { GeocoderMetaData?: { text?: string } } | undefined
+          )?.GeocoderMetaData?.text;
+          const pos = (obj?.Point as { pos?: string } | undefined)?.pos; // "lng lat"
+          if (!text || !pos) return null;
+          const [lngStr, latStr] = pos.split(" ");
+          return { address: text, longitude: parseFloat(lngStr), latitude: parseFloat(latStr) };
+        })
+        .filter((s: unknown): s is { address: string; longitude: number; latitude: number } => !!s);
+
+      return NextResponse.json({ suggestions });
+    } catch {
+      return NextResponse.json({ suggestions: [] });
+    }
+  }
+
+  if (!lat || !lng) return NextResponse.json({ error: "missing_coordinates" }, { status: 400 });
+
+  try {
+    const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${lng},${lat}&format=json&results=1&lang=ru_RU`;
+    const res = await fetch(url);
+    if (!res.ok) {
+      // Логируем реальную причину — важно, пока ключ Геокодера свежий и
+      // может быть ещё не активирован (обычно требуется до часа после
+      // оплаты) или временно превышен лимит.
+      const body = await res.text().catch(() => "");
+      console.error(`GET /api/geocode — Yandex Geocoder ответил ${res.status}:`, body.slice(0, 300));
+      return NextResponse.json({ address: null });
+    }
+
+    const data = await res.json();
+    const text = data?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject?.metaDataProperty
+      ?.GeocoderMetaData?.text;
+
+    return NextResponse.json({ address: typeof text === "string" ? text : null });
+  } catch {
+    return NextResponse.json({ address: null });
+  }
+}
+ENDOFFILE
+
+mkdir -p "lib/maps"
+cat > "lib/maps/forward-geocode.ts" << 'ENDOFFILE'
+export interface AddressSuggestion {
+  address: string;
+  latitude: number;
+  longitude: number;
+}
+
+/**
+ * Прямое геокодирование: текст → варианты адресов с координатами.
+ * Используется для автодополнения, когда пользователь вводит адрес
+ * вручную (не тапая по карте) — при выборе варианта карта сама
+ * перемещается и ставит точку (см. LocationPicker, externalCoords).
+ *
+ * Тот же серверный роут /api/geocode, что и для обратного геокодирования —
+ * ключ платного тарифа остаётся только на сервере.
+ */
+export async function searchAddress(query: string, city?: string): Promise<AddressSuggestion[]> {
+  if (query.trim().length < 3) return [];
+  try {
+    const params = new URLSearchParams({ query });
+    if (city) params.set("city", city);
+    const res = await fetch(`/api/geocode?${params.toString()}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.suggestions) ? data.suggestions : [];
+  } catch {
+    return [];
+  }
+}
+ENDOFFILE
+
+mkdir -p "components/map"
+cat > "components/map/LocationPicker.tsx" << 'ENDOFFILE'
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { loadYandexMaps } from "@/lib/maps/load-yandex-maps";
+import { reverseGeocode } from "@/lib/maps/reverse-geocode";
+
+interface LocationPickerProps {
+  initialCenter?: [number, number]; // [lng, lat]
+  onPick: (coords: { latitude: number; longitude: number }) => void;
+  /** Вызывается отдельно, как только адрес определится (может прийти
+   * позже самого onPick — геокодирование асинхронное и не блокирует
+   * основной поток выбора точки). */
+  onAddressResolved?: (address: string) => void;
+  /**
+   * Координаты, выбранные НЕ кликом по карте — например, пользователь
+   * сам ввёл адрес и выбрал вариант из подсказки (см. AddressAutocomplete
+   * в CreateEventWizard). При изменении карта сама перелетает к точке и
+   * ставит маркер, как будто там кликнули.
+   */
+  externalCoords?: { latitude: number; longitude: number } | null;
+}
+
+const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень
+
+export function LocationPicker({ initialCenter, onPick, onAddressResolved, externalCoords }: LocationPickerProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const onPickRef = useRef(onPick);
+  onPickRef.current = onPick;
+  const onAddressResolvedRef = useRef(onAddressResolved);
+  onAddressResolvedRef.current = onAddressResolved;
+  const [hasPin, setHasPin] = useState(false);
+  const [resolvingAddress, setResolvingAddress] = useState(false);
+  const mapRef = useRef<{ setLocation: (opts: { center: [number, number]; zoom: number }) => void; addChild: (c: unknown) => unknown } | null>(null);
+  const markerRef = useRef<{ update?: (props: unknown) => void } | null>(null);
+  const markerCtorRef = useRef<(new (opts: { coordinates: [number, number]; source: string }, el: HTMLElement) => unknown) | null>(null);
+  const placeMarkerRef = useRef<((coords: [number, number]) => void) | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const container = containerRef.current;
+    if (!container) return;
+
+    async function setup() {
+      const ymaps3 = await loadYandexMaps();
+      if (cancelled || !container) return;
+
+      const { YMap, YMapDefaultSchemeLayer, YMapFeatureDataSource, YMapLayer, YMapMarker, YMapListener } =
+        ymaps3 as unknown as {
+          YMap: new (el: HTMLElement, opts: unknown) => { addChild: (c: unknown) => unknown };
+          YMapDefaultSchemeLayer: new () => unknown;
+          YMapFeatureDataSource: new (opts: { id: string }) => unknown;
+          YMapLayer: new (opts: { source: string; type: string; zIndex: number }) => unknown;
+          YMapMarker: new (opts: { coordinates: [number, number]; source: string }, el: HTMLElement) => unknown;
+          YMapListener: new (opts: {
+            layer: string;
+            onClick: (object: unknown, event: { coordinates: [number, number] }) => void;
+          }) => unknown;
+        };
+
+      const map = new YMap(container, {
+        location: { center: initialCenter ?? DEFAULT_CENTER, zoom: 14 },
+      });
+      map.addChild(new YMapDefaultSchemeLayer());
+      map.addChild(new YMapFeatureDataSource({ id: "picker-source" }));
+      map.addChild(new YMapLayer({ source: "picker-source", type: "markers", zIndex: 1800 }));
+
+      mapRef.current = map as unknown as { setLocation: (opts: { center: [number, number]; zoom: number }) => void; addChild: (c: unknown) => unknown };
+      markerCtorRef.current = YMapMarker;
+
+      function placeMarker(coordinates: [number, number]) {
+        if (markerRef.current?.update) {
+          markerRef.current.update({ coordinates });
+        } else {
+          const el = document.createElement("div");
+          el.style.cssText = "width:32px;height:36px;transform:translateY(-18px);filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));";
+          el.innerHTML = '<img src="/brand/markers/marker-custom.svg" alt="" width="32" height="36" style="display:block;width:100%;height:100%;" />';
+          markerRef.current = new YMapMarker({ coordinates, source: "picker-source" }, el) as {
+            update?: (props: unknown) => void;
+          };
+          map.addChild(markerRef.current);
+        }
+      }
+      placeMarkerRef.current = placeMarker;
+
+      map.addChild(
+        new YMapListener({
+          layer: "any",
+          onClick: (_object, event) => {
+            const [longitude, latitude] = event.coordinates;
+            setHasPin(true);
+            onPickRef.current({ latitude, longitude });
+
+            setResolvingAddress(true);
+            reverseGeocode(latitude, longitude)
+              .then((address) => {
+                if (address) onAddressResolvedRef.current?.(address);
+              })
+              .finally(() => setResolvingAddress(false));
+
+            placeMarker(event.coordinates);
+          },
+        })
+      );
+    }
+
+    setup();
+
+    return () => {
+      cancelled = true;
+      if (container) container.innerHTML = "";
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Точка выбрана извне (человек ввёл адрес текстом и выбрал подсказку) —
+  // перелетаем картой к ней и ставим тот же маркер, что и при клике.
+  useEffect(() => {
+    if (!externalCoords || !mapRef.current || !placeMarkerRef.current) return;
+    const coords: [number, number] = [externalCoords.longitude, externalCoords.latitude];
+    mapRef.current.setLocation({ center: coords, zoom: 16 });
+    placeMarkerRef.current(coords);
+    setHasPin(true);
+  }, [externalCoords]);
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card shadow-card">
+      <div ref={containerRef} className="min-h-[280px] w-full flex-1" />
+      {!hasPin && (
+        <p className="shrink-0 bg-white px-3 py-1.5 text-center text-xs text-ink-600">
+          Нажми на карту, чтобы отметить место встречи
+        </p>
+      )}
+      {resolvingAddress && (
+        <p className="shrink-0 bg-white px-3 py-1.5 text-center text-xs text-ink-400">Определяем адрес...</p>
+      )}
+    </div>
+  );
+}
+ENDOFFILE
+
+mkdir -p "components/create-event"
+cat > "components/create-event/CreateEventWizard.tsx" << 'ENDOFFILE'
 "use client";
 
 import Image from "next/image";
@@ -496,3 +759,5 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
+ENDOFFILE
+

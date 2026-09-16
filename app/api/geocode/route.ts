@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * GET /api/geocode?lat=...&lng=...
+ * GET /api/geocode?lat=...&lng=...  — обратное геокодирование (точка → адрес)
+ * GET /api/geocode?query=...&city=...  — прямое геокодирование (текст → варианты адресов с координатами),
+ *   используется для автодополнения при ручном вводе адреса (см. AddressAutocomplete.tsx)
  *
  * Прокси к Yandex Geocoder API. Ключ (YANDEX_GEOCODER_API_KEY) — БЕЗ
  * префикса NEXT_PUBLIC_, то есть доступен только на сервере и никогда не
@@ -13,11 +15,50 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const lat = searchParams.get("lat");
   const lng = searchParams.get("lng");
-
-  if (!lat || !lng) return NextResponse.json({ error: "missing_coordinates" }, { status: 400 });
+  const query = searchParams.get("query");
+  const city = searchParams.get("city");
 
   const apiKey = process.env.YANDEX_GEOCODER_API_KEY;
-  if (!apiKey) return NextResponse.json({ address: null });
+  if (!apiKey) return NextResponse.json(query ? { suggestions: [] } : { address: null });
+
+  if (query) {
+    if (query.trim().length < 3) return NextResponse.json({ suggestions: [] });
+
+    try {
+      // Город добавляем в сам текст запроса — так надёжнее ограничивает
+      // выдачу нужным городом, чем параметр rspn/bbox (без известных
+      // границ города их пришлось бы высчитывать отдельно).
+      const geocodeText = city ? `${city}, ${query}` : query;
+      const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${encodeURIComponent(geocodeText)}&format=json&results=5&lang=ru_RU`;
+      const res = await fetch(url);
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        console.error(`GET /api/geocode?query — Yandex Geocoder ответил ${res.status}:`, body.slice(0, 300));
+        return NextResponse.json({ suggestions: [] });
+      }
+
+      const data = await res.json();
+      const members = data?.response?.GeoObjectCollection?.featureMember ?? [];
+      const suggestions = members
+        .map((m: unknown) => {
+          const obj = (m as { GeoObject?: Record<string, unknown> })?.GeoObject;
+          const text = (
+            obj?.metaDataProperty as { GeocoderMetaData?: { text?: string } } | undefined
+          )?.GeocoderMetaData?.text;
+          const pos = (obj?.Point as { pos?: string } | undefined)?.pos; // "lng lat"
+          if (!text || !pos) return null;
+          const [lngStr, latStr] = pos.split(" ");
+          return { address: text, longitude: parseFloat(lngStr), latitude: parseFloat(latStr) };
+        })
+        .filter((s: unknown): s is { address: string; longitude: number; latitude: number } => !!s);
+
+      return NextResponse.json({ suggestions });
+    } catch {
+      return NextResponse.json({ suggestions: [] });
+    }
+  }
+
+  if (!lat || !lng) return NextResponse.json({ error: "missing_coordinates" }, { status: 400 });
 
   try {
     const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${apiKey}&geocode=${lng},${lat}&format=json&results=1&lang=ru_RU`;
