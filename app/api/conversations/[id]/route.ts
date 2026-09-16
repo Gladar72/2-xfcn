@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-type Action = "mark_read" | "hide" | "unhide" | "block" | "unblock";
+type Action = "mark_read" | "hide" | "unhide" | "block" | "unblock" | "favorite" | "unfavorite";
 
 /**
  * PATCH /api/conversations/[id]
@@ -49,6 +49,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       break;
     case "unblock":
       updates.is_blocked = false;
+      break;
+    case "favorite":
+      updates.is_favorite = true;
+      break;
+    case "unfavorite":
+      updates.is_favorite = false;
       break;
     default:
       return NextResponse.json({ error: "invalid_action" }, { status: 400 });

@@ -17,7 +17,7 @@ export async function GET() {
     .from("conversation_members")
     .select(
       `
-      conversation_id, unread_count, is_hidden, is_blocked,
+      conversation_id, unread_count, is_hidden, is_blocked, is_favorite,
       conversations(id, event_id, events(title, status, category:categories(slug, name, emoji)))
       `
     )
@@ -89,6 +89,7 @@ export async function GET() {
       conversationId: m.conversation_id,
       unreadCount: m.unread_count,
       isBlocked: m.is_blocked,
+      isFavorite: m.is_favorite,
       eventTitle: conversation?.events?.title ?? null,
       eventStatus: conversation?.events?.status ?? null,
       category: conversation?.events?.category ?? null,

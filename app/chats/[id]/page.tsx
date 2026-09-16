@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { MessageBubble, formatDayLabel, type MessageData } from "@/components/chat/MessageBubble";
+import { MiniProfileSheet } from "@/components/chat/MiniProfileSheet";
 import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
 import { useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
@@ -39,6 +40,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
+  const [showMiniProfile, setShowMiniProfile] = useState(false);
   const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
@@ -199,16 +201,26 @@ export default function ChatPage({ params }: ChatPageProps) {
         <button onClick={() => router.push("/chats")} aria-label="Назад">
           <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
         </button>
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-xs font-semibold text-ink-600">
-          {otherUser?.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={otherUser.avatarUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            otherUser?.name?.charAt(0).toUpperCase() ?? "?"
-          )}
-        </div>
-        <span className="font-medium">{otherUser?.name ?? "Чат"}</span>
+        <button
+          onClick={() => otherUser && setShowMiniProfile(true)}
+          className="flex items-center gap-3"
+          disabled={!otherUser}
+        >
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-xs font-semibold text-ink-600">
+            {otherUser?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={otherUser.avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              otherUser?.name?.charAt(0).toUpperCase() ?? "?"
+            )}
+          </div>
+          <span className="font-medium">{otherUser?.name ?? "Чат"}</span>
+        </button>
       </div>
+
+      {showMiniProfile && otherUser && (
+        <MiniProfileSheet userId={otherUser.id} onClose={() => setShowMiniProfile(false)} />
+      )}
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
         {loading && <p className="text-center text-ink-600">Загрузка...</p>}

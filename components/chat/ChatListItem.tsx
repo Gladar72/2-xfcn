@@ -7,6 +7,7 @@ export interface ChatListItemData {
   conversationId: string;
   unreadCount: number;
   isBlocked: boolean;
+  isFavorite: boolean;
   eventTitle: string | null;
   eventStatus: string | null;
   category: { slug: string; name: string; emoji: string | null } | null;
@@ -16,7 +17,13 @@ export interface ChatListItemData {
   isLastMessageRead?: boolean;
 }
 
-export function ChatListItem({ chat }: { chat: ChatListItemData }) {
+export function ChatListItem({
+  chat,
+  onToggleFavorite,
+}: {
+  chat: ChatListItemData;
+  onToggleFavorite: (conversationId: string, next: boolean) => void;
+}) {
   const name = chat.otherUser?.name ?? "Пользователь";
   // Заголовок карточки — название встречи (по референсу это важнее, чем
   // "с кем", ты сначала вспоминаешь ПРО ЧТО был чат), но аватар — всегда
@@ -30,42 +37,62 @@ export function ChatListItem({ chat }: { chat: ChatListItemData }) {
     : "Чат создан";
 
   return (
-    <Link
-      href={`/chats/${chat.conversationId}`}
-      className="flex items-center gap-3 rounded-card bg-white p-3 shadow-card"
-    >
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
-        {chat.otherUser?.avatar_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={chat.otherUser.avatar_url} alt={name} className="h-full w-full object-cover" />
-        ) : (
-          name.charAt(0).toUpperCase()
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center justify-between gap-2">
-          <span className={`truncate ${isUnread ? "font-semibold text-ink-900" : "font-medium text-ink-900"}`}>
-            {title}
-          </span>
-          {chat.lastMessage && (
-            <span
-              className={`flex shrink-0 items-center gap-1 text-xs ${isUnread ? "font-medium text-accent" : "text-ink-400"}`}
-            >
-              {chat.lastMessage.isMine && <ReadTicks status={chat.isLastMessageRead ? "read" : "sent"} />}
-              {formatListTime(chat.lastMessage.createdAt)}
-            </span>
+    <div className="flex items-center gap-2 rounded-card bg-white p-3 shadow-card">
+      <Link href={`/chats/${chat.conversationId}`} className="flex min-w-0 flex-1 items-center gap-3">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
+          {chat.otherUser?.avatar_url ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={chat.otherUser.avatar_url} alt={name} className="h-full w-full object-cover" />
+          ) : (
+            name.charAt(0).toUpperCase()
           )}
         </div>
-        <p className={`truncate text-sm ${isUnread ? "font-medium text-ink-900" : "text-ink-600"}`}>{previewText}</p>
-      </div>
 
-      {isUnread && (
-        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-pill bg-accent px-1.5 text-xs font-semibold text-white">
-          {chat.unreadCount}
-        </span>
-      )}
-    </Link>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className={`truncate ${isUnread ? "font-semibold text-ink-900" : "font-medium text-ink-900"}`}>
+              {title}
+            </span>
+            {chat.lastMessage && (
+              <span
+                className={`flex shrink-0 items-center gap-1 text-xs ${isUnread ? "font-medium text-accent" : "text-ink-400"}`}
+              >
+                {chat.lastMessage.isMine && <ReadTicks status={chat.isLastMessageRead ? "read" : "sent"} />}
+                {formatListTime(chat.lastMessage.createdAt)}
+              </span>
+            )}
+          </div>
+          <p className={`truncate text-sm ${isUnread ? "font-medium text-ink-900" : "text-ink-600"}`}>{previewText}</p>
+        </div>
+
+        {isUnread && (
+          <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-pill bg-accent px-1.5 text-xs font-semibold text-white">
+            {chat.unreadCount}
+          </span>
+        )}
+      </Link>
+
+      <button
+        onClick={() => onToggleFavorite(chat.conversationId, !chat.isFavorite)}
+        aria-label={chat.isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
+        className="shrink-0 p-1"
+      >
+        <StarIcon filled={chat.isFavorite} />
+      </button>
+    </div>
+  );
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "#FFB800" : "none"}>
+      <path
+        d="M12 2.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7-5.4-4.7 7.1-.7L12 2.5z"
+        stroke={filled ? "#FFB800" : "#B8B8C8"}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
   );
 }
 
