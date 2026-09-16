@@ -51,7 +51,11 @@ function FeedPageContent() {
   const [applyingEventId, setApplyingEventId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [city, setCity] = useState("Тюмень");
+  // null, а не сразу "Тюмень" — раньше лента грузилась ДВАЖДЫ на каждом
+  // открытии: сначала с этим захардкоженным городом по умолчанию (пока
+  // профиль ещё не пришёл), потом ещё раз с настоящим городом из
+  // профиля. Теперь ждём реальный город и грузим ленту только один раз.
+  const [city, setCity] = useState<string | null>(null);
   const [citySheetOpen, setCitySheetOpen] = useState(false);
   const [cityInput, setCityInput] = useState("");
 
@@ -60,12 +64,10 @@ function FeedPageContent() {
       .then((r) => r.json())
       .then((data) => {
         setAvatarUrl(data.avatarUrl ?? null);
-        if (data.city) {
-          setCity(data.city);
-          setCityInput(data.city);
-        }
+        setCity(data.city || "Тюмень");
+        setCityInput(data.city || "Тюмень");
       })
-      .catch(() => {});
+      .catch(() => setCity("Тюмень"));
   }, []);
 
   useEffect(() => {
@@ -82,6 +84,7 @@ function FeedPageContent() {
   }, []);
 
   useEffect(() => {
+    if (city === null) return; // город ещё не пришёл из профиля — не грузим ленту вхолостую
     setEvents([]);
     setPage(0);
     loadPage(0, true);
@@ -89,6 +92,7 @@ function FeedPageContent() {
   }, [categoryFilter, typeFilter, city]);
 
   async function loadPage(pageToLoad: number, replace: boolean) {
+    if (city === null) return;
     setLoading(true);
     setError(null);
     try {
@@ -148,7 +152,7 @@ function FeedPageContent() {
 
   return (
     <div>
-      <TopBar city={city} avatarUrl={avatarUrl} onCityPress={() => setCitySheetOpen(true)} />
+      <TopBar city={city ?? "..."} avatarUrl={avatarUrl} onCityPress={() => setCitySheetOpen(true)} />
 
       <div className="px-5 pb-2 pt-6">
         <h1 className="text-display">
