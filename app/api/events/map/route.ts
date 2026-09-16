@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
+import { completeDueEvents } from "@/lib/reviews/complete-due-events";
 
 /**
  * GET /api/events/map?city=...
@@ -28,6 +29,9 @@ export async function GET(req: NextRequest) {
 
   const currentUser = await getCurrentUser();
   const admin = createAdminClient();
+
+  // См. пояснение в /api/events — та же проблема была бы и на карте.
+  await completeDueEvents(admin);
 
   if (!city && currentUser) {
     const { data: profile } = await admin
