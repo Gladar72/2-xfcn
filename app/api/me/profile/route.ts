@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 
 /**
  * GET /api/me/profile
@@ -58,10 +59,10 @@ function calculateAge(birthDateIso: string): number {
 
 /**
  * PATCH /api/me/profile
- * Body: { name?: string, bio?: string }
- * Минимальное редактирование профиля — имя и "о себе" (единственные
- * текстовые поля, которые у нас реально есть; смена города/даты рождения
- * не поддержана нарочно, это отдельная задача с более серьёзной проверкой).
+ * Body: { name?: string, bio?: string, city?: string }
+ * Смена города — только из фиксированного списка городов России
+ * (lib/data/russian-cities.ts), как и везде в приложении, где выбирается
+ * город (поиск, лента) — иначе рассинхронизация с фильтрами по городу.
  */
 export async function PATCH(req: Request) {
   const currentUser = await getCurrentUser();
@@ -82,6 +83,13 @@ export async function PATCH(req: Request) {
     const bio = body.bio.trim();
     if (bio.length > 300) return NextResponse.json({ error: "bio_too_long" }, { status: 422 });
     update.bio = bio;
+  }
+
+  if (typeof body?.city === "string") {
+    if (!RUSSIAN_CITIES.includes(body.city)) {
+      return NextResponse.json({ error: "invalid_city" }, { status: 422 });
+    }
+    update.city = body.city;
   }
 
   if (Object.keys(update).length === 0) {
