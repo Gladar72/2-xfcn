@@ -36,6 +36,22 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
 
+  // Сколько новых (ещё не рассмотренных) заявок ждёт организатора на
+  // каждую его встречу — чтобы показать значок прямо на карточке встречи,
+  // не только общим уведомлением.
+  const organizerEventIds = eventIds.filter((id) => roleByEventId.get(id) === "organizer");
+  const pendingCountByEventId = new Map<string, number>();
+  if (organizerEventIds.length > 0) {
+    const { data: pendingApplications } = await admin
+      .from("applications")
+      .select("event_id")
+      .in("event_id", organizerEventIds)
+      .eq("status", "pending");
+    for (const a of pendingApplications ?? []) {
+      pendingCountByEventId.set(a.event_id, (pendingCountByEventId.get(a.event_id) ?? 0) + 1);
+    }
+  }
+
   const items = (events ?? []).map((e) => ({
     id: e.id,
     title: e.title,
@@ -45,6 +61,7 @@ export async function GET() {
     status: e.status,
     category: e.category,
     role: roleByEventId.get(e.id) === "organizer" ? "organizer" : "participant",
+    pendingApplicationsCount: pendingCountByEventId.get(e.id) ?? 0,
   }));
 
   return NextResponse.json({ items });
