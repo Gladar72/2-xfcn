@@ -11,9 +11,11 @@ export interface ChatListItemData {
   eventTitle: string | null;
   eventStatus: string | null;
   category: { slug: string; name: string; emoji: string | null } | null;
-  otherUser: { id: string; name: string; avatar_url: string | null } | null;
+  otherUser: { id: string; name: string; avatarUrl: string | null } | null;
+  /** Сколько всего человек в чате, кроме меня — 1 = обычный диалог, больше 1 = групповой чат встречи. */
+  otherMembersCount: number;
   lastMessage: { content: string; createdAt: string; isMine: boolean } | null;
-  /** Прочитал ли собеседник наше последнее сообщение (только когда lastMessage.isMine). */
+  /** Прочитали ли ВСЕ остальные участники наше последнее сообщение (только когда lastMessage.isMine). */
   isLastMessageRead?: boolean;
 }
 
@@ -24,11 +26,11 @@ export function ChatListItem({
   chat: ChatListItemData;
   onToggleFavorite: (conversationId: string, next: boolean) => void;
 }) {
+  const isGroup = chat.otherMembersCount > 1;
   const name = chat.otherUser?.name ?? "Пользователь";
   // Заголовок карточки — название встречи (по референсу это важнее, чем
-  // "с кем", ты сначала вспоминаешь ПРО ЧТО был чат), но аватар — всегда
-  // фото собеседника: с кем именно ты разговариваешь, должно быть видно
-  // сразу, картинка категории для этого не подходит.
+  // "с кем", ты сначала вспоминаешь ПРО ЧТО был чат) — теперь так вообще
+  // всегда, раз чат один на всю встречу, а не на человека.
   const title = chat.eventTitle ?? name;
   const isUnread = chat.unreadCount > 0;
 
@@ -40,9 +42,11 @@ export function ChatListItem({
     <div className="flex items-center gap-2 rounded-card bg-white p-3 shadow-card">
       <Link href={`/chats/${chat.conversationId}`} className="flex min-w-0 flex-1 items-center gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
-          {chat.otherUser?.avatar_url ? (
+          {isGroup ? (
+            <span className="text-lg">👥</span>
+          ) : chat.otherUser?.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={chat.otherUser.avatar_url} alt={name} className="h-full w-full object-cover" />
+            <img src={chat.otherUser.avatarUrl} alt={name} className="h-full w-full object-cover" />
           ) : (
             name.charAt(0).toUpperCase()
           )}

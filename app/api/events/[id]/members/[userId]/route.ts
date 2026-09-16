@@ -53,6 +53,21 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   await admin.from("event_members").delete().eq("event_id", eventId).eq("user_id", memberUserId);
   await admin.rpc("release_event_seat", { p_event_id: eventId });
 
+  // Убираем и из общего группового чата встречи — иначе человек остаётся в
+  // переписке, хотя из самой встречи его уже исключили.
+  const { data: conversation } = await admin
+    .from("conversations")
+    .select("id")
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (conversation) {
+    await admin
+      .from("conversation_members")
+      .delete()
+      .eq("conversation_id", conversation.id)
+      .eq("user_id", memberUserId);
+  }
+
   const { data: removedUser } = await admin
     .from("users")
     .select("telegram_id")

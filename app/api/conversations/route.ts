@@ -43,15 +43,17 @@ export async function GET() {
       .order("created_at", { ascending: false }),
   ]);
 
-  const otherMemberByConversation = new Map(
-    (otherMembers ?? []).map((m) => [
-      m.conversation_id,
-      {
-        user: m.users as unknown as { id: string; name: string; avatar_url: string | null } | null,
-        lastReadAt: m.last_read_at as string | null,
-      },
-    ])
-  );
+  const otherMembersByConversation = new Map<
+    string,
+    { id: string; name: string; avatarUrl: string | null; lastReadAt: string | null }[]
+  >();
+  for (const m of otherMembers ?? []) {
+    const user = m.users as unknown as { id: string; name: string; avatar_url: string | null } | null;
+    if (!user) continue;
+    const list = otherMembersByConversation.get(m.conversation_id) ?? [];
+    list.push({ id: user.id, name: user.name, avatarUrl: user.avatar_url, lastReadAt: m.last_read_at as string | null });
+    otherMembersByConversation.set(m.conversation_id, list);
+  }
 
   const lastMessageByConversation = new Map<
     string,
@@ -77,13 +79,17 @@ export async function GET() {
         category: { slug: string; name: string; emoji: string | null } | null;
       } | null;
     } | null;
-    const other = otherMemberByConversation.get(m.conversation_id);
+    const otherMembersList = otherMembersByConversation.get(m.conversation_id) ?? [];
     const lastMessage = lastMessageByConversation.get(m.conversation_id) ?? null;
     // "Прочитано" (двойная зелёная галочка в списке чатов, как в MessageBubble
     // внутри самого чата) имеет смысл только для СВОИХ последних сообщений —
     // для входящих у нас и так есть индикатор непрочитанного (unreadCount).
+    // В групповом чате считаем прочитанным только когда ВСЕ остальные
+    // участники увидели сообщение.
     const isLastMessageRead =
-      !!lastMessage?.isMine && !!other?.lastReadAt && lastMessage.createdAt <= other.lastReadAt;
+      !!lastMessage?.isMine &&
+      otherMembersList.length > 0 &&
+      otherMembersList.every((om) => om.lastReadAt && lastMessage.createdAt <= om.lastReadAt);
 
     return {
       conversationId: m.conversation_id,
@@ -93,7 +99,11 @@ export async function GET() {
       eventTitle: conversation?.events?.title ?? null,
       eventStatus: conversation?.events?.status ?? null,
       category: conversation?.events?.category ?? null,
-      otherUser: other?.user ?? null,
+      // otherUser — для отображения аватара в списке: если участник один
+      // (как раньше), показываем его фото; если несколько — компонент сам
+      // решает показать иконку группы (см. otherMembersCount).
+      otherUser: otherMembersList[0] ?? null,
+      otherMembersCount: otherMembersList.length,
       lastMessage,
       isLastMessageRead,
     };

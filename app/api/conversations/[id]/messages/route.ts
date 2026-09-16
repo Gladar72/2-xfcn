@@ -22,10 +22,10 @@ async function assertMembership(
 
 /**
  * GET /api/conversations/[id]/messages
- * История сообщений (последние 50, по возрастанию времени) + имя
- * собеседника (для шапки чата и подписи над входящими сообщениями —
- * иначе непонятно "кто кому пишет", особенно когда все сообщения на вид
- * одинаковые).
+ * История сообщений (последние 50, по возрастанию времени) + название
+ * встречи и список ОСТАЛЬНЫХ участников (для шапки группового чата и
+ * подписи над входящими сообщениями — теперь участников может быть
+ * несколько, не только один собеседник, как раньше).
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: conversationId } = await params;
@@ -37,30 +37,36 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const membership = await assertMembership(admin, conversationId, currentUser.userId);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const [{ data: messages, error }, { data: otherMemberRow }] = await Promise.all([
+  const [{ data: messages, error }, { data: otherMemberRows }, { data: conversationRow }] = await Promise.all([
     admin
       .from("messages")
       .select("id, sender_id, content, created_at")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: false })
       .limit(MESSAGE_HISTORY_LIMIT),
-    // Имя и last_read_at собеседника одним запросом: имя — для шапки чата и
-    // подписи над входящими сообщениями, last_read_at — для галочек
-    // "доставлено"/"прочитано" (сообщение считается прочитанным, если оно
-    // старше last_read_at собеседника).
+    // Все ОСТАЛЬНЫЕ участники (не только один, как раньше) — имя и фото
+    // для подписи над сообщениями, last_read_at каждого для галочек
+    // "прочитано" (сообщение считается прочитанным только когда ВСЕ
+    // остальные участники его увидели — логично для группового чата).
     admin
       .from("conversation_members")
       .select("last_read_at, user:users(id, name, avatar_url)")
       .eq("conversation_id", conversationId)
-      .neq("user_id", currentUser.userId)
-      .maybeSingle(),
+      .neq("user_id", currentUser.userId),
+    admin.from("conversations").select("event_id, events(title)").eq("id", conversationId).maybeSingle(),
   ]);
 
   if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
 
-  const otherUser = otherMemberRow?.user as unknown as
-    | { id: string; name: string; avatar_url: string | null }
-    | null;
+  const members = (otherMemberRows ?? [])
+    .map((row) => {
+      const user = row.user as unknown as { id: string; name: string; avatar_url: string | null } | null;
+      if (!user) return null;
+      return { id: user.id, name: user.name, avatarUrl: user.avatar_url, lastReadAt: row.last_read_at as string | null };
+    })
+    .filter((m): m is { id: string; name: string; avatarUrl: string | null; lastReadAt: string | null } => !!m);
+
+  const eventTitle = (conversationRow?.events as unknown as { title: string } | null)?.title ?? null;
 
   return NextResponse.json({
     // ВАЖНО: преобразуем snake_case из базы (sender_id, created_at) в
@@ -72,8 +78,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     messages: (messages ?? [])
       .reverse()
       .map((m) => ({ id: m.id, senderId: m.sender_id, content: m.content, createdAt: m.created_at })),
-    otherMemberLastReadAt: otherMemberRow?.last_read_at ?? null,
-    otherUser: otherUser ? { id: otherUser.id, name: otherUser.name, avatarUrl: otherUser.avatar_url } : null,
+    eventTitle,
+    members,
   });
 }
 

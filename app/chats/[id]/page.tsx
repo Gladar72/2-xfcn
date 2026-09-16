@@ -20,10 +20,11 @@ interface ChatPageProps {
   params: { id: string };
 }
 
-interface OtherUser {
+interface Member {
   id: string;
   name: string;
   avatarUrl: string | null;
+  lastReadAt: string | null;
 }
 
 export default function ChatPage({ params }: ChatPageProps) {
@@ -31,17 +32,18 @@ export default function ChatPage({ params }: ChatPageProps) {
   const router = useRouter();
   useLockBodyScroll();
 
-  // visualViewport — основной источник (надёжнее в разных клиентах
-  // Telegram), Telegram.WebApp.viewportHeight — запасной вариант.
   const visualViewportHeight = useVisualViewportHeight();
   const telegramViewportHeight = useTelegramViewportHeight();
   const liveHeight = visualViewportHeight ?? telegramViewportHeight;
 
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [myUserId, setMyUserId] = useState<string | null>(null);
-  const [otherUser, setOtherUser] = useState<OtherUser | null>(null);
-  const [showMiniProfile, setShowMiniProfile] = useState(false);
-  const [otherLastReadAt, setOtherLastReadAt] = useState<string | null>(null);
+  const [eventTitle, setEventTitle] = useState<string | null>(null);
+  // Все ОСТАЛЬНЫЕ участники чата (не считая себя) — на встречу с 3-4
+  // принятыми людьми это будет несколько человек, не один собеседник.
+  const [members, setMembers] = useState<Member[]>([]);
+  const [showMiniProfileFor, setShowMiniProfileFor] = useState<string | null>(null);
+  const [showParticipants, setShowParticipants] = useState(false);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -78,8 +80,8 @@ export default function ChatPage({ params }: ChatPageProps) {
 
         setMyUserId(me.userId);
         setMessages(history.messages ?? []);
-        setOtherLastReadAt(history.otherMemberLastReadAt ?? null);
-        setOtherUser(history.otherUser ?? null);
+        setEventTitle(history.eventTitle ?? null);
+        setMembers(history.members ?? []);
 
         const client = createBrowserRealtimeClient(tokenData.token);
         clientRef.current = client;
@@ -118,16 +120,16 @@ export default function ChatPage({ params }: ChatPageProps) {
             },
             (payload) => {
               const row = payload.new as { user_id: string; last_read_at: string | null };
-              // Интересует только собеседник — свою же запись о прочтении
-              // мы обновляем сами при открытии чата.
-              if (row.user_id !== me.userId) setOtherLastReadAt(row.last_read_at);
+              if (row.user_id === me.userId) return;
+              setMembers((prev) =>
+                prev.map((m) => (m.id === row.user_id ? { ...m, lastReadAt: row.last_read_at } : m))
+              );
             }
           )
           .subscribe();
 
         channelRef.current = channel;
 
-        // Отмечаем прочитанным при открытии чата
         fetch(`/api/conversations/${conversationId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
@@ -150,19 +152,12 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-    // Пересчитываем при появлении клавиатуры (liveHeight меняется) —
-    // иначе последнее сообщение может оказаться под ней.
   }, [messages.length, liveHeight]);
 
   async function handleSend() {
     const content = draft.trim();
     if (!content || sending || !myUserId) return;
 
-    // Показываем сообщение на экране СРАЗУ, не дожидаясь ответа сервера —
-    // раньше оно появлялось только после fetch(), и сетевая задержка была
-    // заметна глазом. Временный id заменяется на настоящий, когда сервер
-    // ответит; если запрос не удастся — сообщение убирается и текст
-    // возвращается в поле ввода.
     const tempId = `temp-${Date.now()}`;
     setMessages((prev) => [...prev, { id: tempId, senderId: myUserId, content, createdAt: new Date().toISOString() }]);
     setSending(true);
@@ -180,9 +175,6 @@ export default function ChatPage({ params }: ChatPageProps) {
         setDraft(content);
         return;
       }
-      // Подменяем временный id на настоящий — если Realtime всё-таки
-      // пришлёт то же сообщение следом (обычный сценарий), проверка на id
-      // в обработчике INSERT уже не даст добавить дубликат.
       if (data.messageId && data.createdAt) {
         setMessages((prev) =>
           prev.map((m) => (m.id === tempId ? { ...m, id: data.messageId, createdAt: data.createdAt } : m))
@@ -197,6 +189,10 @@ export default function ChatPage({ params }: ChatPageProps) {
     }
   }
 
+  const isGroup = members.length > 1;
+  const headerTitle = eventTitle ?? (members.length === 1 ? members[0].name : "Чат");
+  const soleMember = members.length === 1 ? members[0] : null;
+
   return (
     <div
       className="fixed inset-x-0 top-0 z-40 flex flex-col overflow-hidden bg-background"
@@ -207,24 +203,60 @@ export default function ChatPage({ params }: ChatPageProps) {
           <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
         </button>
         <button
-          onClick={() => otherUser && setShowMiniProfile(true)}
-          className="flex items-center gap-3"
-          disabled={!otherUser}
+          onClick={() => (soleMember ? setShowMiniProfileFor(soleMember.id) : setShowParticipants(true))}
+          className="flex min-w-0 flex-1 items-center gap-3"
+          disabled={members.length === 0}
         >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-xs font-semibold text-ink-600">
-            {otherUser?.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={otherUser.avatarUrl} alt="" className="h-full w-full object-cover" />
+            {soleMember ? (
+              soleMember.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={soleMember.avatarUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                soleMember.name.charAt(0).toUpperCase()
+              )
             ) : (
-              otherUser?.name?.charAt(0).toUpperCase() ?? "?"
+              <span className="text-sm">👥</span>
             )}
           </div>
-          <span className="font-medium">{otherUser?.name ?? "Чат"}</span>
+          <span className="truncate font-medium">{headerTitle}</span>
+          {isGroup && <span className="shrink-0 text-xs text-ink-400">{members.length + 1} чел.</span>}
         </button>
       </div>
 
-      {showMiniProfile && otherUser && (
-        <MiniProfileSheet userId={otherUser.id} onClose={() => setShowMiniProfile(false)} />
+      {showMiniProfileFor && (
+        <MiniProfileSheet userId={showMiniProfileFor} onClose={() => setShowMiniProfileFor(null)} />
+      )}
+
+      {showParticipants && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={() => setShowParticipants(false)}>
+          <div className="rounded-t-sheet bg-white p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
+            <h2 className="text-title mb-4">Участники ({members.length + 1})</h2>
+            <div className="space-y-2">
+              {members.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setShowParticipants(false);
+                    setShowMiniProfileFor(m.id);
+                  }}
+                  className="flex w-full items-center gap-3 rounded-card p-2 text-left hover:bg-lavender-50"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-sm font-semibold text-ink-600">
+                    {m.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.avatarUrl} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      m.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <span className="font-medium text-ink-900">{m.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
@@ -235,10 +267,9 @@ export default function ChatPage({ params }: ChatPageProps) {
           const prev = messages[index - 1];
           const showDaySeparator = !prev || !isSameDay(prev.createdAt, message.createdAt);
           const isOwn = message.senderId === myUserId;
-          const isRead = Boolean(otherLastReadAt && message.createdAt <= otherLastReadAt);
-          // Подпись с именем над входящим сообщением показываем только у
-          // первого сообщения в подряд идущей группе от одного автора —
-          // не над каждым, чтобы не загромождать чат.
+          const isRead =
+            members.length > 0 && members.every((m) => m.lastReadAt && message.createdAt <= m.lastReadAt);
+          const sender = members.find((m) => m.id === message.senderId);
           const showSenderLabel = !isOwn && (!prev || prev.senderId !== message.senderId || showDaySeparator);
 
           return (
@@ -251,7 +282,7 @@ export default function ChatPage({ params }: ChatPageProps) {
                 </div>
               )}
               {showSenderLabel && (
-                <p className="mb-1 ml-1 text-xs font-medium text-ink-600">{otherUser?.name ?? "Собеседник"}</p>
+                <p className="mb-1 ml-1 text-xs font-medium text-ink-600">{sender?.name ?? "Участник"}</p>
               )}
               <MessageBubble message={message} isOwn={isOwn} readStatus={isRead ? "read" : "sent"} />
             </div>

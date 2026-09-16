@@ -76,18 +76,32 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     role: "participant",
   });
 
-  // Чат создаётся только после подтверждения участия (п.15 ТЗ)
-  const { data: conversation } = await admin
+  // Один общий чат на всю встречу — не отдельный чат на каждого принятого
+  // человека. Ищем уже существующий (создан при первом принятии на эту
+  // встречу) и просто добавляем туда нового участника; если это первое
+  // принятие — создаём чат и добавляем организатора.
+  const { data: existingConversation } = await admin
     .from("conversations")
-    .insert({ event_id: application.event_id })
     .select("id")
-    .single();
+    .eq("event_id", application.event_id)
+    .maybeSingle();
 
-  if (conversation) {
-    await admin.from("conversation_members").insert([
-      { conversation_id: conversation.id, user_id: application.user_id },
-      { conversation_id: conversation.id, user_id: organizerId },
-    ]);
+  let conversationId = existingConversation?.id;
+
+  if (!conversationId) {
+    const { data: newConversation } = await admin
+      .from("conversations")
+      .insert({ event_id: application.event_id })
+      .select("id")
+      .single();
+    conversationId = newConversation?.id;
+    if (conversationId) {
+      await admin.from("conversation_members").insert({ conversation_id: conversationId, user_id: organizerId });
+    }
+  }
+
+  if (conversationId) {
+    await admin.from("conversation_members").insert({ conversation_id: conversationId, user_id: application.user_id });
   }
 
   await admin.from("notifications").insert({
