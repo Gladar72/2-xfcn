@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/Button";
 
 export interface ApplicantCardData {
   id: string; // applicationId
-  status: "pending" | "accepted" | "rejected" | "cancelled";
+  status: "pending" | "accepted" | "rejected" | "cancelled" | "removed";
   applicant: {
     id: string;
     name: string;
@@ -20,10 +20,11 @@ interface ApplicantCardProps {
   application: ApplicantCardData;
   onAccept: (applicationId: string) => void;
   onReject: (applicationId: string) => void;
+  onRemove?: (applicantUserId: string) => void;
   processing?: boolean;
 }
 
-export function ApplicantCard({ application, onAccept, onReject, processing }: ApplicantCardProps) {
+export function ApplicantCard({ application, onAccept, onReject, onRemove, processing }: ApplicantCardProps) {
   const { applicant } = application;
   if (!applicant) return null;
 
@@ -67,15 +68,30 @@ export function ApplicantCard({ application, onAccept, onReject, processing }: A
           </Button>
         </div>
       ) : (
-        <div
-          className={`rounded-pill px-4 py-2 text-center text-sm font-medium ${
-            application.status === "accepted"
-              ? "bg-accent-50 text-accent-700"
-              : "bg-ink-400/10 text-ink-600"
-          }`}
-        >
-          {application.status === "accepted" ? "Принят" : "Отклонён"}
-        </div>
+        <>
+          <div
+            className={`rounded-pill px-4 py-2 text-center text-sm font-medium ${
+              application.status === "accepted"
+                ? "bg-accent-50 text-accent-700"
+                : "bg-ink-400/10 text-ink-600"
+            }`}
+          >
+            {application.status === "accepted"
+              ? "Принят"
+              : application.status === "removed"
+                ? "Убран организатором"
+                : "Отклонён"}
+          </div>
+          {application.status === "accepted" && onRemove && (
+            <button
+              onClick={() => onRemove(applicant.id)}
+              disabled={processing}
+              className="mt-2 w-full text-center text-sm font-medium text-red-600 disabled:opacity-60"
+            >
+              Убрать из встречи
+            </button>
+          )}
+        </>
       )}
     </div>
   );

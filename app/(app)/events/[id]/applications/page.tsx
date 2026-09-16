@@ -61,6 +61,25 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
     }
   }
 
+  async function handleRemove(applicantUserId: string) {
+    setProcessingId(applicantUserId);
+    try {
+      const res = await fetch(`/api/events/${eventId}/members/${applicantUserId}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        await load();
+      } else {
+        setError(
+          data.error === "event_already_started"
+            ? "Встреча уже началась — убрать участника нельзя."
+            : "Не получилось убрать участника."
+        );
+      }
+    } finally {
+      setProcessingId(null);
+    }
+  }
+
   const pending = applications.filter((a) => a.status === "pending");
   const processed = applications.filter((a) => a.status !== "pending");
 
@@ -98,6 +117,8 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
             application={app}
             onAccept={() => {}}
             onReject={() => {}}
+            onRemove={handleRemove}
+            processing={processingId === app.applicant?.id}
           />
         ))}
       </div>
