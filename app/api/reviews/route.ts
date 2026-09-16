@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendEventResultsNow } from "@/lib/reviews/send-event-results";
 import { z } from "zod";
 
 const reviewSchema = z.object({
@@ -71,6 +72,13 @@ export async function POST(req: NextRequest) {
   }
 
   await admin.rpc("apply_review_to_rating", { p_user_id: input.revieweeId, p_rating: input.rating });
+
+  // Сразу же (без задержки) шлём всем участникам обновлённую сводку итогов
+  // в личный чат с ботом — по явному запросу пользователя, не в канал и
+  // не по таймеру, а прямо в момент, когда кто-то оценил встречу.
+  await sendEventResultsNow(admin, input.eventId).catch((err) =>
+    console.error("sendEventResultsNow:", err)
+  );
 
   return NextResponse.json({ status: "created" });
 }
