@@ -1,3 +1,4 @@
+cat > "app/chats/[id]/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -294,3 +295,4 @@ function isSameDay(isoA: string, isoB: string): boolean {
   const b = new Date(isoB);
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
+ENDOFFILE
