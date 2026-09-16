@@ -18,11 +18,17 @@ interface LocationPickerProps {
    * ставит маркер, как будто там кликнули.
    */
   externalCoords?: { latitude: number; longitude: number } | null;
+  /**
+   * Явная высота карты в пикселях — задаётся родителем (обычно как доля
+   * от высоты экрана). Без неё карта полагается на flex/min-h и на деле
+   * может оказаться заметно меньше, чем кажется по вёрстке.
+   */
+  heightPx?: number;
 }
 
 const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень
 
-export function LocationPicker({ initialCenter, onPick, onAddressResolved, externalCoords }: LocationPickerProps) {
+export function LocationPicker({ initialCenter, onPick, onAddressResolved, externalCoords, heightPx }: LocationPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
@@ -124,7 +130,11 @@ export function LocationPicker({ initialCenter, onPick, onAddressResolved, exter
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card shadow-card">
-      <div ref={containerRef} className="min-h-[280px] w-full flex-1" />
+      <div
+        ref={containerRef}
+        className="w-full flex-1"
+        style={heightPx ? { height: heightPx, minHeight: heightPx } : { minHeight: 280 }}
+      />
       {!hasPin && (
         <p className="shrink-0 bg-white px-3 py-1.5 text-center text-xs text-ink-600">
           Нажми на карту, чтобы отметить место встречи
