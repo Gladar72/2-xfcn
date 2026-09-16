@@ -13,6 +13,8 @@ interface CreatePaymentParams {
   amountRub: number;
   description: string;
   returnUrl: string;
+  /** Email или телефон покупателя — куда ЮKassa отправит электронный чек. */
+  contact: string;
 }
 
 export interface YooKassaPayment {
@@ -34,23 +36,21 @@ function authHeader(): string {
 
 /**
  * Создаёт платёж в ЮKassa и возвращает ссылку для редиректа пользователя
- * на страницу оплаты (карта, СБП и другие способы, включённые в кабинете
- * ЮKassa). Idempotence-Key — обязательный для ЮKassa заголовок, защищает
- * от повторного списания при случайном повторе запроса (например, если
- * ответ потерялся по сети и клиент отправил запрос ещё раз).
+ * на страницу оплаты (человек сам выбирает способ — карта, СБП и т.д.,
+ * общий экран выбора ЮKassa). Idempotence-Key — обязательный для ЮKassa
+ * заголовок, защищает от повторного списания при случайном повторе
+ * запроса (например, если ответ потерялся по сети и клиент отправил
+ * запрос ещё раз).
  *
  * receipt — обязателен по 54-ФЗ (онлайн-касса): без него ЮKassa отклоняет
  * платёж с ошибкой "Receipt is missing or illegal". vat_code: 1 — "без
- * НДС", корректно для ИП на УСН.
- *
- * customer.email — у нас нет email/телефона пользователя (Telegram их не
- * даёт), поэтому временно используется контактный email оператора
- * (владельца ИП) — реальный покупатель свою копию чека так не получит.
- * Это стоит заменить на email/телефон покупателя, как только появится
- * способ их собирать (например, попросить один раз при первой оплате).
+ * НДС", корректно для ИП на УСН. customer — реальный email/телефон
+ * покупателя (params.contact), которые он вводит перед оплатой — чек
+ * приходит именно ему, а не оператору.
  */
 export async function createYooKassaPayment(params: CreatePaymentParams): Promise<YooKassaPayment> {
   const idempotenceKey = crypto.randomUUID();
+  const isEmail = params.contact.includes("@");
 
   const res = await fetch("https://api.yookassa.ru/v3/payments", {
     method: "POST",
@@ -66,7 +66,7 @@ export async function createYooKassaPayment(params: CreatePaymentParams): Promis
       description: params.description,
       metadata: { userId: params.userId, plan: params.plan },
       receipt: {
-        customer: { email: "esenin_info@bk.ru" },
+        customer: isEmail ? { email: params.contact } : { phone: params.contact },
         items: [
           {
             description: params.description.slice(0, 128),

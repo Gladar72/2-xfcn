@@ -12,7 +12,12 @@ const PLAN_TITLES: Record<Plan, string> = {
 
 /**
  * POST /api/subscriptions/yookassa/create-payment
- * Body: { plan: "start" | "medium" | "premium" }
+ * Body: { plan: "start" | "medium" | "premium", contact?: string }
+ *
+ * contact — email или телефон покупателя, куда уйдёт электронный чек
+ * (54-ФЗ). Если не передан — берём ранее сохранённый (users.receipt_contact);
+ * если передан — сохраняем его на будущее, чтобы не спрашивать снова.
+ * Если контакта нет вообще нигде — просим ввести (contact_required).
  *
  * Второй способ оплаты подписки — картой/СБП через ЮKassa, в дополнение
  * к оплате Telegram Stars. Работает и из приложения, и из кнопки в боте
@@ -38,6 +43,26 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
   const limits = PLAN_LIMITS[plan];
 
+  let contact = typeof body?.contact === "string" ? body.contact.trim() : undefined;
+  if (contact) {
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact);
+    const isPhone = /^\+?\d{10,15}$/.test(contact.replace(/[\s()-]/g, ""));
+    if (!isEmail && !isPhone) return NextResponse.json({ error: "invalid_contact" }, { status: 422 });
+    contact = isPhone ? contact.replace(/[\s()-]/g, "") : contact;
+    await admin.from("users").update({ receipt_contact: contact }).eq("id", user.userId);
+  } else {
+    const { data: existing } = await admin
+      .from("users")
+      .select("receipt_contact")
+      .eq("id", user.userId)
+      .maybeSingle();
+    contact = existing?.receipt_contact ?? undefined;
+  }
+
+  if (!contact) {
+    return NextResponse.json({ error: "contact_required" }, { status: 422 });
+  }
+
   try {
     const payment = await createYooKassaPayment({
       userId: user.userId,
@@ -45,6 +70,7 @@ export async function POST(req: Request) {
       amountRub: limits.priceRub,
       description: `${PLAN_TITLES[plan]} на 30 дней`,
       returnUrl: `${appUrl}/subscriptions?paid=1`,
+      contact,
     });
 
     // Записываем как "pending" сразу — если человек закроет страницу

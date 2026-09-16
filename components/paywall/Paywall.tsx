@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PlanCard } from "./PlanCard";
 import { PLAN_LIMITS, FREE_APPLICATIONS_LIMIT, type Plan } from "@/lib/subscriptions/limits";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
@@ -43,6 +43,9 @@ interface PaywallProps {
 export function Paywall({ onActivated }: PaywallProps) {
   const [loadingCardPlan, setLoadingCardPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [receiptContact, setReceiptContact] = useState<string | null | undefined>(undefined); // undefined = ещё загружаем
+  const [contactPromptPlan, setContactPromptPlan] = useState<Plan | null>(null);
+  const [contactDraft, setContactDraft] = useState("");
 
   // Оплата Telegram Stars временно скрыта из интерфейса (карта/СБП —
   // единственный видимый способ сейчас) — сам API (/api/subscriptions/create-invoice)
@@ -53,7 +56,14 @@ export function Paywall({ onActivated }: PaywallProps) {
   // перезапрашивает статус подписки при возврате.
   void onActivated;
 
-  async function handleSelectCard(plan: Plan) {
+  useEffect(() => {
+    fetch("/api/me/profile")
+      .then((r) => r.json())
+      .then((data) => setReceiptContact(data.receiptContact ?? null))
+      .catch(() => setReceiptContact(null));
+  }, []);
+
+  async function startPayment(plan: Plan, contact?: string) {
     setLoadingCardPlan(plan);
     setError(null);
 
@@ -61,15 +71,23 @@ export function Paywall({ onActivated }: PaywallProps) {
       const res = await fetch("/api/subscriptions/yookassa/create-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify(contact ? { plan, contact } : { plan }),
       });
       const data = await res.json();
 
       if (!res.ok || !data.confirmationUrl) {
-        setError("Не получилось открыть оплату. Попробуй ещё раз.");
+        setError(
+          data.error === "invalid_contact"
+            ? "Введи корректный email или номер телефона."
+            : "Не получилось открыть оплату. Попробуй ещё раз."
+        );
         setLoadingCardPlan(null);
         return;
       }
+
+      if (contact) setReceiptContact(contact);
+      setContactPromptPlan(null);
+      setContactDraft("");
 
       // Страница оплаты ЮKassa — не Mini App, а обычный внешний сайт,
       // открываем во встроенном браузере Telegram (openLink), а не внутри
@@ -86,6 +104,17 @@ export function Paywall({ onActivated }: PaywallProps) {
     } catch {
       setError("Проблема с соединением.");
       setLoadingCardPlan(null);
+    }
+  }
+
+  function handleSelectCard(plan: Plan) {
+    // Чек по 54-ФЗ уходит на email/телефон покупателя — спрашиваем один
+    // раз, дальше используем сохранённый контакт без повторных вопросов.
+    if (receiptContact) {
+      startPayment(plan);
+    } else {
+      setError(null);
+      setContactPromptPlan(plan);
     }
   }
 
@@ -126,6 +155,37 @@ export function Paywall({ onActivated }: PaywallProps) {
         loadingCard={loadingCardPlan === "premium"}
         onSelectCard={handleSelectCard}
       />
+
+      {contactPromptPlan && (
+        <div
+          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30"
+          onClick={() => setContactPromptPlan(null)}
+        >
+          <div className="rounded-t-sheet bg-white p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
+            <h2 className="text-title mb-2">Куда прислать чек?</h2>
+            <p className="mb-4 text-sm text-ink-600">
+              По закону об онлайн-кассах чек нужно отправить на email или телефон — укажи один раз, дальше не
+              будем спрашивать.
+            </p>
+            <input
+              value={contactDraft}
+              onChange={(e) => setContactDraft(e.target.value)}
+              placeholder="email или телефон"
+              className="w-full rounded-pill border border-lavender-200 bg-background px-4 py-3 text-base outline-none focus:border-accent"
+              autoFocus
+            />
+            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            <button
+              onClick={() => contactPromptPlan && startPayment(contactPromptPlan, contactDraft.trim())}
+              disabled={!contactDraft.trim() || loadingCardPlan !== null}
+              className="mt-4 w-full rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta disabled:opacity-60"
+            >
+              {loadingCardPlan ? "Открываем оплату..." : "Продолжить"}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

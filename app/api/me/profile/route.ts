@@ -17,7 +17,9 @@ export async function GET() {
 
   const { data: user, error } = await admin
     .from("users")
-    .select("id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at")
+    .select(
+      "id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at, receipt_contact"
+    )
     .eq("id", currentUser.userId)
     .maybeSingle();
 
@@ -42,6 +44,7 @@ export async function GET() {
     ratingAvg: user.rating_avg,
     ratingCount: user.rating_count,
     completedMeetingsCount: user.completed_meetings_count,
+    receiptContact: user.receipt_contact,
     eventsOrganizedCount: eventsOrganizedCount ?? 0,
     eventsAttendedCount: eventsAttendedCount ?? 0,
     memberSince: user.created_at,
@@ -90,6 +93,16 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "invalid_city" }, { status: 422 });
     }
     update.city = body.city;
+  }
+
+  if (typeof body?.receiptContact === "string") {
+    const contact = body.receiptContact.trim();
+    const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact);
+    const isPhone = /^\+?\d{10,15}$/.test(contact.replace(/[\s()-]/g, ""));
+    if (!isEmail && !isPhone) {
+      return NextResponse.json({ error: "invalid_receipt_contact" }, { status: 422 });
+    }
+    update.receipt_contact = isPhone ? contact.replace(/[\s()-]/g, "") : contact;
   }
 
   if (Object.keys(update).length === 0) {
