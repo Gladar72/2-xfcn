@@ -1,3 +1,4 @@
+cat > "app/(app)/map/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
@@ -126,3 +127,4 @@ function MapPageContent() {
 function formatDate(dateIso: string): string {
   return new Date(dateIso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
+ENDOFFILE
