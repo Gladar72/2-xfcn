@@ -6,6 +6,7 @@ import Image from "next/image";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { MessageBubble, formatDayLabel, type MessageData } from "@/components/chat/MessageBubble";
 import { MiniProfileSheet } from "@/components/chat/MiniProfileSheet";
+import { CATEGORY_ICON } from "@/lib/data/category-icons";
 import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
 import { useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
@@ -40,6 +41,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [myUserId, setMyUserId] = useState<string | null>(null);
   const [eventTitle, setEventTitle] = useState<string | null>(null);
   const [eventStatus, setEventStatus] = useState<string | null>(null);
+  const [category, setCategory] = useState<{ slug: string; name: string; emoji: string | null } | null>(null);
   // Все ОСТАЛЬНЫЕ участники чата (не считая себя) — на встречу с 3-4
   // принятыми людьми это будет несколько человек, не один собеседник.
   const [members, setMembers] = useState<Member[]>([]);
@@ -91,6 +93,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         setMessages(history.messages ?? []);
         setEventTitle(history.eventTitle ?? null);
         setEventStatus(history.eventStatus ?? null);
+        setCategory(history.category ?? null);
         setMembers(history.members ?? []);
 
         const client = createBrowserRealtimeClient(tokenData.token);
@@ -203,6 +206,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const isEventClosed = eventStatus === "completed" || eventStatus === "cancelled";
   const headerTitle = eventTitle ?? (members.length === 1 ? (members[0]?.name ?? "Чат") : "Чат");
   const soleMember = members.length === 1 ? members[0] : null;
+  const categoryIcon = category ? CATEGORY_ICON[category.slug] : undefined;
 
   if (accessBlocked) {
     return (
@@ -234,7 +238,11 @@ export default function ChatPage({ params }: ChatPageProps) {
           disabled={members.length === 0}
         >
           <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-xs font-semibold text-ink-600">
-            {soleMember ? (
+            {categoryIcon ? (
+              <Image src={categoryIcon} alt="" width={20} height={20} className="object-contain" />
+            ) : category?.emoji ? (
+              <span className="text-sm">{category.emoji}</span>
+            ) : soleMember ? (
               soleMember.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={soleMember.avatarUrl} alt="" className="h-full w-full object-cover" />

@@ -65,7 +65,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .select("last_read_at, user:users(id, name, avatar_url)")
       .eq("conversation_id", conversationId)
       .neq("user_id", currentUser.userId),
-    admin.from("conversations").select("event_id, events(title, status)").eq("id", conversationId).maybeSingle(),
+    admin
+      .from("conversations")
+      .select("event_id, events(title, status, category:categories(slug, name, emoji))")
+      .eq("id", conversationId)
+      .maybeSingle(),
   ]);
 
   if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
@@ -78,7 +82,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     })
     .filter((m): m is { id: string; name: string; avatarUrl: string | null; lastReadAt: string | null } => !!m);
 
-  const eventInfo = conversationRow?.events as unknown as { title: string; status: string } | null;
+  const eventInfo = conversationRow?.events as unknown as {
+    title: string;
+    status: string;
+    category: { slug: string; name: string; emoji: string | null } | null;
+  } | null;
 
   return NextResponse.json({
     // ВАЖНО: преобразуем snake_case из базы (sender_id, created_at) в
@@ -92,6 +100,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .map((m) => ({ id: m.id, senderId: m.sender_id, content: m.content, createdAt: m.created_at })),
     eventTitle: eventInfo?.title ?? null,
     eventStatus: eventInfo?.status ?? null,
+    category: eventInfo?.category ?? null,
     members,
   });
 }

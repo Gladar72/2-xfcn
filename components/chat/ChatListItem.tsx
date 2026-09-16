@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { ReadTicks } from "./ReadTicks";
+import { CATEGORY_ICON } from "@/lib/data/category-icons";
 
 export interface ChatListItemData {
   conversationId: string;
@@ -26,7 +28,7 @@ export function ChatListItem({
   chat: ChatListItemData;
   onToggleFavorite: (conversationId: string, next: boolean) => void;
 }) {
-  const isGroup = chat.otherMembersCount > 1;
+  const categoryIcon = chat.category ? CATEGORY_ICON[chat.category.slug] : undefined;
   const isEventClosed = chat.eventStatus === "completed" || chat.eventStatus === "cancelled";
   const name = chat.otherUser?.name ?? "Пользователь";
   // Заголовок карточки — название встречи (по референсу это важнее, чем
@@ -42,8 +44,12 @@ export function ChatListItem({
   const chatBody = (
     <>
       <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
-        {isGroup ? (
-          <span className="text-lg">👥</span>
+        {chat.category ? (
+          categoryIcon ? (
+            <Image src={categoryIcon} alt="" width={28} height={28} className="object-contain" />
+          ) : (
+            <span className="text-xl">{chat.category.emoji ?? "💬"}</span>
+          )
         ) : chat.otherUser?.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={chat.otherUser.avatarUrl} alt={name} className="h-full w-full object-cover" />
