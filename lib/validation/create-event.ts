@@ -13,6 +13,10 @@ export const createEventSchema = z.object({
     .string()
     .refine((v) => !Number.isNaN(new Date(v).getTime()), "Некорректная дата"),
   eventTime: z.string().regex(/^\d{2}:\d{2}$/, "Некорректное время"),
+  eventEndTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/, "Некорректное время")
+    .optional(),
 
   seatsTotal: z.number().int().min(1, "Минимум 1 участник").max(30, "Максимум 30 участников"),
 

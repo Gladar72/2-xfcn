@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     .select(
       `
       id, title, description, city, latitude, longitude, place_name, address,
-      event_date, event_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
+      event_date, event_time, event_end_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
       category:categories(slug, name, emoji),
       training_type:training_types(slug, name, emoji),
       organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count, telegram_id)
@@ -255,6 +255,7 @@ export async function GET(req: NextRequest) {
       address: _row.address,
       eventDate: _row.event_date,
       eventTime: _row.event_time,
+      eventEndTime: _row.event_end_time,
       seatsTotal: _row.seats_total,
       seatsTaken: _row.seats_taken,
       costType: _row.cost_type,
@@ -404,6 +405,7 @@ export async function POST(req: NextRequest) {
       address: input.address,
       event_date: input.eventDate,
       event_time: input.eventTime,
+      event_end_time: input.eventEndTime ?? null,
       seats_total: input.seatsTotal,
       seats_taken: 0,
       cost_type: input.costType,

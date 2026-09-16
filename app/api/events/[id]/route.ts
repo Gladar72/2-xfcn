@@ -18,7 +18,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     .select(
       `
       id, title, description, city, latitude, longitude, place_name, address,
-      event_date, event_time, seats_total, seats_taken, status, organizer_id,
+      event_date, event_time, event_end_time, seats_total, seats_taken, status, organizer_id,
       category:categories(slug, name, emoji),
       training_type:training_types(slug, name, emoji),
       organizer:users(id, name, avatar_url, birth_date, rating_avg, completed_meetings_count)
@@ -79,6 +79,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     longitude: event.longitude,
     eventDate: event.event_date,
     eventTime: event.event_time,
+    eventEndTime: event.event_end_time,
     seatsTotal: event.seats_total,
     seatsTaken: event.seats_taken,
     status: event.status,

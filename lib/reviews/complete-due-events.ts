@@ -30,13 +30,18 @@ export async function completeDueEvents(
 
   const { data: candidates } = await admin
     .from("events")
-    .select("id, title, event_date, event_time")
+    .select("id, title, event_date, event_time, event_end_time")
     .eq("status", "published")
     .lte("event_date", todayIso);
 
   const finished = (candidates ?? []).filter((e) => {
     const start = new Date(`${e.event_date}T${e.event_time}`);
-    const end = new Date(start.getTime() + ASSUMED_EVENT_DURATION_HOURS * 60 * 60 * 1000);
+    // Если организатор указал точное время окончания — используем его.
+    // Иначе (старые встречи, созданные до этого поля) — прежнее
+    // допущение "2 часа после начала".
+    const end = e.event_end_time
+      ? new Date(`${e.event_date}T${e.event_end_time}`)
+      : new Date(start.getTime() + ASSUMED_EVENT_DURATION_HOURS * 60 * 60 * 1000);
     return end <= now;
   });
 

@@ -109,6 +109,7 @@ export function CreateEventWizard() {
   }
   const [eventDate, setEventDate] = useState("");
   const [eventTime, setEventTime] = useState("");
+  const [eventEndTime, setEventEndTime] = useState("");
   const [seatsTotal, setSeatsTotal] = useState(4);
   const [costType, setCostType] = useState<"each_pays" | "organizer_treats" | "free" | "negotiable">("each_pays");
   const [title, setTitle] = useState("");
@@ -169,6 +170,7 @@ export function CreateEventWizard() {
           longitude,
           eventDate,
           eventTime,
+          eventEndTime,
           seatsTotal,
           costType,
           title,
@@ -204,7 +206,7 @@ export function CreateEventWizard() {
     (step === "trainingType" && trainingTypeSlug !== null) ||
     (step === "where" && placeName.trim().length >= 2 && latitude !== undefined && longitude !== undefined) ||
     (step === "when" && eventDate.length > 0) ||
-    (step === "time" && eventTime.length > 0) ||
+    (step === "time" && eventTime.length > 0 && eventEndTime.length > 0 && eventEndTime > eventTime) ||
     (step === "seats" && seatsTotal >= 1) ||
     step === "cost" ||
     (step === "details" && title.trim().length >= 3);
@@ -348,13 +350,30 @@ export function CreateEventWizard() {
         )}
 
         {step === "time" && (
-          <StepBlock title="Во сколько?">
-            <input
-              type="time"
-              value={eventTime}
-              onChange={(e) => setEventTime(e.target.value)}
-              className={inputClass}
-            />
+          <StepBlock title="Во сколько?" subtitle="Точное время начала и окончания — по нему встреча автоматически завершится и закроется чат.">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label className="mb-1 block text-xs font-medium text-ink-600">Начало</label>
+                <input
+                  type="time"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="mb-1 block text-xs font-medium text-ink-600">Окончание</label>
+                <input
+                  type="time"
+                  value={eventEndTime}
+                  onChange={(e) => setEventEndTime(e.target.value)}
+                  className={inputClass}
+                />
+              </div>
+            </div>
+            {eventTime && eventEndTime && eventEndTime <= eventTime && (
+              <p className="mt-2 text-sm text-red-600">Время окончания должно быть позже начала.</p>
+            )}
           </StepBlock>
         )}
 
@@ -430,7 +449,7 @@ export function CreateEventWizard() {
               <ReviewRow label="Название" value={title} />
               <ReviewRow label="Место" value={placeName} />
               <ReviewRow label="Дата" value={eventDate} />
-              <ReviewRow label="Время" value={eventTime} />
+              <ReviewRow label="Время" value={`${eventTime}–${eventEndTime}`} />
               <ReviewRow label="Участников" value={String(seatsTotal)} />
               <ReviewRow
                 label="Расходы"

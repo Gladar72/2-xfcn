@@ -16,6 +16,7 @@ interface EventDetails {
   address: string | null;
   eventDate: string;
   eventTime: string;
+  eventEndTime: string | null;
   seatsTotal: number;
   seatsTaken: number;
   status: string;
@@ -238,7 +239,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
 
         <div className="mb-4 space-y-1.5 text-sm text-ink-600">
           <p>
-            {formatDate(event.eventDate)} · {event.eventTime.slice(0, 5)}
+            {formatDate(event.eventDate)} ·{" "}
+            {event.eventEndTime
+              ? `${event.eventTime.slice(0, 5)}–${event.eventEndTime.slice(0, 5)}`
+              : event.eventTime.slice(0, 5)}
           </p>
           {event.placeName && (
             <p>
