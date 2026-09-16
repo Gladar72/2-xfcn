@@ -1,3 +1,44 @@
+mkdir -p "app"
+cat > "app/globals.css" << 'ENDOFFILE'
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  /* Убирает стандартную полупрозрачную подсветку/рамку при тапе на
+     кнопки и ссылки в WebView Telegram (особенно заметно на Android) —
+     без этого может казаться, что за элементом есть лишний фон/тень. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Полоса загрузки на стартовом экране (app/page.tsx) — плавно наполняется,
+   не привязана к реальному прогрессу (сама проверка занимает доли секунды),
+   просто даёт ощущение "приложение открывается", а не мгновенный скачок. */
+@keyframes splash-progress {
+  0% { width: 0%; }
+  70% { width: 88%; }
+  100% { width: 96%; }
+}
+.splash-progress-bar {
+  animation: splash-progress 1.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Скрываем необязательную кнопку "Открыть Яндекс Карты" — это удобство,
+   а не обязательная атрибуция. Условия использования (обязательная ссылка,
+   класс ymaps3--map-copyrights__user-agreements) остаются на месте. */
+.ymaps3--controls_bottom.ymaps3--controls_left.ymaps3--controls_horizontal {
+  display: none !important;
+}
+ENDOFFILE
+
+mkdir -p "app/(app)/chats"
+cat > "app/(app)/chats/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import Image from "next/image";
@@ -85,3 +126,5 @@ export default function ChatsPage() {
     </div>
   );
 }
+ENDOFFILE
+
