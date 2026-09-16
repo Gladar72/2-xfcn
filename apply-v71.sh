@@ -1,3 +1,4 @@
+cat > "lib/payments/yookassa.ts" << 'ENDOFFILE'
 /**
  * Минимальный клиент для API ЮKassa (https://yookassa.ru/developers/api).
  *
@@ -108,3 +109,4 @@ export async function getYooKassaPayment(paymentId: string): Promise<YooKassaPay
 
   return res.json();
 }
+ENDOFFILE
