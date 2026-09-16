@@ -27,6 +27,7 @@ export function ChatListItem({
   onToggleFavorite: (conversationId: string, next: boolean) => void;
 }) {
   const isGroup = chat.otherMembersCount > 1;
+  const isEventClosed = chat.eventStatus === "completed" || chat.eventStatus === "cancelled";
   const name = chat.otherUser?.name ?? "Пользователь";
   // Заголовок карточки — название встречи (по референсу это важнее, чем
   // "с кем", ты сначала вспоминаешь ПРО ЧТО был чат) — теперь так вообще
@@ -39,7 +40,7 @@ export function ChatListItem({
     : "Чат создан";
 
   return (
-    <div className="flex items-center gap-2 rounded-card bg-white p-3 shadow-card">
+    <div className={`flex items-center gap-2 rounded-card bg-white p-3 shadow-card ${isEventClosed ? "opacity-60" : ""}`}>
       <Link href={`/chats/${chat.conversationId}`} className="flex min-w-0 flex-1 items-center gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
           {isGroup ? (
@@ -57,13 +58,17 @@ export function ChatListItem({
             <span className={`truncate ${isUnread ? "font-semibold text-ink-900" : "font-medium text-ink-900"}`}>
               {title}
             </span>
-            {chat.lastMessage && (
-              <span
-                className={`flex shrink-0 items-center gap-1 text-xs ${isUnread ? "font-medium text-accent" : "text-ink-400"}`}
-              >
-                {chat.lastMessage.isMine && <ReadTicks status={chat.isLastMessageRead ? "read" : "sent"} />}
-                {formatListTime(chat.lastMessage.createdAt)}
-              </span>
+            {isEventClosed ? (
+              <span className="shrink-0 text-xs text-ink-400">Событие закрыто</span>
+            ) : (
+              chat.lastMessage && (
+                <span
+                  className={`flex shrink-0 items-center gap-1 text-xs ${isUnread ? "font-medium text-accent" : "text-ink-400"}`}
+                >
+                  {chat.lastMessage.isMine && <ReadTicks status={chat.isLastMessageRead ? "read" : "sent"} />}
+                  {formatListTime(chat.lastMessage.createdAt)}
+                </span>
+              )
             )}
           </div>
           <p className={`truncate text-sm ${isUnread ? "font-medium text-ink-900" : "text-ink-600"}`}>{previewText}</p>
