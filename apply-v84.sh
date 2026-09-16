@@ -1,3 +1,4 @@
+cat > "app/(app)/feed/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
@@ -246,3 +247,4 @@ function FeedPageContent() {
     </div>
   );
 }
+ENDOFFILE
