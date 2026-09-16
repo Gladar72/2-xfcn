@@ -1,3 +1,4 @@
+cat > "app/api/events/map/route.ts" << 'ENDOFFILE'
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -163,3 +164,4 @@ function getUpcomingWeekendRange(): { from: string; to: string } {
   sunday.setDate(saturday.getDate() + 1);
   return { from: saturday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) };
 }
+ENDOFFILE
