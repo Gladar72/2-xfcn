@@ -37,6 +37,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const membership = await assertMembership(admin, conversationId, currentUser.userId);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
+  // Если событие уже прошло или отменено — в чат вообще нельзя зайти
+  // (не только нельзя писать), см. явное требование пользователя.
+  const { data: eventCheckRow } = await admin
+    .from("conversations")
+    .select("events(status)")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const eventCheckStatus = (eventCheckRow?.events as unknown as { status: string } | null)?.status;
+  if (eventCheckStatus === "completed" || eventCheckStatus === "cancelled") {
+    return NextResponse.json({ error: "event_closed" }, { status: 403 });
+  }
+
   const [{ data: messages, error }, { data: otherMemberRows }, { data: conversationRow }] = await Promise.all([
     admin
       .from("messages")

@@ -1,3 +1,331 @@
+mkdir -p "components/chat"
+cat > "components/chat/ChatListItem.tsx" << 'ENDOFFILE'
+"use client";
+
+import Link from "next/link";
+import { ReadTicks } from "./ReadTicks";
+
+export interface ChatListItemData {
+  conversationId: string;
+  unreadCount: number;
+  isBlocked: boolean;
+  isFavorite: boolean;
+  eventTitle: string | null;
+  eventStatus: string | null;
+  category: { slug: string; name: string; emoji: string | null } | null;
+  otherUser: { id: string; name: string; avatarUrl: string | null } | null;
+  /** Сколько всего человек в чате, кроме меня — 1 = обычный диалог, больше 1 = групповой чат встречи. */
+  otherMembersCount: number;
+  lastMessage: { content: string; createdAt: string; isMine: boolean } | null;
+  /** Прочитали ли ВСЕ остальные участники наше последнее сообщение (только когда lastMessage.isMine). */
+  isLastMessageRead?: boolean;
+}
+
+export function ChatListItem({
+  chat,
+  onToggleFavorite,
+}: {
+  chat: ChatListItemData;
+  onToggleFavorite: (conversationId: string, next: boolean) => void;
+}) {
+  const isGroup = chat.otherMembersCount > 1;
+  const isEventClosed = chat.eventStatus === "completed" || chat.eventStatus === "cancelled";
+  const name = chat.otherUser?.name ?? "Пользователь";
+  // Заголовок карточки — название встречи (по референсу это важнее, чем
+  // "с кем", ты сначала вспоминаешь ПРО ЧТО был чат) — теперь так вообще
+  // всегда, раз чат один на всю встречу, а не на человека.
+  const title = chat.eventTitle ?? name;
+  const isUnread = chat.unreadCount > 0;
+
+  const previewText = chat.lastMessage
+    ? `${chat.lastMessage.isMine ? "Вы" : name.split(" ")[0]}: ${chat.lastMessage.content}`
+    : "Чат создан";
+
+  const chatBody = (
+    <>
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
+        {isGroup ? (
+          <span className="text-lg">👥</span>
+        ) : chat.otherUser?.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={chat.otherUser.avatarUrl} alt={name} className="h-full w-full object-cover" />
+        ) : (
+          name.charAt(0).toUpperCase()
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className={`truncate ${isUnread ? "font-semibold text-ink-900" : "font-medium text-ink-900"}`}>
+            {title}
+          </span>
+          {isEventClosed ? (
+            <span className="shrink-0 text-xs text-ink-400">Событие закрыто</span>
+          ) : (
+            chat.lastMessage && (
+              <span
+                className={`flex shrink-0 items-center gap-1 text-xs ${isUnread ? "font-medium text-accent" : "text-ink-400"}`}
+              >
+                {chat.lastMessage.isMine && <ReadTicks status={chat.isLastMessageRead ? "read" : "sent"} />}
+                {formatListTime(chat.lastMessage.createdAt)}
+              </span>
+            )
+          )}
+        </div>
+        <p className={`truncate text-sm ${isUnread ? "font-medium text-ink-900" : "text-ink-600"}`}>{previewText}</p>
+      </div>
+
+      {isUnread && (
+        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-pill bg-accent px-1.5 text-xs font-semibold text-white">
+          {chat.unreadCount}
+        </span>
+      )}
+    </>
+  );
+
+  return (
+    <div className={`flex items-center gap-2 rounded-card bg-white p-3 shadow-card ${isEventClosed ? "opacity-60" : ""}`}>
+      {isEventClosed ? (
+        // Закрытая встреча — в чат вообще нельзя зайти (не просто нельзя
+        // писать), поэтому здесь обычный div, а не ссылка.
+        <div className="flex min-w-0 flex-1 cursor-default items-center gap-3">{chatBody}</div>
+      ) : (
+        <Link href={`/chats/${chat.conversationId}`} className="flex min-w-0 flex-1 items-center gap-3">
+          {chatBody}
+        </Link>
+      )}
+
+      <button
+        onClick={() => onToggleFavorite(chat.conversationId, !chat.isFavorite)}
+        aria-label={chat.isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
+        className="shrink-0 p-1"
+      >
+        <StarIcon filled={chat.isFavorite} />
+      </button>
+    </div>
+  );
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "#FFB800" : "none"}>
+      <path
+        d="M12 2.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7-5.4-4.7 7.1-.7L12 2.5z"
+        stroke={filled ? "#FFB800" : "#B8B8C8"}
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+const WEEKDAYS = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+
+function formatListTime(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const isSameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+
+  if (isSameDay(date, now)) {
+    return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+  }
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  if (isSameDay(date, yesterday)) return "Вчера";
+
+  const diffDays = Math.floor((now.getTime() - date.getTime()) / 86400000);
+  if (diffDays < 7) return WEEKDAYS[date.getDay()] ?? "";
+
+  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+ENDOFFILE
+
+mkdir -p "app/api/conversations/[id]/messages"
+cat > "app/api/conversations/[id]/messages/route.ts" << 'ENDOFFILE'
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/telegram/current-user";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyTelegram } from "@/lib/telegram/notify";
+import { buildNotificationText } from "@/lib/notifications/text";
+
+const MESSAGE_HISTORY_LIMIT = 50;
+
+async function assertMembership(
+  admin: ReturnType<typeof createAdminClient>,
+  conversationId: string,
+  userId: string
+) {
+  const { data } = await admin
+    .from("conversation_members")
+    .select("id, is_blocked")
+    .eq("conversation_id", conversationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data;
+}
+
+/**
+ * GET /api/conversations/[id]/messages
+ * История сообщений (последние 50, по возрастанию времени) + название
+ * встречи и список ОСТАЛЬНЫХ участников (для шапки группового чата и
+ * подписи над входящими сообщениями — теперь участников может быть
+ * несколько, не только один собеседник, как раньше).
+ */
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: conversationId } = await params;
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const admin = createAdminClient();
+
+  const membership = await assertMembership(admin, conversationId, currentUser.userId);
+  if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+
+  // Если событие уже прошло или отменено — в чат вообще нельзя зайти
+  // (не только нельзя писать), см. явное требование пользователя.
+  const { data: eventCheckRow } = await admin
+    .from("conversations")
+    .select("events(status)")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const eventCheckStatus = (eventCheckRow?.events as unknown as { status: string } | null)?.status;
+  if (eventCheckStatus === "completed" || eventCheckStatus === "cancelled") {
+    return NextResponse.json({ error: "event_closed" }, { status: 403 });
+  }
+
+  const [{ data: messages, error }, { data: otherMemberRows }, { data: conversationRow }] = await Promise.all([
+    admin
+      .from("messages")
+      .select("id, sender_id, content, created_at")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(MESSAGE_HISTORY_LIMIT),
+    // Все ОСТАЛЬНЫЕ участники (не только один, как раньше) — имя и фото
+    // для подписи над сообщениями, last_read_at каждого для галочек
+    // "прочитано" (сообщение считается прочитанным только когда ВСЕ
+    // остальные участники его увидели — логично для группового чата).
+    admin
+      .from("conversation_members")
+      .select("last_read_at, user:users(id, name, avatar_url)")
+      .eq("conversation_id", conversationId)
+      .neq("user_id", currentUser.userId),
+    admin.from("conversations").select("event_id, events(title, status)").eq("id", conversationId).maybeSingle(),
+  ]);
+
+  if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
+
+  const members = (otherMemberRows ?? [])
+    .map((row) => {
+      const user = row.user as unknown as { id: string; name: string; avatar_url: string | null } | null;
+      if (!user) return null;
+      return { id: user.id, name: user.name, avatarUrl: user.avatar_url, lastReadAt: row.last_read_at as string | null };
+    })
+    .filter((m): m is { id: string; name: string; avatarUrl: string | null; lastReadAt: string | null } => !!m);
+
+  const eventInfo = conversationRow?.events as unknown as { title: string; status: string } | null;
+
+  return NextResponse.json({
+    // ВАЖНО: преобразуем snake_case из базы (sender_id, created_at) в
+    // camelCase (senderId, createdAt), который ждёт фронтенд — раньше эта
+    // строка отдавала сырые строки БД напрямую, из-за чего даты не
+    // парсились ("Invalid Date") и определение "моё/чужое" сообщение
+    // всегда давало false (senderId был undefined) — все сообщения
+    // выглядели одинаково.
+    messages: (messages ?? [])
+      .reverse()
+      .map((m) => ({ id: m.id, senderId: m.sender_id, content: m.content, createdAt: m.created_at })),
+    eventTitle: eventInfo?.title ?? null,
+    eventStatus: eventInfo?.status ?? null,
+    members,
+  });
+}
+
+/**
+ * POST /api/conversations/[id]/messages
+ * Body: { content: string }
+ * Отправка сообщения. Realtime сам разошлёт INSERT всем подписанным
+ * участникам (включая отправителя) — фронтенду не нужно оптимистично
+ * добавлять сообщение в UI, оно придёт через подписку.
+ */
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id: conversationId } = await params;
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  const content = typeof body?.content === "string" ? body.content.trim() : "";
+  if (!content) return NextResponse.json({ error: "empty_message" }, { status: 400 });
+  if (content.length > 2000) return NextResponse.json({ error: "message_too_long" }, { status: 422 });
+
+  const admin = createAdminClient();
+
+  const membership = await assertMembership(admin, conversationId, currentUser.userId);
+  if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  if (membership.is_blocked) return NextResponse.json({ error: "blocked" }, { status: 403 });
+
+  // Если событие уже прошло или отменено — чат закрывается на отправку
+  // новых сообщений (переписку по-прежнему можно читать и открывать).
+  const { data: conversationRow } = await admin
+    .from("conversations")
+    .select("events(status)")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const eventStatus = (conversationRow?.events as unknown as { status: string } | null)?.status;
+  if (eventStatus === "completed" || eventStatus === "cancelled") {
+    return NextResponse.json({ error: "event_closed" }, { status: 422 });
+  }
+
+  const { data: message, error } = await admin
+    .from("messages")
+    .insert({ conversation_id: conversationId, sender_id: currentUser.userId, content })
+    .select("id, created_at")
+    .single();
+
+  if (error || !message) return NextResponse.json({ error: "send_failed" }, { status: 500 });
+
+  await admin.rpc("increment_conversation_unread", {
+    p_conversation_id: conversationId,
+    p_exclude_user_id: currentUser.userId,
+  });
+
+  // Уведомляем остальных участников диалога о новом сообщении (кроме
+  // отправителя) — иначе у людей нет способа узнать о непрочитанном,
+  // кроме как самим зайти в чат.
+  const { data: otherMembers } = await admin
+    .from("conversation_members")
+    .select("user_id, users(telegram_id)")
+    .eq("conversation_id", conversationId)
+    .neq("user_id", currentUser.userId);
+
+  if (otherMembers && otherMembers.length > 0) {
+    await admin.from("notifications").insert(
+      otherMembers.map((m) => ({
+        user_id: m.user_id,
+        type: "new_message",
+        payload: { conversationId },
+      }))
+    );
+
+    // Тот же текст, что и на экране "Уведомления" в приложении — без
+    // содержимого самого сообщения (не пересылаем переписку в Telegram).
+    const notificationText = buildNotificationText("new_message", undefined);
+    await Promise.all(
+      otherMembers.map((m) => {
+        const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
+        if (!telegramId) return Promise.resolve();
+        return notifyTelegram(telegramId, notificationText);
+      })
+    );
+  }
+
+  return NextResponse.json({ status: "sent", messageId: message.id, createdAt: message.created_at });
+}
+ENDOFFILE
+
+mkdir -p "app/chats/[id]"
+cat > "app/chats/[id]/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -363,3 +691,5 @@ function isSameDay(isoA: string, isoB: string): boolean {
   const b = new Date(isoB);
   return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
 }
+ENDOFFILE
+

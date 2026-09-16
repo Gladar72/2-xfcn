@@ -39,47 +39,59 @@ export function ChatListItem({
     ? `${chat.lastMessage.isMine ? "Вы" : name.split(" ")[0]}: ${chat.lastMessage.content}`
     : "Чат создан";
 
-  return (
-    <div className={`flex items-center gap-2 rounded-card bg-white p-3 shadow-card ${isEventClosed ? "opacity-60" : ""}`}>
-      <Link href={`/chats/${chat.conversationId}`} className="flex min-w-0 flex-1 items-center gap-3">
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
-          {isGroup ? (
-            <span className="text-lg">👥</span>
-          ) : chat.otherUser?.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={chat.otherUser.avatarUrl} alt={name} className="h-full w-full object-cover" />
+  const chatBody = (
+    <>
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
+        {isGroup ? (
+          <span className="text-lg">👥</span>
+        ) : chat.otherUser?.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={chat.otherUser.avatarUrl} alt={name} className="h-full w-full object-cover" />
+        ) : (
+          name.charAt(0).toUpperCase()
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className={`truncate ${isUnread ? "font-semibold text-ink-900" : "font-medium text-ink-900"}`}>
+            {title}
+          </span>
+          {isEventClosed ? (
+            <span className="shrink-0 text-xs text-ink-400">Событие закрыто</span>
           ) : (
-            name.charAt(0).toUpperCase()
+            chat.lastMessage && (
+              <span
+                className={`flex shrink-0 items-center gap-1 text-xs ${isUnread ? "font-medium text-accent" : "text-ink-400"}`}
+              >
+                {chat.lastMessage.isMine && <ReadTicks status={chat.isLastMessageRead ? "read" : "sent"} />}
+                {formatListTime(chat.lastMessage.createdAt)}
+              </span>
+            )
           )}
         </div>
+        <p className={`truncate text-sm ${isUnread ? "font-medium text-ink-900" : "text-ink-600"}`}>{previewText}</p>
+      </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between gap-2">
-            <span className={`truncate ${isUnread ? "font-semibold text-ink-900" : "font-medium text-ink-900"}`}>
-              {title}
-            </span>
-            {isEventClosed ? (
-              <span className="shrink-0 text-xs text-ink-400">Событие закрыто</span>
-            ) : (
-              chat.lastMessage && (
-                <span
-                  className={`flex shrink-0 items-center gap-1 text-xs ${isUnread ? "font-medium text-accent" : "text-ink-400"}`}
-                >
-                  {chat.lastMessage.isMine && <ReadTicks status={chat.isLastMessageRead ? "read" : "sent"} />}
-                  {formatListTime(chat.lastMessage.createdAt)}
-                </span>
-              )
-            )}
-          </div>
-          <p className={`truncate text-sm ${isUnread ? "font-medium text-ink-900" : "text-ink-600"}`}>{previewText}</p>
-        </div>
+      {isUnread && (
+        <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-pill bg-accent px-1.5 text-xs font-semibold text-white">
+          {chat.unreadCount}
+        </span>
+      )}
+    </>
+  );
 
-        {isUnread && (
-          <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-pill bg-accent px-1.5 text-xs font-semibold text-white">
-            {chat.unreadCount}
-          </span>
-        )}
-      </Link>
+  return (
+    <div className={`flex items-center gap-2 rounded-card bg-white p-3 shadow-card ${isEventClosed ? "opacity-60" : ""}`}>
+      {isEventClosed ? (
+        // Закрытая встреча — в чат вообще нельзя зайти (не просто нельзя
+        // писать), поэтому здесь обычный div, а не ссылка.
+        <div className="flex min-w-0 flex-1 cursor-default items-center gap-3">{chatBody}</div>
+      ) : (
+        <Link href={`/chats/${chat.conversationId}`} className="flex min-w-0 flex-1 items-center gap-3">
+          {chatBody}
+        </Link>
+      )}
 
       <button
         onClick={() => onToggleFavorite(chat.conversationId, !chat.isFavorite)}
