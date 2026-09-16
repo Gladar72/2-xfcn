@@ -3,13 +3,20 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { buildNotificationText } from "@/lib/notifications/text";
+import { isAdminTelegramId } from "@/lib/admin/is-admin";
+import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
+import { canApplyToMoreEvents, FREE_APPLICATIONS_LIMIT } from "@/lib/subscriptions/limits";
+
+const APPLICATIONS_PERIOD_DAYS = 30;
 
 /**
  * POST /api/applications
  * Body: { eventId: string }
  *
- * Отклик на встречу (кнопка "Хочу пойти", п.13 ТЗ). Бесплатно и без
- * ограничений по тарифу — лимитируется только создание своих встреч.
+ * Отклик на встречу (кнопка "Хочу пойти", п.13 ТЗ). Лимит на КОЛИЧЕСТВО
+ * откликов за 30 дней — свой для каждого тарифа (и отдельный
+ * FREE_APPLICATIONS_LIMIT для тех, у кого нет подписки вообще), задаётся
+ * в lib/subscriptions/limits.ts. Отдельно от лимита на СОЗДАНИЕ встреч.
  */
 export async function POST(req: NextRequest) {
   const currentUser = await getCurrentUser();
@@ -45,6 +52,27 @@ export async function POST(req: NextRequest) {
   });
   if (blocked) {
     return NextResponse.json({ error: "blocked" }, { status: 403 });
+  }
+
+  if (!isAdminTelegramId(currentUser.telegramId)) {
+    const subscriptionInfo = await getActiveSubscriptionInfo(admin, currentUser.userId);
+    const periodStart = new Date(Date.now() - APPLICATIONS_PERIOD_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+    const { count: applicationsUsedInPeriod } = await admin
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", currentUser.userId)
+      .gte("created_at", periodStart);
+
+    if (!canApplyToMoreEvents(subscriptionInfo?.plan ?? null, applicationsUsedInPeriod ?? 0)) {
+      return NextResponse.json(
+        {
+          error: "applications_limit_reached",
+          limit: subscriptionInfo ? undefined : FREE_APPLICATIONS_LIMIT,
+        },
+        { status: 403 }
+      );
+    }
   }
 
   const { data: application, error: insertError } = await admin

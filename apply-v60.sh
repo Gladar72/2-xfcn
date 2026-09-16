@@ -1,3 +1,197 @@
+mkdir -p "lib/subscriptions"
+cat > "lib/subscriptions/limits.ts" << 'ENDOFFILE'
+export type Plan = "start" | "medium" | "premium";
+
+export interface PlanLimits {
+  eventsLimit: number | null; // null = без ограничений (PREMIUM) — лимит на СОЗДАНИЕ встреч
+  applicationsLimit: number | null; // null = без ограничений — лимит на УЧАСТИЕ (отклики на чужие встречи)
+  boostLimit: number;
+  groupMax: number;
+  priceRub: number;
+  /**
+   * Цена в Telegram Stars (XTR). Курс Stars к рублю периодически меняется
+   * на стороне Telegram — эти значения ПРИБЛИЗИТЕЛЬНЫЕ и требуют сверки
+   * с актуальным курсом перед запуском в продакшн (см. lib/telegram/bot-api.ts).
+   */
+  priceStars: number;
+  rankingCoefficient: number; // используется в lib/scoring/rank-events.ts
+}
+
+/**
+ * Лимит на участие (отклики) для пользователя БЕЗ какой-либо подписки —
+ * единственный лимит во всём приложении, который не завязан на тариф.
+ */
+export const FREE_APPLICATIONS_LIMIT = 4;
+
+/**
+ * Единственное место, где живут лимиты и цены тарифов (п.12, п.26 ТЗ).
+ * Меняешь тариф здесь — меняется везде: в paywall, в проверках API, в ranking.
+ */
+export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
+  start: {
+    eventsLimit: 3,
+    applicationsLimit: 15,
+    boostLimit: 1,
+    groupMax: 4,
+    priceRub: 299,
+    priceStars: 150,
+    rankingCoefficient: 0,
+  },
+  medium: {
+    eventsLimit: 15,
+    applicationsLimit: 30,
+    boostLimit: 5,
+    groupMax: 10,
+    priceRub: 599,
+    priceStars: 300,
+    rankingCoefficient: 3,
+  },
+  premium: {
+    eventsLimit: null,
+    applicationsLimit: null,
+    boostLimit: 10,
+    groupMax: 30,
+    priceRub: 999,
+    priceStars: 500,
+    rankingCoefficient: 6,
+  },
+};
+
+export function canCreateMoreEvents(plan: Plan, eventsCreatedInPeriod: number): boolean {
+  const limit = PLAN_LIMITS[plan].eventsLimit;
+  if (limit === null) return true;
+  return eventsCreatedInPeriod < limit;
+}
+
+/**
+ * plan === null означает пользователя без активной подписки вообще —
+ * тогда используется FREE_APPLICATIONS_LIMIT, а не лимит какого-то тарифа.
+ */
+export function canApplyToMoreEvents(plan: Plan | null, applicationsUsedInPeriod: number): boolean {
+  const limit = plan === null ? FREE_APPLICATIONS_LIMIT : PLAN_LIMITS[plan].applicationsLimit;
+  if (limit === null) return true;
+  return applicationsUsedInPeriod < limit;
+}
+
+export function canUseBoost(plan: Plan, boostsUsedInPeriod: number): boolean {
+  return boostsUsedInPeriod < PLAN_LIMITS[plan].boostLimit;
+}
+ENDOFFILE
+
+mkdir -p "app/api/applications"
+cat > "app/api/applications/route.ts" << 'ENDOFFILE'
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/telegram/current-user";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyTelegram } from "@/lib/telegram/notify";
+import { buildNotificationText } from "@/lib/notifications/text";
+import { isAdminTelegramId } from "@/lib/admin/is-admin";
+import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
+import { canApplyToMoreEvents, FREE_APPLICATIONS_LIMIT } from "@/lib/subscriptions/limits";
+
+const APPLICATIONS_PERIOD_DAYS = 30;
+
+/**
+ * POST /api/applications
+ * Body: { eventId: string }
+ *
+ * Отклик на встречу (кнопка "Хочу пойти", п.13 ТЗ). Лимит на КОЛИЧЕСТВО
+ * откликов за 30 дней — свой для каждого тарифа (и отдельный
+ * FREE_APPLICATIONS_LIMIT для тех, у кого нет подписки вообще), задаётся
+ * в lib/subscriptions/limits.ts. Отдельно от лимита на СОЗДАНИЕ встреч.
+ */
+export async function POST(req: NextRequest) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  const eventId = body?.eventId as string | undefined;
+  if (!eventId) return NextResponse.json({ error: "missing_event_id" }, { status: 400 });
+
+  const admin = createAdminClient();
+
+  const { data: event } = await admin
+    .from("events")
+    .select("id, title, organizer_id, status, seats_total, seats_taken")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (!event || event.status !== "published") {
+    return NextResponse.json({ error: "event_not_found" }, { status: 404 });
+  }
+
+  if (event.organizer_id === currentUser.userId) {
+    return NextResponse.json({ error: "cannot_apply_to_own_event" }, { status: 422 });
+  }
+
+  if (event.seats_taken >= event.seats_total) {
+    return NextResponse.json({ error: "event_full" }, { status: 409 });
+  }
+
+  const { data: blocked } = await admin.rpc("is_blocked_pair", {
+    user_a: currentUser.userId,
+    user_b: event.organizer_id,
+  });
+  if (blocked) {
+    return NextResponse.json({ error: "blocked" }, { status: 403 });
+  }
+
+  if (!isAdminTelegramId(currentUser.telegramId)) {
+    const subscriptionInfo = await getActiveSubscriptionInfo(admin, currentUser.userId);
+    const periodStart = new Date(Date.now() - APPLICATIONS_PERIOD_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+    const { count: applicationsUsedInPeriod } = await admin
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", currentUser.userId)
+      .gte("created_at", periodStart);
+
+    if (!canApplyToMoreEvents(subscriptionInfo?.plan ?? null, applicationsUsedInPeriod ?? 0)) {
+      return NextResponse.json(
+        {
+          error: "applications_limit_reached",
+          limit: subscriptionInfo ? undefined : FREE_APPLICATIONS_LIMIT,
+        },
+        { status: 403 }
+      );
+    }
+  }
+
+  const { data: application, error: insertError } = await admin
+    .from("applications")
+    .insert({ event_id: eventId, user_id: currentUser.userId, status: "pending" })
+    .select("id")
+    .single();
+
+  if (insertError) {
+    // unique constraint (event_id, user_id) — уже откликался
+    if (insertError.code === "23505") {
+      return NextResponse.json({ error: "already_applied" }, { status: 409 });
+    }
+    return NextResponse.json({ error: "create_failed" }, { status: 500 });
+  }
+
+  await admin.from("notifications").insert({
+    user_id: event.organizer_id,
+    type: "new_application",
+    payload: { eventId, applicationId: application.id, applicantId: currentUser.userId },
+  });
+
+  const { data: organizer } = await admin
+    .from("users")
+    .select("telegram_id")
+    .eq("id", event.organizer_id)
+    .maybeSingle();
+  if (organizer) {
+    notifyTelegram(organizer.telegram_id, buildNotificationText("new_application", event.title)).catch(() => {});
+  }
+
+  return NextResponse.json({ status: "created", applicationId: application.id });
+}
+ENDOFFILE
+
+mkdir -p "app/(app)/events/[id]"
+cat > "app/(app)/events/[id]/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import { useEffect, useState } from "react";
@@ -389,3 +583,140 @@ function pluralizeParticipants(count: number): string {
   if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return "человека идут";
   return "человек идут";
 }
+ENDOFFILE
+
+mkdir -p "components/paywall"
+cat > "components/paywall/Paywall.tsx" << 'ENDOFFILE'
+"use client";
+
+import { useState } from "react";
+import { PlanCard } from "./PlanCard";
+import { PLAN_LIMITS, FREE_APPLICATIONS_LIMIT, type Plan } from "@/lib/subscriptions/limits";
+import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
+
+const FEATURES: Record<Plan, string[]> = {
+  start: [
+    "До 3 встреч за период",
+    "Участие до 15 встреч за период",
+    "1 поднятие",
+    "Весь город",
+    "Чат после подтверждения",
+    "Группа до 4 человек",
+  ],
+  medium: [
+    "До 15 встреч за период",
+    "Участие до 30 встреч за период",
+    "5 поднятий",
+    "Расширенные фильтры",
+    "Выделение встречи",
+    "Закрытые встречи",
+    "Группа до 10 человек",
+    "Скрытие профиля",
+  ],
+  premium: [
+    "Встречи без ограничений",
+    "Участие без ограничений",
+    "10 поднятий",
+    "Выделение встречи",
+    "Максимальный вес в рекомендациях",
+    "Закрытые встречи",
+    "Группа до 30 человек",
+    "Скрытие профиля",
+  ],
+};
+
+interface PaywallProps {
+  onActivated: () => void;
+}
+
+export function Paywall({ onActivated }: PaywallProps) {
+  const [loadingCardPlan, setLoadingCardPlan] = useState<Plan | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Оплата Telegram Stars временно скрыта из интерфейса (карта/СБП —
+  // единственный видимый способ сейчас) — сам API (/api/subscriptions/create-invoice)
+  // и обработка оплаты в lib/telegram/bot.ts не тронуты, можно вернуть кнопку позже.
+  // onActivated (колбэк успешной оплаты) относился к Stars-потоку внутри
+  // Mini App; для ЮKassa активация приходит асинхронно через вебхук, пока
+  // человек на внешней странице оплаты — родительский экран сам
+  // перезапрашивает статус подписки при возврате.
+  void onActivated;
+
+  async function handleSelectCard(plan: Plan) {
+    setLoadingCardPlan(plan);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/subscriptions/yookassa/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.confirmationUrl) {
+        setError("Не получилось открыть оплату. Попробуй ещё раз.");
+        setLoadingCardPlan(null);
+        return;
+      }
+
+      // Страница оплаты ЮKassa — не Mini App, а обычный внешний сайт,
+      // открываем во встроенном браузере Telegram (openLink), а не внутри
+      // самого мини-приложения. Активация подписки произойдёт по вебхуку
+      // (см. app/api/webhooks/yookassa/route.ts) — когда человек вернётся
+      // в приложение, статус уже должен обновиться.
+      const webApp = getTelegramWebApp();
+      if (webApp) {
+        webApp.openLink(data.confirmationUrl);
+      } else {
+        window.location.href = data.confirmationUrl;
+      }
+      setLoadingCardPlan(null);
+    } catch {
+      setError("Проблема с соединением.");
+      setLoadingCardPlan(null);
+    }
+  }
+
+  return (
+    <div className="space-y-4 px-5 py-6">
+      <div className="text-center">
+        <h1 className="text-display">Выбери тариф</h1>
+        <p className="mt-1 text-sm text-ink-600">Чтобы создавать встречи, нужна подписка.</p>
+        <p className="mt-1 text-xs text-ink-400">
+          Без подписки можно откликаться на встречи — до {FREE_APPLICATIONS_LIMIT} за период.
+        </p>
+        <p className="mt-2 inline-block rounded-pill bg-lavender-100 px-3 py-1 text-xs font-medium text-accent">
+          Оплата картой / СБП
+        </p>
+      </div>
+
+      {error && <p className="text-center text-sm text-red-600">{error}</p>}
+
+      <PlanCard
+        plan="start"
+        limits={PLAN_LIMITS.start}
+        features={FEATURES.start}
+        loadingCard={loadingCardPlan === "start"}
+        onSelectCard={handleSelectCard}
+      />
+      <PlanCard
+        plan="medium"
+        limits={PLAN_LIMITS.medium}
+        features={FEATURES.medium}
+        highlighted
+        loadingCard={loadingCardPlan === "medium"}
+        onSelectCard={handleSelectCard}
+      />
+      <PlanCard
+        plan="premium"
+        limits={PLAN_LIMITS.premium}
+        features={FEATURES.premium}
+        loadingCard={loadingCardPlan === "premium"}
+        onSelectCard={handleSelectCard}
+      />
+    </div>
+  );
+}
+ENDOFFILE
+

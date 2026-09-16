@@ -2,13 +2,21 @@
 
 import { useState } from "react";
 import { PlanCard } from "./PlanCard";
-import { PLAN_LIMITS, type Plan } from "@/lib/subscriptions/limits";
+import { PLAN_LIMITS, FREE_APPLICATIONS_LIMIT, type Plan } from "@/lib/subscriptions/limits";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 
 const FEATURES: Record<Plan, string[]> = {
-  start: ["До 3 встреч за период", "1 поднятие", "Весь город", "Чат после подтверждения", "Группа до 4 человек"],
+  start: [
+    "До 3 встреч за период",
+    "Участие до 15 встреч за период",
+    "1 поднятие",
+    "Весь город",
+    "Чат после подтверждения",
+    "Группа до 4 человек",
+  ],
   medium: [
     "До 15 встреч за период",
+    "Участие до 30 встреч за период",
     "5 поднятий",
     "Расширенные фильтры",
     "Выделение встречи",
@@ -18,6 +26,7 @@ const FEATURES: Record<Plan, string[]> = {
   ],
   premium: [
     "Встречи без ограничений",
+    "Участие без ограничений",
     "10 поднятий",
     "Выделение встречи",
     "Максимальный вес в рекомендациях",
@@ -85,6 +94,9 @@ export function Paywall({ onActivated }: PaywallProps) {
       <div className="text-center">
         <h1 className="text-display">Выбери тариф</h1>
         <p className="mt-1 text-sm text-ink-600">Чтобы создавать встречи, нужна подписка.</p>
+        <p className="mt-1 text-xs text-ink-400">
+          Без подписки можно откликаться на встречи — до {FREE_APPLICATIONS_LIMIT} за период.
+        </p>
         <p className="mt-2 inline-block rounded-pill bg-lavender-100 px-3 py-1 text-xs font-medium text-accent">
           Оплата картой / СБП
         </p>
