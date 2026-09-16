@@ -25,12 +25,6 @@ function MapPageContent() {
   const [selected, setSelected] = useState<MapEventItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  // Реальный город, которым пользуется API (см. ниже) — не то же самое,
-  // что city из URL: при прямом переходе на /map (не через кнопку
-  // "Показать на карте" на /search) в URL города вообще нет, и сервер сам
-  // берёт город из профиля пользователя. Раньше карта в этом случае не
-  // знала, к какому городу переехать, и оставалась на запасном центре.
-  const [resolvedCity, setResolvedCity] = useState<string | undefined>(searchParams.get("city") ?? undefined);
 
   function load(isRetry = false) {
     setLoading(true);
@@ -51,7 +45,6 @@ function MapPageContent() {
           return;
         }
         setEvents(data.items ?? []);
-        if (data.city) setResolvedCity(data.city);
       })
       .catch(() => {
         if (!isRetry) {
@@ -85,7 +78,7 @@ function MapPageContent() {
       ) : loading && events.length === 0 ? (
         <div className="flex h-full items-center justify-center text-sm text-ink-600">Загрузка карты...</div>
       ) : (
-        <EventsMap events={events} onSelect={setSelected} city={resolvedCity} />
+        <EventsMap events={events} onSelect={setSelected} city={searchParams.get("city") ?? undefined} />
       )}
 
       {selected && (
