@@ -47,7 +47,10 @@ export async function GET(req: NextRequest) {
           )?.GeocoderMetaData?.text;
           const pos = (obj?.Point as { pos?: string } | undefined)?.pos; // "lng lat"
           if (!text || !pos) return null;
-          const [lngStr, latStr] = pos.split(" ");
+          const parts = pos.split(" ");
+          const lngStr = parts[0];
+          const latStr = parts[1];
+          if (!lngStr || !latStr) return null;
           return { address: text, longitude: parseFloat(lngStr), latitude: parseFloat(latStr) };
         })
         .filter((s: unknown): s is { address: string; longitude: number; latitude: number } => !!s);
