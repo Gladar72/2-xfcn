@@ -1,3 +1,4 @@
+cat > "components/home/CategoryGrid.tsx" << 'ENDOFFILE'
 "use client";
 
 import { useState } from "react";
@@ -151,3 +152,4 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
     </div>
   );
 }
+ENDOFFILE
