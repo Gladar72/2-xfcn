@@ -107,6 +107,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (membership.is_blocked) return NextResponse.json({ error: "blocked" }, { status: 403 });
 
+  // Если событие уже прошло или отменено — чат закрывается на отправку
+  // новых сообщений (переписку по-прежнему можно читать и открывать).
+  const { data: conversationRow } = await admin
+    .from("conversations")
+    .select("events(status)")
+    .eq("id", conversationId)
+    .maybeSingle();
+  const eventStatus = (conversationRow?.events as unknown as { status: string } | null)?.status;
+  if (eventStatus === "completed" || eventStatus === "cancelled") {
+    return NextResponse.json({ error: "event_closed" }, { status: 422 });
+  }
+
   const { data: message, error } = await admin
     .from("messages")
     .insert({ conversation_id: conversationId, sender_id: currentUser.userId, content })
