@@ -14,6 +14,7 @@ interface MyEvent {
   category: { slug: string; name: string; emoji: string | null } | null;
   role: "organizer" | "participant";
   pendingApplicationsCount: number;
+  pendingApplicantPreview: { id: string; name: string; avatarUrl: string | null } | null;
 }
 
 const CATEGORY_ICON: Record<string, string> = {
@@ -80,6 +81,7 @@ export default function MyEventsPage() {
                       {event.pendingApplicationsCount}
                     </span>
                   )}
+                  <ApplicantPreviewBadge preview={event.pendingApplicantPreview} />
                 </div>
               ) : (
                 <div className="relative shrink-0">
@@ -89,6 +91,7 @@ export default function MyEventsPage() {
                       {event.pendingApplicationsCount}
                     </span>
                   )}
+                  <ApplicantPreviewBadge preview={event.pendingApplicantPreview} />
                 </div>
               )}
               <div className="min-w-0 flex-1">
@@ -114,4 +117,28 @@ export default function MyEventsPage() {
 
 function formatDate(dateIso: string): string {
   return new Date(dateIso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+/**
+ * Аватарка самого свежего заявителя (или плюсик, если фото нет) — снизу
+ * от иконки категории на карточке встречи, чтобы сразу видеть, КТО
+ * откликнулся, не только сколько (число уже показано сверху).
+ */
+function ApplicantPreviewBadge({
+  preview,
+}: {
+  preview: { id: string; name: string; avatarUrl: string | null } | null;
+}) {
+  if (!preview) return null;
+
+  return (
+    <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-[9px] font-semibold text-ink-600">
+      {preview.avatarUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={preview.avatarUrl} alt={preview.name} className="h-full w-full object-cover" />
+      ) : (
+        <span>+</span>
+      )}
+    </div>
+  );
 }

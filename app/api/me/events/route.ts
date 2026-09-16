@@ -38,17 +38,30 @@ export async function GET() {
 
   // Сколько новых (ещё не рассмотренных) заявок ждёт организатора на
   // каждую его встречу — чтобы показать значок прямо на карточке встречи,
-  // не только общим уведомлением.
+  // не только общим уведомлением. Плюс аватарка ОДНОГО (самого свежего)
+  // заявителя — чтобы сразу было видно, КТО откликнулся, не только сколько.
   const organizerEventIds = eventIds.filter((id) => roleByEventId.get(id) === "organizer");
   const pendingCountByEventId = new Map<string, number>();
+  const pendingPreviewByEventId = new Map<string, { id: string; name: string; avatarUrl: string | null }>();
   if (organizerEventIds.length > 0) {
     const { data: pendingApplications } = await admin
       .from("applications")
-      .select("event_id")
+      .select("event_id, created_at, applicant:users(id, name, avatar_url)")
       .in("event_id", organizerEventIds)
-      .eq("status", "pending");
+      .eq("status", "pending")
+      .order("created_at", { ascending: false });
     for (const a of pendingApplications ?? []) {
       pendingCountByEventId.set(a.event_id, (pendingCountByEventId.get(a.event_id) ?? 0) + 1);
+      if (!pendingPreviewByEventId.has(a.event_id)) {
+        const applicant = a.applicant as unknown as { id: string; name: string; avatar_url: string | null } | null;
+        if (applicant) {
+          pendingPreviewByEventId.set(a.event_id, {
+            id: applicant.id,
+            name: applicant.name,
+            avatarUrl: applicant.avatar_url,
+          });
+        }
+      }
     }
   }
 
@@ -62,6 +75,7 @@ export async function GET() {
     category: e.category,
     role: roleByEventId.get(e.id) === "organizer" ? "organizer" : "participant",
     pendingApplicationsCount: pendingCountByEventId.get(e.id) ?? 0,
+    pendingApplicantPreview: pendingPreviewByEventId.get(e.id) ?? null,
   }));
 
   return NextResponse.json({ items });
