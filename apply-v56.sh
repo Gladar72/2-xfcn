@@ -1,3 +1,4 @@
+cat > "app/(app)/chats/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import Image from "next/image";
@@ -85,3 +86,4 @@ export default function ChatsPage() {
     </div>
   );
 }
+ENDOFFILE
