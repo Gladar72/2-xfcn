@@ -1,3 +1,4 @@
+cat > "lib/telegram/bot.ts" << 'ENDOFFILE'
 import { Bot, InlineKeyboard, Keyboard } from "grammy";
 import { getSupportAiReply } from "@/lib/telegram/support-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -174,3 +175,4 @@ export function getBot(): Bot {
   botInstance = bot;
   return bot;
 }
+ENDOFFILE
