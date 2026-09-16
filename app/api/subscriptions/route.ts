@@ -43,6 +43,7 @@ export async function GET() {
       return NextResponse.json({
         active: true,
         plan: "premium",
+        periodStart: periodStart.toISOString(),
         periodEnd: periodEnd.toISOString(),
         events: { used: eventsUsed ?? 0, limit: limits.eventsLimit },
         boosts: { used: 0, limit: limits.boostLimit },
@@ -56,6 +57,7 @@ export async function GET() {
   return NextResponse.json({
     active: true,
     plan: info.plan,
+    periodStart: info.currentPeriodStart,
     periodEnd: info.currentPeriodEnd,
     events: { used: info.eventsCreatedCount, limit: limits.eventsLimit },
     boosts: { used: info.boostsUsedCount, limit: limits.boostLimit },
