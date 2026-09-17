@@ -77,7 +77,10 @@ function MapPageContent() {
   // Если все встречи ровно в одном месте — приближать нечего, кнопка не нужна.
   const distinctPlaceCount = useMemo(() => {
     if (!selected) return 0;
-    const keys = new Set(selected.map((e) => `${e.latitude.toFixed(4)},${e.longitude.toFixed(4)}`));
+    // Тот же порог "одно место", что и в EventsMap.tsx (SAME_PLACE_PRECISION) —
+    // 5 знаков ≈ 1.1м, иначе кнопка "Приблизить" могла бы не появиться для
+    // кластера из объединённых по ошибке разных соседних зданий.
+    const keys = new Set(selected.map((e) => `${e.latitude.toFixed(5)},${e.longitude.toFixed(5)}`));
     return keys.size;
   }, [selected]);
 
