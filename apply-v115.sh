@@ -1,3 +1,4 @@
+cat > "app/(app)/my-events/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import { useEffect, useState } from "react";
@@ -150,3 +151,4 @@ function ApplicantPreviewBadge({
     </div>
   );
 }
+ENDOFFILE
