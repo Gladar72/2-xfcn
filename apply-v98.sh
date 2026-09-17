@@ -1,3 +1,4 @@
+cat > "lib/reviews/complete-due-events.ts" << 'ENDOFFILE'
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { localEventTimeToUtc } from "@/lib/reviews/timezone";
 
@@ -110,3 +111,4 @@ export async function completeDueEvents(
     })
     .filter((item) => item.recipients.length > 0);
 }
+ENDOFFILE
