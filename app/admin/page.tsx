@@ -7,9 +7,17 @@ interface Metrics {
   dau: null;
   events: { total: number; completed: number };
   applications: { total: number; accepted: number; conversionRate: number };
-  subscriptions: { start: number; medium: number; premium: number };
-  payments: { succeededCount: number; revenueStars: number };
+  subscriptions: { active: { start: number; medium: number; premium: number }; totalEverPurchased: number };
+  payments: {
+    succeededCount: number;
+    succeededCountThisMonth: number;
+    revenueRub: number;
+    revenueRubThisMonth: number;
+    revenueStars: number;
+    revenueStarsThisMonth: number;
+  };
   reports: { pending: number };
+  reviews: { avgRating: number | null; count: number };
 }
 
 export default function AdminDashboardPage() {
@@ -38,13 +46,25 @@ export default function AdminDashboardPage() {
         value={`${Math.round(metrics.applications.conversionRate * 100)}%`}
       />
 
-      <Card label="START" value={metrics.subscriptions.start} />
-      <Card label="MEDIUM" value={metrics.subscriptions.medium} />
-      <Card label="PREMIUM" value={metrics.subscriptions.premium} />
-      <Card label="Жалоб в ожидании" value={metrics.reports.pending} />
+      <Card label="Подписок оформлено всего" value={metrics.subscriptions.totalEverPurchased} />
+      <Card label="START (сейчас активно)" value={metrics.subscriptions.active.start} />
+      <Card label="MEDIUM (сейчас активно)" value={metrics.subscriptions.active.medium} />
+      <Card label="PREMIUM (сейчас активно)" value={metrics.subscriptions.active.premium} />
 
-      <Card label="Успешных платежей" value={metrics.payments.succeededCount} />
-      <Card label="Выручка (Stars)" value={metrics.payments.revenueStars} />
+      <Card label="Выручка ₽ (всего)" value={`${metrics.payments.revenueRub.toLocaleString("ru-RU")} ₽`} />
+      <Card
+        label="Выручка ₽ (этот месяц)"
+        value={`${metrics.payments.revenueRubThisMonth.toLocaleString("ru-RU")} ₽`}
+      />
+      <Card label="Выручка Stars (всего)" value={metrics.payments.revenueStars} />
+      <Card label="Успешных платежей" value={metrics.payments.succeededCount} hint={`${metrics.payments.succeededCountThisMonth} в этом месяце`} />
+
+      <Card label="Жалоб в ожидании" value={metrics.reports.pending} />
+      <Card
+        label="Средняя оценка встреч"
+        value={metrics.reviews.avgRating !== null ? metrics.reviews.avgRating.toFixed(2) : "—"}
+        hint={`${metrics.reviews.count} отзывов`}
+      />
       <Card label="DAU" value="—" hint="нужна аналитика, Этап 34" />
     </div>
   );

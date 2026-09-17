@@ -52,7 +52,7 @@ function EntryPageInner() {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.status === "authenticated") {
-          const allowedGotoPaths = new Set(["subscriptions"]);
+          const allowedGotoPaths = new Set(["subscriptions", "admin"]);
           window.location.href = goto && allowedGotoPaths.has(goto) ? `/${goto}` : "/feed";
         } else if (res.ok && data.status === "needs_registration") {
           window.location.href = "/onboarding";

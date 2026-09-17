@@ -2,6 +2,7 @@ import { Bot, InlineKeyboard, Keyboard } from "grammy";
 import { getSupportAiReply } from "@/lib/telegram/support-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activateSubscription } from "@/lib/subscriptions/server";
+import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import type { Plan } from "@/lib/subscriptions/limits";
 
 function getAdminId(): number | null {
@@ -40,16 +41,25 @@ export function getBot(): Bot {
   // сообщением, а закреплённая панель, которая остаётся видна всегда,
   // пока её не заменят/не уберут) — именно то, что попросил пользователь:
   // кнопка "Купить подписку" прямо под полем ввода сообщения.
-  function persistentKeyboard() {
-    return new Keyboard()
+  //
+  // isAdmin (по telegram_id из ADMIN_TELEGRAM_IDS) добавляет третью
+  // кнопку "Админ-панель" — видна ТОЛЬКО тому, у кого свой telegram_id в
+  // этом списке; для всех остальных клавиатура ровно та же, что была.
+  function persistentKeyboard(isAdmin: boolean) {
+    const kb = new Keyboard()
       .webApp("Открыть приложение", validatedAppUrl)
       .row()
-      .webApp("Купить подписку", `${validatedAppUrl}?goto=subscriptions`)
-      .resized();
+      .webApp("Купить подписку", `${validatedAppUrl}?goto=subscriptions`);
+    if (isAdmin) {
+      kb.row().webApp("📊 Админ-панель", `${validatedAppUrl}?goto=admin`);
+    }
+    return kb.resized();
   }
 
   bot.command("start", async (ctx) => {
-    await ctx.reply("Отлично, теперь запустим наше МЕСТО! 🚀🧡", { reply_markup: persistentKeyboard() });
+    await ctx.reply("Отлично, теперь запустим наше МЕСТО! 🚀🧡", {
+      reply_markup: persistentKeyboard(isAdminTelegramId(ctx.from?.id ?? 0)),
+    });
   });
 
   bot.command("app", async (ctx) => {
