@@ -139,7 +139,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (event.organizer_id !== currentUser.userId) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
-  if (event.status !== "published") {
+  if (event.status !== "published" && event.status !== "closed") {
     return NextResponse.json({ error: "cannot_cancel" }, { status: 422 });
   }
 
