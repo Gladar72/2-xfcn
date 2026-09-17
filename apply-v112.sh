@@ -1,3 +1,4 @@
+cat > "app/api/me/events/route.ts" << 'ENDOFFILE'
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -85,3 +86,4 @@ export async function GET() {
 
   return NextResponse.json({ items });
 }
+ENDOFFILE
