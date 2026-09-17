@@ -1,3 +1,4 @@
+cat > "components/map/EventsMap.tsx" << 'ENDOFFILE'
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
@@ -289,3 +290,4 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
 
   return <div ref={containerRef} className="h-full w-full" />;
 });
+ENDOFFILE
