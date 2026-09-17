@@ -154,10 +154,13 @@ function FeedPageContent() {
     <div>
       <TopBar city={city ?? "..."} avatarUrl={avatarUrl} onCityPress={() => setCitySheetOpen(true)} />
 
-      <div className="px-5 pb-2 pt-6">
+      <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-6">
         <h1 className="text-display">
           Что ищешь <span className="text-accent">сегодня?</span>
         </h1>
+        <div className="relative h-16 w-16 shrink-0">
+          <Image src="/brand/logo/mesto-mascot.png" alt="" fill className="object-contain" />
+        </div>
       </div>
 
       <CategoryGrid categories={categories} onTrainingPress={() => setSheetOpen(true)} />
