@@ -18,12 +18,23 @@ export async function GET() {
   const { data: user, error } = await admin
     .from("users")
     .select(
-      "id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at, receipt_contact"
+      "id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at, receipt_contact, last_active_at, morning_reminders_enabled"
     )
     .eq("id", currentUser.userId)
     .maybeSingle();
 
   if (error || !user) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  // "last_active_at" — используется утренними напоминаниями (см.
+  // lib/morning-reminders/), чтобы не напоминать тому, кто уже заходил
+  // сегодня. Обновляем не на КАЖДЫЙ запрос (это самый частый эндпоинт в
+  // приложении — лишняя запись в базу на каждое открытие профиля), а
+  // только если прошлая отметка старше 6 часов — этого с запасом хватает,
+  // чтобы к моменту утренней отправки отметка была свежей.
+  const lastActive = user.last_active_at ? new Date(user.last_active_at) : null;
+  if (!lastActive || Date.now() - lastActive.getTime() > 6 * 60 * 60 * 1000) {
+    await admin.from("users").update({ last_active_at: new Date().toISOString() }).eq("id", currentUser.userId);
+  }
 
   const [{ count: eventsOrganizedCount }, { count: eventsAttendedCount }] = await Promise.all([
     admin.from("events").select("*", { count: "exact", head: true }).eq("organizer_id", currentUser.userId),
@@ -45,6 +56,7 @@ export async function GET() {
     ratingCount: user.rating_count,
     completedMeetingsCount: user.completed_meetings_count,
     receiptContact: user.receipt_contact,
+    morningRemindersEnabled: user.morning_reminders_enabled,
     eventsOrganizedCount: eventsOrganizedCount ?? 0,
     eventsAttendedCount: eventsAttendedCount ?? 0,
     memberSince: user.created_at,
@@ -72,7 +84,7 @@ export async function PATCH(req: Request) {
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const update: Record<string, string> = {};
+  const update: Record<string, string | boolean> = {};
 
   if (typeof body?.name === "string") {
     const name = body.name.trim();
@@ -103,6 +115,10 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "invalid_receipt_contact" }, { status: 422 });
     }
     update.receipt_contact = isPhone ? contact.replace(/[\s()-]/g, "") : contact;
+  }
+
+  if (typeof body?.morningRemindersEnabled === "boolean") {
+    update.morning_reminders_enabled = body.morningRemindersEnabled;
   }
 
   if (Object.keys(update).length === 0) {

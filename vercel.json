@@ -3,6 +3,14 @@
     {
       "path": "/api/cron/complete-events",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/schedule-morning-reminders",
+      "schedule": "10 0 * * *"
+    },
+    {
+      "path": "/api/cron/send-morning-reminders",
+      "schedule": "*/10 * * * *"
     }
   ]
 }

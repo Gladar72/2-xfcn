@@ -9,6 +9,7 @@ import { CityPicker } from "@/components/ui/CityPicker";
 interface ProfileSummary {
   name: string;
   city: string;
+  morningRemindersEnabled: boolean;
 }
 
 const SUPPORT_BOT_URL = "https://t.me/Mesto_people_bot";
@@ -24,12 +25,28 @@ export default function SettingsPage() {
     fetch("/api/me/profile")
       .then((r) => r.json())
       .then((data) => {
-        if (!data.error) setProfile({ name: data.name, city: data.city });
+        if (!data.error) setProfile({ name: data.name, city: data.city, morningRemindersEnabled: data.morningRemindersEnabled ?? true });
       });
   }, []);
 
   function handleClose() {
     getTelegramWebApp()?.close();
+  }
+
+  async function toggleMorningReminders() {
+    if (!profile) return;
+    const next = !profile.morningRemindersEnabled;
+    setProfile({ ...profile, morningRemindersEnabled: next }); // оптимистично — переключатель не должен ждать сети
+    try {
+      const res = await fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ morningRemindersEnabled: next }),
+      });
+      if (!res.ok) setProfile({ ...profile, morningRemindersEnabled: !next }); // откат при ошибке
+    } catch {
+      setProfile({ ...profile, morningRemindersEnabled: !next });
+    }
   }
 
   function openCityEditor() {
@@ -75,6 +92,14 @@ export default function SettingsPage() {
         <Row href="/profile" label="Профиль" value={profile ? profile.name : undefined} icon="/brand/icons/profile.svg" />
         <Row href="/subscriptions" label="Мой тариф" icon="/brand/icons/gift.svg" />
         <Row href="/notifications" label="Уведомления" icon="/brand/icons/bell.svg" />
+        {profile && (
+          <ToggleRow
+            label="Утренние приглашения"
+            description="Иногда предлагаем идею на день — не чаще пары раз в неделю"
+            checked={profile.morningRemindersEnabled}
+            onChange={toggleMorningReminders}
+          />
+        )}
         <button onClick={openCityEditor} className="block w-full text-left">
           <div className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
             <Image src="/brand/icons/location.svg" alt="" width={18} height={18} />
@@ -188,4 +213,35 @@ function Row({
     );
   }
   return <Link href={href}>{content}</Link>;
+}
+
+function ToggleRow({
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <button
+      onClick={onChange}
+      className="flex w-full items-center gap-3 rounded-card bg-white p-4 text-left shadow-card"
+    >
+      <div className="flex-1">
+        <span className="block text-sm text-ink-900">{label}</span>
+        {description && <span className="mt-0.5 block text-xs text-ink-400">{description}</span>}
+      </div>
+      <span
+        className={`relative h-7 w-12 shrink-0 rounded-pill transition-colors ${checked ? "bg-brand-gradient" : "bg-lavender-200"}`}
+      >
+        <span
+          className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${checked ? "translate-x-5" : "translate-x-0.5"}`}
+        />
+      </span>
+    </button>
+  );
 }

@@ -131,6 +131,16 @@ export function getBot(): Bot {
     });
   });
 
+  // Кнопка "Отключить напоминания" под утренним сообщением (см.
+  // lib/morning-reminders/) — отключает ТОЛЬКО эти приглашения, обычные
+  // уведомления (заявки, чаты, отзывы) продолжают приходить как раньше.
+  bot.callbackQuery("disable_morning_reminders", async (ctx) => {
+    const admin = createAdminClient();
+    await admin.from("users").update({ morning_reminders_enabled: false }).eq("telegram_id", ctx.from.id);
+    await ctx.answerCallbackQuery();
+    await ctx.reply("Хорошо, больше не буду напоминать по утрам. Включить снова можно в настройках приложения в любой момент.");
+  });
+
   // Свободный текст (не команда) в чате с ботом = обращение в поддержку.
   // Правило порядка: обработчики выше (.command(...)) уже "съедают" команды
   // и не вызывают next(), так что сюда попадают только обычные сообщения.
