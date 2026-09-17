@@ -1,9 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { EventsMap, type MapEventItem } from "@/components/map/EventsMap";
+import { EventsMap, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
+
+const PAGE_SIZE = 20; // показ длинного списка кластера порциями, а не всё разом
 
 export default function MapPage() {
   return (
@@ -23,8 +25,10 @@ function MapPageContent() {
 
   const [events, setEvents] = useState<MapEventItem[]>([]);
   const [selected, setSelected] = useState<MapEventItem[] | null>(null);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const mapRef = useRef<EventsMapHandle>(null);
   // Реальный город, которым пользуется API (см. ниже) — не то же самое,
   // что city из URL: при прямом переходе на /map (не через кнопку
   // "Показать на карте" на /search) в URL города вообще нет, и сервер сам
@@ -68,6 +72,25 @@ function MapPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forwardedParams]);
 
+  // Если открытый кластер собран из НЕСКОЛЬКИХ разных мест — предлагаем
+  // приблизить карту к его границам (п.6 задания на кластеризацию).
+  // Если все встречи ровно в одном месте — приближать нечего, кнопка не нужна.
+  const distinctPlaceCount = useMemo(() => {
+    if (!selected) return 0;
+    const keys = new Set(selected.map((e) => `${e.latitude.toFixed(4)},${e.longitude.toFixed(4)}`));
+    return keys.size;
+  }, [selected]);
+
+  function handleSelect(items: MapEventItem[]) {
+    setSelected(items);
+    setVisibleCount(PAGE_SIZE);
+  }
+
+  function handleZoomToGroup() {
+    if (!selected || !mapRef.current) return;
+    mapRef.current.fitBounds(selected.map((e) => [e.longitude, e.latitude] as [number, number]));
+  }
+
   return (
     <div className="relative h-[calc(100vh-5rem)]">
       {resolvedCity && (
@@ -90,17 +113,33 @@ function MapPageContent() {
       ) : loading && events.length === 0 ? (
         <div className="flex h-full items-center justify-center text-sm text-ink-600">Загрузка карты...</div>
       ) : (
-        <EventsMap events={events} onSelect={setSelected} city={resolvedCity} />
+        <EventsMap ref={mapRef} events={events} onSelect={handleSelect} city={resolvedCity} />
       )}
 
       {selected && (
-        <div className="fixed inset-x-0 bottom-20 z-50 max-h-[50vh] overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-card">
+        <div
+          className="fixed inset-x-0 bottom-20 z-50 max-h-[60vh] overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-card"
+          role="dialog"
+          aria-label={`Встречи: ${selected.length}`}
+        >
           <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" onClick={() => setSelected(null)} />
-          <h2 className="text-title mb-3 truncate">
-            {selected[0]?.placeName || selected[0]?.address || "Место встречи"}
-          </h2>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-title truncate">
+              {selected.length > 1
+                ? `Встречи здесь (${selected.length})`
+                : selected[0]?.placeName || selected[0]?.address || "Место встречи"}
+            </h2>
+            {distinctPlaceCount > 1 && (
+              <button
+                onClick={handleZoomToGroup}
+                className="shrink-0 rounded-pill bg-lavender-100 px-3 py-1.5 text-xs font-medium text-accent"
+              >
+                Приблизить на карте
+              </button>
+            )}
+          </div>
           <div className="space-y-2">
-            {selected.map((event) => (
+            {selected.slice(0, visibleCount).map((event) => (
               <Link
                 key={event.id}
                 href={`/events/${event.id}`}
@@ -111,12 +150,22 @@ function MapPageContent() {
                   <p className="truncate text-sm font-medium text-ink-900">{event.title}</p>
                   <p className="truncate text-xs text-ink-600">
                     {formatDate(event.eventDate)} · {event.eventTime.slice(0, 5)}
-                    {event.placeName ? ` · ${event.placeName}` : ""}
                   </p>
+                  {(event.placeName || event.address) && (
+                    <p className="truncate text-xs text-ink-400">{event.placeName || event.address}</p>
+                  )}
                 </div>
               </Link>
             ))}
           </div>
+          {visibleCount < selected.length && (
+            <button
+              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
+              className="mt-3 w-full rounded-pill bg-lavender-50 py-2.5 text-sm font-medium text-accent"
+            >
+              Показать ещё ({selected.length - visibleCount})
+            </button>
+          )}
         </div>
       )}
     </div>
