@@ -46,11 +46,18 @@ export default function MyEventsPage() {
 
   return (
     <div className="px-5 py-4">
-      <div className="mb-4 flex items-center gap-3">
-        <Link href="/profile" aria-label="Назад">
-          <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
+      <h1 className="text-display mb-4">Мои встречи</h1>
+
+      <div className="mb-4 flex gap-2">
+        <Link
+          href="/search"
+          className="flex-1 rounded-pill bg-white px-4 py-2 text-center text-sm font-medium text-ink-900 shadow-card"
+        >
+          Все встречи
         </Link>
-        <h1 className="text-title">Мои встречи</h1>
+        <span className="flex-1 rounded-pill bg-accent px-4 py-2 text-center text-sm font-medium text-white shadow-card">
+          Мои встречи
+        </span>
       </div>
 
       {loading && <p className="text-center text-sm text-ink-600">Загрузка...</p>}

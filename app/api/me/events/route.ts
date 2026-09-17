@@ -32,6 +32,9 @@ export async function GET() {
       `
     )
     .in("id", eventIds)
+    // Только активные — по запросу: завершённая или отменённая встреча
+    // должна пропадать из "Моих встреч", а не просто помечаться статусом.
+    .eq("status", "published")
     .order("event_date", { ascending: false });
 
   if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
