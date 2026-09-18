@@ -111,18 +111,13 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
       </div>
 
       {/* "Для бизнеса" — на месте прежнего баннера "Своё предложение".
+          Готовый баннер целиком (текст уже внутри картинки) — не
+          собираем текст+иконку в коде поверх градиента, как раньше.
           Отдельный раздел (/business): свои события, свой мастер
           создания, свои лимиты по тарифу — см. lib/subscriptions/limits.ts. */}
-      <button
-        onClick={() => router.push("/business")}
-        className="mt-3 flex w-full items-center gap-3 rounded-card bg-brand-gradient p-5 text-left shadow-card"
-      >
-        <div className="relative h-12 w-12 shrink-0">
-          <Image src="/brand/markers/marker-business.png" alt="" fill className="object-contain" sizes="48px" />
-        </div>
-        <div>
-          <span className="block text-base font-semibold text-white">Для бизнеса</span>
-          <span className="block text-sm text-white/80">Посетить либо создать события</span>
+      <button onClick={() => router.push("/business")} className="mt-3 block w-full active:scale-[0.98]">
+        <div className="relative aspect-[2173/462] w-full overflow-hidden rounded-card shadow-card">
+          <Image src="/brand/backgrounds/business-banner.jpg" alt="Для бизнеса — посетить либо создать события" fill className="object-cover" sizes="100vw" />
         </div>
       </button>
 
