@@ -210,7 +210,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   if (accessBlocked) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-8 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-8 text-center">
         <p className="text-lg font-medium text-ink-900">Чат недоступен</p>
         <p className="text-sm text-ink-600">Событие уже прошло или было отменено.</p>
         <button
@@ -225,7 +225,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-40 flex flex-col overflow-hidden bg-background"
+      className="fixed inset-x-0 top-0 z-40 flex flex-col overflow-hidden"
       style={{ height: liveHeight ? `${liveHeight}px` : "100dvh" }}
     >
       <div className={`flex shrink-0 items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3 ${isEventClosed ? "opacity-60" : ""}`}>

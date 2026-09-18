@@ -124,10 +124,7 @@ export function OnboardingWizard() {
     (step === "interests");
 
   return (
-    <div
-      className="flex min-h-screen flex-col bg-cover bg-center px-5 pb-8 pt-6"
-      style={{ backgroundImage: "url(/brand/backgrounds/gradient-bg.jpg)" }}
-    >
+    <div className="flex min-h-screen flex-col px-5 pb-8 pt-6">
       <StepProgress currentStep={stepIndex + 1} totalSteps={STEPS.length} />
 
       <div className="flex flex-1 flex-col justify-center gap-6 py-10">
