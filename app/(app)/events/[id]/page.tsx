@@ -20,6 +20,10 @@ interface EventDetails {
   seatsTotal: number;
   seatsTaken: number;
   status: string;
+  costType: string | null;
+  isBusiness: boolean;
+  businessPricingType: "ticket" | "free" | "custom" | null;
+  businessPricingDetails: string | null;
   organizer: {
     id: string;
     name: string;
@@ -251,6 +255,15 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             </p>
           )}
           <p>{isFull ? "Мест нет" : `Свободно мест: ${seatsLeft} из ${event.seatsTotal}`}</p>
+          {event.isBusiness && (
+            <p>
+              {event.businessPricingType === "ticket"
+                ? `Билет: ${event.businessPricingDetails}`
+                : event.businessPricingType === "custom"
+                  ? event.businessPricingDetails
+                  : "Бесплатно"}
+            </p>
+          )}
         </div>
 
         {event.participants.length > 0 && (

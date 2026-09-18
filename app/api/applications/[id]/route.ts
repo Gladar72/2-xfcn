@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: application } = await admin
     .from("applications")
-    .select("id, event_id, user_id, status, events(organizer_id, title)")
+    .select("id, event_id, user_id, status, events(organizer_id, title, has_chat)")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -37,6 +37,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const organizerId = (application.events as unknown as { organizer_id: string } | null)?.organizer_id;
   const eventTitle = (application.events as unknown as { title: string } | null)?.title;
+  const hasChat = (application.events as unknown as { has_chat: boolean } | null)?.has_chat ?? true;
 
   if (action === "cancel") {
     if (application.user_id !== currentUser.userId) {
@@ -80,28 +81,34 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // человека. Ищем уже существующий (создан при первом принятии на эту
   // встречу) и просто добавляем туда нового участника; если это первое
   // принятие — создаём чат и добавляем организатора.
-  const { data: existingConversation } = await admin
-    .from("conversations")
-    .select("id")
-    .eq("event_id", application.event_id)
-    .maybeSingle();
-
-  let conversationId = existingConversation?.id;
-
-  if (!conversationId) {
-    const { data: newConversation } = await admin
+  //
+  // "Для бизнеса" — организатор может явно выбрать НЕ создавать чат (при
+  // seats_total <= 20, см. мастер создания) — тогда пропускаем этот блок
+  // целиком: люди просто откликаются и получают уведомление, без общего чата.
+  if (hasChat) {
+    const { data: existingConversation } = await admin
       .from("conversations")
-      .insert({ event_id: application.event_id })
       .select("id")
-      .single();
-    conversationId = newConversation?.id;
-    if (conversationId) {
-      await admin.from("conversation_members").insert({ conversation_id: conversationId, user_id: organizerId });
-    }
-  }
+      .eq("event_id", application.event_id)
+      .maybeSingle();
 
-  if (conversationId) {
-    await admin.from("conversation_members").insert({ conversation_id: conversationId, user_id: application.user_id });
+    let conversationId = existingConversation?.id;
+
+    if (!conversationId) {
+      const { data: newConversation } = await admin
+        .from("conversations")
+        .insert({ event_id: application.event_id })
+        .select("id")
+        .single();
+      conversationId = newConversation?.id;
+      if (conversationId) {
+        await admin.from("conversation_members").insert({ conversation_id: conversationId, user_id: organizerId });
+      }
+    }
+
+    if (conversationId) {
+      await admin.from("conversation_members").insert({ conversation_id: conversationId, user_id: application.user_id });
+    }
   }
 
   await admin.from("notifications").insert({

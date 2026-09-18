@@ -15,6 +15,7 @@ export interface MapEventItem {
   address: string | null;
   seatsLeft: number;
   category: { slug: string; name: string; emoji: string | null } | null;
+  isBusiness?: boolean;
 }
 
 export interface EventsMapHandle {
@@ -242,9 +243,12 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
       function markerRenderer(feature: (typeof features)[number]) {
         const event = feature.properties.event;
         const el = document.createElement("div");
-        const src = MARKER_BY_SLUG[event.category?.slug ?? ""] ?? FALLBACK_MARKER;
-        const isCustom = src === FALLBACK_MARKER;
-        const width = isCustom ? Math.round(46 * CUSTOM_MARKER_SCALE) : 46;
+        // "Для бизнеса" — отдельный, чуть более крупный значок (см. ТЗ:
+        // "значком чуть больше чем другие значки, чтобы он выделялся"),
+        // по нажатию так же открывает эту встречу.
+        const src = event.isBusiness ? "/brand/markers/marker-business.png" : MARKER_BY_SLUG[event.category?.slug ?? ""] ?? FALLBACK_MARKER;
+        const isCustom = !event.isBusiness && src === FALLBACK_MARKER;
+        const width = event.isBusiness ? 60 : isCustom ? Math.round(46 * CUSTOM_MARKER_SCALE) : 46;
         const height = Math.round(width * MARKER_ASPECT);
         // "Кончик" пина в самой картинке — не у самого низа (y≈269 из 288
         // высоты viewBox), а чуть выше. Без явного сдвига библиотека карт

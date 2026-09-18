@@ -18,6 +18,8 @@ interface CategoryGridProps {
 
 // 3D-иконки категорий МЕСТО (новый комплект ассетов, см. бриф). emoji остаётся
 // как запасной вариант, если у какой-то категории вдруг не найдётся своей иконки.
+// "custom" ("Своё предложение") теперь тоже обычная плитка сетки — раньше была
+// отдельным широким баннером под сеткой, на её месте теперь баннер "Для бизнеса".
 const CATEGORY_ICON: Record<string, string> = {
   training: "/brand/3d/workout.png",
   cinema: "/brand/3d/movie.png",
@@ -25,6 +27,7 @@ const CATEGORY_ICON: Record<string, string> = {
   breakfast: "/brand/3d/breakfast.png",
   dinner: "/brand/3d/dinner.png",
   walk: "/brand/3d/walk.png",
+  custom: "/brand/3d/custom-proposal.png",
 };
 
 export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps) {
@@ -32,12 +35,17 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
   const [checkingCategory, setCheckingCategory] = useState<string | null>(null);
   const [emptyCategory, setEmptyCategory] = useState<Category | null>(null);
 
-  const gridCategories = categories.filter((c) => c.slug !== "custom");
-  const customCategory = categories.find((c) => c.slug === "custom");
-
   async function handlePress(category: Category) {
     if (category.slug === "training") {
       onTrainingPress();
+      return;
+    }
+
+    // "Своё предложение" — это создание СВОЕЙ встречи, а не просмотр чужих:
+    // ведём прямо в мастер создания, без проверки "пусто ли" (та проверка
+    // осмысленна только для категорий, где смотрят готовые встречи других).
+    if (category.slug === "custom") {
+      router.push("/create");
       return;
     }
 
@@ -64,7 +72,7 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
   return (
     <div className="px-5">
       <div className="grid grid-cols-2 gap-3">
-        {gridCategories.map((category) => {
+        {categories.map((category) => {
           const iconSrc = CATEGORY_ICON[category.slug];
           return (
             <button
@@ -102,23 +110,24 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
         </button>
       </div>
 
-      {customCategory && (
-        <button
-          onClick={() => router.push("/create")}
-          className="mt-3 flex w-full items-center gap-3 rounded-card bg-brand-gradient p-5 text-left shadow-card"
-        >
-          <div className="relative h-12 w-12 shrink-0">
-            <Image src="/brand/3d/custom-proposal.png" alt="" fill className="object-contain" sizes="48px" />
-          </div>
-          <div>
-            <span className="block text-base font-semibold text-white">{customCategory.name}</span>
-            <span className="block text-sm text-white/80">Создай свою встречу</span>
-          </div>
-        </button>
-      )}
+      {/* "Для бизнеса" — на месте прежнего баннера "Своё предложение".
+          Отдельный раздел (/business): свои события, свой мастер
+          создания, свои лимиты по тарифу — см. lib/subscriptions/limits.ts. */}
+      <button
+        onClick={() => router.push("/business")}
+        className="mt-3 flex w-full items-center gap-3 rounded-card bg-brand-gradient p-5 text-left shadow-card"
+      >
+        <div className="relative h-12 w-12 shrink-0">
+          <Image src="/brand/markers/marker-business.png" alt="" fill className="object-contain" sizes="48px" />
+        </div>
+        <div>
+          <span className="block text-base font-semibold text-white">Для бизнеса</span>
+          <span className="block text-sm text-white/80">Посетить либо создать события</span>
+        </div>
+      </button>
 
       {emptyCategory && (() => {
-        const emptyCategoryIcon = CATEGORY_ICON[emptyCategory.slug];
+        const iconSrc = CATEGORY_ICON[emptyCategory.slug];
         return (
           <div
             className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30"
@@ -126,10 +135,12 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
           >
             <div className="rounded-t-sheet bg-white p-5 pb-8 text-center" onClick={(e) => e.stopPropagation()}>
               <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-              {emptyCategoryIcon && (
-                <div className="relative mx-auto mb-3 h-16 w-16">
-                  <Image src={emptyCategoryIcon} alt="" fill className="object-contain" />
+              {iconSrc ? (
+                <div className="relative mx-auto mb-3 h-14 w-14">
+                  <Image src={iconSrc} alt="" fill className="object-contain" />
                 </div>
+              ) : (
+                <span className="mb-3 block text-4xl">{emptyCategory.emoji}</span>
               )}
               <h2 className="text-title mb-2">Такую встречу ещё никто не создал</h2>
               <p className="mb-5 text-sm text-ink-600">

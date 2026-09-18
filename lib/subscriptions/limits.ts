@@ -5,6 +5,7 @@ export interface PlanLimits {
   applicationsLimit: number | null; // null = без ограничений — лимит на УЧАСТИЕ (отклики на чужие встречи)
   boostLimit: number;
   groupMax: number;
+  businessGroupMax: number | null; // null = без ограничений — макс. размер ГРУППЫ для событий "Для бизнеса" (отдельный, обычно больше обычного groupMax)
   priceRub: number;
   /**
    * Цена в Telegram Stars (XTR). Курс Stars к рублю периодически меняется
@@ -31,6 +32,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     applicationsLimit: 15,
     boostLimit: 1,
     groupMax: 4,
+    businessGroupMax: 40,
     priceRub: 299,
     priceStars: 150,
     rankingCoefficient: 0,
@@ -40,6 +42,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     applicationsLimit: 30,
     boostLimit: 5,
     groupMax: 10,
+    businessGroupMax: 100,
     priceRub: 599,
     priceStars: 300,
     rankingCoefficient: 3,
@@ -49,6 +52,7 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     applicationsLimit: null,
     boostLimit: 10,
     groupMax: 30,
+    businessGroupMax: null,
     priceRub: 999,
     priceStars: 500,
     rankingCoefficient: 6,
@@ -73,4 +77,9 @@ export function canApplyToMoreEvents(plan: Plan | null, applicationsUsedInPeriod
 
 export function canUseBoost(plan: Plan, boostsUsedInPeriod: number): boolean {
   return boostsUsedInPeriod < PLAN_LIMITS[plan].boostLimit;
+}
+
+/** Максимальный размер группы для встречи — свой лимит для "Для бизнеса" (обычно шире), иначе обычный groupMax. null = без ограничений. */
+export function maxGroupSize(plan: Plan, isBusiness: boolean): number | null {
+  return isBusiness ? PLAN_LIMITS[plan].businessGroupMax : PLAN_LIMITS[plan].groupMax;
 }

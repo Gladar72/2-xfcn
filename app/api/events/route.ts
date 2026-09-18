@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import { rankEvents, type EventForScoring, type SubscriptionPlan } from "@/lib/scoring/rank-events";
 import { getActiveSubscriptionInfo, incrementEventsCreated } from "@/lib/subscriptions/server";
-import { canCreateMoreEvents, PLAN_LIMITS } from "@/lib/subscriptions/limits";
+import { canCreateMoreEvents, maxGroupSize, PLAN_LIMITS } from "@/lib/subscriptions/limits";
 import { createEventSchema } from "@/lib/validation/create-event";
 import { notifyN8n } from "@/lib/n8n/notify";
 
@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
   const ageMin = searchParams.get("ageMin") ? Number(searchParams.get("ageMin")) : null;
   const ageMax = searchParams.get("ageMax") ? Number(searchParams.get("ageMax")) : null;
   const genderParam = searchParams.get("gender"); // 'male' | 'female' | null (нет фильтра)
+  // "Для бизнеса" — отдельный раздел (/business), НЕ показывается в обычной
+  // ленте/поиске и наоборот: businesss=true показывает ТОЛЬКО такие события.
+  const businessOnly = searchParams.get("business") === "true";
 
   const currentUser = await getCurrentUser();
   const admin = createAdminClient();
@@ -88,12 +91,14 @@ export async function GET(req: NextRequest) {
       `
       id, title, description, city, latitude, longitude, place_name, address,
       event_date, event_time, event_end_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
+      is_business, has_chat, business_pricing_type, business_pricing_details,
       category:categories(slug, name, emoji),
       training_type:training_types(slug, name, emoji),
       organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count, telegram_id)
       `
     )
     .eq("status", "published")
+    .eq("is_business", businessOnly)
     .eq("city", city)
     .gte("event_date", todayIso)
     .order("event_date", { ascending: true })
@@ -264,6 +269,10 @@ export async function GET(req: NextRequest) {
       seatsTotal: _row.seats_total,
       seatsTaken: _row.seats_taken,
       costType: _row.cost_type,
+      isBusiness: _row.is_business,
+      hasChat: _row.has_chat,
+      businessPricingType: _row.business_pricing_type,
+      businessPricingDetails: _row.business_pricing_details,
       // Лёгкое визуальное выделение карточки — привилегия тарифов
       // Медиум и Премьер (см. FEATURES в components/paywall/Paywall.tsx).
       isHighlighted: organizerPlan === "medium" || organizerPlan === "premium",
@@ -356,18 +365,31 @@ export async function POST(req: NextRequest) {
   }
   const input = parsed.data;
 
-  const groupMax = subscriptionInfo ? PLAN_LIMITS[subscriptionInfo.plan].groupMax : PLAN_LIMITS.premium.groupMax;
-  if (!isAdmin && input.seatsTotal > groupMax) {
+  const plan = subscriptionInfo?.plan ?? "premium";
+  const groupMax = maxGroupSize(plan, input.isBusiness);
+  if (!isAdmin && groupMax !== null && input.seatsTotal > groupMax) {
     return NextResponse.json(
       { error: "group_size_exceeds_plan", groupMax },
       { status: 422 }
     );
   }
 
+  // Чат для "Для бизнеса" — только при небольшой группе (см. ТЗ: "чат
+  // создаётся для события, где не больше 20 человек"). Проверяем на
+  // сервере, а не только по кнопке в мастере — иначе можно было бы
+  // обойти ограничение прямым запросом к API.
+  const hasChat = input.isBusiness ? input.hasChat && input.seatsTotal <= 20 : true;
+
+  // "Для бизнеса" не привязано ни к одной из 7 обычных категорий —
+  // подставляем служебную категорию "custom" на сервере, не требуя её
+  // от клиента (is_business — вот что реально отличает такие события
+  // при показе/фильтрации, а не сама категория).
+  const categorySlugForLookup = input.isBusiness ? "custom" : input.categorySlug;
+
   const { data: category } = await admin
     .from("categories")
     .select("id")
-    .eq("slug", input.categorySlug)
+    .eq("slug", categorySlugForLookup)
     .maybeSingle();
   if (!category) {
     return NextResponse.json({ error: "invalid_category" }, { status: 422 });
@@ -415,6 +437,10 @@ export async function POST(req: NextRequest) {
       seats_taken: 0,
       cost_type: input.costType,
       status: "published",
+      is_business: input.isBusiness,
+      business_pricing_type: input.isBusiness ? input.businessPricingType ?? null : null,
+      business_pricing_details: input.isBusiness ? input.businessPricingDetails ?? null : null,
+      has_chat: hasChat,
     })
     .select("id")
     .single();

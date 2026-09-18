@@ -24,7 +24,19 @@ interface TrainingType {
   emoji: string | null;
 }
 
-type Step = "category" | "trainingType" | "where" | "when" | "time" | "seats" | "cost" | "details" | "review";
+type Step =
+  | "category"
+  | "trainingType"
+  | "businessTitle"
+  | "where"
+  | "when"
+  | "time"
+  | "seats"
+  | "cost"
+  | "businessCost"
+  | "chat"
+  | "details"
+  | "review";
 
 const DATE_PRESETS = [
   { label: "Сегодня", offsetDays: 0 },
@@ -57,6 +69,10 @@ export function CreateEventWizard() {
   const searchParams = useSearchParams();
   const preselectedCategory = searchParams.get("category");
   const preselectedTrainingType = searchParams.get("type");
+  // "Для бизнеса" (см. кнопка на главном экране) — отдельная ветка мастера:
+  // без готовых категорий, свой шаг про расходы (билет/бесплатно/свои
+  // условия), свой лимит на размер группы и явный выбор "создавать чат?".
+  const isBusiness = searchParams.get("business") === "true";
   const telegramViewportHeight = useTelegramViewportHeight();
   const visualViewportHeight = useVisualViewportHeight();
   const liveHeight = visualViewportHeight ?? telegramViewportHeight;
@@ -119,6 +135,13 @@ export function CreateEventWizard() {
   const [eventEndTime, setEventEndTime] = useState("");
   const [seatsTotal, setSeatsTotal] = useState(4);
   const [costType, setCostType] = useState<"each_pays" | "organizer_treats" | "free" | "negotiable">("each_pays");
+  const [businessPricingType, setBusinessPricingType] = useState<"ticket" | "free" | "custom" | null>(null);
+  const [businessTicketPrice, setBusinessTicketPrice] = useState("");
+  const [businessCustomTerms, setBusinessCustomTerms] = useState("");
+  // Чат — явный выбор организатора для "Для бизнеса", доступен только при
+  // небольшой группе (см. ТЗ: "не больше 20 человек"). Для обычных встреч
+  // чат создаётся всегда (это состояние тогда просто не используется).
+  const [wantsChat, setWantsChat] = useState(true);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
 
@@ -131,9 +154,21 @@ export function CreateEventWizard() {
       });
   }, []);
 
-  const steps: Step[] = categorySlug === "training"
-    ? ["category", "trainingType", "where", "when", "time", "seats", "cost", "details", "review"]
-    : ["category", "where", "when", "time", "seats", "cost", "details", "review"];
+  const steps: Step[] = isBusiness
+    ? [
+        "businessTitle",
+        "where",
+        "when",
+        "time",
+        "seats",
+        "businessCost",
+        ...(seatsTotal <= 20 ? (["chat"] as Step[]) : []),
+        "details",
+        "review",
+      ]
+    : categorySlug === "training"
+      ? ["category", "trainingType", "where", "when", "time", "seats", "cost", "details", "review"]
+      : ["category", "where", "when", "time", "seats", "cost", "details", "review"];
 
   const step = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
@@ -169,7 +204,7 @@ export function CreateEventWizard() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          categorySlug,
+          categorySlug: isBusiness ? undefined : categorySlug,
           trainingTypeSlug: trainingTypeSlug ?? undefined,
           placeName,
           address,
@@ -179,9 +214,25 @@ export function CreateEventWizard() {
           eventTime,
           eventEndTime,
           seatsTotal,
-          costType,
+          costType: isBusiness
+            ? businessPricingType === "free"
+              ? "free"
+              : businessPricingType === "ticket"
+                ? "each_pays"
+                : "negotiable"
+            : costType,
           title,
           description,
+          isBusiness,
+          businessPricingType: isBusiness ? businessPricingType ?? undefined : undefined,
+          businessPricingDetails: isBusiness
+            ? businessPricingType === "ticket"
+              ? businessTicketPrice
+              : businessPricingType === "custom"
+                ? businessCustomTerms
+                : undefined
+            : undefined,
+          hasChat: isBusiness ? wantsChat : undefined,
         }),
       });
 
@@ -211,12 +262,18 @@ export function CreateEventWizard() {
   const canGoNext =
     (step === "category" && categorySlug !== null) ||
     (step === "trainingType" && trainingTypeSlug !== null) ||
+    (step === "businessTitle" && title.trim().length >= 3) ||
     (step === "where" && placeName.trim().length >= 2 && latitude !== undefined && longitude !== undefined) ||
     (step === "when" && eventDate.length > 0) ||
     (step === "time" && eventTime.length > 0 && eventEndTime.length > 0 && eventEndTime > eventTime) ||
     (step === "seats" && seatsTotal >= 1) ||
     step === "cost" ||
-    (step === "details" && title.trim().length >= 3);
+    (step === "businessCost" &&
+      businessPricingType !== null &&
+      (businessPricingType !== "ticket" || businessTicketPrice.trim().length > 0) &&
+      (businessPricingType !== "custom" || businessCustomTerms.trim().length > 0)) ||
+    step === "chat" ||
+    (step === "details" && (isBusiness || title.trim().length >= 3));
 
   return (
     <div
@@ -284,6 +341,19 @@ export function CreateEventWizard() {
                 </button>
               ))}
             </div>
+          </StepBlock>
+        )}
+
+        {step === "businessTitle" && (
+          <StepBlock title="Какое событие планируете создать?" subtitle="Название того, что вы организуете — концерт, дегустация, мастер-класс и т.д.">
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Например: Дегустация вин от сомелье"
+              maxLength={100}
+              className={inputClass}
+            />
           </StepBlock>
         )}
 
@@ -404,12 +474,90 @@ export function CreateEventWizard() {
               </button>
               <span className="text-display w-12 text-center">{seatsTotal}</span>
               <button
-                onClick={() => setSeatsTotal((n) => Math.min(30, n + 1))}
+                onClick={() => setSeatsTotal((n) => Math.min(isBusiness ? 500 : 30, n + 1))}
                 className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
               >
                 +
               </button>
             </div>
+            {isBusiness && seatsTotal > 20 && (
+              <p className="mt-3 text-center text-xs text-ink-600">
+                При группе больше 20 человек общий чат не создаётся — люди будут откликаться напрямую.
+              </p>
+            )}
+          </StepBlock>
+        )}
+
+        {step === "businessCost" && (
+          <StepBlock title="Как насчёт расходов?">
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  ["ticket", "По билетам"],
+                  ["free", "Бесплатно"],
+                  ["custom", "Другие условия"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setBusinessPricingType(value)}
+                  className={`rounded-card p-4 text-left text-sm font-medium transition ${
+                    businessPricingType === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {businessPricingType === "ticket" && (
+              <input
+                autoFocus
+                value={businessTicketPrice}
+                onChange={(e) => setBusinessTicketPrice(e.target.value)}
+                placeholder="Например: 1500 ₽"
+                maxLength={50}
+                className={`mt-3 ${inputClass}`}
+              />
+            )}
+            {businessPricingType === "custom" && (
+              <textarea
+                autoFocus
+                value={businessCustomTerms}
+                onChange={(e) => setBusinessCustomTerms(e.target.value)}
+                placeholder="Опиши условия — что и как оплачивается"
+                maxLength={300}
+                rows={3}
+                className={`mt-3 resize-none text-base ${inputClass}`}
+              />
+            )}
+          </StepBlock>
+        )}
+
+        {step === "chat" && (
+          <StepBlock title="Создавать чат?" subtitle="Общий чат для всех, кого примут на событие — можно списаться до встречи.">
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setWantsChat(true)}
+                className={`rounded-card p-4 text-left text-sm font-medium transition ${
+                  wantsChat ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                }`}
+              >
+                Да, создать чат
+              </button>
+              <button
+                onClick={() => setWantsChat(false)}
+                className={`rounded-card p-4 text-left text-sm font-medium transition ${
+                  !wantsChat ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                }`}
+              >
+                Нет, без чата — только заявки
+              </button>
+            </div>
+            {!wantsChat && (
+              <p className="mt-3 text-center text-xs text-ink-600">
+                Люди будут откликаться на событие, ты увидишь заявки прямо в нём и получишь уведомление.
+              </p>
+            )}
           </StepBlock>
         )}
 
@@ -439,16 +587,19 @@ export function CreateEventWizard() {
         )}
 
         {step === "details" && (
-          <StepBlock title="Название и описание">
-            <input
-              autoFocus
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Например: Утренняя пробежка в парке"
-              maxLength={100}
-              className={`mb-2 ${inputClass}`}
-            />
+          <StepBlock title={isBusiness ? "Описание" : "Название и описание"}>
+            {!isBusiness && (
+              <input
+                autoFocus
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Например: Утренняя пробежка в парке"
+                maxLength={100}
+                className={`mb-2 ${inputClass}`}
+              />
+            )}
             <textarea
+              autoFocus={isBusiness}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Короткое описание (необязательно)"
@@ -467,14 +618,30 @@ export function CreateEventWizard() {
               <ReviewRow label="Дата" value={eventDate} />
               <ReviewRow label="Время" value={`${eventTime}–${eventEndTime}`} />
               <ReviewRow label="Участников" value={String(seatsTotal)} />
-              <ReviewRow
-                label="Расходы"
-                value={
-                  { each_pays: "Каждый за себя", organizer_treats: "Автор угощает", free: "Без расходов", negotiable: "По договорённости" }[
-                    costType
-                  ]
-                }
-              />
+              {isBusiness ? (
+                <>
+                  <ReviewRow
+                    label="Расходы"
+                    value={
+                      businessPricingType === "ticket"
+                        ? `Билет: ${businessTicketPrice}`
+                        : businessPricingType === "custom"
+                          ? businessCustomTerms
+                          : "Бесплатно"
+                    }
+                  />
+                  {seatsTotal <= 20 && <ReviewRow label="Чат" value={wantsChat ? "Создаётся" : "Без чата"} />}
+                </>
+              ) : (
+                <ReviewRow
+                  label="Расходы"
+                  value={
+                    { each_pays: "Каждый за себя", organizer_treats: "Автор угощает", free: "Без расходов", negotiable: "По договорённости" }[
+                      costType
+                    ]
+                  }
+                />
+              )}
               {description && <ReviewRow label="Описание" value={description} />}
             </div>
           </StepBlock>

@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     .from("events")
     .select(
       `
-      id, title, event_date, event_time, latitude, longitude, place_name, address, seats_total, seats_taken, cost_type,
+      id, title, event_date, event_time, latitude, longitude, place_name, address, seats_total, seats_taken, cost_type, is_business,
       category:categories(slug, name, emoji),
       organizer:users(birth_date, gender)
       `
@@ -135,6 +135,7 @@ export async function GET(req: NextRequest) {
     address: e.address,
     seatsLeft: e.seats_total - e.seats_taken,
     category: e.category as unknown as { slug: string; name: string; emoji: string | null } | null,
+    isBusiness: e.is_business,
   }));
 
   return NextResponse.json({ items, city });
