@@ -116,8 +116,8 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
           Отдельный раздел (/business): свои события, свой мастер
           создания, свои лимиты по тарифу — см. lib/subscriptions/limits.ts. */}
       <button onClick={() => router.push("/business")} className="mt-3 block w-full active:scale-[0.98]">
-        <div className="relative aspect-[2173/462] w-full overflow-hidden rounded-card shadow-card">
-          <Image src="/brand/backgrounds/business-banner.jpg" alt="Для бизнеса — посетить либо создать события" fill className="object-cover" sizes="100vw" />
+        <div className="relative aspect-[2175/496] w-full overflow-hidden rounded-card shadow-card">
+          <Image src="/brand/backgrounds/business-banner.webp" alt="Для бизнеса — посетить либо создать событие" fill className="object-cover" sizes="100vw" />
         </div>
       </button>
 
