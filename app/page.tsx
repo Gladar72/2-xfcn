@@ -68,7 +68,10 @@ function EntryPageInner() {
 
 function SplashScreen({ status }: { status: "loading" | "no_telegram" | "error" }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-background px-8 text-center">
+    <div
+      className="flex min-h-screen flex-col items-center justify-center gap-6 bg-cover bg-center px-8 text-center"
+      style={{ backgroundImage: "url(/brand/backgrounds/gradient-bg.jpg)" }}
+    >
       <div className="relative h-[180px] w-[180px]">
         <Image src="/brand/logo/mesto-mascot.png" alt="МЕСТО" fill className="object-contain" priority />
       </div>
