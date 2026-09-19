@@ -53,8 +53,18 @@ export async function completeDueEvents(
     // дольше, чем на самом деле. Теперь поправка на пояс — по долготе
     // точки встречи (см. lib/reviews/timezone.ts).
     const start = localEventTimeToUtc(e.event_date, e.event_time, e.longitude);
+    // Встреча может заканчиваться на СЛЕДУЮЩИЙ день (например, начало в
+    // 22:00, конец в 04:00) — event_end_time сам по себе не говорит, на
+    // какую дату он приходится, только event_date у самой записи и
+    // сравнение с event_time позволяют это понять: если время окончания
+    // МЕНЬШЕ времени начала — окончание точно на следующий календарный
+    // день, а не в тот же (иначе получилось бы "закончилось раньше, чем
+    // началось").
+    const endDateIso = e.event_end_time && e.event_end_time < e.event_time
+      ? new Date(new Date(e.event_date + "T00:00:00Z").getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      : e.event_date;
     const end = e.event_end_time
-      ? localEventTimeToUtc(e.event_date, e.event_end_time, e.longitude)
+      ? localEventTimeToUtc(endDateIso, e.event_end_time, e.longitude)
       : new Date(start.getTime() + ASSUMED_EVENT_DURATION_HOURS * 60 * 60 * 1000);
     return end <= now;
   });
