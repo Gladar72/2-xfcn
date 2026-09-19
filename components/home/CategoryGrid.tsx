@@ -109,8 +109,8 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
           className="flex items-center gap-2 rounded-card p-4 text-left shadow-card active:scale-[0.98]"
           style={{ background: "linear-gradient(135deg, #6445FB, #7A9CFA)" }}
         >
-          <div className="relative h-11 w-11 shrink-0">
-            <Image src="/brand/3d/create-event-icon.png" alt="" fill className="rounded-xl object-cover" sizes="44px" />
+          <div className="relative h-16 w-16 shrink-0">
+            <Image src="/brand/3d/create-event-icon.png" alt="" fill className="object-contain" sizes="64px" />
           </div>
           <span className="text-sm font-medium leading-tight text-white">Создай своё событие</span>
         </button>
