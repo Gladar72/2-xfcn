@@ -12,6 +12,7 @@ interface MyEvent {
   placeName: string | null;
   status: string;
   category: { slug: string; name: string; emoji: string | null } | null;
+  isBusiness: boolean;
   role: "organizer" | "participant";
   pendingApplicationsCount: number;
   pendingApplicantPreview: { id: string; name: string; avatarUrl: string | null } | null;
@@ -74,7 +75,7 @@ export default function MyEventsPage() {
 
       <div className="space-y-2">
         {items.map((event) => {
-          const icon = event.category ? CATEGORY_ICON[event.category.slug] : undefined;
+          const icon = event.isBusiness ? "/brand/markers/marker-business.png" : event.category ? CATEGORY_ICON[event.category.slug] : undefined;
           return (
             <Link
               key={event.id}

@@ -42,6 +42,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [eventTitle, setEventTitle] = useState<string | null>(null);
   const [eventStatus, setEventStatus] = useState<string | null>(null);
   const [category, setCategory] = useState<{ slug: string; name: string; emoji: string | null } | null>(null);
+  const [isBusiness, setIsBusiness] = useState(false);
   // Все ОСТАЛЬНЫЕ участники чата (не считая себя) — на встречу с 3-4
   // принятыми людьми это будет несколько человек, не один собеседник.
   const [members, setMembers] = useState<Member[]>([]);
@@ -94,6 +95,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         setEventTitle(history.eventTitle ?? null);
         setEventStatus(history.eventStatus ?? null);
         setCategory(history.category ?? null);
+        setIsBusiness(history.isBusiness ?? false);
         setMembers(history.members ?? []);
 
         const client = createBrowserRealtimeClient(tokenData.token);
@@ -206,7 +208,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const isEventClosed = eventStatus === "completed" || eventStatus === "cancelled";
   const headerTitle = eventTitle ?? (members.length === 1 ? (members[0]?.name ?? "Чат") : "Чат");
   const soleMember = members.length === 1 ? members[0] : null;
-  const categoryIcon = category ? CATEGORY_ICON[category.slug] : undefined;
+  const categoryIcon = isBusiness ? "/brand/markers/marker-business.png" : category ? CATEGORY_ICON[category.slug] : undefined;
 
   if (accessBlocked) {
     return (

@@ -27,7 +27,7 @@ export async function GET() {
     .from("events")
     .select(
       `
-      id, title, event_date, event_time, place_name, status,
+      id, title, event_date, event_time, place_name, status, is_business,
       category:categories(slug, name, emoji)
       `
     )
@@ -78,6 +78,7 @@ export async function GET() {
     placeName: e.place_name,
     status: e.status,
     category: e.category,
+    isBusiness: e.is_business,
     role: roleByEventId.get(e.id) === "organizer" ? "organizer" : "participant",
     pendingApplicationsCount: pendingCountByEventId.get(e.id) ?? 0,
     pendingApplicantPreview: pendingPreviewByEventId.get(e.id) ?? null,

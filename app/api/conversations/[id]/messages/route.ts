@@ -67,7 +67,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .neq("user_id", currentUser.userId),
     admin
       .from("conversations")
-      .select("event_id, events(title, status, category:categories(slug, name, emoji))")
+      .select("event_id, events(title, status, is_business, category:categories(slug, name, emoji))")
       .eq("id", conversationId)
       .maybeSingle(),
   ]);
@@ -85,6 +85,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const eventInfo = conversationRow?.events as unknown as {
     title: string;
     status: string;
+    is_business: boolean;
     category: { slug: string; name: string; emoji: string | null } | null;
   } | null;
 
@@ -101,6 +102,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     eventTitle: eventInfo?.title ?? null,
     eventStatus: eventInfo?.status ?? null,
     category: eventInfo?.category ?? null,
+    isBusiness: eventInfo?.is_business ?? false,
     members,
   });
 }

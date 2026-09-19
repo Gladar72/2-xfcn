@@ -13,6 +13,7 @@ export interface ChatListItemData {
   eventTitle: string | null;
   eventStatus: string | null;
   category: { slug: string; name: string; emoji: string | null } | null;
+  isBusiness: boolean;
   otherUser: { id: string; name: string; avatarUrl: string | null } | null;
   /** Сколько всего человек в чате, кроме меня — 1 = обычный диалог, больше 1 = групповой чат встречи. */
   otherMembersCount: number;
@@ -28,7 +29,7 @@ export function ChatListItem({
   chat: ChatListItemData;
   onToggleFavorite: (conversationId: string, next: boolean) => void;
 }) {
-  const categoryIcon = chat.category ? CATEGORY_ICON[chat.category.slug] : undefined;
+  const categoryIcon = chat.isBusiness ? "/brand/markers/marker-business.png" : chat.category ? CATEGORY_ICON[chat.category.slug] : undefined;
   const isEventClosed = chat.eventStatus === "completed" || chat.eventStatus === "cancelled";
   const name = chat.otherUser?.name ?? "Пользователь";
   // Заголовок карточки — название встречи (по референсу это важнее, чем

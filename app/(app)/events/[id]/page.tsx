@@ -214,8 +214,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   }
   if (!event) return null;
 
-  const categoryLabel = event.trainingType?.name ?? event.category?.name;
-  const categoryIcon = event.category ? CATEGORY_ICON[event.category.slug] : undefined;
+  const categoryLabel = event.isBusiness ? "Бизнес событие" : event.trainingType?.name ?? event.category?.name;
+  const categoryIcon = event.isBusiness ? "/brand/markers/marker-business.png" : event.category ? CATEGORY_ICON[event.category.slug] : undefined;
   const seatsLeft = event.seatsTotal - event.seatsTaken;
   const isFull = seatsLeft <= 0;
 

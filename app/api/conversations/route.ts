@@ -18,7 +18,7 @@ export async function GET() {
     .select(
       `
       conversation_id, unread_count, is_hidden, is_blocked, is_favorite,
-      conversations(id, event_id, events(title, status, category:categories(slug, name, emoji)))
+      conversations(id, event_id, events(title, status, is_business, category:categories(slug, name, emoji)))
       `
     )
     .eq("user_id", currentUser.userId)
@@ -76,6 +76,7 @@ export async function GET() {
       events: {
         title: string;
         status: string;
+        is_business: boolean;
         category: { slug: string; name: string; emoji: string | null } | null;
       } | null;
     } | null;
@@ -99,6 +100,7 @@ export async function GET() {
       eventTitle: conversation?.events?.title ?? null,
       eventStatus: conversation?.events?.status ?? null,
       category: conversation?.events?.category ?? null,
+      isBusiness: conversation?.events?.is_business ?? false,
       // otherUser — для отображения аватара в списке: если участник один
       // (как раньше), показываем его фото; если несколько — компонент сам
       // решает показать иконку группы (см. otherMembersCount).
