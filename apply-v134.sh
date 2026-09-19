@@ -1,3 +1,4 @@
+cat > "app/api/events/route.ts" << 'ENDOFFILE'
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -542,3 +543,4 @@ async function notifyRelevantUsers(
     telegramIds: recipients,
   });
 }
+ENDOFFILE
