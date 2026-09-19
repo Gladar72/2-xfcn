@@ -1,3 +1,4 @@
+cat > "components/feed/EventCard.tsx" << 'ENDOFFILE'
 "use client";
 
 import Image from "next/image";
@@ -148,3 +149,4 @@ function formatDate(dateIso: string): string {
 function formatTime(timeString: string): string {
   return timeString.slice(0, 5);
 }
+ENDOFFILE
