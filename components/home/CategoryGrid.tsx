@@ -72,7 +72,9 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
   return (
     <div className="px-5">
       <div className="grid grid-cols-2 gap-3">
-        {categories.map((category) => {
+        {categories
+          .filter((c) => c.slug !== "custom")
+          .map((category) => {
           const iconSrc = CATEGORY_ICON[category.slug];
           return (
             <button
@@ -94,6 +96,24 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
             </button>
           );
         })}
+
+        {/* "Создай своё событие" — раньше было широким баннером под
+            сеткой, по уточнению пользователя (макет) должно быть обычной
+            плиткой сетки, просто с другой раскладкой внутри (иконка слева
+            + текст справа, не иконка сверху) и градиентным фоном вместо
+            белого. Ведёт прямо в мастер создания — без проверки "пусто
+            ли" (та проверка осмысленна только для категорий, где смотрят
+            готовые встречи ДРУГИХ людей). */}
+        <button
+          onClick={() => router.push("/create")}
+          className="flex items-center gap-2 rounded-card p-4 text-left shadow-card active:scale-[0.98]"
+          style={{ background: "linear-gradient(135deg, #6445FB, #7A9CFA)" }}
+        >
+          <div className="relative h-11 w-11 shrink-0">
+            <Image src="/brand/3d/create-event-icon.png" alt="" fill className="rounded-xl object-cover" sizes="44px" />
+          </div>
+          <span className="text-sm font-medium leading-tight text-white">Создай своё событие</span>
+        </button>
 
         {/* "Другое" — не категория из базы, а прямой переход в раздел
             "Встречи" (экран /search, тот же, что открывается по центру
