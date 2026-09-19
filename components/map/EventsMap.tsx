@@ -73,16 +73,10 @@ const MARKER_BY_SLUG: Record<string, string> = {
   breakfast: "/brand/markers/marker-breakfast.svg",
   dinner: "/brand/markers/marker-dinner.svg",
   walk: "/brand/markers/marker-walk.svg",
-  custom: "/brand/markers/marker-custom.svg",
+  custom: "/brand/markers/marker-custom-proposal.png",
 };
-const FALLBACK_MARKER = "/brand/markers/marker-custom.svg";
+const FALLBACK_MARKER = "/brand/markers/marker-custom-proposal.png";
 const MARKER_ASPECT = 288 / 256; // высота/ширина viewBox маркера
-// "Своё предложение" (custom) — единственный маркер, где в самом файле
-// цельная растровая картинка пина с заметным пустым полем по краям (у
-// остальных категорий — векторный пин почти без полей + маленькая
-// иконка внутри). При одинаковой рамке видимая часть пина у custom
-// заметно мельче — компенсируем увеличенным размером именно для него.
-const CUSTOM_MARKER_SCALE = 1.35;
 
 /**
  * Круглый счётчик встреч — из пакета MESTO_MAP_CLUSTERS (cluster.css/.js):
@@ -250,18 +244,25 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
         // иконки "Своё предложение" на главном экране).
         const src = event.isBusiness ? "/brand/markers/marker-business.png" : MARKER_BY_SLUG[event.category?.slug ?? ""] ?? FALLBACK_MARKER;
         const isCustom = !event.isBusiness && src === FALLBACK_MARKER;
-        const width = event.isBusiness ? 60 : isCustom ? Math.round(46 * CUSTOM_MARKER_SCALE) : 46;
-        // marker-business.png — квадратный кадр (1:1), а не пропорция
-        // 288/256, как у остальных SVG-пинов — раньше высота считалась по
-        // чужой пропорции, отсюда и вытянутый вид.
-        const height = event.isBusiness ? width : Math.round(width * MARKER_ASPECT);
+        // Новая иконка "Своё предложение" (marker-custom-proposal.png) —
+        // полноценный пин без лишних полей по краям, как и у остальных
+        // категорий, поэтому больше не нужно компенсировать размер
+        // (раньше здесь был CUSTOM_MARKER_SCALE=1.35 — это было для СТАРОГО
+        // файла с большими прозрачными полями).
+        const width = event.isBusiness ? 60 : 46;
+        // marker-business.png — квадратный кадр (1:1); marker-custom-proposal.png —
+        // своя пропорция (1374/1145 ≈ 1.2), отличная от 288/256 у остальных
+        // SVG-пинов — раньше высота у бизнеса считалась по чужой пропорции,
+        // отсюда был вытянутый вид.
+        const height = event.isBusiness ? width : Math.round(width * (isCustom ? 1229 / 944 : MARKER_ASPECT));
         // "Кончик" пина в самой картинке — не у самого низа (y≈269 из 288
         // высоты viewBox), а чуть выше. Без явного сдвига библиотека карт
         // ставит ЛЕВЫЙ ВЕРХНИЙ угол элемента в точку координаты — из-за
         // этого пин визуально "съезжал" с адреса вместо того, чтобы точно
         // указывать на него своим кончиком. У marker-business.png кончик
-        // в другом месте (≈95.2% высоты) — свой отдельный расчёт.
-        const tipRatioY = event.isBusiness ? 0.952 : 269 / 288;
+        // в другом месте (≈95.2% высоты), у marker-custom-proposal.png —
+        // после обрезки пустых полей кончик почти у самого низа (≈99.3%).
+        const tipRatioY = event.isBusiness ? 0.952 : isCustom ? 0.993 : 269 / 288;
         el.style.cssText = `position:relative;width:${width}px;height:${height}px;cursor:pointer;transform:translate(-50%, -${(tipRatioY * 100).toFixed(2)}%);transform-origin:bottom center;`;
         el.innerHTML = `<img src="${src}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.25));" />`;
         el.addEventListener("click", () => onSelectRef.current([event]));
