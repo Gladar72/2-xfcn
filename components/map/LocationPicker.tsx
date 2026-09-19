@@ -24,11 +24,23 @@ interface LocationPickerProps {
    * может оказаться заметно меньше, чем кажется по вёрстке.
    */
   heightPx?: number;
+  /** Иконка маркера — своя для "Для бизнеса" (см. явное уточнение
+   * пользователя: значок выбора места должен меняться вместе с типом
+   * события), по умолчанию — обычный пин "Своё предложение". */
+  markerIconSrc?: string;
 }
 
 const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень
+const DEFAULT_MARKER_ICON = "/brand/markers/marker-custom-proposal.png";
 
-export function LocationPicker({ initialCenter, onPick, onAddressResolved, externalCoords, heightPx }: LocationPickerProps) {
+export function LocationPicker({
+  initialCenter,
+  onPick,
+  onAddressResolved,
+  externalCoords,
+  heightPx,
+  markerIconSrc = DEFAULT_MARKER_ICON,
+}: LocationPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onPickRef = useRef(onPick);
   onPickRef.current = onPick;
@@ -77,9 +89,14 @@ export function LocationPicker({ initialCenter, onPick, onAddressResolved, exter
         if (markerRef.current?.update) {
           markerRef.current.update({ coordinates });
         } else {
+          // Пропорции разные у разных иконок — свой пин почти квадратный
+          // (после обрезки полей ≈944×1229 ≈ h/w 1.3), у бизнес-пина 1:1.
+          // Без этого расчёта картинка растягивалась бы в чужую пропорцию.
+          const width = 32;
+          const height = markerIconSrc.includes("marker-business") ? width : Math.round(width * (1229 / 944));
           const el = document.createElement("div");
-          el.style.cssText = "width:32px;height:36px;transform:translateY(-18px);filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));";
-          el.innerHTML = '<img src="/brand/markers/marker-custom.svg" alt="" width="32" height="36" style="display:block;width:100%;height:100%;" />';
+          el.style.cssText = `width:${width}px;height:${height}px;transform:translateY(-${height / 2}px);filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));`;
+          el.innerHTML = `<img src="${markerIconSrc}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;" />`;
           markerRef.current = new YMapMarker({ coordinates, source: "picker-source" }, el) as {
             update?: (props: unknown) => void;
           };
