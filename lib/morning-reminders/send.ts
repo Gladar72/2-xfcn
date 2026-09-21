@@ -1,18 +1,12 @@
 import { GrammyError } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
-import { getCityUtcOffset } from "@/lib/data/city-timezones";
 import { pickNextMessage, type ReminderHistoryEntry } from "@/lib/morning-reminders/pick-message";
 
 // Сколько времени после запланированного момента ещё можно отправить
 // сообщение (например, cron не успел на предыдущем тике) — но не позже
 // конца утреннего окна пользователя, чтобы не "переносить на ночь" (см. ТЗ).
 const LATE_SEND_GRACE_MINUTES = 30;
-
-function localDateKey(utcDate: Date, offsetHours: number): string {
-  const local = new Date(utcDate.getTime() + offsetHours * 60 * 60 * 1000);
-  return `${local.getUTCFullYear()}-${local.getUTCMonth()}-${local.getUTCDate()}`;
-}
 
 /**
  * Отправляет все "созревшие" (scheduled_at <= сейчас) напоминания со
@@ -56,8 +50,6 @@ export async function sendDueMorningReminders(admin: ReturnType<typeof createAdm
       continue;
     }
 
-    const offsetHours = getCityUtcOffset(user.city);
-
     // "Пропущенные сообщения не отправляй пачкой и не переноси на ночь" —
     // если момент давно прошёл (за пределами окна + запас), просто
     // отменяем этот слот, а не шлём его посреди дня/ночи.
@@ -69,13 +61,10 @@ export async function sendDueMorningReminders(admin: ReturnType<typeof createAdm
       continue;
     }
 
-    // Уже заходил в приложение сегодня (по местному времени) — не
-    // напоминаем повторно в тот же день.
-    if (user.last_active_at && localDateKey(new Date(user.last_active_at), offsetHours) === localDateKey(now, offsetHours)) {
-      await admin.from("morning_reminders").update({ status: "skipped_active" }).eq("id", reminder.id).eq("status", "pending");
-      skipped++;
-      continue;
-    }
+    // Раньше здесь была проверка "уже заходил сегодня — не напоминаем
+    // повторно" — убрана по явной просьбе пользователя: напоминания
+    // через день должны приходить всем одинаково, вне зависимости от
+    // того, заходил человек в приложение или нет.
 
     // Атомарный захват — если проиграли гонку другому запуску, claimed
     // будет пустым и мы просто идём дальше.
