@@ -8,6 +8,7 @@ import { canCreateMoreEvents, maxGroupSize, PLAN_LIMITS } from "@/lib/subscripti
 import { createEventSchema, type CreateEventInput } from "@/lib/validation/create-event";
 import { notifyN8n } from "@/lib/n8n/notify";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 
 const PAGE_SIZE = 20;
 // Сколько кандидатов тянем из БД до ranking (больше видимого лимита,
@@ -466,11 +467,38 @@ export async function POST(req: NextRequest) {
     role: "organizer",
   });
 
+  // Фото события — пока только для "Для бизнеса" (см. запрос
+  // пользователя). Грузим ПОСЛЕ вставки, т.к. путь в Storage строится
+  // по id события. Ошибка загрузки не должна ронять создание встречи
+  // целиком — просто останется без фото.
+  if (input.isBusiness && input.photoBase64) {
+    const photoResult = await uploadEventPhoto(admin, createdEvent.id, input.photoBase64);
+    if (photoResult.ok) {
+      await admin.from("events").update({ photo_url: photoResult.publicUrl }).eq("id", createdEvent.id);
+    }
+  }
+
   // Подтверждение организатору в Telegram при создании события "Для
   // бизнеса" — по явному запросу пользователя: название, дата/время,
   // короткое описание (если есть), сколько человек и условия участия.
   if (input.isBusiness) {
     await notifyTelegram(currentUser.telegramId, formatBusinessEventCreatedMessage(input));
+
+    // Плюс рассылка ВСЕМ зарегистрированным пользователям в этом же
+    // городе (не только тем, кто интересовался похожими встречами, как
+    // для обычных событий через n8n) — по явному запросу пользователя.
+    // Напрямую через Bot API (notifyTelegram), не через n8n — так это не
+    // зависит от того, настроен ли n8n, и было принято и для уведомления
+    // организатора чуть выше.
+    const cityUsersQuery = await admin
+      .from("users")
+      .select("telegram_id")
+      .eq("city", organizerProfile?.city ?? "")
+      .neq("id", currentUser.userId);
+    const cityTelegramIds = (cityUsersQuery.data ?? []).map((u) => u.telegram_id);
+    await Promise.allSettled(
+      cityTelegramIds.map((telegramId) => notifyTelegram(telegramId, formatBusinessEventBroadcastMessage(input)))
+    );
   }
 
   // Если у админа нет реальной подписки (типичный случай при тестировании),
@@ -579,6 +607,29 @@ function formatBusinessEventCreatedMessage(input: CreateEventInput): string {
     `Участников: до ${input.seatsTotal} чел.`,
     `Условия: ${conditionsLabel}`,
   ].filter((line): line is string => !!line);
+
+  return lines.join("\n");
+}
+
+/**
+ * Текст для рассылки ВСЕМ пользователям города при создании бизнес-события
+ * — отличается от подтверждения организатору (formatBusinessEventCreatedMessage):
+ * это анонс НОВОГО события для остальных, а не личное подтверждение.
+ */
+function formatBusinessEventBroadcastMessage(input: CreateEventInput): string {
+  const dateLabel = new Date(`${input.eventDate}T00:00:00Z`).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+  const timeLabel = input.eventEndTime ? `${input.eventTime}–${input.eventEndTime}` : input.eventTime;
+
+  const lines = [
+    `Новое событие в твоём городе: «${input.title}» 🎉`,
+    `${dateLabel}, ${timeLabel}`,
+    `Место: ${input.placeName}`,
+    `Загляни в раздел «Для бизнеса», чтобы узнать подробности и записаться.`,
+  ];
 
   return lines.join("\n");
 }

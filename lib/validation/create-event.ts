@@ -39,6 +39,15 @@ export const createEventSchema = z.object({
   // Чат — явный выбор организатора, но только когда группа маленькая
   // (<=20) — серверная проверка этого условия в обработчике, не только на схеме.
   hasChat: z.boolean().optional().default(true),
+  // Одна фотография события — пока только для "Для бизнеса", и там она
+  // ОБЯЗАТЕЛЬНА (см. явный запрос пользователя) — проверяется ниже через
+  // superRefine, а не .min(1) прямо здесь, т.к. обязательность зависит
+  // от isBusiness, а не действует всегда.
+  photoBase64: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.isBusiness && !data.photoBase64) {
+    ctx.addIssue({ code: "custom", path: ["photoBase64"], message: "Фото обязательно для событий 'Для бизнеса'" });
+  }
 });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
