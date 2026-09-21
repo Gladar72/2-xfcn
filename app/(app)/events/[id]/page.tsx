@@ -24,6 +24,7 @@ interface EventDetails {
   isBusiness: boolean;
   businessPricingType: "ticket" | "free" | "custom" | null;
   businessPricingDetails: string | null;
+  photoUrl: string | null;
   organizer: {
     id: string;
     name: string;
@@ -310,6 +311,16 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 {event.organizer.completedMeetingsCount} встреч проведено
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Фото события — пока только у "Для бизнеса" (см. запрос
+            пользователя). По центру экрана, между блоком организатора и
+            дальнейшими действиями/кнопкой "Поднять встречу" — именно
+            такое расположение и просили. */}
+        {event.photoUrl && (
+          <div className="relative mb-5 aspect-[4/3] w-full overflow-hidden rounded-card-lg shadow-card">
+            <Image src={event.photoUrl} alt="" fill className="object-cover" sizes="100vw" />
           </div>
         )}
 

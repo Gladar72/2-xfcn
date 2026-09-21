@@ -1,0 +1,2224 @@
+mkdir -p "lib/photos"
+cat > "lib/photos/upload-event-photo.ts" << 'ENDOFFILE'
+import type { createAdminClient } from "@/lib/supabase/admin";
+
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 МБ
+
+export type UploadEventPhotoResult =
+  | { ok: true; publicUrl: string }
+  | { ok: false; error: "photo_too_large" | "photo_upload_failed" | "photo_invalid" };
+
+/**
+ * Одна фотография события (пока только "Для бизнеса", см. запрос
+ * пользователя) — тот же паттерн, что и lib/photos/upload-avatar.ts,
+ * только свой bucket ("event-photos") и путь по id события.
+ */
+export async function uploadEventPhoto(
+  admin: ReturnType<typeof createAdminClient>,
+  eventId: string,
+  dataUrl: string
+): Promise<UploadEventPhotoResult> {
+  const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  const mimeType = match?.[1];
+  const base64Content = match?.[2];
+  if (!mimeType || !base64Content) return { ok: false, error: "photo_invalid" };
+
+  const buffer = Buffer.from(base64Content, "base64");
+
+  if (buffer.byteLength > MAX_PHOTO_BYTES) {
+    return { ok: false, error: "photo_too_large" };
+  }
+
+  const extension = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
+  const path = `${eventId}/${Date.now()}.${extension}`;
+
+  const { error: uploadError } = await admin.storage
+    .from("event-photos")
+    .upload(path, buffer, { contentType: mimeType, upsert: true });
+
+  if (uploadError) {
+    return { ok: false, error: "photo_upload_failed" };
+  }
+
+  const { data } = admin.storage.from("event-photos").getPublicUrl(path);
+  return { ok: true, publicUrl: data.publicUrl };
+}
+ENDOFFILE
+
+mkdir -p "lib/validation"
+cat > "lib/validation/create-event.ts" << 'ENDOFFILE'
+import { z } from "zod";
+
+export const createEventSchema = z.object({
+  // Для обычной встречи — обязательна. Для "Для бизнеса" (isBusiness=true)
+  // категорий из готового списка нет вообще — не требуем её на схеме,
+  // сервер сам подставит служебную категорию для таких событий.
+  categorySlug: z.string().optional().default(""),
+  trainingTypeSlug: z.string().optional(),
+
+  placeName: z.string().trim().min(2, "Укажи место").max(120),
+  address: z.string().trim().max(200).optional().default(""),
+  latitude: z.number().optional(),
+  longitude: z.number().optional(),
+
+  eventDate: z
+    .string()
+    .refine((v) => !Number.isNaN(new Date(v).getTime()), "Некорректная дата"),
+  eventTime: z.string().regex(/^\d{2}:\d{2}$/, "Некорректное время"),
+  eventEndTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/, "Некорректное время")
+    .optional(),
+
+  // Верхняя граница здесь — просто защита от абсурдных значений (опечатка
+  // в лишний ноль и т.п.). Настоящий потолок по тарифу (обычный groupMax
+  // или расширенный businessGroupMax для "Для бизнеса") проверяется ОТДЕЛЬНО
+  // в самом обработчике — см. maxGroupSize() в lib/subscriptions/limits.ts.
+  seatsTotal: z.number().int().min(1, "Минимум 1 участник").max(2000, "Слишком много участников"),
+
+  costType: z.enum(["each_pays", "organizer_treats", "free", "negotiable"]).default("each_pays"),
+
+  title: z.string().trim().min(3, "Слишком коротко").max(100),
+  description: z.string().trim().max(500).optional().default(""),
+
+  // --- "Для бизнеса" (см. ТЗ пользователя) ---
+  isBusiness: z.boolean().optional().default(false),
+  businessPricingType: z.enum(["ticket", "free", "custom"]).optional(),
+  businessPricingDetails: z.string().trim().max(300).optional(),
+  // Чат — явный выбор организатора, но только когда группа маленькая
+  // (<=20) — серверная проверка этого условия в обработчике, не только на схеме.
+  hasChat: z.boolean().optional().default(true),
+  // Одна фотография события — пока только для "Для бизнеса", и там она
+  // ОБЯЗАТЕЛЬНА (см. явный запрос пользователя) — проверяется ниже через
+  // superRefine, а не .min(1) прямо здесь, т.к. обязательность зависит
+  // от isBusiness, а не действует всегда.
+  photoBase64: z.string().optional(),
+}).superRefine((data, ctx) => {
+  if (data.isBusiness && !data.photoBase64) {
+    ctx.addIssue({ code: "custom", path: ["photoBase64"], message: "Фото обязательно для событий 'Для бизнеса'" });
+  }
+});
+
+export type CreateEventInput = z.infer<typeof createEventSchema>;
+
+ENDOFFILE
+
+mkdir -p "app/api/events"
+cat > "app/api/events/route.ts" << 'ENDOFFILE'
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getCurrentUser } from "@/lib/telegram/current-user";
+import { isAdminTelegramId } from "@/lib/admin/is-admin";
+import { rankEvents, type EventForScoring, type SubscriptionPlan } from "@/lib/scoring/rank-events";
+import { getActiveSubscriptionInfo, incrementEventsCreated } from "@/lib/subscriptions/server";
+import { canCreateMoreEvents, maxGroupSize, PLAN_LIMITS } from "@/lib/subscriptions/limits";
+import { createEventSchema, type CreateEventInput } from "@/lib/validation/create-event";
+import { notifyN8n } from "@/lib/n8n/notify";
+import { notifyTelegram } from "@/lib/telegram/notify";
+import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
+
+const PAGE_SIZE = 20;
+// Сколько кандидатов тянем из БД до ranking (больше видимого лимита,
+// чтобы скоринг реально на что-то влиял, а не только на 20 случайных строк).
+const CANDIDATE_POOL_SIZE = 150;
+
+/**
+ * GET /api/events?category=slug&type=slug&city=...&page=0
+ *
+ * Публичная лента опубликованных встреч. Бизнес-правила:
+ * - показываем только status = 'published' и дату/время >= сейчас;
+ * - скрываем встречи заблокированных друг для друга людей;
+ * - ranking считается на backend (service_role, читает subscriptions
+ *   организатора для планового коэффициента — это НЕ видно клиенту напрямую,
+ *   используется только для сортировки, см. lib/scoring/rank-events.ts).
+ */
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const categorySlug = searchParams.get("category");
+  const categorySlugsParam = searchParams.get("categories"); // новое: несколько категорий через запятую (экран поиска)
+  const typeSlug = searchParams.get("type");
+  const page = Math.max(0, Number(searchParams.get("page") ?? 0) || 0);
+  // Новые фильтры экрана поиска (п. запроса пользователя) — все опциональны,
+  // лента (feed) их не передаёт и продолжает работать как раньше.
+  const dateFilter = searchParams.get("date"); // 'today' | 'tomorrow' | 'weekend' | 'any' | 'YYYY-MM-DD'
+  const timeOfDay = searchParams.get("timeOfDay"); // 'morning' | 'day' | 'evening' | 'any'
+  const costTypeParam = searchParams.get("costType"); // одно значение cost_type или 'any'
+  const ageMin = searchParams.get("ageMin") ? Number(searchParams.get("ageMin")) : null;
+  const ageMax = searchParams.get("ageMax") ? Number(searchParams.get("ageMax")) : null;
+  const genderParam = searchParams.get("gender"); // 'male' | 'female' | null (нет фильтра)
+  // "Для бизнеса" — отдельный раздел (/business), НЕ показывается в обычной
+  // ленте/поиске и наоборот: businesss=true показывает ТОЛЬКО такие события.
+  const businessOnly = searchParams.get("business") === "true";
+
+  const currentUser = await getCurrentUser();
+  const admin = createAdminClient();
+
+  // Автозавершение просроченных встреч теперь на Vercel Cron (раз в 5
+  // минут, см. /api/cron/complete-events + vercel.json) — раньше эта
+  // проверка выполнялась прямо здесь, на самом горячем пути приложения,
+  // добавляя лишний поход в базу на каждое открытие ленты.
+
+  let city = searchParams.get("city");
+  let viewerLatitude: number | null = null;
+  let viewerLongitude: number | null = null;
+  let viewerInterestSlugs: string[] = [];
+  let blockedOrganizerIds: string[] = [];
+
+  if (currentUser) {
+    const [{ data: profile }, { data: interestRows }, { data: blockRows }] = await Promise.all([
+      admin.from("users").select("city").eq("id", currentUser.userId).maybeSingle(),
+      admin
+        .from("user_interests")
+        .select("interests(name)")
+        .eq("user_id", currentUser.userId),
+      admin
+        .from("blocks")
+        .select("blocker_id, blocked_id")
+        .or(`blocker_id.eq.${currentUser.userId},blocked_id.eq.${currentUser.userId}`),
+    ]);
+
+    if (!city && profile?.city) city = profile.city;
+    viewerInterestSlugs =
+      interestRows?.map((r) => (r.interests as unknown as { name: string } | null)?.name).filter(
+        (v): v is string => Boolean(v)
+      ) ?? [];
+    blockedOrganizerIds =
+      blockRows?.map((b) =>
+        b.blocker_id === currentUser.userId ? b.blocked_id : b.blocker_id
+      ) ?? [];
+  }
+
+  if (!city) {
+    return NextResponse.json({ error: "city_required" }, { status: 400 });
+  }
+
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  let query = admin
+    .from("events")
+    .select(
+      `
+      id, title, description, city, latitude, longitude, place_name, address,
+      event_date, event_time, event_end_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
+      is_business, has_chat, business_pricing_type, business_pricing_details,
+      category:categories(slug, name, emoji),
+      training_type:training_types(slug, name, emoji),
+      organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count, telegram_id)
+      `
+    )
+    .eq("status", "published")
+    .eq("city", city)
+    .gte("event_date", todayIso)
+    .order("event_date", { ascending: true })
+    .limit(CANDIDATE_POOL_SIZE);
+
+  // "Для бизнеса" (?business=true, сам раздел /business) — показываем
+  // ТОЛЬКО бизнес-события. В остальных случаях (обычная лента, "Интересные
+  // встречи рядом", любые фильтры по категории) бизнес-события НЕ
+  // исключаются — по явному уточнению пользователя, они должны быть видны
+  // везде наравне с обычными. Фильтр по конкретной категории и так
+  // естественно не покажет их там (у всех бизнес-событий служебная
+  // категория "custom", а не выбранная пользователем).
+  if (businessOnly) {
+    query = query.eq("is_business", true);
+  }
+
+  if (categorySlugsParam) {
+    const slugs = categorySlugsParam.split(",").map((s) => s.trim()).filter(Boolean);
+    if (slugs.length > 0) {
+      const { data: categoryRows } = await admin.from("categories").select("id").in("slug", slugs);
+      const ids = (categoryRows ?? []).map((c) => c.id);
+      if (ids.length > 0) query = query.in("category_id", ids);
+    }
+  } else if (categorySlug) {
+    const { data: category } = await admin
+      .from("categories")
+      .select("id")
+      .eq("slug", categorySlug)
+      .maybeSingle();
+    if (category) query = query.eq("category_id", category.id);
+  }
+
+  if (typeSlug) {
+    const { data: trainingType } = await admin
+      .from("training_types")
+      .select("id")
+      .eq("slug", typeSlug)
+      .maybeSingle();
+    if (trainingType) query = query.eq("training_type_id", trainingType.id);
+  }
+
+  if (costTypeParam && costTypeParam !== "any") {
+    query = query.eq("cost_type", costTypeParam);
+  }
+
+  // Дата: конкретный день, либо "выходные" (ближайшие сб/вс от сегодня).
+  if (dateFilter === "today") {
+    query = query.eq("event_date", todayIso);
+  } else if (dateFilter === "tomorrow") {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    query = query.eq("event_date", tomorrow.toISOString().slice(0, 10));
+  } else if (dateFilter === "weekend") {
+    const { from, to } = getUpcomingWeekendRange();
+    query = query.gte("event_date", from).lte("event_date", to);
+  } else if (dateFilter && dateFilter !== "any" && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
+    query = query.eq("event_date", dateFilter);
+  }
+
+  // Время суток: утро/день/вечер по времени начала встречи.
+  if (timeOfDay === "morning") {
+    query = query.gte("event_time", "05:00:00").lt("event_time", "12:00:00");
+  } else if (timeOfDay === "day") {
+    query = query.gte("event_time", "12:00:00").lt("event_time", "18:00:00");
+  } else if (timeOfDay === "evening") {
+    query = query.gte("event_time", "18:00:00").lt("event_time", "23:59:59");
+  }
+
+  const { data: rows, error } = await query;
+  if (error) {
+    console.error("GET /api/events — ошибка запроса к Supabase:", error);
+    return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
+  }
+
+  let visibleRows = (rows ?? []).filter(
+    (row) => !blockedOrganizerIds.includes((row.organizer as unknown as { id: string } | null)?.id ?? "")
+  );
+
+  // Возраст организатора — фильтруется на нашей стороне (не в SQL), т.к.
+  // считается из birth_date, а кандидатов и так не более CANDIDATE_POOL_SIZE.
+  if (ageMin !== null || ageMax !== null) {
+    visibleRows = visibleRows.filter((row) => {
+      const organizer = row.organizer as unknown as { birth_date: string } | null;
+      if (!organizer) return false;
+      const age = calculateAge(organizer.birth_date);
+      if (ageMin !== null && age < ageMin) return false;
+      if (ageMax !== null && age > ageMax) return false;
+      return true;
+    });
+  }
+
+  if (genderParam === "male" || genderParam === "female") {
+    visibleRows = visibleRows.filter((row) => {
+      const organizer = row.organizer as unknown as { gender: string | null } | null;
+      return organizer?.gender === genderParam;
+    });
+  }
+
+  // Подтягиваем активные подписки организаторов одним запросом — для planCoefficient в ranking.
+  const organizerIds = Array.from(
+    new Set(visibleRows.map((r) => (r.organizer as unknown as { id: string } | null)?.id).filter(Boolean))
+  ) as string[];
+
+  const { data: activeSubs } = organizerIds.length
+    ? await admin
+        .from("subscriptions")
+        .select("user_id, plan")
+        .in("user_id", organizerIds)
+        .eq("status", "active")
+    : { data: [] as { user_id: string; plan: SubscriptionPlan }[] };
+
+  const planByOrganizer = new Map<string, SubscriptionPlan>(
+    (activeSubs ?? []).map((s) => [s.user_id, s.plan as SubscriptionPlan])
+  );
+
+  const now = new Date();
+  const scorable: (EventForScoring & { _row: (typeof visibleRows)[number] })[] = visibleRows.map((row) => {
+    const category = row.category as unknown as { slug: string } | null;
+    const trainingType = row.training_type as unknown as { slug: string } | null;
+    const organizer = row.organizer as unknown as { id: string; telegram_id: number } | null;
+    // Админ тестирует приложение без реальной подписки (см. app/api/events/route.ts
+    // POST, app/api/subscriptions/route.ts) — чтобы можно было увидеть, как
+    // выглядит выделение встречи Медиум/Премьер, для него тоже считаем
+    // organizerPlan как "premium", как и везде, где обходятся лимиты тарифа.
+    const organizerPlan: SubscriptionPlan = organizer
+      ? isAdminTelegramId(organizer.telegram_id)
+        ? "premium"
+        : planByOrganizer.get(organizer.id) ?? null
+      : null;
+    return {
+      id: row.id,
+      createdAt: row.created_at,
+      eventDate: row.event_date,
+      eventTime: row.event_time,
+      seatsTotal: row.seats_total,
+      seatsTaken: row.seats_taken,
+      boostedAt: row.boosted_at,
+      organizerPlan,
+      categorySlug: category?.slug ?? "",
+      trainingTypeSlug: trainingType?.slug ?? null,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      _row: row,
+    };
+  });
+
+  const ranked = rankEvents(scorable, {
+    now,
+    viewerLatitude,
+    viewerLongitude,
+    viewerInterestSlugs,
+  });
+
+  const pageStart = page * PAGE_SIZE;
+  const pageItems = ranked.slice(pageStart, pageStart + PAGE_SIZE).map(({ _row, organizerPlan }) => {
+    const organizer = _row.organizer as unknown as {
+      id: string;
+      name: string;
+      avatar_url: string | null;
+      birth_date: string;
+      rating_avg: number;
+      completed_meetings_count: number;
+    } | null;
+    const category = _row.category as unknown as { slug: string; name: string; emoji: string | null } | null;
+    const trainingType = _row.training_type as unknown as { slug: string; name: string; emoji: string | null } | null;
+
+    return {
+      id: _row.id,
+      title: _row.title,
+      description: _row.description,
+      category,
+      trainingType,
+      city: _row.city,
+      placeName: _row.place_name,
+      address: _row.address,
+      eventDate: _row.event_date,
+      eventTime: _row.event_time,
+      eventEndTime: _row.event_end_time,
+      seatsTotal: _row.seats_total,
+      seatsTaken: _row.seats_taken,
+      costType: _row.cost_type,
+      isBusiness: _row.is_business,
+      hasChat: _row.has_chat,
+      businessPricingType: _row.business_pricing_type,
+      businessPricingDetails: _row.business_pricing_details,
+      // Лёгкое визуальное выделение карточки — привилегия тарифов
+      // Медиум и Премьер (см. FEATURES в components/paywall/Paywall.tsx).
+      isHighlighted: organizerPlan === "medium" || organizerPlan === "premium",
+      organizer: organizer
+        ? {
+            id: organizer.id,
+            name: organizer.name,
+            avatarUrl: organizer.avatar_url,
+            age: calculateAge(organizer.birth_date),
+            ratingAvg: organizer.rating_avg,
+            completedMeetingsCount: organizer.completed_meetings_count,
+          }
+        : null,
+    };
+  });
+
+  return NextResponse.json({
+    items: pageItems,
+    page,
+    hasMore: pageStart + PAGE_SIZE < ranked.length,
+  });
+}
+
+function calculateAge(birthDateIso: string): number {
+  const birthDate = new Date(birthDateIso);
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  const monthDiff = now.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
+/** Диапазон ближайших выходных: если сегодня сб/вс — начиная с сегодня, иначе следующие сб-вс. */
+function getUpcomingWeekendRange(): { from: string; to: string } {
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0 = вс, 6 = сб
+
+  if (dayOfWeek === 0) {
+    const iso = today.toISOString().slice(0, 10);
+    return { from: iso, to: iso };
+  }
+
+  const daysUntilSaturday = dayOfWeek === 6 ? 0 : 6 - dayOfWeek;
+  const saturday = new Date(today);
+  saturday.setDate(today.getDate() + daysUntilSaturday);
+  const sunday = new Date(saturday);
+  sunday.setDate(saturday.getDate() + 1);
+  return { from: saturday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) };
+}
+
+/**
+ * POST /api/events
+ * Создание встречи. Проверка подписки и лимита — ВСЕГДА на сервере
+ * (п.26 ТЗ: "нельзя позволять frontend обходить ограничения"), даже если
+ * фронтенд уже проверял то же самое для UX.
+ */
+export async function POST(req: NextRequest) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+
+  const admin = createAdminClient();
+
+  // Админ (ADMIN_TELEGRAM_IDS) тестирует приложение без ограничений подписки —
+  // ни одна проверка лимитов ниже к нему не применяется. Обычные пользователи
+  // по-прежнему проходят полную проверку на сервере, как и раньше (п.26 ТЗ).
+  const isAdmin = isAdminTelegramId(currentUser.telegramId);
+
+  const subscriptionInfo = await getActiveSubscriptionInfo(admin, currentUser.userId);
+  if (!isAdmin) {
+    if (!subscriptionInfo) {
+      return NextResponse.json({ error: "subscription_required" }, { status: 402 });
+    }
+
+    if (!canCreateMoreEvents(subscriptionInfo.plan, subscriptionInfo.eventsCreatedCount)) {
+      return NextResponse.json({ error: "events_limit_reached" }, { status: 403 });
+    }
+  }
+
+  const body = await req.json().catch(() => null);
+  const parsed = createEventSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "validation_failed", issues: parsed.error.flatten() },
+      { status: 422 }
+    );
+  }
+  const input = parsed.data;
+
+  const plan = subscriptionInfo?.plan ?? "premium";
+  const groupMax = maxGroupSize(plan, input.isBusiness);
+  if (!isAdmin && groupMax !== null && input.seatsTotal > groupMax) {
+    return NextResponse.json(
+      { error: "group_size_exceeds_plan", groupMax },
+      { status: 422 }
+    );
+  }
+
+  // Чат для "Для бизнеса" — только при небольшой группе (см. ТЗ: "чат
+  // создаётся для события, где не больше 20 человек"). Проверяем на
+  // сервере, а не только по кнопке в мастере — иначе можно было бы
+  // обойти ограничение прямым запросом к API.
+  const hasChat = input.isBusiness ? input.hasChat && input.seatsTotal <= 20 : true;
+
+  // "Для бизнеса" не привязано ни к одной из 7 обычных категорий —
+  // подставляем служебную категорию "custom" на сервере, не требуя её
+  // от клиента (is_business — вот что реально отличает такие события
+  // при показе/фильтрации, а не сама категория).
+  const categorySlugForLookup = input.isBusiness ? "custom" : input.categorySlug;
+
+  const { data: category } = await admin
+    .from("categories")
+    .select("id")
+    .eq("slug", categorySlugForLookup)
+    .maybeSingle();
+  if (!category) {
+    return NextResponse.json({ error: "invalid_category" }, { status: 422 });
+  }
+
+  let trainingTypeId: string | null = null;
+  if (input.categorySlug === "training") {
+    if (!input.trainingTypeSlug) {
+      return NextResponse.json({ error: "training_type_required" }, { status: 422 });
+    }
+    const { data: trainingType } = await admin
+      .from("training_types")
+      .select("id")
+      .eq("slug", input.trainingTypeSlug)
+      .maybeSingle();
+    if (!trainingType) {
+      return NextResponse.json({ error: "invalid_training_type" }, { status: 422 });
+    }
+    trainingTypeId = trainingType.id;
+  }
+
+  const { data: organizerProfile } = await admin
+    .from("users")
+    .select("city")
+    .eq("id", currentUser.userId)
+    .maybeSingle();
+
+  const { data: createdEvent, error: insertError } = await admin
+    .from("events")
+    .insert({
+      organizer_id: currentUser.userId,
+      category_id: category.id,
+      training_type_id: trainingTypeId,
+      title: input.title,
+      description: input.description,
+      city: organizerProfile?.city ?? "",
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
+      place_name: input.placeName,
+      address: input.address,
+      event_date: input.eventDate,
+      event_time: input.eventTime,
+      event_end_time: input.eventEndTime ?? null,
+      seats_total: input.seatsTotal,
+      seats_taken: 0,
+      cost_type: input.costType,
+      status: "published",
+      is_business: input.isBusiness,
+      business_pricing_type: input.isBusiness ? input.businessPricingType ?? null : null,
+      business_pricing_details: input.isBusiness ? input.businessPricingDetails ?? null : null,
+      has_chat: hasChat,
+    })
+    .select("id")
+    .single();
+
+  if (insertError || !createdEvent) {
+    return NextResponse.json({ error: "create_failed" }, { status: 500 });
+  }
+
+  await admin.from("event_members").insert({
+    event_id: createdEvent.id,
+    user_id: currentUser.userId,
+    role: "organizer",
+  });
+
+  // Фото события — пока только для "Для бизнеса" (см. запрос
+  // пользователя). Грузим ПОСЛЕ вставки, т.к. путь в Storage строится
+  // по id события. Ошибка загрузки не должна ронять создание встречи
+  // целиком — просто останется без фото.
+  if (input.isBusiness && input.photoBase64) {
+    const photoResult = await uploadEventPhoto(admin, createdEvent.id, input.photoBase64);
+    if (photoResult.ok) {
+      await admin.from("events").update({ photo_url: photoResult.publicUrl }).eq("id", createdEvent.id);
+    }
+  }
+
+  // Подтверждение организатору в Telegram при создании события "Для
+  // бизнеса" — по явному запросу пользователя: название, дата/время,
+  // короткое описание (если есть), сколько человек и условия участия.
+  if (input.isBusiness) {
+    await notifyTelegram(currentUser.telegramId, formatBusinessEventCreatedMessage(input));
+
+    // Плюс рассылка ВСЕМ зарегистрированным пользователям в этом же
+    // городе (не только тем, кто интересовался похожими встречами, как
+    // для обычных событий через n8n) — по явному запросу пользователя.
+    // Напрямую через Bot API (notifyTelegram), не через n8n — так это не
+    // зависит от того, настроен ли n8n, и было принято и для уведомления
+    // организатора чуть выше.
+    const cityUsersQuery = await admin
+      .from("users")
+      .select("telegram_id")
+      .eq("city", organizerProfile?.city ?? "")
+      .neq("id", currentUser.userId);
+    const cityTelegramIds = (cityUsersQuery.data ?? []).map((u) => u.telegram_id);
+    await Promise.allSettled(
+      cityTelegramIds.map((telegramId) => notifyTelegram(telegramId, formatBusinessEventBroadcastMessage(input)))
+    );
+  }
+
+  // Если у админа нет реальной подписки (типичный случай при тестировании),
+  // subscriptionInfo будет null — увеличивать счётчик использования нечего.
+  if (subscriptionInfo) {
+    await incrementEventsCreated(admin, subscriptionInfo.subscriptionId, subscriptionInfo.currentPeriodStart);
+  }
+
+  // Workflow 1 (п.27 ТЗ): находим потенциально релевантных пользователей —
+  // та же логика интересов, что и в ranking (lib/scoring), но здесь как
+  // одноразовый список получателей для n8n, а не как скоринг.
+  notifyRelevantUsers(admin, {
+    eventId: createdEvent.id,
+    organizerId: currentUser.userId,
+    city: organizerProfile?.city ?? "",
+    categorySlug: input.categorySlug,
+    trainingTypeSlug: input.trainingTypeSlug ?? null,
+    title: input.title,
+  }).catch(() => {});
+
+  return NextResponse.json({ status: "created", eventId: createdEvent.id });
+}
+
+async function notifyRelevantUsers(
+  admin: ReturnType<typeof createAdminClient>,
+  params: {
+    eventId: string;
+    organizerId: string;
+    city: string;
+    categorySlug: string;
+    trainingTypeSlug: string | null;
+    title: string;
+  }
+) {
+  // "Релевантные пользователи" — те, у кого в интересах есть название
+  // категории или типа тренировки, живут в том же городе, не заблокированы
+  // организатором и не он сам.
+  const interestNames = [params.categorySlug, params.trainingTypeSlug].filter(Boolean) as string[];
+  if (interestNames.length === 0) return;
+
+  const { data: matchingInterests } = await admin.from("interests").select("id, name");
+  const relevantInterestIds = (matchingInterests ?? [])
+    .filter((i) => interestNames.some((n) => i.name.toLowerCase().includes(n.toLowerCase())))
+    .map((i) => i.id);
+  if (relevantInterestIds.length === 0) return;
+
+  const { data: candidateRows } = await admin
+    .from("user_interests")
+    .select("user_id, users!inner(id, telegram_id, city)")
+    .in("interest_id", relevantInterestIds);
+
+  const { data: blocks } = await admin
+    .from("blocks")
+    .select("blocker_id, blocked_id")
+    .or(`blocker_id.eq.${params.organizerId},blocked_id.eq.${params.organizerId}`);
+  const blockedIds = new Set(
+    (blocks ?? []).map((b) => (b.blocker_id === params.organizerId ? b.blocked_id : b.blocker_id))
+  );
+
+  const recipients = Array.from(
+    new Map(
+      (candidateRows ?? [])
+        .map((r) => r.users as unknown as { id: string; telegram_id: number; city: string } | null)
+        .filter(
+          (u): u is { id: string; telegram_id: number; city: string } =>
+            !!u && u.id !== params.organizerId && u.city === params.city && !blockedIds.has(u.id)
+        )
+        .map((u) => [u.id, u.telegram_id])
+    ).values()
+  );
+
+  if (recipients.length === 0) return;
+
+  await notifyN8n("event-created", {
+    eventId: params.eventId,
+    title: params.title,
+    telegramIds: recipients,
+  });
+}
+
+/**
+ * Подтверждение создания бизнес-события — организатору в Telegram сразу
+ * после публикации (см. явный запрос пользователя): название, дата и
+ * время, короткое описание (если есть), сколько человек и условия участия.
+ */
+function formatBusinessEventCreatedMessage(input: CreateEventInput): string {
+  const dateLabel = new Date(`${input.eventDate}T00:00:00Z`).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+  const timeLabel = input.eventEndTime ? `${input.eventTime}–${input.eventEndTime}` : input.eventTime;
+
+  const conditionsLabel =
+    input.businessPricingType === "ticket"
+      ? `Билет: ${input.businessPricingDetails}`
+      : input.businessPricingType === "custom"
+        ? input.businessPricingDetails ?? "Свои условия"
+        : "Бесплатно";
+
+  const lines = [
+    `Событие «${input.title}» создано ✅`,
+    `${dateLabel}, ${timeLabel}`,
+    `Место: ${input.placeName}`,
+    input.description ? input.description : null,
+    `Участников: до ${input.seatsTotal} чел.`,
+    `Условия: ${conditionsLabel}`,
+  ].filter((line): line is string => !!line);
+
+  return lines.join("\n");
+}
+
+/**
+ * Текст для рассылки ВСЕМ пользователям города при создании бизнес-события
+ * — отличается от подтверждения организатору (formatBusinessEventCreatedMessage):
+ * это анонс НОВОГО события для остальных, а не личное подтверждение.
+ */
+function formatBusinessEventBroadcastMessage(input: CreateEventInput): string {
+  const dateLabel = new Date(`${input.eventDate}T00:00:00Z`).toLocaleDateString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    timeZone: "UTC",
+  });
+  const timeLabel = input.eventEndTime ? `${input.eventTime}–${input.eventEndTime}` : input.eventTime;
+
+  const lines = [
+    `Новое событие в твоём городе: «${input.title}» 🎉`,
+    `${dateLabel}, ${timeLabel}`,
+    `Место: ${input.placeName}`,
+    `Загляни в раздел «Для бизнеса», чтобы узнать подробности и записаться.`,
+  ];
+
+  return lines.join("\n");
+}
+ENDOFFILE
+
+mkdir -p "app/api/events/[id]"
+cat > "app/api/events/[id]/route.ts" << 'ENDOFFILE'
+import { NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getCurrentUser } from "@/lib/telegram/current-user";
+import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
+
+/**
+ * GET /api/events/[id]
+ * Полная информация о встрече для экрана "Детали встречи" — открывается
+ * по клику на карточку в ленте или на маркер на карте.
+ */
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  const { id: eventId } = params;
+  const currentUser = await getCurrentUser();
+  const admin = createAdminClient();
+
+  const { data: event, error } = await admin
+    .from("events")
+    .select(
+      `
+      id, title, description, city, latitude, longitude, place_name, address,
+      event_date, event_time, event_end_time, seats_total, seats_taken, status, organizer_id,
+      cost_type, is_business, business_pricing_type, business_pricing_details, has_chat, photo_url,
+      category:categories(slug, name, emoji),
+      training_type:training_types(slug, name, emoji),
+      organizer:users(id, name, avatar_url, birth_date, rating_avg, completed_meetings_count)
+      `
+    )
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (error || !event) return NextResponse.json({ error: "not_found" }, { status: 404 });
+
+  const organizerRow = event.organizer as unknown as {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    birth_date: string;
+    rating_avg: number;
+    completed_meetings_count: number;
+  } | null;
+
+  const { data: memberRows } = await admin
+    .from("event_members")
+    .select("role, user:users(id, name, avatar_url)")
+    .eq("event_id", eventId)
+    .eq("role", "participant");
+
+  const participants = (memberRows ?? []).map((m) => {
+    const user = m.user as unknown as { id: string; name: string; avatar_url: string | null };
+    return { id: user.id, name: user.name, avatarUrl: user.avatar_url };
+  });
+
+  let viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none" = "none";
+  if (currentUser) {
+    if (event.organizer_id === currentUser.userId) {
+      viewerStatus = "organizer";
+    } else {
+      const { data: application } = await admin
+        .from("applications")
+        .select("status")
+        .eq("event_id", eventId)
+        .eq("user_id", currentUser.userId)
+        .maybeSingle();
+      if (application?.status === "accepted") viewerStatus = "accepted";
+      else if (application?.status === "pending") viewerStatus = "pending";
+      else if (application?.status === "rejected") viewerStatus = "rejected";
+    }
+  }
+
+  return NextResponse.json({
+    id: event.id,
+    title: event.title,
+    description: event.description,
+    category: event.category,
+    trainingType: event.training_type,
+    city: event.city,
+    placeName: event.place_name,
+    address: event.address,
+    latitude: event.latitude,
+    longitude: event.longitude,
+    eventDate: event.event_date,
+    eventTime: event.event_time,
+    eventEndTime: event.event_end_time,
+    seatsTotal: event.seats_total,
+    seatsTaken: event.seats_taken,
+    status: event.status,
+    costType: event.cost_type,
+    isBusiness: event.is_business,
+    businessPricingType: event.business_pricing_type,
+    businessPricingDetails: event.business_pricing_details,
+    hasChat: event.has_chat,
+    photoUrl: event.photo_url,
+    organizer: organizerRow
+      ? {
+          id: organizerRow.id,
+          name: organizerRow.name,
+          avatarUrl: organizerRow.avatar_url,
+          age: calculateAge(organizerRow.birth_date),
+          ratingAvg: organizerRow.rating_avg,
+          completedMeetingsCount: organizerRow.completed_meetings_count,
+        }
+      : null,
+    participants,
+    viewerStatus,
+  });
+}
+
+function calculateAge(birthDateIso: string): number {
+  const birthDate = new Date(birthDateIso);
+  const now = new Date();
+  let age = now.getFullYear() - birthDate.getFullYear();
+  const monthDiff = now.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < birthDate.getDate())) age--;
+  return age;
+}
+
+/**
+ * PATCH /api/events/[id]
+ * Body: { action: "cancel" }
+ *
+ * Отмена своей встречи организатором. По запросу пользователя: "при отмене
+ * встреча не списывается с баланса" — возвращаем счётчик "создано встреч за
+ * период" назад (best-effort: против ТЕКУЩЕЙ активной подписки организатора,
+ * а не обязательно той же, что была на момент создания — в подавляющем
+ * большинстве случаев это один и тот же период).
+ */
+export async function PATCH(req: Request, { params }: { params: { id: string } }) {
+  const { id: eventId } = params;
+  const currentUser = await getCurrentUser();
+  if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  if (body?.action !== "cancel") {
+    return NextResponse.json({ error: "unknown_action" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+
+  const { data: event } = await admin
+    .from("events")
+    .select("id, organizer_id, status")
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (!event) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (event.organizer_id !== currentUser.userId) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+  if (event.status !== "published" && event.status !== "closed") {
+    return NextResponse.json({ error: "cannot_cancel" }, { status: 422 });
+  }
+
+  await admin.from("events").update({ status: "cancelled" }).eq("id", eventId);
+
+  const subscriptionInfo = await getActiveSubscriptionInfo(admin, currentUser.userId);
+  if (subscriptionInfo) {
+    await admin.rpc("decrement_subscription_usage_field", {
+      p_subscription_id: subscriptionInfo.subscriptionId,
+      p_period_start: subscriptionInfo.currentPeriodStart,
+      p_field: "events_created_count",
+    });
+  }
+
+  return NextResponse.json({ status: "cancelled" });
+}
+ENDOFFILE
+
+mkdir -p "app/(app)/events/[id]"
+cat > "app/(app)/events/[id]/page.tsx" << 'ENDOFFILE'
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
+import { ApplicantCard, type ApplicantCardData } from "@/components/applications/ApplicantCard";
+
+interface EventDetails {
+  id: string;
+  title: string;
+  description: string | null;
+  category: { slug: string; name: string; emoji: string | null } | null;
+  trainingType: { slug: string; name: string; emoji: string | null } | null;
+  placeName: string | null;
+  address: string | null;
+  eventDate: string;
+  eventTime: string;
+  eventEndTime: string | null;
+  seatsTotal: number;
+  seatsTaken: number;
+  status: string;
+  costType: string | null;
+  isBusiness: boolean;
+  businessPricingType: "ticket" | "free" | "custom" | null;
+  businessPricingDetails: string | null;
+  photoUrl: string | null;
+  organizer: {
+    id: string;
+    name: string;
+    avatarUrl: string | null;
+    age: number;
+    ratingAvg: number;
+    completedMeetingsCount: number;
+  } | null;
+  participants: { id: string; name: string; avatarUrl: string | null }[];
+  viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none";
+}
+
+interface EventDetailsPageProps {
+  // Next.js 14 (в этом проекте) — params плоский объект, НЕ Promise.
+  // См. пояснение в app/chats/[id]/page.tsx про баг с use(params).
+  params: { id: string };
+}
+
+const CATEGORY_ICON: Record<string, string> = {
+  training: "/brand/3d/workout.png",
+  cinema: "/brand/3d/movie.png",
+  coffee: "/brand/3d/coffee.png",
+  breakfast: "/brand/3d/breakfast.png",
+  dinner: "/brand/3d/dinner.png",
+  walk: "/brand/3d/walk.png",
+  custom: "/brand/3d/custom-proposal.png",
+};
+
+export default function EventDetailsPage({ params }: EventDetailsPageProps) {
+  const { id: eventId } = params;
+  const router = useRouter();
+
+  const [event, setEvent] = useState<EventDetails | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+  const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [boosting, setBoosting] = useState(false);
+  const [boostMessage, setBoostMessage] = useState<string | null>(null);
+  const [pendingApplicants, setPendingApplicants] = useState<ApplicantCardData[]>([]);
+  const [processingApplicantId, setProcessingApplicantId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/events/${eventId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.error) {
+          setError("Встреча не найдена.");
+          return;
+        }
+        setEvent(data);
+        // Заявки на СВОЮ встречу показываем прямо здесь, сразу как только
+        // организатор открыл событие — не нужно проваливаться ещё на один
+        // экран "Управлять заявками", чтобы увидеть и принять новых людей.
+        if (data.viewerStatus === "organizer") {
+          loadPendingApplicants();
+        }
+      })
+      .finally(() => setLoading(false));
+  }, [eventId]);
+
+  function loadPendingApplicants() {
+    fetch(`/api/events/${eventId}/applications`)
+      .then((r) => r.json())
+      .then((data) => {
+        const items = (data.applications ?? []) as ApplicantCardData[];
+        setPendingApplicants(items.filter((a) => a.status === "pending"));
+      })
+      .catch(() => {});
+  }
+
+  async function handleApplicantDecision(applicationId: string, action: "accept" | "reject") {
+    setProcessingApplicantId(applicationId);
+    try {
+      const res = await fetch(`/api/applications/${applicationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        loadPendingApplicants();
+        // Обновляем и саму встречу — seatsTaken и статус (могла закрыться,
+        // если это было последнее место).
+        fetch(`/api/events/${eventId}`)
+          .then((r) => r.json())
+          .then((data) => !data.error && setEvent(data));
+      }
+    } finally {
+      setProcessingApplicantId(null);
+    }
+  }
+
+  async function handleApply() {
+    setApplying(true);
+    try {
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(
+          data.error === "event_full"
+            ? "Мест больше нет."
+            : data.error === "cannot_apply_to_own_event"
+              ? "Это твоя собственная встреча."
+              : data.error === "applications_limit_reached"
+                ? "Лимит откликов на встречи по твоему тарифу исчерпан за этот период — загляни в раздел «Подписка», чтобы поднять лимит."
+                : "Не получилось отправить отклик."
+        );
+        return;
+      }
+      setEvent((prev) => (prev ? { ...prev, viewerStatus: "pending" } : prev));
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  async function handleCancel() {
+    setCancelling(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+      if (res.ok) {
+        setEvent((prev) => (prev ? { ...prev, status: "cancelled" } : prev));
+        setConfirmingCancel(false);
+      } else {
+        setError("Не получилось отменить встречу.");
+      }
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+  async function handleBoost() {
+    setBoosting(true);
+    setBoostMessage(null);
+    try {
+      const res = await fetch("/api/boosts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ eventId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setBoostMessage(
+          data.error === "subscription_required"
+            ? "Нужна подписка, чтобы поднимать встречи."
+            : data.error === "boost_limit_reached"
+              ? "Лимит подъёмов на этот месяц исчерпан."
+              : "Не получилось поднять встречу."
+        );
+        return;
+      }
+      setBoostMessage(
+        data.boostsLimit != null
+          ? `Встреча поднята! Использовано ${data.boostsUsed} из ${data.boostsLimit} в этом месяце.`
+          : "Встреча поднята!"
+      );
+    } finally {
+      setBoosting(false);
+      setTimeout(() => setBoostMessage(null), 4000);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-ink-600">Загрузка...</p>
+      </div>
+    );
+  }
+
+  if (error && !event) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
+        <p className="text-sm text-red-600">{error}</p>
+        <Link href="/feed" className="text-sm font-medium text-accent">
+          Вернуться на главную
+        </Link>
+      </div>
+    );
+  }
+  if (!event) return null;
+
+  const categoryLabel = event.isBusiness ? "Бизнес событие" : event.trainingType?.name ?? event.category?.name;
+  const categoryIcon = event.isBusiness ? "/brand/markers/marker-business.png" : event.category ? CATEGORY_ICON[event.category.slug] : undefined;
+  const seatsLeft = event.seatsTotal - event.seatsTaken;
+  const isFull = seatsLeft <= 0;
+
+  return (
+    <div className="pb-28">
+      <div className="flex items-center gap-3 px-5 pt-4">
+        <button onClick={() => router.back()} aria-label="Назад">
+          <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
+        </button>
+      </div>
+
+      <div className="px-5 pt-4">
+        <div className="mb-2 flex items-center gap-1.5 text-sm font-medium text-accent">
+          {categoryIcon ? (
+            <div className="relative h-5 w-5 shrink-0">
+              <Image src={categoryIcon} alt="" fill className="object-contain" sizes="20px" />
+            </div>
+          ) : (
+            <span>{event.category?.emoji}</span>
+          )}
+          <span>{categoryLabel}</span>
+        </div>
+
+        <h1 className="text-display mb-3">{event.title}</h1>
+
+        <div className="mb-4 space-y-1.5 text-sm text-ink-600">
+          <p>
+            {formatDate(event.eventDate)} ·{" "}
+            {event.eventEndTime
+              ? `${event.eventTime.slice(0, 5)}–${event.eventEndTime.slice(0, 5)}`
+              : event.eventTime.slice(0, 5)}
+          </p>
+          {event.placeName && (
+            <p>
+              {event.placeName}
+              {event.address ? `, ${event.address}` : ""}
+            </p>
+          )}
+          <p>{isFull ? "Мест нет" : `Свободно мест: ${seatsLeft} из ${event.seatsTotal}`}</p>
+          {event.isBusiness && (
+            <p>
+              {event.businessPricingType === "ticket"
+                ? `Билет: ${event.businessPricingDetails}`
+                : event.businessPricingType === "custom"
+                  ? event.businessPricingDetails
+                  : "Бесплатно"}
+            </p>
+          )}
+        </div>
+
+        {event.participants.length > 0 && (
+          <div className="mb-4 flex items-center gap-2">
+            <div className="flex -space-x-2">
+              {event.participants.slice(0, 5).map((p) => (
+                <div
+                  key={p.id}
+                  className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-xs font-semibold text-ink-600"
+                >
+                  {p.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={p.avatarUrl} alt={p.name} className="h-full w-full object-cover" />
+                  ) : (
+                    p.name.charAt(0).toUpperCase()
+                  )}
+                </div>
+              ))}
+            </div>
+            <span className="text-xs text-ink-600">
+              {event.participants.length} {pluralizeParticipants(event.participants.length)}
+            </span>
+          </div>
+        )}
+
+        {event.description && <p className="mb-5 text-sm text-ink-900">{event.description}</p>}
+
+        {event.organizer && (
+          <div className="mb-5 flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
+            <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
+              {event.organizer.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={event.organizer.avatarUrl} alt={event.organizer.name} className="h-full w-full object-cover" />
+              ) : (
+                event.organizer.name.charAt(0).toUpperCase()
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-ink-900">
+                {event.organizer.name}, {event.organizer.age}
+              </p>
+              <p className="text-xs text-ink-600">
+                {event.organizer.ratingAvg > 0 ? `⭐ ${event.organizer.ratingAvg.toFixed(1)} · ` : ""}
+                {event.organizer.completedMeetingsCount} встреч проведено
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Фото события — пока только у "Для бизнеса" (см. запрос
+            пользователя). По центру экрана, между блоком организатора и
+            дальнейшими действиями/кнопкой "Поднять встречу" — именно
+            такое расположение и просили. */}
+        {event.photoUrl && (
+          <div className="relative mb-5 aspect-[4/3] w-full overflow-hidden rounded-card-lg shadow-card">
+            <Image src={event.photoUrl} alt="" fill className="object-cover" sizes="100vw" />
+          </div>
+        )}
+
+        {error && <p className="mb-3 text-center text-sm text-red-600">{error}</p>}
+
+        {event.status === "cancelled" && (
+          <div className="mb-3 rounded-card bg-red-50 p-4 text-center text-sm text-red-600">
+            Эта встреча отменена организатором.
+          </div>
+        )}
+
+        {event.viewerStatus === "organizer" &&
+          (event.status === "published" || event.status === "closed") && (
+          <div className="mb-3 space-y-3">
+            {event.status === "published" && pendingApplicants.length > 0 && (
+              <div className="rounded-card bg-white p-4 shadow-card">
+                <h3 className="mb-3 text-sm font-semibold text-ink-900">
+                  Новые заявки ({pendingApplicants.length})
+                </h3>
+                <div className="space-y-3">
+                  {pendingApplicants.map((app) => (
+                    <ApplicantCard
+                      key={app.id}
+                      application={app}
+                      onAccept={(id) => handleApplicantDecision(id, "accept")}
+                      onReject={(id) => handleApplicantDecision(id, "reject")}
+                      processing={processingApplicantId === app.id}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* "Поднять встречу" имеет смысл только пока идёт набор — для
+                забитой (closed) встречи мест всё равно нет. */}
+            {event.status === "published" && (
+              <>
+                <button
+                  onClick={handleBoost}
+                  disabled={boosting}
+                  className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-3 text-sm font-semibold text-white shadow-cta disabled:opacity-60"
+                >
+                  <span className="text-lg">🚀</span>
+                  {boosting ? "Поднимаем..." : "Поднять встречу"}
+                </button>
+                {boostMessage && <p className="text-center text-xs text-ink-600">{boostMessage}</p>}
+              </>
+            )}
+
+            {/* Отменить встречу — доступно и для забитой (closed) встречи,
+                не только для той, что ещё набирает участников. */}
+            {!confirmingCancel ? (
+              <button
+                onClick={() => setConfirmingCancel(true)}
+                className="w-full text-center text-sm font-medium text-red-600"
+              >
+                Отменить встречу
+              </button>
+            ) : (
+              <div className="rounded-card bg-red-50 p-4 text-center">
+                <p className="mb-3 text-sm text-ink-900">Точно отменить встречу? Лимит тарифа вернётся.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmingCancel(false)}
+                    className="flex-1 rounded-pill bg-white py-2.5 text-sm font-medium text-ink-600 shadow-card"
+                  >
+                    Не отменять
+                  </button>
+                  <button
+                    onClick={handleCancel}
+                    disabled={cancelling}
+                    className="flex-1 rounded-pill bg-red-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                  >
+                    {cancelling ? "Отменяем..." : "Да, отменить"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Кнопка "Управлять заявками" (единственный путь к удалению
+          участника организатором) — тоже нужна и для забитой (closed)
+          встречи, не только для набирающей участников. */}
+      {(event.status === "published" || event.status === "closed") && (
+        <div className="fixed inset-x-0 bottom-24 z-40 px-5">
+          <BottomAction
+            viewerStatus={event.viewerStatus}
+            isFull={isFull}
+            applying={applying}
+            onApply={handleApply}
+            eventId={event.id}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BottomAction({
+  viewerStatus,
+  isFull,
+  applying,
+  onApply,
+  eventId,
+}: {
+  viewerStatus: EventDetails["viewerStatus"];
+  isFull: boolean;
+  applying: boolean;
+  onApply: () => void;
+  eventId: string;
+}) {
+  if (viewerStatus === "organizer") {
+    return (
+      <Link
+        href={`/events/${eventId}/applications`}
+        className="block w-full rounded-pill bg-brand-gradient py-4 text-center text-base font-semibold text-white shadow-cta"
+      >
+        Управлять заявками
+      </Link>
+    );
+  }
+  if (viewerStatus === "accepted") {
+    return (
+      <div className="w-full rounded-pill bg-ink-900 py-4 text-center text-base font-semibold text-white">
+        Ты идёшь ✓
+      </div>
+    );
+  }
+  if (viewerStatus === "pending") {
+    return (
+      <div className="w-full rounded-pill bg-ink-400/10 py-4 text-center text-base font-semibold text-ink-600">
+        Отклик отправлен
+      </div>
+    );
+  }
+  if (viewerStatus === "rejected") {
+    return (
+      <div className="w-full rounded-pill bg-ink-400/10 py-4 text-center text-base font-semibold text-ink-400">
+        Отклонено
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={onApply}
+      disabled={isFull || applying}
+      className="w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta disabled:opacity-40"
+    >
+      {isFull ? "Мест нет" : applying ? "Отправляем..." : "Я иду"}
+    </button>
+  );
+}
+
+function formatDate(dateIso: string): string {
+  return new Date(dateIso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+function pluralizeParticipants(count: number): string {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return "человек идёт";
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return "человека идут";
+  return "человек идут";
+}
+ENDOFFILE
+
+mkdir -p "components/create-event"
+cat > "components/create-event/CreateEventWizard.tsx" << 'ENDOFFILE'
+"use client";
+
+import Image from "next/image";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/Button";
+import { StepProgress } from "@/components/ui/StepProgress";
+import { LocationPicker } from "@/components/map/LocationPicker";
+import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
+import { getInitData, useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
+import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
+import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
+
+interface Category {
+  id: string;
+  slug: string;
+  name: string;
+  emoji: string | null;
+}
+interface TrainingType {
+  id: string;
+  slug: string;
+  name: string;
+  emoji: string | null;
+}
+
+type Step =
+  | "category"
+  | "trainingType"
+  | "businessTitle"
+  | "where"
+  | "when"
+  | "time"
+  | "seats"
+  | "cost"
+  | "businessCost"
+  | "businessPhoto"
+  | "chat"
+  | "details"
+  | "review";
+
+const DATE_PRESETS = [
+  { label: "Сегодня", offsetDays: 0 },
+  { label: "Завтра", offsetDays: 1 },
+];
+
+// 3D-иконки категорий МЕСТО — тот же комплект, что на главном экране и в карточках встреч.
+const CATEGORY_ICON: Record<string, string> = {
+  training: "/brand/3d/workout.png",
+  cinema: "/brand/3d/movie.png",
+  coffee: "/brand/3d/coffee.png",
+  breakfast: "/brand/3d/breakfast.png",
+  dinner: "/brand/3d/dinner.png",
+  walk: "/brand/3d/walk.png",
+  custom: "/brand/3d/create-event-icon.png",
+};
+
+// Компактный размер полей — весь шаг (включая карту и кнопку "Далее")
+// должен помещаться на экране телефона без прокрутки страницы.
+// min-w-0 + box-border обязательны: без них нативные <input type="date">
+// и <input type="time"> на iOS игнорируют w-full и вылезают за край экрана
+// (у flex-элементов по умолчанию min-width:auto, из-за чего браузер не
+// сжимает их внутреннюю "родную" ширину до ширины контейнера).
+const inputClass =
+  "block w-full max-w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-3 text-base text-ink-900 outline-none focus:border-accent";
+
+/** "HH:MM" → минуты от начала суток. */
+function timeToMinutes(t: string): number {
+  const parts = t.split(":");
+  const h = Number(parts[0] ?? 0);
+  const m = Number(parts[1] ?? 0);
+  return h * 60 + m;
+}
+
+/** dateIso ("YYYY-MM-DD") + n дней, тоже как "YYYY-MM-DD". */
+function addDaysToIso(dateIso: string, days: number): string {
+  const d = new Date(`${dateIso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatFullDate(dateIso: string): string {
+  const d = new Date(`${dateIso}T00:00:00Z`);
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" });
+}
+
+export function CreateEventWizard() {
+  const router = useRouter();
+  useLockBodyScroll();
+  const searchParams = useSearchParams();
+  const preselectedCategory = searchParams.get("category");
+  const preselectedTrainingType = searchParams.get("type");
+  // "Для бизнеса" (см. кнопка на главном экране) — отдельная ветка мастера:
+  // без готовых категорий, свой шаг про расходы (билет/бесплатно/свои
+  // условия), свой лимит на размер группы и явный выбор "создавать чат?".
+  const isBusiness = searchParams.get("business") === "true";
+  const telegramViewportHeight = useTelegramViewportHeight();
+  const visualViewportHeight = useVisualViewportHeight();
+  const liveHeight = visualViewportHeight ?? telegramViewportHeight;
+
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
+
+  const [stepIndex, setStepIndex] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [categorySlug, setCategorySlug] = useState<string | null>(preselectedCategory);
+  const [trainingTypeSlug, setTrainingTypeSlug] = useState<string | null>(preselectedTrainingType);
+  const [placeName, setPlaceName] = useState("");  const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | undefined>();
+  const [longitude, setLongitude] = useState<number | undefined>();
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [pickedFromAddress, setPickedFromAddress] = useState<{ latitude: number; longitude: number } | null>(null);
+  // true сразу после того, как адрес выставлен программно (обратное
+  // геокодирование по клику на карте или выбор подсказки) — тогда не надо
+  // запускать поиск подсказок заново, это привело бы к бесконечному циклу.
+  const suppressAddressSearchRef = useRef(false);
+
+  // Карта на шаге "Где?" — пока не введено название места, чуть компактнее;
+  // как только оно появляется, карта расширяется (шире и выше) и
+  // открывается поле адреса — по явному запросу пользователя: сначала
+  // называешь место, потом уже точный адрес и увеличенная карта для точной
+  // отметки.
+  const mapHeight = liveHeight
+    ? Math.round(liveHeight * (placeName.trim().length > 0 ? 0.58 : 0.34))
+    : placeName.trim().length > 0
+      ? 360
+      : 220;
+
+  useEffect(() => {
+    if (suppressAddressSearchRef.current) {
+      suppressAddressSearchRef.current = false;
+      return;
+    }
+    if (address.trim().length < 3) {
+      setAddressSuggestions([]);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      searchAddress(address).then(setAddressSuggestions);
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [address]);
+
+  function handlePickAddressSuggestion(s: AddressSuggestion) {
+    suppressAddressSearchRef.current = true;
+    setAddress(s.address);
+    setLatitude(s.latitude);
+    setLongitude(s.longitude);
+    setPickedFromAddress({ latitude: s.latitude, longitude: s.longitude });
+    setAddressSuggestions([]);
+  }
+  const [eventDate, setEventDate] = useState("");
+  const [eventTime, setEventTime] = useState("");
+  const [eventEndTime, setEventEndTime] = useState("");
+  const [seatsTotal, setSeatsTotal] = useState(4);
+  const [costType, setCostType] = useState<"each_pays" | "organizer_treats" | "free" | "negotiable">("each_pays");
+  const [businessPricingType, setBusinessPricingType] = useState<"ticket" | "free" | "custom" | null>(null);
+  const [businessTicketPrice, setBusinessTicketPrice] = useState("");
+  const [businessCustomTerms, setBusinessCustomTerms] = useState("");
+  // Чат — явный выбор организатора для "Для бизнеса", доступен только при
+  // небольшой группе (см. ТЗ: "не больше 20 человек"). Для обычных встреч
+  // чат создаётся всегда (это состояние тогда просто не используется).
+  const [wantsChat, setWantsChat] = useState(true);
+  const [businessPhotoBase64, setBusinessPhotoBase64] = useState<string | undefined>();
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((data) => {
+        setCategories(data.categories ?? []);
+        setTrainingTypes(data.trainingTypes ?? []);
+      });
+  }, []);
+
+  const steps: Step[] = isBusiness
+    ? [
+        "businessTitle",
+        "where",
+        "when",
+        "time",
+        "seats",
+        "businessCost",
+        "businessPhoto",
+        ...(seatsTotal <= 20 ? (["chat"] as Step[]) : []),
+        "details",
+        "review",
+      ]
+    : categorySlug === "training"
+      ? ["category", "trainingType", "where", "when", "time", "seats", "cost", "details", "review"]
+      : ["category", "where", "when", "time", "seats", "cost", "details", "review"];
+
+  const step = steps[stepIndex];
+  const isLastStep = stepIndex === steps.length - 1;
+
+  function handleBusinessPhotoChange(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setBusinessPhotoBase64(reader.result as string);
+    reader.readAsDataURL(file);
+  }
+
+  function goNext() {
+    setError(null);
+    if (stepIndex < steps.length - 1) setStepIndex(stepIndex + 1);
+  }
+  function goBack() {
+    setError(null);
+    if (stepIndex > 0) setStepIndex(stepIndex - 1);
+  }
+
+  function pickDatePreset(offsetDays: number) {
+    const date = new Date();
+    date.setDate(date.getDate() + offsetDays);
+    setEventDate(date.toISOString().slice(0, 10));
+  }
+
+  async function handlePublish() {
+    setSubmitting(true);
+    setError(null);
+
+    const initData = getInitData();
+    if (!initData) {
+      setError("Открой приложение через Telegram.");
+      setSubmitting(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          categorySlug: isBusiness ? undefined : categorySlug,
+          trainingTypeSlug: trainingTypeSlug ?? undefined,
+          placeName,
+          address,
+          latitude,
+          longitude,
+          eventDate,
+          eventTime,
+          eventEndTime,
+          seatsTotal,
+          costType: isBusiness
+            ? businessPricingType === "free"
+              ? "free"
+              : businessPricingType === "ticket"
+                ? "each_pays"
+                : "negotiable"
+            : costType,
+          title,
+          description,
+          isBusiness,
+          businessPricingType: isBusiness ? businessPricingType ?? undefined : undefined,
+          businessPricingDetails: isBusiness
+            ? businessPricingType === "ticket"
+              ? businessTicketPrice
+              : businessPricingType === "custom"
+                ? businessCustomTerms
+                : undefined
+            : undefined,
+          hasChat: isBusiness ? wantsChat : undefined,
+          photoBase64: isBusiness ? businessPhotoBase64 : undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        if (data.error === "subscription_required") {
+          setError("Нужна активная подписка.");
+        } else if (data.error === "events_limit_reached") {
+          setError("Лимит встреч по твоему тарифу исчерпан на этот период.");
+        } else if (data.error === "group_size_exceeds_plan") {
+          setError(`Твой тариф позволяет группу максимум из ${data.groupMax} человек.`);
+        } else {
+          setError("Не получилось опубликовать встречу.");
+        }
+        setSubmitting(false);
+        return;
+      }
+
+      router.push(`/events/${data.eventId}/applications`);
+    } catch {
+      setError("Проблема с соединением.");
+      setSubmitting(false);
+    }
+  }
+
+  // Минимум час, максимум — сколько угодно, и разрешён переход на
+  // следующий день (конец раньше начала по часам = считаем, что он на
+  // следующие сутки, а не "некорректное" время) — по явному запросу
+  // пользователя. null, если время ещё не заполнено с обеих сторон.
+  const spansNextDay = eventTime && eventEndTime ? timeToMinutes(eventEndTime) <= timeToMinutes(eventTime) : false;
+  const durationMinutes =
+    eventTime && eventEndTime
+      ? spansNextDay
+        ? timeToMinutes(eventEndTime) + 24 * 60 - timeToMinutes(eventTime)
+        : timeToMinutes(eventEndTime) - timeToMinutes(eventTime)
+      : null;
+
+  const canGoNext =
+    (step === "category" && categorySlug !== null) ||
+    (step === "trainingType" && trainingTypeSlug !== null) ||
+    (step === "businessTitle" && title.trim().length >= 3) ||
+    (step === "where" && placeName.trim().length >= 2 && latitude !== undefined && longitude !== undefined) ||
+    (step === "when" && eventDate.length > 0) ||
+    (step === "time" && eventTime.length > 0 && eventEndTime.length > 0 && (durationMinutes ?? 0) >= 60) ||
+    (step === "seats" && seatsTotal >= 1) ||
+    step === "cost" ||
+    (step === "businessCost" &&
+      businessPricingType !== null &&
+      (businessPricingType !== "ticket" || businessTicketPrice.trim().length > 0) &&
+      (businessPricingType !== "custom" || businessCustomTerms.trim().length > 0)) ||
+    step === "chat" ||
+    (step === "businessPhoto" && !!businessPhotoBase64) ||
+    (step === "details" && (isBusiness || title.trim().length >= 3));
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background px-5 pt-4"
+      style={{ height: liveHeight ? `${liveHeight}px` : "100dvh" }}
+    >
+      <StepProgress currentStep={stepIndex + 1} totalSteps={steps.length} />
+
+      {/* min-h-0 обязателен, чтобы flex-child мог сжиматься и включать
+          свою собственную прокрутку вместо раздувания всей страницы.
+          pb-24 — запас снизу под кнопки, которые теперь настоящий fixed-
+          футер (см. ниже), а не последний элемент этого же потока — иначе
+          он не всегда оказывался прижат к самому низу экрана. */}
+      {/* overflow-x-hidden — обязателен. Шаг "Где?" временно расширяет карту
+          за пределы обычных отступов (-mx-5, см. ниже) — без явного запрета
+          горизонтальной прокрутки здесь браузер мог "запомнить" сдвинутую
+          вбок позицию скролла и перенести её на следующие шаги, из-за чего
+          обычные поля (дата, время) визуально уезжали за правый край экрана. */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-start gap-3 overflow-x-hidden overflow-y-auto py-3 pb-24">
+        {step === "category" && (
+          <StepBlock title="Что планируем?">
+            <div className="grid grid-cols-2 gap-3">
+              {categories.map((c) => {
+                const icon = CATEGORY_ICON[c.slug];
+                const selected = categorySlug === c.slug;
+
+                // "Своё предложение" — та же кнопка, что и на главном
+                // экране (иконка слева + текст справа на фирменном
+                // градиенте), а не обычная квадратная плитка с иконкой
+                // сверху, как у остальных категорий — по явному уточнению.
+                if (c.slug === "custom") {
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => {
+                        setCategorySlug(c.slug);
+                        setTrainingTypeSlug(null);
+                      }}
+                      className="flex items-center gap-2 rounded-card p-4 text-left shadow-card transition active:scale-[0.98]"
+                      style={{ background: "linear-gradient(135deg, #6445FB, #7A9CFA)" }}
+                    >
+                      <div className="relative h-16 w-16 shrink-0">
+                        <Image src={icon ?? "/brand/3d/create-event-icon.png"} alt="" fill className="object-contain" sizes="64px" />
+                      </div>
+                      <span className="text-sm font-medium leading-tight text-white">{c.name}</span>
+                    </button>
+                  );
+                }
+
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setCategorySlug(c.slug);
+                      setTrainingTypeSlug(null);
+                    }}
+                    className={`flex flex-col items-start gap-2 rounded-card p-4 text-left text-sm font-medium transition ${
+                      selected ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                    }`}
+                  >
+                    {icon ? (
+                      <div className="relative h-11 w-11">
+                        <Image src={icon} alt="" fill className="object-contain" sizes="44px" />
+                      </div>
+                    ) : (
+                      <span className="text-2xl">{c.emoji}</span>
+                    )}
+                    {c.name}
+                  </button>
+                );
+              })}
+            </div>
+          </StepBlock>
+        )}
+
+        {step === "trainingType" && (
+          <StepBlock title="Какая тренировка?">
+            <div className="grid grid-cols-2 gap-2">
+              {trainingTypes.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTrainingTypeSlug(t.slug)}
+                  className={`flex items-center gap-2 rounded-card p-3 text-left text-sm font-medium transition ${
+                    trainingTypeSlug === t.slug ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                  }`}
+                >
+                  <span className="text-xl">{t.emoji}</span>
+                  {t.name}
+                </button>
+              ))}
+            </div>
+          </StepBlock>
+        )}
+
+        {step === "businessTitle" && (
+          <StepBlock title="Какое событие планируете создать?" subtitle="Название того, что вы организуете — концерт, дегустация, мастер-класс и т.д.">
+            <input
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Например: Дегустация вин от сомелье"
+              maxLength={100}
+              className={inputClass}
+            />
+          </StepBlock>
+        )}
+
+        {step === "where" && (
+          <StepBlock title="Где?" subtitle="Впиши название места и отметь точку на карте — адрес определится сам.">
+            <input
+              autoFocus
+              value={placeName}
+              onChange={(e) => setPlaceName(e.target.value)}
+              placeholder="Название места"
+              className={`mb-2 ${inputClass}`}
+            />
+            <div className="relative mb-2">
+              {placeName.trim().length > 0 && (
+                <>
+                  <input
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="Адрес — впиши сам или отметь точку на карте"
+                    className={`text-base ${inputClass}`}
+                  />
+                  {addressSuggestions.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-card bg-white shadow-card-lg">
+                      {addressSuggestions.map((s) => (
+                        <button
+                          key={s.address}
+                          type="button"
+                          onMouseDown={() => handlePickAddressSuggestion(s)}
+                          className="block w-full border-b border-lavender-100 px-4 py-2.5 text-left text-sm text-ink-900 last:border-0 hover:bg-lavender-50"
+                        >
+                          {s.address}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+            <LocationPicker
+              onPick={({ latitude, longitude }) => {
+                setLatitude(latitude);
+                setLongitude(longitude);
+              }}
+              onAddressResolved={(resolved) => {
+                suppressAddressSearchRef.current = true;
+                setAddress(resolved);
+              }}
+              externalCoords={pickedFromAddress}
+              heightPx={mapHeight}
+              markerIconSrc={isBusiness ? "/brand/markers/marker-business.png" : undefined}
+            />
+            {placeName.trim().length >= 2 && latitude === undefined && (
+              <p className="mt-2 shrink-0 text-center text-xs font-medium text-accent">
+                Отметь точку на карте, чтобы продолжить
+              </p>
+            )}
+          </StepBlock>
+        )}
+
+        {step === "when" && (
+          <StepBlock title="Когда?">
+            <div className="mb-3 flex gap-2">
+              {DATE_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() => pickDatePreset(preset.offsetDays)}
+                  className="flex-1 rounded-card bg-white p-3 text-sm font-medium text-ink-900 shadow-card"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            <input
+              type="date"
+              value={eventDate}
+              onChange={(e) => setEventDate(e.target.value)}
+              min={new Date().toISOString().slice(0, 10)}
+              className={`${inputClass} h-[52px] appearance-none text-center`}
+            />
+          </StepBlock>
+        )}
+
+        {step === "time" && (
+          <StepBlock title="Во сколько?" subtitle="Точное время начала и окончания — по нему встреча автоматически завершится и закроется чат.">
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <label className="mb-1 block text-xs font-medium text-ink-600">Начало</label>
+                <input
+                  type="time"
+                  value={eventTime}
+                  onChange={(e) => setEventTime(e.target.value)}
+                  className={`${inputClass} h-[52px] appearance-none text-center`}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <label className="mb-1 block text-xs font-medium text-ink-600">Окончание</label>
+                <input
+                  type="time"
+                  value={eventEndTime}
+                  onChange={(e) => setEventEndTime(e.target.value)}
+                  className={`${inputClass} h-[52px] appearance-none text-center`}
+                />
+              </div>
+            </div>
+            {/* Минимум час, максимум — сколько угодно, и может уходить на
+                следующий день (например, начало в 22:00, конец в 04:00) —
+                по явному запросу пользователя. Раньше сравнение "конец >
+                начала" было простым сравнением строк времени, из-за чего
+                любая встреча, заканчивающаяся после полуночи, считалась
+                "некорректной" и блокировала переход дальше. */}
+            {eventTime && eventEndTime && durationMinutes !== null && durationMinutes < 60 && (
+              <p className="mt-2 text-sm text-red-600">Встреча должна длиться хотя бы час.</p>
+            )}
+            {eventTime && eventEndTime && durationMinutes !== null && durationMinutes >= 60 && (
+              <p className="mt-3 rounded-card bg-lavender-50 p-3 text-center text-sm text-ink-900">
+                Встреча начнётся {formatFullDate(eventDate)} в {eventTime}
+                {spansNextDay ? (
+                  <>
+                    {" "}
+                    и закончится {formatFullDate(addDaysToIso(eventDate, 1))} в {eventEndTime}
+                  </>
+                ) : (
+                  <> и закончится в {eventEndTime}</>
+                )}
+              </p>
+            )}
+          </StepBlock>
+        )}
+
+        {step === "seats" && (
+          <StepBlock title="Сколько человек нужно?">
+            <div className="flex items-center justify-center gap-6">
+              <button
+                onClick={() => setSeatsTotal((n) => Math.max(1, n - 1))}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
+              >
+                −
+              </button>
+              <span className="text-display w-12 text-center">{seatsTotal}</span>
+              <button
+                onClick={() => setSeatsTotal((n) => Math.min(isBusiness ? 500 : 30, n + 1))}
+                className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
+              >
+                +
+              </button>
+            </div>
+            {isBusiness && seatsTotal > 20 && (
+              <p className="mt-3 text-center text-xs text-ink-600">
+                При группе больше 20 человек общий чат не создаётся — люди будут откликаться напрямую.
+              </p>
+            )}
+          </StepBlock>
+        )}
+
+        {step === "businessCost" && (
+          <StepBlock title="Как насчёт расходов?">
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  ["ticket", "По билетам"],
+                  ["free", "Бесплатно"],
+                  ["custom", "Другие условия"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setBusinessPricingType(value)}
+                  className={`rounded-card p-4 text-left text-sm font-medium transition ${
+                    businessPricingType === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {businessPricingType === "ticket" && (
+              <input
+                autoFocus
+                value={businessTicketPrice}
+                onChange={(e) => setBusinessTicketPrice(e.target.value)}
+                placeholder="Например: 1500 ₽"
+                maxLength={50}
+                className={`mt-3 ${inputClass}`}
+              />
+            )}
+            {businessPricingType === "custom" && (
+              <textarea
+                autoFocus
+                value={businessCustomTerms}
+                onChange={(e) => setBusinessCustomTerms(e.target.value)}
+                placeholder="Опиши условия — что и как оплачивается"
+                maxLength={300}
+                rows={3}
+                className={`mt-3 resize-none text-base ${inputClass}`}
+              />
+            )}
+          </StepBlock>
+        )}
+
+        {step === "businessPhoto" && (
+          <StepBlock title="Фото события" subtitle="Обязательно для событий «Для бизнеса» — с фото событие выглядит заметнее.">
+            <label className="flex aspect-[4/3] w-full cursor-pointer items-center justify-center overflow-hidden rounded-card-lg bg-white shadow-card">
+              {businessPhotoBase64 ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={businessPhotoBase64} alt="Фото события" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-sm font-medium text-accent">Загрузить фото</span>
+              )}
+              <input type="file" accept="image/*" className="hidden" onChange={handleBusinessPhotoChange} />
+            </label>
+            {businessPhotoBase64 && (
+              <button onClick={() => setBusinessPhotoBase64(undefined)} className="mt-2 w-full text-center text-sm font-medium text-red-600">
+                Убрать и выбрать другое
+              </button>
+            )}
+          </StepBlock>
+        )}
+
+        {step === "chat" && (
+          <StepBlock title="Создавать чат?" subtitle="Общий чат для всех, кого примут на событие — можно списаться до встречи.">
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setWantsChat(true)}
+                className={`rounded-card p-4 text-left text-sm font-medium transition ${
+                  wantsChat ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                }`}
+              >
+                Да, создать чат
+              </button>
+              <button
+                onClick={() => setWantsChat(false)}
+                className={`rounded-card p-4 text-left text-sm font-medium transition ${
+                  !wantsChat ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                }`}
+              >
+                Нет, без чата — только заявки
+              </button>
+            </div>
+            {!wantsChat && (
+              <p className="mt-3 text-center text-xs text-ink-600">
+                Люди будут откликаться на событие, ты увидишь заявки прямо в нём и получишь уведомление.
+              </p>
+            )}
+          </StepBlock>
+        )}
+
+        {step === "cost" && (
+          <StepBlock title="Как насчёт расходов?">
+            <div className="flex flex-col gap-2">
+              {(
+                [
+                  ["each_pays", "Каждый за себя"],
+                  ["organizer_treats", "Автор угощает"],
+                  ["free", "Без расходов"],
+                  ["negotiable", "По договорённости"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  onClick={() => setCostType(value)}
+                  className={`rounded-card p-4 text-left text-sm font-medium transition ${
+                    costType === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </StepBlock>
+        )}
+
+        {step === "details" && (
+          <StepBlock title={isBusiness ? "Описание" : "Название и описание"}>
+            {!isBusiness && (
+              <input
+                autoFocus
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Например: Утренняя пробежка в парке"
+                maxLength={100}
+                className={`mb-2 ${inputClass}`}
+              />
+            )}
+            <textarea
+              autoFocus={isBusiness}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Короткое описание (необязательно)"
+              maxLength={500}
+              rows={3}
+              className={`resize-none text-base ${inputClass}`}
+            />
+          </StepBlock>
+        )}
+
+        {step === "review" && (
+          <StepBlock title="Всё верно?">
+            <div className="space-y-2 rounded-card-lg bg-white p-5 shadow-card-lg">
+              <ReviewRow label="Название" value={title} />
+              <ReviewRow label="Место" value={placeName} />
+              <ReviewRow label="Дата" value={eventDate} />
+              <ReviewRow
+                label="Время"
+                value={spansNextDay ? `${eventTime}–${eventEndTime} (на след. день)` : `${eventTime}–${eventEndTime}`}
+              />
+              <ReviewRow label="Участников" value={String(seatsTotal)} />
+              {isBusiness ? (
+                <>
+                  <ReviewRow
+                    label="Расходы"
+                    value={
+                      businessPricingType === "ticket"
+                        ? `Билет: ${businessTicketPrice}`
+                        : businessPricingType === "custom"
+                          ? businessCustomTerms
+                          : "Бесплатно"
+                    }
+                  />
+                  {seatsTotal <= 20 && <ReviewRow label="Чат" value={wantsChat ? "Создаётся" : "Без чата"} />}
+                </>
+              ) : (
+                <ReviewRow
+                  label="Расходы"
+                  value={
+                    { each_pays: "Каждый за себя", organizer_treats: "Автор угощает", free: "Без расходов", negotiable: "По договорённости" }[
+                      costType
+                    ]
+                  }
+                />
+              )}
+              {description && <ReviewRow label="Описание" value={description} />}
+            </div>
+          </StepBlock>
+        )}
+
+        {error && <p className="text-center text-sm text-red-600">{error}</p>}
+      </div>
+
+      <div className="absolute inset-x-0 bottom-0 flex shrink-0 gap-3 bg-background px-5 pb-3 pt-2">
+        <Button
+          variant="secondary"
+          onClick={stepIndex > 0 ? goBack : () => router.back()}
+          className="w-auto px-6"
+        >
+          Назад
+        </Button>
+        {!isLastStep ? (
+          <Button onClick={goNext} disabled={!canGoNext}>
+            Далее
+          </Button>
+        ) : (
+          <Button onClick={handlePublish} disabled={submitting}>
+            {submitting ? "Публикуем..." : "Опубликовать"}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StepBlock({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col space-y-3">
+      <div className="shrink-0 text-center">
+        <h1 className="text-title">{title}</h1>
+        {subtitle && <p className="mt-1 text-xs text-ink-600">{subtitle}</p>}
+      </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
+    </div>
+  );
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4 text-sm">
+      <span className="text-ink-600">{label}</span>
+      <span className="text-right font-medium text-ink-900">{value}</span>
+    </div>
+  );
+}
+ENDOFFILE
+
