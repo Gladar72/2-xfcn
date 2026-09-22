@@ -1,3 +1,4 @@
+cat > "app/(app)/events/[id]/applications/page.tsx" << 'ENDOFFILE'
 "use client";
 
 import { useEffect, useState } from "react";
@@ -125,3 +126,4 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
     </div>
   );
 }
+ENDOFFILE
