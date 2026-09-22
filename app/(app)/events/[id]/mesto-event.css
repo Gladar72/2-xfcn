@@ -6,7 +6,7 @@
  --m-safe-top:max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px));
  --m-safe-left:max(env(safe-area-inset-left,0px),var(--tg-safe-area-inset-left,0px),var(--tg-content-safe-area-inset-left,0px));
  --m-safe-right:max(env(safe-area-inset-right,0px),var(--tg-safe-area-inset-right,0px),var(--tg-content-safe-area-inset-right,0px));
- --m-nav-height:72px;
+ --m-nav-height:0px;
  font:400 14px/1.45 Inter,Arial,sans-serif;font-optical-sizing:auto;color:var(--m-ink);color-scheme:light;
  overscroll-behavior:none;
  background:radial-gradient(ellipse at 0% 18%,#EDE5FF 0,transparent 32%),radial-gradient(ellipse at 100% 75%,#FCEEF7 0,transparent 31%),radial-gradient(ellipse at 6% 96%,#F0E9FF 0,transparent 24%),#fff;
