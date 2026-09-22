@@ -94,7 +94,9 @@ export default function ProfilePage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setUploadError("Не получилось загрузить фото.");
+        setUploadError(
+          data.error === "photo_rejected" ? "Это фото не прошло проверку — выбери другое." : "Не получилось загрузить фото."
+        );
         return;
       }
       setProfile((prev) => (prev ? { ...prev, avatarUrl: data.avatarUrl } : prev));

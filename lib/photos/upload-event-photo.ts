@@ -1,10 +1,11 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
+import { moderateImage } from "@/lib/photos/moderate-image";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 МБ
 
 export type UploadEventPhotoResult =
   | { ok: true; publicUrl: string }
-  | { ok: false; error: "photo_too_large" | "photo_upload_failed" | "photo_invalid" };
+  | { ok: false; error: "photo_too_large" | "photo_upload_failed" | "photo_invalid" | "photo_rejected" };
 
 /**
  * Одна фотография события (пока только "Для бизнеса", см. запрос
@@ -25,6 +26,12 @@ export async function uploadEventPhoto(
 
   if (buffer.byteLength > MAX_PHOTO_BYTES) {
     return { ok: false, error: "photo_too_large" };
+  }
+
+  // Модерация — см. lib/photos/upload-avatar.ts, тот же принцип.
+  const moderation = await moderateImage(buffer, mimeType);
+  if (!moderation.safe) {
+    return { ok: false, error: "photo_rejected" };
   }
 
   const extension = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";

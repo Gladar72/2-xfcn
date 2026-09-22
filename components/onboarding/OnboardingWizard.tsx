@@ -97,6 +97,8 @@ export function OnboardingWizard() {
         const data = await res.json().catch(() => ({}));
         if (data.error === "validation_failed") {
           setError("Проверь, что все поля заполнены корректно.");
+        } else if (data.error === "photo_rejected") {
+          setError("Фото не прошло проверку — выбери другое и попробуй снова.");
         } else if (data.error === "already_registered") {
           window.location.href = "/feed";
           return;

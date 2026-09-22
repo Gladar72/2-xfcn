@@ -277,6 +277,12 @@ export function CreateEventWizard() {
           setError("Лимит встреч по твоему тарифу исчерпан на этот период.");
         } else if (data.error === "group_size_exceeds_plan") {
           setError(`Твой тариф позволяет группу максимум из ${data.groupMax} человек.`);
+        } else if (data.error === "photo_rejected") {
+          setError("Это фото не прошло проверку — выбери другое.");
+          setStepIndex(steps.indexOf("businessPhoto"));
+        } else if (data.error === "photo_invalid") {
+          setError("Не получилось прочитать фото — попробуй выбрать его заново.");
+          setStepIndex(steps.indexOf("businessPhoto"));
         } else {
           setError("Не получилось опубликовать встречу.");
         }

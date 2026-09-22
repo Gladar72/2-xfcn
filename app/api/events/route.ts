@@ -9,6 +9,7 @@ import { createEventSchema, type CreateEventInput } from "@/lib/validation/creat
 import { notifyN8n } from "@/lib/n8n/notify";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
+import { moderateImage } from "@/lib/photos/moderate-image";
 
 const PAGE_SIZE = 20;
 // Сколько кандидатов тянем из БД до ranking (больше видимого лимита,
@@ -428,6 +429,24 @@ export async function POST(req: NextRequest) {
     .select("city")
     .eq("id", currentUser.userId)
     .maybeSingle();
+
+  // Модерация фото — ДО создания записи о встрече, а не после (иначе
+  // при отклонении фото событие уже успело бы создаться без него, хотя
+  // для "Для бизнеса" фото обязательно). uploadEventPhoto ниже делает ту
+  // же проверку ещё раз перед реальной загрузкой в Storage — здесь же
+  // просто ранний, "дешёвый" отказ, не трогая базу вообще.
+  if (input.isBusiness && input.photoBase64) {
+    const match = input.photoBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    const mimeType = match?.[1];
+    const base64Content = match?.[2];
+    if (!mimeType || !base64Content) {
+      return NextResponse.json({ error: "photo_invalid" }, { status: 422 });
+    }
+    const moderation = await moderateImage(Buffer.from(base64Content, "base64"), mimeType);
+    if (!moderation.safe) {
+      return NextResponse.json({ error: "photo_rejected" }, { status: 422 });
+    }
+  }
 
   const { data: createdEvent, error: insertError } = await admin
     .from("events")

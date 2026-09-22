@@ -1,10 +1,11 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
+import { moderateImage } from "@/lib/photos/moderate-image";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 МБ
 
 export type UploadAvatarResult =
   | { ok: true; publicUrl: string }
-  | { ok: false; error: "photo_too_large" | "photo_upload_failed" | "photo_invalid" };
+  | { ok: false; error: "photo_too_large" | "photo_upload_failed" | "photo_invalid" | "photo_rejected" };
 
 /**
  * Принимает data URL (data:image/...;base64,...), сохраняет в Storage
@@ -28,6 +29,14 @@ export async function uploadAvatar(
 
   if (buffer.byteLength > MAX_PHOTO_BYTES) {
     return { ok: false, error: "photo_too_large" };
+  }
+
+  // Модерация — до загрузки в Storage, чтобы неприемлемое фото не
+  // попадало в хранилище вообще (см. запрос пользователя: цензура,
+  // запрет на пошлость/наготу).
+  const moderation = await moderateImage(buffer, mimeType);
+  if (!moderation.safe) {
+    return { ok: false, error: "photo_rejected" };
   }
 
   const extension = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";
