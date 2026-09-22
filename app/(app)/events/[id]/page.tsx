@@ -354,23 +354,35 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </div>
             )}
 
-            {/* "Поднять встречу" имеет смысл только пока идёт набор — для
-                забитой (closed) встречи мест всё равно нет. */}
-            {event.status === "published" && (
-              <>
+            {/* "Заявки" + "Поднять встречу" — один ряд из двух плиток
+                50/50 (по присланному макету), а не два отдельных
+                полноширинных блока, как было раньше. "Поднять встречу"
+                имеет смысл только пока идёт набор — для забитой (closed)
+                встречи мест всё равно нет, тогда "Заявки" на всю ширину. */}
+            <div className={event.status === "published" ? "grid grid-cols-2 gap-3" : ""}>
+              <Link
+                href={`/events/${event.id}/applications`}
+                className="flex items-center justify-center gap-3 rounded-card-lg bg-brand-gradient px-3 py-6 text-center text-base font-semibold text-white shadow-cta"
+              >
+                <span className="relative h-10 w-10 shrink-0">
+                  <Image src="/brand/3d/applications-icon.png" alt="" fill className="object-contain" sizes="40px" />
+                </span>
+                Заявки
+              </Link>
+              {event.status === "published" && (
                 <button
                   onClick={handleBoost}
                   disabled={boosting}
-                  className="flex w-full items-center justify-center gap-2 rounded-pill bg-white py-3 text-sm font-semibold text-accent shadow-card disabled:opacity-60"
+                  className="flex items-center justify-center gap-3 rounded-card-lg bg-white px-3 py-6 text-center text-base font-semibold text-accent shadow-card disabled:opacity-60"
                 >
-                  <span className="relative h-6 w-6 shrink-0">
-                    <Image src="/brand/3d/boost-icon.png" alt="" fill className="object-contain" sizes="24px" />
+                  <span className="relative h-10 w-10 shrink-0">
+                    <Image src="/brand/3d/boost-icon.png" alt="" fill className="object-contain" sizes="40px" />
                   </span>
                   {boosting ? "Поднимаем..." : "Поднять встречу"}
                 </button>
-                {boostMessage && <p className="text-center text-xs text-ink-600">{boostMessage}</p>}
-              </>
-            )}
+              )}
+            </div>
+            {boostMessage && <p className="text-center text-xs text-ink-600">{boostMessage}</p>}
 
             {/* Отменить встречу — доступно и для забитой (closed) встречи,
                 не только для той, что ещё набирает участников. */}
@@ -405,10 +417,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         )}
       </div>
 
-      {/* Кнопка "Управлять заявками" (единственный путь к удалению
-          участника организатором) — тоже нужна и для забитой (closed)
-          встречи, не только для набирающей участников. */}
-      {(event.status === "published" || event.status === "closed") && (
+      {/* Фиксированная кнопка внизу — только для тех, кто НЕ организатор
+          (у организатора теперь плитка "Заявки" в самом контенте, см.
+          выше, по присланному макету с двумя плитками в ряд). */}
+      {event.viewerStatus !== "organizer" && (event.status === "published" || event.status === "closed") && (
         <div className="fixed inset-x-0 bottom-24 z-40 px-5">
           <BottomAction
             viewerStatus={event.viewerStatus}
