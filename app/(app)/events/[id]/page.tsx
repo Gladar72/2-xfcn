@@ -387,11 +387,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             {/* Отменить встречу — доступно и для забитой (closed) встречи,
                 не только для той, что ещё набирает участников. */}
             {!confirmingCancel ? (
-              <button
-                onClick={() => setConfirmingCancel(true)}
-                className="w-full text-center text-sm font-medium text-red-600"
-              >
-                Отменить встречу
+              <button onClick={() => setConfirmingCancel(true)} className="block w-full">
+                <div className="relative aspect-[1960/609] w-full">
+                  <Image src="/brand/backgrounds/cancel-event-banner.webp" alt="Отменить встречу" fill className="object-contain" sizes="100vw" />
+                </div>
               </button>
             ) : (
               <div className="rounded-card bg-red-50 p-4 text-center">
