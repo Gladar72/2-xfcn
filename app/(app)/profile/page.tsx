@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { type Plan } from "@/lib/subscriptions/limits";
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
+import { resizeImageFile } from "@/lib/photos/resize-image-client";
 
 interface Profile {
   name: string;
@@ -86,7 +87,7 @@ export default function ProfilePage() {
     setUploadingPhoto(true);
     setUploadError(null);
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = await resizeImageFile(file, 1600, 0.82);
       const res = await fetch("/api/me/avatar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -283,13 +284,4 @@ function pluralize(count: number, one: string, few: string, many: string): strin
   if (mod10 === 1 && mod100 !== 11) return one;
   if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return few;
   return many;
-}
-
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error);
-    reader.readAsDataURL(file);
-  });
 }

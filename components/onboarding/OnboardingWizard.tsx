@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { StepProgress } from "@/components/ui/StepProgress";
 import { CityPicker } from "@/components/ui/CityPicker";
 import { getInitData } from "@/lib/telegram/webapp-client";
+import { resizeImageFile } from "@/lib/photos/resize-image-client";
 
 interface Interest {
   id: string;
@@ -58,9 +59,7 @@ export function OnboardingWizard() {
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPhotoBase64(reader.result as string);
-    reader.readAsDataURL(file);
+    resizeImageFile(file, 1600, 0.82).then(setPhotoBase64);
   }
 
   async function handleSubmit() {
