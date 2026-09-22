@@ -389,9 +389,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 обратно. Тот же отступ по бокам, что и у остальных
                 элементов здесь (родительский контейнер уже с px-5). */}
             {!confirmingCancel ? (
-              <button onClick={() => setConfirmingCancel(true)} className="block w-full overflow-hidden">
+              <button onClick={() => setConfirmingCancel(true)} className="mx-auto block w-full max-w-full overflow-hidden">
                 <Image
-                  src="/brand/backgrounds/cancel-event-banner.webp"
+                  src="/brand/backgrounds/cancel-event-banner-v2.webp"
                   alt="Отменить встречу"
                   width={1819}
                   height={651}
