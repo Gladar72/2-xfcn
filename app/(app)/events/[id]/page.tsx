@@ -361,9 +361,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 <button
                   onClick={handleBoost}
                   disabled={boosting}
-                  className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-3 text-sm font-semibold text-white shadow-cta disabled:opacity-60"
+                  className="flex w-full items-center justify-center gap-2 rounded-pill bg-white py-3 text-sm font-semibold text-accent shadow-card disabled:opacity-60"
                 >
-                  <span className="text-lg">🚀</span>
+                  <span className="relative h-6 w-6 shrink-0">
+                    <Image src="/brand/3d/boost-icon.png" alt="" fill className="object-contain" sizes="24px" />
+                  </span>
                   {boosting ? "Поднимаем..." : "Поднять встречу"}
                 </button>
                 {boostMessage && <p className="text-center text-xs text-ink-600">{boostMessage}</p>}
@@ -438,8 +440,11 @@ function BottomAction({
     return (
       <Link
         href={`/events/${eventId}/applications`}
-        className="block w-full rounded-pill bg-brand-gradient py-4 text-center text-base font-semibold text-white shadow-cta"
+        className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-4 text-center text-base font-semibold text-white shadow-cta"
       >
+        <span className="relative h-7 w-7 shrink-0">
+          <Image src="/brand/3d/applications-icon.png" alt="" fill className="object-contain" sizes="28px" />
+        </span>
         Управлять заявками
       </Link>
     );
