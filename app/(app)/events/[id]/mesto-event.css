@@ -6,9 +6,13 @@
  --m-safe-top:max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px));
  --m-safe-left:max(env(safe-area-inset-left,0px),var(--tg-safe-area-inset-left,0px),var(--tg-content-safe-area-inset-left,0px));
  --m-safe-right:max(env(safe-area-inset-right,0px),var(--tg-safe-area-inset-right,0px),var(--tg-content-safe-area-inset-right,0px));
- --m-nav-height:0px;
+ --m-nav-height:72px;
  font:400 14px/1.45 Inter,Arial,sans-serif;font-optical-sizing:auto;color:var(--m-ink);color-scheme:light;
  overscroll-behavior:none;
+ /* Тот же проверенный приём, что и на странице "Заявки": растягиваем на
+    весь экран, а дублирующий отступ общего layout (pb-24) компенсируем
+    отрицательным margin на обёртке в page.tsx — см. там. */
+ min-height:100vh;min-height:100dvh;
  background:radial-gradient(ellipse at 0% 18%,#EDE5FF 0,transparent 32%),radial-gradient(ellipse at 100% 75%,#FCEEF7 0,transparent 31%),radial-gradient(ellipse at 6% 96%,#F0E9FF 0,transparent 24%),#fff;
 }
 .mesto,.mesto *,.mesto *::before,.mesto *::after{box-sizing:border-box}
@@ -17,7 +21,7 @@
 .mesto button:disabled{cursor:default;opacity:.55}
 .mesto button:focus-visible,.mesto a:focus-visible{outline:3px solid var(--m-purple);outline-offset:4px}
 .mesto img{display:block;max-width:100%}
-.m-page{width:100%;max-width:480px;margin-inline:auto;padding:calc(16px + var(--m-safe-top)) calc(var(--m-pad) + var(--m-safe-right)) calc(var(--m-nav-height) + var(--m-safe-bottom)) calc(var(--m-pad) + var(--m-safe-left))}
+.m-page{width:100%;max-width:480px;margin-inline:auto;padding:calc(16px + var(--m-safe-top)) calc(var(--m-pad) + var(--m-safe-right)) calc(var(--m-nav-height) + var(--m-safe-bottom) + 14px) calc(var(--m-pad) + var(--m-safe-left))}
 .m-badge{display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 8px;background:#EEE5FF;border-radius:999px;color:var(--m-purple);font-size:13px;font-weight:600;max-width:100%}
 .m-badge img{width:20px;height:20px;object-fit:contain;flex:none}
 .m-title{font-size:32px;line-height:1.12;font-weight:800;letter-spacing:-1.05px;margin:9px 0 14px;overflow-wrap:anywhere}
