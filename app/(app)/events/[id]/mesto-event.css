@@ -22,7 +22,7 @@
 .m-badge img{width:20px;height:20px;object-fit:contain;flex:none}
 .m-title{font-size:32px;line-height:1.12;font-weight:800;letter-spacing:-1.05px;margin:9px 0 14px;overflow-wrap:anywhere}
 .m-hero{margin:0}
-.m-photo{width:100%;height:auto;aspect-ratio:1.4;object-fit:cover;object-position:50% 43%;border-radius:var(--m-radius);background:#E7E0EF}
+.m-photo{width:100%;height:auto;aspect-ratio:0.8;object-fit:cover;object-position:50% 43%;border-radius:var(--m-radius);background:#E7E0EF}
 .m-organizer{position:relative;margin-top:-36px;width:calc(100% - 8px);margin-inline:auto;display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:64px;background:#fff;border-radius:22px;box-shadow:0 12px 26px #36158512;text-align:left}
 .m-avatar{width:42px;height:42px;flex:none;object-fit:cover;border-radius:50%;background:#F1EAFF}
 .m-organizer-copy{display:flex;flex-direction:column;min-width:0;gap:2px}
