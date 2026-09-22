@@ -390,9 +390,14 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 элементов здесь (родительский контейнер уже с px-5). */}
             {!confirmingCancel ? (
               <button onClick={() => setConfirmingCancel(true)} className="block w-full">
-                <div className="relative aspect-[1819/651] w-full overflow-hidden rounded-card-lg">
-                  <Image src="/brand/backgrounds/cancel-event-banner-v2.webp" alt="Отменить встречу" fill className="object-contain" sizes="100vw" />
-                </div>
+                <Image
+                  src="/brand/backgrounds/cancel-event-banner-v3.png"
+                  alt="Отменить встречу"
+                  width={360}
+                  height={69}
+                  className="h-auto w-full"
+                  sizes="100vw"
+                />
               </button>
             ) : (
               <div className="rounded-card bg-red-50 p-4 text-center shadow-card-lg">
