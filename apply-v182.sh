@@ -1,3 +1,4 @@
+cat > "app/(app)/events/[id]/mesto-event.css" << 'ENDOFFILE'
 @font-face{font-family:Inter;src:url('/mesto/assets/fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
 .mesto{
  --m-ink:#160631;--m-purple:#7430FF;--m-purple-dark:#340B83;--m-muted:#77757F;
@@ -64,3 +65,4 @@
 .m-demo-note[hidden]{display:none}
 @media(max-width:359px){.mesto{--m-pad:16px}.m-title{font-size:29px}.m-action{gap:7px;padding-inline:10px}.m-action img{width:40px;height:44px}.m-action-label{font-size:13px}.m-cancel img{width:42px;height:42px}.mesto .m-cancel .m-action-label{font-size:14px}.m-chips .m-info{gap:6px;padding-inline:10px;font-size:11px}}
 @media(prefers-reduced-motion:reduce){.m-action{transition:none}}
+ENDOFFILE
