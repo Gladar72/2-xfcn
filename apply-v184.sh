@@ -1,3 +1,4 @@
+cat > "lib/morning-reminders/send.ts" << 'ENDOFFILE'
 import { GrammyError } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
@@ -132,3 +133,4 @@ async function sendReminderMessage(telegramId: number, text: string): Promise<vo
 
   await getBot().api.sendMessage(telegramId, text, appUrl ? { reply_markup: keyboard } : undefined);
 }
+ENDOFFILE
