@@ -1,3 +1,4 @@
+cat > "lib/morning-reminders/schedule.ts" << 'ENDOFFILE'
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getCityUtcOffset } from "@/lib/data/city-timezones";
 
@@ -146,3 +147,4 @@ export async function scheduleCurrentWeekReminders(admin: ReturnType<typeof crea
 
   return { scheduledUsers, scheduledSlots: rowsToInsert.length };
 }
+ENDOFFILE
