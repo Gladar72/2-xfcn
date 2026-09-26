@@ -27,6 +27,7 @@ export interface EventCardData {
   /** Лёгкое визуальное выделение — привилегия тарифов Медиум и Премьер. */
   isHighlighted?: boolean;
   isBusiness?: boolean;
+  photoUrl?: string | null;
 }
 
 interface EventCardProps {
@@ -72,71 +73,110 @@ export function EventCard({ event, onApplyPress, applied = false, applying = fal
           : "bg-white"
       )}
     >
-      <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-accent">
-        {categoryIcon ? (
-          <div className="relative h-4 w-4 shrink-0">
-            <Image src={categoryIcon} alt="" fill className="object-contain" sizes="16px" />
-          </div>
-        ) : (
-          <span>{categoryEmoji}</span>
-        )}
-        <span>{categoryLabel}</span>
-      </div>
-
-      <h3 className="text-title mb-1">{event.title}</h3>
-
-      <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-600">
-        <span>{formatDate(event.eventDate)}</span>
-        <span>{formatTime(event.eventTime)}</span>
-        {event.placeName && <span>{event.placeName}</span>}
-      </div>
-
-      {event.description && (
-        <p className="mb-3 line-clamp-2 text-sm text-ink-600">{event.description}</p>
-      )}
-
-      {event.organizer && (
-        <div className="mb-3 flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
-            {event.organizer.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={event.organizer.avatarUrl} alt={event.organizer.name} className="h-full w-full object-cover" />
+      <div className={clsx(event.photoUrl && "flex gap-3")}>
+        <div className="min-w-0 flex-1">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-accent">
+            {categoryIcon ? (
+              <div className="relative h-4 w-4 shrink-0">
+                <Image src={categoryIcon} alt="" fill className="object-contain" sizes="16px" />
+              </div>
             ) : (
-              event.organizer.name.charAt(0).toUpperCase()
+              <span>{categoryEmoji}</span>
             )}
+            <span>{categoryLabel}</span>
           </div>
-          <div className="text-sm">
-            <span className="font-medium text-ink-900">{event.organizer.name}</span>
-            <span className="text-ink-400">, {event.organizer.age}</span>
-            {event.organizer.ratingAvg > 0 && (
-              <span className="ml-2 text-ink-600">
-                ⭐ {event.organizer.ratingAvg.toFixed(1)} · {event.organizer.completedMeetingsCount} встреч
-              </span>
-            )}
-          </div>
-        </div>
-      )}
 
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-ink-600">
-          {isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}
-        </span>
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onApplyPress?.(event.id);
-          }}
-          disabled={isDisabled}
-          className={clsx(
-            "rounded-pill px-5 py-2 text-sm font-semibold",
-            isDisabled ? "bg-ink-400/10 text-ink-400" : "bg-brand-gradient text-white shadow-cta active:scale-95"
+          <h3 className="text-title mb-1">{event.title}</h3>
+
+          <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-600">
+            <span>{formatDate(event.eventDate)}</span>
+            <span>{formatTime(event.eventTime)}</span>
+            {event.placeName && <span>{event.placeName}</span>}
+          </div>
+
+          {event.description && (
+            <p className="mb-3 line-clamp-2 text-sm text-ink-600">{event.description}</p>
           )}
-        >
-          {applied ? "Отклик отправлен" : applying ? "Отправляем..." : "Я иду"}
-        </button>
+
+          {event.organizer && (
+            <div className="mb-3 flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
+                {event.organizer.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={event.organizer.avatarUrl} alt={event.organizer.name} className="h-full w-full object-cover" />
+                ) : (
+                  event.organizer.name.charAt(0).toUpperCase()
+                )}
+              </div>
+              <div className="text-sm">
+                <span className="font-medium text-ink-900">{event.organizer.name}</span>
+                <span className="text-ink-400">, {event.organizer.age}</span>
+                {event.organizer.ratingAvg > 0 && (
+                  <span className="ml-2 text-ink-600">
+                    ⭐ {event.organizer.ratingAvg.toFixed(1)} · {event.organizer.completedMeetingsCount} встреч
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!event.photoUrl && (
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-ink-600">
+                {isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}
+              </span>
+              <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} />
+            </div>
+          )}
+          {event.photoUrl && (
+            <span className="text-sm text-ink-600">{isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}</span>
+          )}
+        </div>
+
+        {event.photoUrl && (
+          <div className="flex w-24 shrink-0 flex-col items-stretch gap-2">
+            <div className="relative aspect-square w-full overflow-hidden rounded-card">
+              <Image src={event.photoUrl} alt="" fill className="object-cover" sizes="96px" />
+            </div>
+            <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} fullWidth />
+          </div>
+        )}
       </div>
     </Link>
+  );
+}
+
+function ApplyButton({
+  isDisabled,
+  applied,
+  applying,
+  onApplyPress,
+  eventId,
+  fullWidth,
+}: {
+  isDisabled: boolean;
+  applied: boolean;
+  applying: boolean;
+  onApplyPress?: (eventId: string) => void;
+  eventId: string;
+  fullWidth?: boolean;
+}) {
+  return (
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onApplyPress?.(eventId);
+      }}
+      disabled={isDisabled}
+      className={clsx(
+        "rounded-pill py-2 text-sm font-semibold",
+        fullWidth ? "w-full px-2 text-center" : "px-5",
+        isDisabled ? "bg-ink-400/10 text-ink-400" : "bg-brand-gradient text-white shadow-cta active:scale-95"
+      )}
+    >
+      {applied ? "Отклик отправлен" : applying ? "Отправляем..." : "Я иду"}
+    </button>
   );
 }
 
