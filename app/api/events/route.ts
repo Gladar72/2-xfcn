@@ -456,7 +456,7 @@ export async function POST(req: NextRequest) {
       organizer_id: currentUser.userId,
       category_id: category.id,
       training_type_id: trainingTypeId,
-      title: input.title,
+      title: input.title ?? "",
       description: input.description,
       city: organizerProfile?.city ?? "",
       latitude: input.latitude ?? null,
@@ -542,7 +542,7 @@ export async function POST(req: NextRequest) {
     city: organizerProfile?.city ?? "",
     categorySlug: input.categorySlug,
     trainingTypeSlug: input.trainingTypeSlug ?? null,
-    title: input.title,
+    title: input.title ?? "",
   }).catch(() => {});
 
   return NextResponse.json({ status: "created", eventId: createdEvent.id });

@@ -1,3 +1,5 @@
+mkdir -p "lib/validation"
+cat > "lib/validation/create-event.ts" << 'ENDOFFILE'
 import { z } from "zod";
 import { getCityUtcOffset } from "@/lib/data/city-timezones";
 
@@ -64,3 +66,4 @@ export const createEventSchema = z
   });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
+ENDOFFILE

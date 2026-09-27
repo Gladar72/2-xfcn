@@ -1,10 +1,11 @@
+mkdir -p "lib/validation"
+cat > "lib/validation/create-event.ts" << 'ENDOFFILE'
 import { z } from "zod";
 import { getCityUtcOffset } from "@/lib/data/city-timezones";
 
 export const createEventSchema = z
   .object({
     title: z.string().min(1).max(120).optional(),
-    description: z.string().max(1000).optional(),
     categorySlug: z.string().min(1),
     trainingTypeSlug: z.string().optional(),
     city: z.string().min(1),
@@ -42,17 +43,10 @@ export const createEventSchema = z
     // какого-либо объяснения пользователю (реальный найденный случай).
     // Дата+время указаны в местном времени города события — переводим в
     // UTC тем же способом, что и в планировщике утренних напоминаний,
-    // прежде чем сравнивать с текущим моментом. Regex выше уже
-    // гарантирует формат ДДДД-ММ-ДД / ЧЧ:ММ, поэтому после split здесь
-    // ровно нужное число частей — приводим типы через Number(... ?? "").
+    // прежде чем сравнивать с текущим моментом.
     const offsetHours = getCityUtcOffset(data.city);
-    const dateParts = data.eventDate.split("-");
-    const timeParts = data.eventTime.split(":");
-    const year = Number(dateParts[0]);
-    const month = Number(dateParts[1]);
-    const day = Number(dateParts[2]);
-    const hour = Number(timeParts[0]);
-    const minute = Number(timeParts[1]);
+    const [year, month, day] = data.eventDate.split("-").map(Number);
+    const [hour, minute] = data.eventTime.split(":").map(Number);
     const eventUtcMs = Date.UTC(year, month - 1, day, hour - offsetHours, minute);
     if (eventUtcMs <= Date.now()) {
       ctx.addIssue({
@@ -64,3 +58,4 @@ export const createEventSchema = z
   });
 
 export type CreateEventInput = z.infer<typeof createEventSchema>;
+ENDOFFILE
