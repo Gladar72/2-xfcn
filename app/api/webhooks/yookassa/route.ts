@@ -4,6 +4,7 @@ import { getYooKassaPayment } from "@/lib/payments/yookassa";
 import { activateSubscription } from "@/lib/subscriptions/server";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import type { Plan } from "@/lib/subscriptions/limits";
+import { recordReferralCommission } from "@/lib/subscriptions/referrals";
 
 /**
  * POST /api/webhooks/yookassa
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
 
   const { data: paymentRow } = await admin
     .from("payments")
-    .select("id, user_id, plan, status")
+    .select("id, user_id, plan, status, amount, currency")
     .eq("external_payment_id", paymentId)
     .maybeSingle();
 
@@ -68,6 +69,13 @@ export async function POST(req: Request) {
     .from("payments")
     .update({ status: "succeeded", subscription_id: subscriptionId })
     .eq("id", paymentRow.id);
+
+  // Партнёрская программа: 30% блогеру, если плательщик пришёл по его ссылке.
+  await recordReferralCommission(
+    admin,
+    { paymentId: paymentRow.id, userId: paymentRow.user_id, amount: Number(paymentRow.amount), currency: paymentRow.currency ?? "RUB" },
+    notifyTelegram
+  );
 
   const { data: user } = await admin
     .from("users")
