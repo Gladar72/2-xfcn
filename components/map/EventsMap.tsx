@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { loadYandexMaps } from "@/lib/maps/load-yandex-maps";
+import { createMap, type LngLat, type MapLibreMap, type MapLibreMarker } from "@/lib/maps/load-maplibre";
 import { searchAddress } from "@/lib/maps/forward-geocode";
 
 export interface MapEventItem {
@@ -37,7 +37,10 @@ interface EventsMapProps {
 const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень, запасной центр
 // Пиксельный радиус группировки — ориентир из задания на кластеризацию
 // (не радиус географического поиска, а расстояние на экране в CSS-пикселях).
-const CLUSTER_GRID_SIZE = 60;
+const CLUSTER_RADIUS = 50;
+// Начиная с этого масштаба встречи больше не объединяются в кружки —
+// раздвинутые дубликаты (см. JITTER_METERS) видны отдельными значками.
+const CLUSTER_MAX_ZOOM = 17;
 // Точность округления координат, чтобы найти встречи в буквально одной
 // точке (например, две встречи в одном и том же месте, выбранном через
 // автодополнение адреса) — 6 знаков после запятой ≈ 0.1м, ловит только
@@ -49,7 +52,7 @@ const EXACT_MATCH_PRECISION = 6;
 // пикселя, поэтому такие встречи по-прежнему видны одним кружком; но при
 // максимальном увеличении карты то же самое расстояние в метрах
 // превращается в десятки экранных пикселей — больше порога кластеризации
-// (CLUSTER_GRID_SIZE) — и стандартная пиксельная кластеризация сама
+// (CLUSTER_RADIUS) — и стандартная пиксельная кластеризация сама
 // естественно разводит их на отдельные значки. Раньше вместо этого
 // применялось "жёсткое" объединение без раздвижения — по итогам
 // тестирования пользователь явно попросил именно раздвигать при
@@ -148,6 +151,30 @@ function jitterExactDuplicates(events: MapEventItem[]): MapEventItem[] {
   return result;
 }
 
+/** Размеры и «кончик» пина для HTML-маркера встречи (см. комментарии внутри). */
+function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el: HTMLElement; offsetY: number } {
+  // "Для бизнеса" — отдельный, чуть более крупный значок (маскот с
+  // кошельком в булавке-геолокации).
+  const src = markerIconFor(event);
+  const isCustom = !event.isBusiness && src === FALLBACK_MARKER;
+  const width = event.isBusiness ? 60 : 46;
+  // marker-business.png — квадратный кадр (1:1); marker-custom-proposal.png —
+  // своя пропорция (1229/944), у SVG-пинов категорий — 288/256.
+  const height = event.isBusiness ? width : Math.round(width * (isCustom ? 1229 / 944 : MARKER_ASPECT));
+  // "Кончик" пина — не у самого низа картинки: у SVG-пинов y≈269/288, у
+  // бизнес-пина ≈95.2%, у своего предложения ≈99.3%. Маркер ставится
+  // серединой нижнего края в точку, поэтому сдвигаем вниз на остаток.
+  const tipRatioY = event.isBusiness ? 0.952 : isCustom ? 0.993 : 269 / 288;
+  const el = document.createElement("div");
+  el.style.cssText = `width:${width}px;height:${height}px;cursor:pointer;`;
+  el.innerHTML = `<img src="${src}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.25));" />`;
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    onClick();
+  });
+  return { el, offsetY: Math.round((1 - tipRatioY) * height) };
+}
+
 export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function EventsMap(
   { events, onSelect, city },
   ref
@@ -155,157 +182,156 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
   const containerRef = useRef<HTMLDivElement>(null);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
-  const mapRef = useRef<{
-    setLocation: (opts: { center?: [number, number]; zoom?: number; bounds?: [[number, number], [number, number]] }) => void;
-  } | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
 
   useImperativeHandle(ref, () => ({
     fitBounds(points) {
-      if (!mapRef.current || points.length === 0) return;
+      const map = mapRef.current;
+      if (!map || points.length === 0) return;
       if (points.length === 1) {
         const only = points.find(() => true);
-        if (only) mapRef.current.setLocation({ center: only, zoom: 16 });
+        if (only) map.flyTo({ center: only, zoom: 16 });
         return;
       }
       const lngs = points.map((p) => p[0]);
       const lats = points.map((p) => p[1]);
-      mapRef.current.setLocation({
-        bounds: [
+      map.fitBounds(
+        [
           [Math.min(...lngs), Math.min(...lats)],
           [Math.max(...lngs), Math.max(...lats)],
         ],
-      });
+        { padding: 60, maxZoom: 18 }
+      );
     },
   }));
 
   useEffect(() => {
     let cancelled = false;
+    let map: MapLibreMap | null = null;
     const container = containerRef.current;
     if (!container) return;
 
     async function setup() {
-      const ymaps3 = await loadYandexMaps();
-      if (cancelled || !container) return;
-
-      const { YMap, YMapDefaultSchemeLayer, YMapFeatureDataSource, YMapLayer, YMapMarker } = ymaps3 as unknown as {
-        YMap: new (
-          el: HTMLElement,
-          opts: unknown
-        ) => {
-          addChild: (child: unknown) => unknown;
-          setLocation: (opts: { center?: [number, number]; zoom?: number; bounds?: [[number, number], [number, number]] }) => void;
-        };
-        YMapDefaultSchemeLayer: new () => unknown;
-        YMapFeatureDataSource: new (opts: { id: string }) => unknown;
-        YMapLayer: new (opts: { source: string; type: string; zIndex: number }) => unknown;
-        YMapMarker: new (opts: { coordinates: [number, number]; source: string }, el: HTMLElement) => unknown;
-      };
-
-      const center =
+      const center: LngLat =
         events.length > 0
-          ? ([
+          ? [
               events.reduce((sum, e) => sum + e.longitude, 0) / events.length,
               events.reduce((sum, e) => sum + e.latitude, 0) / events.length,
-            ] as [number, number])
+            ]
           : city
             ? await geocodeCityCenter(city)
             : DEFAULT_CENTER;
-      if (cancelled) return;
+      if (cancelled || !container) return;
 
-      const map = new YMap(container, { location: { center, zoom: 12 } });
+      const created = await createMap(container, { center, zoom: 12 });
+      if (cancelled) {
+        created.map.remove();
+        return;
+      }
+      const { maplibregl } = created;
+      map = created.map;
       mapRef.current = map;
-      map.addChild(new YMapDefaultSchemeLayer());
-      map.addChild(new YMapFeatureDataSource({ id: "events-source" }));
-      map.addChild(new YMapLayer({ source: "events-source", type: "markers", zIndex: 1800 }));
+      const activeMap = map;
 
       if (events.length === 0) return;
 
-      const { YMapClusterer, clusterByGrid } = (await ymaps3.import("@yandex/ymaps3-clusterer")) as unknown as {
-        YMapClusterer: new (props: Record<string, unknown>) => unknown;
-        clusterByGrid: (opts: { gridSize: number }) => unknown;
-      };
-      if (cancelled) return;
-
       // Раздвигаем встречи с буквально одинаковыми координатами (см.
       // jitterExactDuplicates) — дальше обычная пиксельная кластеризация
-      // сама решает, объединять их в кружок или показывать раздельно,
-      // в зависимости от текущего масштаба карты.
+      // сама решает, объединять их в кружок или показывать раздельно.
       const jittered = jitterExactDuplicates(events);
+      const eventsById = new Map(jittered.map((e) => [e.id, e]));
 
-      const features = jittered.map((event) => ({
-        type: "Feature" as const,
-        id: event.id,
-        geometry: { coordinates: [event.longitude, event.latitude] as [number, number] },
-        properties: { event },
-      }));
+      const geojson = {
+        type: "FeatureCollection",
+        features: jittered.map((event) => ({
+          type: "Feature",
+          properties: { id: event.id },
+          geometry: { type: "Point", coordinates: [event.longitude, event.latitude] },
+        })),
+      };
 
-      function markerRenderer(feature: (typeof features)[number]) {
-        const event = feature.properties.event;
-        const el = document.createElement("div");
-        // "Для бизнеса" — отдельный, чуть более крупный значок (см. ТЗ:
-        // "значком чуть больше чем другие значки, чтобы он выделялся") —
-        // маскот с кошельком в булавке-геолокации (явно подтверждённая
-        // пользователем именно эта картинка для карты, отдельная от
-        // иконки "Своё предложение" на главном экране).
-        const src = event.isBusiness ? "/brand/markers/marker-business.png" : MARKER_BY_SLUG[event.category?.slug ?? ""] ?? FALLBACK_MARKER;
-        const isCustom = !event.isBusiness && src === FALLBACK_MARKER;
-        // Новая иконка "Своё предложение" (marker-custom-proposal.png) —
-        // полноценный пин без лишних полей по краям, как и у остальных
-        // категорий, поэтому больше не нужно компенсировать размер
-        // (раньше здесь был CUSTOM_MARKER_SCALE=1.35 — это было для СТАРОГО
-        // файла с большими прозрачными полями).
-        const width = event.isBusiness ? 60 : 46;
-        // marker-business.png — квадратный кадр (1:1); marker-custom-proposal.png —
-        // своя пропорция (1374/1145 ≈ 1.2), отличная от 288/256 у остальных
-        // SVG-пинов — раньше высота у бизнеса считалась по чужой пропорции,
-        // отсюда был вытянутый вид.
-        const height = event.isBusiness ? width : Math.round(width * (isCustom ? 1229 / 944 : MARKER_ASPECT));
-        // "Кончик" пина в самой картинке — не у самого низа (y≈269 из 288
-        // высоты viewBox), а чуть выше. Без явного сдвига библиотека карт
-        // ставит ЛЕВЫЙ ВЕРХНИЙ угол элемента в точку координаты — из-за
-        // этого пин визуально "съезжал" с адреса вместо того, чтобы точно
-        // указывать на него своим кончиком. У marker-business.png кончик
-        // в другом месте (≈95.2% высоты), у marker-custom-proposal.png —
-        // после обрезки пустых полей кончик почти у самого низа (≈99.3%).
-        const tipRatioY = event.isBusiness ? 0.952 : isCustom ? 0.993 : 269 / 288;
-        el.style.cssText = `position:relative;width:${width}px;height:${height}px;cursor:pointer;transform:translate(-50%, -${(tipRatioY * 100).toFixed(2)}%);transform-origin:bottom center;`;
-        el.innerHTML = `<img src="${src}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.25));" />`;
-        el.addEventListener("click", () => onSelectRef.current([event]));
-        return new YMapMarker({ coordinates: feature.geometry.coordinates, source: "events-source" }, el);
+      // HTML-маркеры (наши 3D-пины и кружки-счётчики) поверх кластеров,
+      // которые считает сама карта. Ключ — id встречи или id кластера.
+      const markers = new Map<string, MapLibreMarker>();
+
+      function syncMarkers() {
+        const seen = new Set<string>();
+        for (const feature of activeMap.querySourceFeatures("events")) {
+          const props = feature.properties ?? {};
+          const coords = feature.geometry.coordinates as LngLat;
+          if (props.cluster) {
+            const clusterId = Number(props.cluster_id);
+            const key = `c${clusterId}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            if (markers.has(key)) continue;
+            const count = Number(props.point_count);
+            const button = createClusterButton(count, () => {
+              const source = activeMap.getSource("events") as {
+                getClusterLeaves: (id: number, limit: number, offset: number) => Promise<Array<{ properties: { id: string } }>>;
+              };
+              source
+                .getClusterLeaves(clusterId, Infinity, 0)
+                .then((leaves) => {
+                  const list = leaves.map((l) => eventsById.get(l.properties.id)).filter((e): e is MapEventItem => !!e);
+                  if (list.length > 0) onSelectRef.current(list);
+                })
+                .catch(() => {});
+            });
+            const marker = new maplibregl.Marker({ element: button, anchor: "center" }).setLngLat(coords).addTo(activeMap);
+            markers.set(key, marker);
+          } else {
+            const id = String(props.id);
+            const event = eventsById.get(id);
+            if (!event || seen.has(id)) continue;
+            seen.add(id);
+            if (markers.has(id)) continue;
+            const { el, offsetY } = buildEventMarkerElement(event, () => onSelectRef.current([event]));
+            const marker = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, offsetY] })
+              .setLngLat([event.longitude, event.latitude])
+              .addTo(activeMap);
+            markers.set(id, marker);
+          }
+        }
+        for (const [key, marker] of markers) {
+          if (!seen.has(key)) {
+            marker.remove();
+            markers.delete(key);
+          }
+        }
       }
 
-      function clusterRenderer(coordinates: [number, number], clusterFeatures: typeof features) {
-        // Счётчик кластера — число встреч в нём на текущем масштабе (п.2
-        // задания на кластеризацию — считаем встречи, не участников).
-        const allEvents = clusterFeatures.map((f) => f.properties.event);
-        const el = document.createElement("div");
-        // display:inline-block — обёртка сжимается по размеру кружка
-        // внутри (без этого div растянулся бы на всю ширину контейнера,
-        // и центрирование по проценту считалось бы неверно). translate
-        // -50%/-50% — центр кружка (не левый верхний угол) точно на
-        // координате.
-        el.style.cssText = "display:inline-block;cursor:pointer;transform:translate(-50%, -50%);";
-        const button = createClusterButton(allEvents.length, () => onSelectRef.current(allEvents));
-        el.appendChild(button);
-        return new YMapMarker({ coordinates, source: "events-source" }, el);
-      }
-
-      const clusterer = new YMapClusterer({
-        method: clusterByGrid({ gridSize: CLUSTER_GRID_SIZE }),
-        features,
-        marker: markerRenderer,
-        cluster: clusterRenderer,
+      activeMap.on("load", () => {
+        if (cancelled) return;
+        activeMap.addSource("events", {
+          type: "geojson",
+          data: geojson,
+          cluster: true,
+          clusterRadius: CLUSTER_RADIUS,
+          clusterMaxZoom: CLUSTER_MAX_ZOOM,
+        });
+        // Невидимый слой — без него карта не отдаёт точки источника
+        // (querySourceFeatures), а рисуем мы их сами HTML-маркерами.
+        activeMap.addLayer({
+          id: "events-hidden",
+          type: "circle",
+          source: "events",
+          paint: { "circle-radius": 1, "circle-opacity": 0 },
+        });
+        activeMap.on("data", (e: unknown) => {
+          const ev = e as { sourceId?: string; isSourceLoaded?: boolean };
+          if (ev.sourceId === "events" && ev.isSourceLoaded) syncMarkers();
+        });
+        activeMap.on("moveend", syncMarkers);
       });
-
-      map.addChild(clusterer);
     }
 
-    setup();
+    setup().catch((err) => console.error("EventsMap: не удалось загрузить карту", err));
 
     return () => {
       cancelled = true;
       mapRef.current = null;
-      if (container) container.innerHTML = "";
+      map?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [events, city]);

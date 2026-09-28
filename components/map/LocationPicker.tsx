@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { loadYandexMaps } from "@/lib/maps/load-yandex-maps";
+import { createMap, type LngLat, type MapLibreMap, type MapLibreMarker } from "@/lib/maps/load-maplibre";
 import { reverseGeocode } from "@/lib/maps/reverse-geocode";
 
 interface LocationPickerProps {
@@ -48,89 +48,67 @@ export function LocationPicker({
   onAddressResolvedRef.current = onAddressResolved;
   const [hasPin, setHasPin] = useState(false);
   const [resolvingAddress, setResolvingAddress] = useState(false);
-  const mapRef = useRef<{ setLocation: (opts: { center: [number, number]; zoom: number }) => void; addChild: (c: unknown) => unknown } | null>(null);
-  const markerRef = useRef<{ update?: (props: unknown) => void } | null>(null);
-  const markerCtorRef = useRef<(new (opts: { coordinates: [number, number]; source: string }, el: HTMLElement) => unknown) | null>(null);
-  const placeMarkerRef = useRef<((coords: [number, number]) => void) | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const placeMarkerRef = useRef<((coords: LngLat) => void) | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    let map: MapLibreMap | null = null;
     const container = containerRef.current;
     if (!container) return;
 
     async function setup() {
-      const ymaps3 = await loadYandexMaps();
-      if (cancelled || !container) return;
+      if (!container) return;
+      const created = await createMap(container, { center: initialCenter ?? DEFAULT_CENTER, zoom: 14 });
+      if (cancelled) {
+        created.map.remove();
+        return;
+      }
+      const { maplibregl } = created;
+      map = created.map;
+      mapRef.current = map;
+      const activeMap = map;
+      let marker: MapLibreMarker | null = null;
 
-      const { YMap, YMapDefaultSchemeLayer, YMapFeatureDataSource, YMapLayer, YMapMarker, YMapListener } =
-        ymaps3 as unknown as {
-          YMap: new (el: HTMLElement, opts: unknown) => { addChild: (c: unknown) => unknown };
-          YMapDefaultSchemeLayer: new () => unknown;
-          YMapFeatureDataSource: new (opts: { id: string }) => unknown;
-          YMapLayer: new (opts: { source: string; type: string; zIndex: number }) => unknown;
-          YMapMarker: new (opts: { coordinates: [number, number]; source: string }, el: HTMLElement) => unknown;
-          YMapListener: new (opts: {
-            layer: string;
-            onClick: (object: unknown, event: { coordinates: [number, number] }) => void;
-          }) => unknown;
-        };
-
-      const map = new YMap(container, {
-        location: { center: initialCenter ?? DEFAULT_CENTER, zoom: 14 },
-      });
-      map.addChild(new YMapDefaultSchemeLayer());
-      map.addChild(new YMapFeatureDataSource({ id: "picker-source" }));
-      map.addChild(new YMapLayer({ source: "picker-source", type: "markers", zIndex: 1800 }));
-
-      mapRef.current = map as unknown as { setLocation: (opts: { center: [number, number]; zoom: number }) => void; addChild: (c: unknown) => unknown };
-      markerCtorRef.current = YMapMarker;
-
-      function placeMarker(coordinates: [number, number]) {
-        if (markerRef.current?.update) {
-          markerRef.current.update({ coordinates });
-        } else {
-          // Пропорции разные у разных иконок — свой пин почти квадратный
-          // (после обрезки полей ≈944×1229 ≈ h/w 1.3), у бизнес-пина 1:1.
-          // Без этого расчёта картинка растягивалась бы в чужую пропорцию.
-          const width = 32;
-          const height = markerIconSrc.includes("marker-business") ? width : Math.round(width * (1229 / 944));
-          const el = document.createElement("div");
-          el.style.cssText = `width:${width}px;height:${height}px;transform:translateY(-${height / 2}px);filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));`;
-          el.innerHTML = `<img src="${markerIconSrc}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;" />`;
-          markerRef.current = new YMapMarker({ coordinates, source: "picker-source" }, el) as {
-            update?: (props: unknown) => void;
-          };
-          map.addChild(markerRef.current);
+      function placeMarker(coordinates: LngLat) {
+        if (marker) {
+          marker.setLngLat(coordinates);
+          return;
         }
+        // Пропорции разные у разных иконок — свой пин почти квадратный
+        // (≈944×1229), у бизнес-пина 1:1. Кончик пина — у нижнего края.
+        const width = 32;
+        const height = markerIconSrc.includes("marker-business") ? width : Math.round(width * (1229 / 944));
+        const el = document.createElement("div");
+        el.style.cssText = `width:${width}px;height:${height}px;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));`;
+        el.innerHTML = `<img src="${markerIconSrc}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;" />`;
+        marker = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(coordinates).addTo(activeMap);
       }
       placeMarkerRef.current = placeMarker;
 
-      map.addChild(
-        new YMapListener({
-          layer: "any",
-          onClick: (_object, event) => {
-            const [longitude, latitude] = event.coordinates;
-            setHasPin(true);
-            onPickRef.current({ latitude, longitude });
+      activeMap.on("click", (e: unknown) => {
+        const { lng: longitude, lat: latitude } = (e as { lngLat: { lng: number; lat: number } }).lngLat;
+        setHasPin(true);
+        onPickRef.current({ latitude, longitude });
 
-            setResolvingAddress(true);
-            reverseGeocode(latitude, longitude)
-              .then((address) => {
-                if (address) onAddressResolvedRef.current?.(address);
-              })
-              .finally(() => setResolvingAddress(false));
+        setResolvingAddress(true);
+        reverseGeocode(latitude, longitude)
+          .then((address) => {
+            if (address) onAddressResolvedRef.current?.(address);
+          })
+          .finally(() => setResolvingAddress(false));
 
-            placeMarker(event.coordinates);
-          },
-        })
-      );
+        placeMarker([longitude, latitude]);
+      });
     }
 
-    setup();
+    setup().catch((err) => console.error("LocationPicker: не удалось загрузить карту", err));
 
     return () => {
       cancelled = true;
-      if (container) container.innerHTML = "";
+      mapRef.current = null;
+      placeMarkerRef.current = null;
+      map?.remove();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -139,8 +117,8 @@ export function LocationPicker({
   // перелетаем картой к ней и ставим тот же маркер, что и при клике.
   useEffect(() => {
     if (!externalCoords || !mapRef.current || !placeMarkerRef.current) return;
-    const coords: [number, number] = [externalCoords.longitude, externalCoords.latitude];
-    mapRef.current.setLocation({ center: coords, zoom: 16 });
+    const coords: LngLat = [externalCoords.longitude, externalCoords.latitude];
+    mapRef.current.flyTo({ center: coords, zoom: 16 });
     placeMarkerRef.current(coords);
     setHasPin(true);
   }, [externalCoords]);
