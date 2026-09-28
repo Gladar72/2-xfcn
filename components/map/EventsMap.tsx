@@ -76,6 +76,11 @@ const MARKER_BY_SLUG: Record<string, string> = {
   custom: "/brand/markers/marker-custom-proposal.png",
 };
 const FALLBACK_MARKER = "/brand/markers/marker-custom-proposal.png";
+
+/** Та же иконка, что у маркера встречи на карте — для списка в нижней шторке. */
+export function markerIconFor(event: Pick<MapEventItem, "isBusiness" | "category">): string {
+  return event.isBusiness ? "/brand/markers/marker-business.png" : MARKER_BY_SLUG[event.category?.slug ?? ""] ?? FALLBACK_MARKER;
+}
 const MARKER_ASPECT = 288 / 256; // высота/ширина viewBox маркера
 
 /**
