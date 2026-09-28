@@ -290,6 +290,8 @@ export async function GET(req: NextRequest) {
       // Лёгкое визуальное выделение карточки — привилегия тарифов
       // Медиум и Премьер (см. FEATURES в components/paywall/Paywall.tsx).
       isHighlighted: organizerPlan === "medium" || organizerPlan === "premium",
+      // Своя встреча — в ленте у организатора не показываем кнопку «Я иду».
+      isMine: !!currentUser && !!organizer && organizer.id === currentUser.userId,
       organizer: organizer
         ? {
             id: organizer.id,
