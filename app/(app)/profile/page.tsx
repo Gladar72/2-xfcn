@@ -154,7 +154,7 @@ export default function ProfilePage() {
             className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm text-white shadow-card active:scale-95"
             aria-label="Изменить фото"
           >
-            {uploadingPhoto ? "…" : "✏️"}
+            {uploadingPhoto ? "…" : <Image src="/brand/3d/icon-edit.png" alt="" width={20} height={20} />}
           </button>
           <input
             ref={fileInputRef}
@@ -169,7 +169,7 @@ export default function ProfilePage() {
           {profile.name}, {profile.age}
         </h1>
         <p className="mt-1 flex items-center gap-1 text-sm text-ink-600">
-          <Image src="/brand/icons/location.svg" alt="" width={14} height={14} />
+          <Image src="/brand/3d/icon-location.png" alt="" width={14} height={14} />
           {profile.city}
         </p>
         {profile.ratingCount > 0 && (
@@ -234,7 +234,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="space-y-1.5 rounded-card-lg bg-white p-1.5 shadow-card">
-        <MenuRow href="/my-events" icon="/brand/icons/calendar.svg" label="Мои встречи" />
+        <MenuRow href="/my-events" icon="/brand/3d/icon-calendar.png" label="Мои встречи" />
         <MenuRow href="/notifications" icon="/brand/icons/bell.svg" label="Уведомления" />
         <MenuRow
           href="/subscriptions"
@@ -242,7 +242,7 @@ export default function ProfilePage() {
           label="Подписка"
           value={subscription?.active ? PLAN_TITLES[subscription.plan!] : "не оформлена"}
         />
-        <MenuRow href="/reviews" icon="/brand/icons/star.svg" label="Отзывы после встреч" />
+        <MenuRow href="/reviews" icon="/brand/3d/icon-badge.png" label="Отзывы после встреч" />
       </div>
     </div>
   );
