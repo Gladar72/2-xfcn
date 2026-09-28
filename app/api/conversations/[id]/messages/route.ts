@@ -82,7 +82,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .neq("user_id", currentUser.userId),
     admin
       .from("conversations")
-      .select("event_id, events(title, status, is_business, organizer_id, category:categories(slug, name, emoji))")
+      .select("event_id, events(title, status, is_business, organizer_id, photo_url, category:categories(slug, name, emoji))")
       .eq("id", conversationId)
       .maybeSingle(),
   ]);
@@ -119,6 +119,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     status: string;
     is_business: boolean;
     organizer_id: string | null;
+    photo_url: string | null;
     category: { slug: string; name: string; emoji: string | null } | null;
   } | null;
 
@@ -137,6 +138,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     category: eventInfo?.category ?? null,
     isBusiness: eventInfo?.is_business ?? false,
     organizerId: eventInfo?.organizer_id ?? null,
+    eventPhotoUrl: eventInfo?.photo_url ?? null,
     members,
   });
 }
