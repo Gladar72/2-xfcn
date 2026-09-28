@@ -20,12 +20,26 @@ async function assertMembership(
   return data;
 }
 
+/** Возраст по дате рождения (лет, целиком) — тот же способ счёта, что и везде в проекте. */
+function calcAge(birthDate: string | null): number | null {
+  if (!birthDate) return null;
+  const birth = new Date(birthDate);
+  const now = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const hasHadBirthdayThisYear =
+    now.getMonth() > birth.getMonth() || (now.getMonth() === birth.getMonth() && now.getDate() >= birth.getDate());
+  if (!hasHadBirthdayThisYear) age -= 1;
+  return age;
+}
+
 /**
  * GET /api/conversations/[id]/messages
  * История сообщений (последние 50, по возрастанию времени) + название
  * встречи и список ОСТАЛЬНЫХ участников (для шапки группового чата и
  * подписи над входящими сообщениями — теперь участников может быть
- * несколько, не только один собеседник, как раньше).
+ * несколько, не только один собеседник, как раньше). Дополнительно — кто
+ * организатор, возраст, пол и число посещённых встреч каждого участника
+ * (для раскрывающегося списка "Участники события", см. запрос пользователя).
  */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: conversationId } = await params;
@@ -56,36 +70,55 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: false })
       .limit(MESSAGE_HISTORY_LIMIT),
-    // Все ОСТАЛЬНЫЕ участники (не только один, как раньше) — имя и фото
-    // для подписи над сообщениями, last_read_at каждого для галочек
-    // "прочитано" (сообщение считается прочитанным только когда ВСЕ
-    // остальные участники его увидели — логично для группового чата).
+    // Все ОСТАЛЬНЫЕ участники (не только один, как раньше) — имя, фото,
+    // возраст, пол и число посещённых встреч для списка "Участники
+    // события", last_read_at каждого для галочек "прочитано" (сообщение
+    // считается прочитанным только когда ВСЕ остальные участники его
+    // увидели — логично для группового чата).
     admin
       .from("conversation_members")
-      .select("last_read_at, user:users(id, name, avatar_url)")
+      .select("last_read_at, user:users(id, name, avatar_url, birth_date, gender, completed_meetings_count)")
       .eq("conversation_id", conversationId)
       .neq("user_id", currentUser.userId),
     admin
       .from("conversations")
-      .select("event_id, events(title, status, is_business, category:categories(slug, name, emoji))")
+      .select("event_id, events(title, status, is_business, organizer_id, category:categories(slug, name, emoji))")
       .eq("id", conversationId)
       .maybeSingle(),
   ]);
 
   if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
 
+  interface RawMemberUser {
+    id: string;
+    name: string;
+    avatar_url: string | null;
+    birth_date: string | null;
+    gender: string | null;
+    completed_meetings_count: number | null;
+  }
+
   const members = (otherMemberRows ?? [])
     .map((row) => {
-      const user = row.user as unknown as { id: string; name: string; avatar_url: string | null } | null;
+      const user = row.user as unknown as RawMemberUser | null;
       if (!user) return null;
-      return { id: user.id, name: user.name, avatarUrl: user.avatar_url, lastReadAt: row.last_read_at as string | null };
+      return {
+        id: user.id,
+        name: user.name,
+        avatarUrl: user.avatar_url,
+        age: calcAge(user.birth_date),
+        gender: user.gender,
+        completedMeetingsCount: user.completed_meetings_count ?? 0,
+        lastReadAt: row.last_read_at as string | null,
+      };
     })
-    .filter((m): m is { id: string; name: string; avatarUrl: string | null; lastReadAt: string | null } => !!m);
+    .filter((m): m is NonNullable<typeof m> => !!m);
 
   const eventInfo = conversationRow?.events as unknown as {
     title: string;
     status: string;
     is_business: boolean;
+    organizer_id: string | null;
     category: { slug: string; name: string; emoji: string | null } | null;
   } | null;
 
@@ -103,6 +136,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     eventStatus: eventInfo?.status ?? null,
     category: eventInfo?.category ?? null,
     isBusiness: eventInfo?.is_business ?? false,
+    organizerId: eventInfo?.organizer_id ?? null,
     members,
   });
 }
