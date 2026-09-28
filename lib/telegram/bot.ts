@@ -234,6 +234,18 @@ export function getBot(): Bot {
       .url("📤 Поделиться ссылкой", `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`);
   }
 
+  // Коротко о проекте — отправляется блогеру при одобрении заявки, чтобы
+  // было из чего собрать пост/сторис.
+  const PROJECT_BRIEF =
+    "Коротко о проекте — пригодится для постов и сторис:\n" +
+    "• МЕСТО — мини-приложение в Telegram, где находят компанию на конкретное дело: кофе, тренировка, кино, прогулка, завтрак или ужин.\n" +
+    "• Сначала активность, потом человек — это не знакомства и не свайпы.\n" +
+    "• Видно, кто куда идёт: лента встреч и карта города.\n" +
+    "• Нажимаешь «Я иду» → организатор принимает → открывается чат участников.\n" +
+    "• После встречи — отзывы и рейтинг, поэтому здесь собираются надёжные люди.\n" +
+    "• Смотреть встречи и присоединяться — бесплатно. Подписка от 299 ₽/мес нужна, чтобы создавать свои встречи.\n" +
+    "• Работает прямо в Telegram — ничего не нужно скачивать.";
+
   function approvedPartnerText(link: string) {
     return (
       "🤝 Вы партнёр МЕСТО!\n\n" +
@@ -432,7 +444,7 @@ export function getBot(): Bot {
     if (status === "approved") {
       const link = referralLink(ctx.me.username, partner.code);
       await ctx.api
-        .sendMessage(Number(partner.telegram_id), `🎉 Заявка одобрена!\n\n${approvedPartnerText(link)}`, {
+        .sendMessage(Number(partner.telegram_id), `🎉 Заявка одобрена! Добро пожаловать в партнёры МЕСТО.\n\n${PROJECT_BRIEF}\n\n${approvedPartnerText(link)}`, {
           reply_markup: partnerMenuKeyboard(link),
           link_preview_options: { is_disabled: true },
         })
