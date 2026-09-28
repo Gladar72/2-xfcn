@@ -385,7 +385,7 @@ function MenuRow({
 }) {
   return (
     <Link href={href} className="flex items-center gap-3 active:opacity-70">
-      <Image
+      <Image unoptimized
         src={icon}
         alt=""
         width={40}
