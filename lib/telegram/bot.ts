@@ -381,7 +381,9 @@ export function getBot(): Bot {
       return;
     }
     await ctx.answerCallbackQuery();
-    const [, action, id] = ctx.match as RegExpMatchArray;
+    const match = ctx.match as RegExpMatchArray;
+    const action = match[1] ?? "";
+    const id = match[2] ?? "";
     const admin = createAdminClient();
     const sourceMessage = ctx.callbackQuery.message;
     const originalText = sourceMessage && "text" in sourceMessage ? sourceMessage.text ?? "" : "";
