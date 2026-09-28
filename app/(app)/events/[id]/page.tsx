@@ -262,10 +262,30 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             </button>
           </div>
 
-          <div className="m-badge">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/mesto/assets/icons/png/business.png" alt="" width={20} height={20} />
-            <span>{categoryLabel}</span>
+          {canManage && (
+            <div className="mb-3 flex items-start gap-2 rounded-card-lg bg-[#F1EAFF] p-4">
+              <span className="text-lg leading-none">👑</span>
+              <div>
+                <p className="text-sm font-semibold text-[color:var(--m-purple)]">Вы организатор этого события</p>
+                <p className="mt-0.5 text-xs text-ink-600">Вы можете изменить информацию о событии в любой момент.</p>
+              </div>
+            </div>
+          )}
+
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="m-badge">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/mesto/assets/icons/png/business.png" alt="" width={20} height={20} />
+              <span>{categoryLabel}</span>
+            </div>
+            {canManage && (
+              <Link
+                href={`/events/${event.id}/edit`}
+                className="flex shrink-0 items-center gap-1.5 rounded-pill bg-[#F1EAFF] px-4 py-2 text-sm font-medium text-[color:var(--m-purple)]"
+              >
+                ✏️ Редактировать
+              </Link>
+            )}
           </div>
 
           <h1 className="m-title">{event.title}</h1>
