@@ -26,9 +26,9 @@ const CATEGORY_ICON: Record<string, string> = {
   breakfast: "/brand/3d/breakfast.png",
   dinner: "/brand/3d/dinner.png",
   walk: "/brand/3d/walk.png",
-  // Для "своего предложения" раньше стоял плюсик (custom-proposal) — на
-  // карточке встречи он читался как кнопка "создать". Теперь — иконка встречи.
-  custom: "/brand/3d/icon-calendar.png",
+  // "Своё предложение" — телефон с громкоговорителем (как маркер на карте),
+  // а не плюсик: плюсик на карточке читался как кнопка "создать".
+  custom: "/brand/markers/marker-custom-proposal.png",
 };
 
 const DEFAULT_ICON = "/brand/3d/icon-calendar.png";
