@@ -1,3 +1,5 @@
+mkdir -p "app/chats/[id]"
+cat > "app/chats/[id]/page.tsx" << 'FILE1_EOF'
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -516,3 +518,4 @@ function pluralizeParticipants(n: number): string {
   if ([2, 3, 4].includes(mod10) && !(mod100 >= 12 && mod100 <= 14)) return "участников";
   return "участников";
 }
+FILE1_EOF
