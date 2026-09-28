@@ -53,7 +53,7 @@ const CATEGORY_ICON: Record<string, string> = {
   breakfast: "/brand/3d/breakfast.png",
   dinner: "/brand/3d/dinner.png",
   walk: "/brand/3d/walk.png",
-  custom: "/brand/3d/custom-proposal.png",
+  custom: "/brand/markers/marker-custom-proposal.png",
 };
 
 export default function EventDetailsPage({ params }: EventDetailsPageProps) {
@@ -249,7 +249,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   // Фото есть только у "Для бизнеса" — у остальных категорий вместо
   // фотографии показываем крупную иконку категории на том же месте
   // (см. п.10 ТЗ — предусмотренный текущим проектом fallback).
-  const heroPhotoSrc = event.photoUrl ?? categoryIcon ?? "/brand/3d/custom-proposal.png";
+  const heroPhotoSrc = event.photoUrl ?? categoryIcon ?? "/brand/markers/marker-custom-proposal.png";
   const heroIsRealPhoto = !!event.photoUrl;
   const canManage = event.viewerStatus === "organizer" && (event.status === "published" || event.status === "closed");
 
