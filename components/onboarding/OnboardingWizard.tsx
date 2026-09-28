@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { StepProgress } from "@/components/ui/StepProgress";
@@ -136,7 +137,7 @@ export function OnboardingWizard() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={photoBase64} alt="Фото профиля" className="h-full w-full object-cover" />
               ) : (
-                <span className="text-4xl">📷</span>
+                <Image src="/brand/3d/icon-camera.png" alt="" width={44} height={44} />
               )}
               <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </label>
