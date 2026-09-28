@@ -11,5 +11,5 @@ export const CATEGORY_ICON: Record<string, string> = {
   breakfast: "/brand/3d/breakfast.png",
   dinner: "/brand/3d/dinner.png",
   walk: "/brand/3d/walk.png",
-  custom: "/brand/3d/custom-proposal.png",
+  custom: "/brand/markers/marker-custom-proposal.png",
 };
