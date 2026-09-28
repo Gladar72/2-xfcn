@@ -1,4 +1,4 @@
-import { Bot, InlineKeyboard, type Context } from "grammy";
+import { Bot, InlineKeyboard, Keyboard, type Context } from "grammy";
 import { getSupportAiReply } from "@/lib/telegram/support-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activateSubscription } from "@/lib/subscriptions/server";
@@ -81,6 +81,20 @@ export function getBot(): Bot {
     return kb;
   }
 
+  // Закреплённые кнопки под полем ввода (reply-клавиатура, открывается
+  // значком справа от поля сообщения). Текст кнопок ловится ниже в
+  // message:text до ответа поддержки.
+  const PARTNER_BUTTON = "🤝 Партнёрская программа";
+  const ADMIN_BUTTON = "📊 Админ-панель";
+  function pinnedKeyboard(isAdmin: boolean) {
+    const kb = new Keyboard().text(PARTNER_BUTTON);
+    if (isAdmin) kb.row().text(ADMIN_BUTTON);
+    return kb.resized().persistent();
+  }
+  function adminPanelKeyboard() {
+    return new InlineKeyboard().webApp("📊 Открыть админ-панель", `${validatedAppUrl}?goto=admin`);
+  }
+
   bot.command("start", async (ctx) => {
     // Переход по партнёрской ссылке t.me/<bot>?start=ref_<code> —
     // закрепляем человека за блогером (первый переход решает).
@@ -90,9 +104,16 @@ export function getBot(): Bot {
         console.error("recordReferralStart failed:", err)
       );
     }
+    const isAdmin = isAdminTelegramId(ctx.from?.id ?? 0);
     await ctx.reply("Отлично, теперь запустим наше МЕСТО! 🚀🧡", {
-      reply_markup: startKeyboard(isAdminTelegramId(ctx.from?.id ?? 0)),
+      reply_markup: startKeyboard(isAdmin),
     });
+    await ctx.reply("Кнопки закреплены внизу 👇", { reply_markup: pinnedKeyboard(isAdmin) });
+  });
+
+  bot.command("admin", async (ctx) => {
+    if (!isAdminTelegramId(ctx.from?.id ?? 0)) return;
+    await ctx.reply("Админ-панель:", { reply_markup: adminPanelKeyboard() });
   });
 
   bot.command("app", async (ctx) => {
@@ -428,6 +449,15 @@ export function getBot(): Bot {
   // и не вызывают next(), так что сюда попадают только обычные сообщения.
   bot.on("message:text", async (ctx) => {
     const userMessage = ctx.message.text;
+
+    if (userMessage === PARTNER_BUTTON) {
+      await sendPartnerMenu(ctx);
+      return;
+    }
+    if (userMessage === ADMIN_BUTTON && isAdminTelegramId(ctx.from.id)) {
+      await ctx.reply("Админ-панель:", { reply_markup: adminPanelKeyboard() });
+      return;
+    }
 
     // Партнёр нажал «Реквизиты» / «Запросить выплату» и теперь присылает
     // реквизиты — сохраняем их, а не отправляем в поддержку.
