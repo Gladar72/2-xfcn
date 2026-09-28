@@ -26,10 +26,10 @@ const MEETING_TYPES = new Set([
 ]);
 
 const TYPE_ICON: Record<string, string> = {
-  new_application: "/brand/icons/users.svg",
+  new_application: "/brand/3d/icon-users.png",
   application_accepted: "/brand/icons/check.svg",
-  event_reminder: "/brand/icons/clock.svg",
-  review_request: "/brand/icons/star.svg",
+  event_reminder: "/brand/3d/icon-clock.png",
+  review_request: "/brand/3d/icon-badge.png",
   boost_suggestion: "/brand/icons/info.svg",
   new_message: "/brand/icons/chat.svg",
 };
@@ -71,7 +71,7 @@ export default function NotificationsPage() {
     <div className="px-5 py-4">
       <div className="mb-4 flex items-center gap-3">
         <Link href="/feed" aria-label="Назад">
-          <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
+          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
         </Link>
         <h1 className="text-title">Уведомления</h1>
       </div>
