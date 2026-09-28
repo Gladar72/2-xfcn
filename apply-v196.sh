@@ -1,3 +1,5 @@
+mkdir -p "app/(app)/events/[id]"
+cat > "app/(app)/events/[id]/page.tsx" << 'FILE1_EOF'
 "use client";
 
 import { useEffect, useState } from "react";
@@ -562,3 +564,4 @@ function pluralizeParticipants(count: number): string {
   if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return "человека идут";
   return "человек идут";
 }
+FILE1_EOF
