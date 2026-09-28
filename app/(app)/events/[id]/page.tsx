@@ -259,13 +259,14 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         <main className="m-page">
           <div className="mb-3 flex items-center gap-3">
             <button onClick={() => router.back()} aria-label="Назад">
-              <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
+              <Image src="/brand/3d/icon-back.png" alt="" width={28} height={28} />
             </button>
           </div>
 
           {canManage && (
             <div className="mb-3 flex items-start gap-2 rounded-card-lg bg-[#F1EAFF] p-4">
-              <span className="text-lg leading-none">👑</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/3d/icon-badge.png" alt="" width={24} height={24} className="shrink-0" />
               <div>
                 <p className="text-sm font-semibold text-[color:var(--m-purple)]">Вы организатор этого события</p>
                 <p className="mt-0.5 text-xs text-ink-600">Вы можете изменить информацию о событии в любой момент.</p>
@@ -276,7 +277,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="m-badge">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/mesto/assets/icons/png/business.png" alt="" width={20} height={20} />
+              <img src={categoryIcon ?? "/brand/3d/icon-calendar.png"} alt="" width={20} height={20} />
               <span>{categoryLabel}</span>
             </div>
             {canManage && (
@@ -284,7 +285,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 href={`/events/${event.id}/edit`}
                 className="flex shrink-0 items-center gap-1.5 rounded-pill bg-[#F1EAFF] px-4 py-2 text-sm font-medium text-[color:var(--m-purple)]"
               >
-                ✏️ Редактировать
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/3d/icon-edit.png" alt="" width={18} height={18} />
+                Редактировать
               </Link>
             )}
           </div>
@@ -339,13 +342,13 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           <section className="m-details" aria-label="Информация о встрече">
             <p className="m-info m-date">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/mesto/assets/icons/png/calendar.png" alt="" width={26} height={26} />
+              <img src="/brand/3d/icon-calendar.png" alt="" width={26} height={26} />
               <span>{dateLabel}</span>
             </p>
             {addressLine && (
               <p className="m-info m-address">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/mesto/assets/icons/png/location.png" alt="" width={26} height={26} />
+                <img src="/brand/3d/icon-location.png" alt="" width={26} height={26} />
                 <span className="flex-1">{addressLine}</span>
                 <button
                   type="button"
@@ -378,12 +381,12 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             <div className="m-chips">
               <p className="m-info m-capacity">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/mesto/assets/icons/png/people.png" alt="" width={26} height={26} />
+                <img src="/brand/3d/icon-users.png" alt="" width={26} height={26} />
                 <span>{capacityLabel}</span>
               </p>
               <p className="m-info m-price">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/mesto/assets/icons/png/ticket.png" alt="" width={26} height={26} />
+                <img src="/brand/3d/subscription-coins.png" alt="" width={26} height={26} />
                 <span>{priceLabel}</span>
               </p>
             </div>
@@ -458,7 +461,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               <div className="m-actions" aria-label="Управление встречей">
                 <Link href={`/events/${event.id}/applications`} className="m-action m-requests">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/mesto/assets/icons/png/people.png" alt="" width={52} height={52} />
+                  <img src="/brand/3d/icon-users.png" alt="" width={52} height={52} />
                   <span className="m-action-label">Заявки</span>
                 </Link>
                 {event.status === "published" && (
