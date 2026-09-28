@@ -29,6 +29,8 @@ export interface EventCardData {
   isHighlighted?: boolean;
   isBusiness?: boolean;
   photoUrl?: string | null;
+  /** Встреча создана текущим пользователем — кнопку «Я иду» не показываем. */
+  isMine?: boolean;
   /** Статус заявки текущего пользователя на эту встречу (приходит из /api/events). */
   myApplicationStatus?: ApplicationStatus | null;
 }
@@ -145,9 +147,10 @@ export function EventCard({
               <span className="text-sm text-ink-600">
                 {isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}
               </span>
-              {!status && (
+              {!status && !event.isMine && (
                 <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} />
               )}
+              {event.isMine && <MyEventLabel />}
             </div>
           )}
           {event.photoUrl && (
@@ -160,7 +163,8 @@ export function EventCard({
             <div className="relative aspect-square w-24 overflow-hidden rounded-card">
               <Image src={event.photoUrl} alt="" fill className="object-cover" sizes="96px" />
             </div>
-            {!status && (
+            {event.isMine && <MyEventLabel />}
+            {!status && !event.isMine && (
               <div className="w-24">
                 <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} fullWidth />
               </div>
@@ -180,6 +184,13 @@ export function EventCard({
         </div>
       )}
     </Link>
+  );
+}
+
+/** Вместо «Я иду» на своей встрече — метка, что это встреча самого пользователя. */
+function MyEventLabel() {
+  return (
+    <span className="rounded-pill bg-lavender-100 px-3 py-1.5 text-xs font-semibold text-accent">Ваша встреча</span>
   );
 }
 
