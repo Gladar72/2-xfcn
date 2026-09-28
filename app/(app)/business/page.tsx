@@ -28,7 +28,7 @@ export default function BusinessPage() {
     <div className="px-5 py-4">
       <div className="mb-4 flex items-center gap-3">
         <Link href="/feed" aria-label="Назад">
-          <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
+          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
         </Link>
         <h1 className="text-display flex-1">Для бизнеса</h1>
       </div>
