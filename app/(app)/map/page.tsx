@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -100,7 +101,7 @@ function MapPageContent() {
     <div className="relative h-[calc(100vh-5rem)]">
       {resolvedCity && (
         <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-pill bg-white px-4 py-1.5 text-sm font-medium text-ink-900 shadow-card">
-          📍 {resolvedCity}
+          <Image src="/brand/3d/icon-location.png" alt="" width={16} height={16} className="mr-1 inline-block align-[-3px]" />{resolvedCity}
         </div>
       )}
       {error ? (
