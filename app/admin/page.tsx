@@ -22,13 +22,24 @@ interface Metrics {
 
 export default function AdminDashboardPage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Раньше ответ с ошибкой ({ error: ... }) попадал прямо в metrics, и
+    // страница падала с белым экраном на metrics.users.total.
     fetch("/api/admin/metrics")
-      .then((r) => r.json())
-      .then(setMetrics);
+      .then(async (r) => {
+        const data = await r.json().catch(() => null);
+        if (!r.ok || !data || data.error) {
+          setError(`Не удалось загрузить метрики (${r.status}${data?.error ? `: ${data.error}` : ""})`);
+          return;
+        }
+        setMetrics(data);
+      })
+      .catch(() => setError("Проблема с соединением — попробуйте ещё раз."));
   }, []);
 
+  if (error) return <p className="text-red-600">{error}</p>;
   if (!metrics) return <p className="text-ink-600">Загрузка...</p>;
 
   return (

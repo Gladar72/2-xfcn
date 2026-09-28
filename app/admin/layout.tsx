@@ -1,4 +1,5 @@
 import { getAdminUser } from "@/lib/admin/is-admin";
+import { getCurrentUser } from "@/lib/telegram/current-user";
 import Link from "next/link";
 
 const SECTIONS = [
@@ -15,11 +16,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const admin = await getAdminUser();
 
   if (!admin) {
+    // Подсказка для диагностики: есть ли вообще сессия и какой telegram_id
+    // в ней — чтобы сразу было видно, чего не хватает (нет входа через
+    // Telegram или id не в ADMIN_TELEGRAM_IDS).
+    const current = await getCurrentUser();
     return (
-      <div className="flex min-h-screen items-center justify-center bg-ink-900 px-6 text-center">
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-ink-900 px-6 text-center">
         <p className="text-white">
           Доступ запрещён. Этот раздел виден только администраторам
           (см. переменную окружения <code>ADMIN_TELEGRAM_IDS</code>).
+        </p>
+        <p className="text-sm text-white/60">
+          {current
+            ? `Ваш Telegram ID: ${current.telegramId} — его нет в ADMIN_TELEGRAM_IDS.`
+            : "Сессии нет — откройте админ-панель кнопкой из бота (не по ссылке в браузере)."}
         </p>
       </div>
     );
