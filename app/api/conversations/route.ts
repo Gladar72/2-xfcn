@@ -18,7 +18,7 @@ export async function GET() {
     .select(
       `
       conversation_id, unread_count, is_hidden, is_blocked, is_favorite,
-      conversations(id, event_id, events(title, status, is_business, category:categories(slug, name, emoji)))
+      conversations(id, event_id, created_at, events(title, status, is_business, photo_url, category:categories(slug, name, emoji)))
       `
     )
     .eq("user_id", currentUser.userId)
@@ -73,10 +73,12 @@ export async function GET() {
     const conversation = m.conversations as unknown as {
       id: string;
       event_id: string | null;
+      created_at: string;
       events: {
         title: string;
         status: string;
         is_business: boolean;
+        photo_url: string | null;
         category: { slug: string; name: string; emoji: string | null } | null;
       } | null;
     } | null;
@@ -99,6 +101,7 @@ export async function GET() {
       isFavorite: m.is_favorite,
       eventTitle: conversation?.events?.title ?? null,
       eventStatus: conversation?.events?.status ?? null,
+      eventPhotoUrl: conversation?.events?.photo_url ?? null,
       category: conversation?.events?.category ?? null,
       isBusiness: conversation?.events?.is_business ?? false,
       // otherUser — для отображения аватара в списке: если участник один
@@ -108,15 +111,17 @@ export async function GET() {
       otherMembersCount: otherMembersList.length,
       lastMessage,
       isLastMessageRead,
+      // Для сортировки — если сообщений в чате ещё нет (только что создан),
+      // раньше здесь была "" (пустая строка), которая как самая ранняя
+      // дата всегда тонула в самый низ списка. Теперь используем момент
+      // создания САМОГО чата — новый чат без сообщений корректно окажется
+      // сверху, как самый свежий, а не в самом низу.
+      _sortKey: lastMessage?.createdAt ?? conversation?.created_at ?? "",
     };
   });
 
-  // Свежие сообщения — выше в списке
-  items.sort((a, b) => {
-    const aTime = a.lastMessage?.createdAt ?? "";
-    const bTime = b.lastMessage?.createdAt ?? "";
-    return bTime.localeCompare(aTime);
-  });
+  // Свежие сообщения (или свежесозданные чаты без сообщений) — выше в списке
+  items.sort((a, b) => b._sortKey.localeCompare(a._sortKey));
 
-  return NextResponse.json({ items });
+  return NextResponse.json({ items: items.map(({ _sortKey, ...rest }) => rest) });
 }
