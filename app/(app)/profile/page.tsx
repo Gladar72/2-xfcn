@@ -127,34 +127,40 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="px-5 py-6">
-      <div className="mb-2 flex justify-end">
-        <Link href="/settings" aria-label="Настройки">
-          <Image src="/brand/icons/settings.svg" alt="" width={22} height={22} />
+    <div className="px-4 pb-6 pt-4">
+      <div className="mb-1 flex justify-end">
+        <Link
+          href="/settings"
+          aria-label="Настройки"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/60 backdrop-blur"
+        >
+          <Image src="/brand/icons/settings.svg" alt="" width={20} height={20} />
         </Link>
       </div>
 
-      <div className="mb-4 flex flex-col items-center text-center">
-        <div className="relative mb-3">
+      {/* Шапка: аватар, имя, город, рейтинг */}
+      <div className="mb-5 flex flex-col items-center text-center">
+        <div className="relative mb-4">
+          <div className="absolute inset-0 -z-10 scale-110 rounded-full bg-white/50 blur-xl" aria-hidden />
           {profile.avatarUrl ? (
             <AvatarViewer src={profile.avatarUrl} alt={profile.name}>
-              <div className="h-24 w-24 overflow-hidden rounded-full bg-white shadow-card">
+              <div className="h-[120px] w-[120px] overflow-hidden rounded-full bg-white ring-4 ring-white/80 shadow-card">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={profile.avatarUrl} alt={profile.name} className="h-full w-full object-cover" />
               </div>
             </AvatarViewer>
           ) : (
-            <div className="flex h-24 w-24 items-center justify-center rounded-full bg-white text-2xl font-semibold text-ink-600 shadow-card">
+            <div className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-white text-3xl font-semibold text-ink-600 ring-4 ring-white/80 shadow-card">
               {profile.name.charAt(0).toUpperCase()}
             </div>
           )}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingPhoto}
-            className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-accent text-sm text-white shadow-card active:scale-95"
+            className="absolute -bottom-0.5 -right-0.5 flex h-11 w-11 items-center justify-center rounded-full bg-brand-gradient text-sm text-white ring-[3px] ring-white shadow-card active:scale-95 disabled:opacity-70"
             aria-label="Изменить фото"
           >
-            {uploadingPhoto ? "…" : <Image src="/brand/3d/icon-edit.png" alt="" width={20} height={20} />}
+            {uploadingPhoto ? "…" : <Image src="/brand/3d/icon-edit.png" alt="" width={24} height={24} />}
           </button>
           <input
             ref={fileInputRef}
@@ -165,16 +171,16 @@ export default function ProfilePage() {
           />
         </div>
 
-        <h1 className="text-title">
+        <h1 className="text-[26px] font-bold leading-tight text-ink-900">
           {profile.name}, {profile.age}
         </h1>
-        <p className="mt-1 flex items-center gap-1 text-sm text-ink-600">
-          <Image src="/brand/3d/icon-location.png" alt="" width={14} height={14} />
+        <p className="mt-1.5 flex items-center gap-1.5 text-base text-ink-600">
+          <Image src="/brand/3d/icon-location.png" alt="" width={18} height={18} />
           {profile.city}
         </p>
         {profile.ratingCount > 0 && (
-          <p className="mt-1 flex items-center gap-1 text-sm text-ink-600">
-            <Image src="/brand/icons/star.svg" alt="" width={14} height={14} />
+          <p className="mt-1 flex items-center gap-1.5 text-base text-ink-600">
+            <Image src="/brand/icons/star.svg" alt="" width={18} height={18} />
             {profile.ratingAvg.toFixed(1)} ({profile.ratingCount}{" "}
             {pluralize(profile.ratingCount, "оценка", "оценки", "оценок")})
           </p>
@@ -182,14 +188,14 @@ export default function ProfilePage() {
 
         <button
           onClick={() => setEditing((v) => !v)}
-          className="mt-3 rounded-pill bg-lavender-100 px-5 py-2 text-sm font-medium text-accent"
+          className="mt-4 rounded-pill bg-white/70 px-12 py-3 text-base font-semibold text-accent shadow-card backdrop-blur active:scale-[0.98]"
         >
           Редактировать профиль
         </button>
       </div>
 
       {editing && (
-        <div className="mb-5 space-y-2 rounded-card bg-white p-4 shadow-card">
+        <div className="mb-5 space-y-2 rounded-card-lg bg-white/85 p-4 shadow-card backdrop-blur">
           <input
             value={editName}
             onChange={(e) => setEditName(e.target.value)}
@@ -225,35 +231,89 @@ export default function ProfilePage() {
 
       {uploadError && <p className="mb-4 text-center text-sm text-red-600">{uploadError}</p>}
 
-      {!editing && profile.bio && <p className="mb-6 text-center text-sm text-ink-900">{profile.bio}</p>}
+      {!editing && profile.bio && <p className="mb-5 text-center text-base text-ink-900">{profile.bio}</p>}
 
-      <div className="mb-6 grid grid-cols-3 gap-2 rounded-card-lg bg-white py-4 shadow-card">
-        <StatItem value={String(profile.eventsOrganizedCount)} label="создано" />
-        <StatItem value={String(profile.eventsAttendedCount)} label="посещено" />
-        <StatItem value={String(profile.completedMeetingsCount)} label="состоялось" />
+      {/* Статистика */}
+      <div className="mb-5 grid grid-cols-3 gap-2.5">
+        <StatCard value={profile.eventsOrganizedCount} label="создано" icon={<PlusTile />} />
+        <StatCard
+          value={profile.eventsAttendedCount}
+          label="посещено"
+          icon={<Image src="/brand/3d/icon-users.png" alt="" width={26} height={26} />}
+          tileClass="bg-lavender-100"
+        />
+        <StatCard
+          value={profile.completedMeetingsCount}
+          label="состоялось"
+          icon={<HeartIcon />}
+          tileClass="bg-pink-100"
+        />
       </div>
 
-      <div className="space-y-1.5 rounded-card-lg bg-white p-1.5 shadow-card">
+      {/* Мои разделы */}
+      <div className="rounded-[28px] bg-white/85 px-4 pb-1 pt-4 shadow-card backdrop-blur">
+        <h2 className="mb-1 px-1 text-[13px] font-medium uppercase tracking-wide text-ink-400">Мои разделы</h2>
         <MenuRow href="/my-events" icon="/brand/3d/icon-calendar.png" label="Мои встречи" />
-        <MenuRow href="/notifications" icon="/brand/icons/bell.svg" label="Уведомления" />
+        <MenuRow href="/notifications" icon="/brand/3d/icon-bell.png" label="Уведомления" />
         <MenuRow
           href="/subscriptions"
-          icon="/brand/icons/gift.svg"
+          icon="/brand/3d/icon-gift.png"
           label="Подписка"
           value={subscription?.active ? PLAN_TITLES[subscription.plan!] : "не оформлена"}
         />
-        <MenuRow href="/reviews" icon="/brand/3d/icon-badge.png" label="Отзывы после встреч" />
+        <MenuRow href="/reviews" icon="/brand/3d/icon-badge.png" label="Отзывы после встреч" last />
       </div>
     </div>
   );
 }
 
-function StatItem({ value, label }: { value: string; label: string }) {
+function StatCard({
+  value,
+  label,
+  icon,
+  tileClass = "bg-lavender-100",
+}: {
+  value: number;
+  label: string;
+  icon: React.ReactNode;
+  tileClass?: string;
+}) {
   return (
-    <div className="text-center">
-      <div className="text-lg font-bold text-ink-900">{value}</div>
-      <div className="text-xs text-ink-600">{label}</div>
+    <div className="relative min-w-0 rounded-[24px] bg-white/80 px-3 pb-3 pt-3.5 shadow-card backdrop-blur">
+      <div
+        className={`absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-[12px] ${tileClass}`}
+        aria-hidden
+      >
+        {icon}
+      </div>
+      <div className="text-[26px] font-bold leading-8 text-ink-900">{value}</div>
+      <div className="mt-2 truncate text-[13px] text-ink-600">{label}</div>
     </div>
+  );
+}
+
+function PlusTile() {
+  return (
+    <span className="flex h-6 w-6 items-center justify-center rounded-[8px] bg-brand-gradient text-base font-bold leading-none text-white">
+      +
+    </span>
+  );
+}
+
+function HeartIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+      <defs>
+        <linearGradient id="profile-heart" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="#FF7AB6" />
+          <stop offset="100%" stopColor="#F2386E" />
+        </linearGradient>
+      </defs>
+      <path
+        fill="url(#profile-heart)"
+        d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 2.9 4.5 6.6 4.5c2.1 0 3.6 1.1 4.4 2.4.8-1.3 2.3-2.4 4.4-2.4 3.7 0 5.7 3.9 4.2 7.3C19.5 16.4 12 21 12 21z"
+      />
+    </svg>
   );
 }
 
@@ -262,18 +322,26 @@ function MenuRow({
   icon,
   label,
   value,
+  last = false,
 }: {
   href: string;
   icon: string;
   label: string;
   value?: string;
+  last?: boolean;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-3 rounded-card px-3 py-3">
-      <Image src={icon} alt="" width={18} height={18} />
-      <span className="flex-1 text-sm text-ink-900">{label}</span>
-      {value && <span className="text-sm text-ink-400">{value}</span>}
-      <span className="text-ink-400">›</span>
+    <Link href={href} className="flex items-center gap-3.5 active:opacity-70">
+      <Image src={icon} alt="" width={48} height={48} className="shrink-0" />
+      <div
+        className={`flex min-w-0 flex-1 items-center gap-2 py-5 ${last ? "" : "border-b border-lavender-100"}`}
+      >
+        <span className="flex-1 truncate text-[17px] text-ink-900">{label}</span>
+        {value && <span className="shrink-0 text-[15px] text-ink-400">{value}</span>}
+        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="shrink-0 text-ink-400">
+          <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
     </Link>
   );
 }
