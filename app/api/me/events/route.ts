@@ -1,13 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * GET /api/me/events
- * Все встречи, где текущий пользователь организатор или участник —
+ * GET /api/me/events?scope=upcoming|archive
+ * Встречи, где текущий пользователь организатор или участник —
  * для экрана "Мои встречи" в профиле.
+ *  - upcoming (по умолчанию): published + closed, ближайшие сверху;
+ *  - archive: completed + cancelled, самые свежие сверху.
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const scope = req.nextUrl.searchParams.get("scope") === "archive" ? "archive" : "upcoming";
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
@@ -23,21 +26,25 @@ export async function GET() {
 
   const roleByEventId = new Map((memberRows ?? []).map((m) => [m.event_id, m.role]));
 
+  // Предстоящие: published и closed (заполненные — организатор/участники
+  // всё ещё должны их видеть и пользоваться чатом). Архив: completed и
+  // cancelled. Статус completed ставит cron /api/cron/complete-events.
+  const statuses = scope === "archive" ? ["completed", "cancelled"] : ["published", "closed"];
+  const ascending = scope !== "archive";
+
   const { data: events, error } = await admin
     .from("events")
     .select(
       `
-      id, title, event_date, event_time, place_name, status, is_business,
+      id, title, event_date, event_time, place_name, status, is_business, photo_url,
       category:categories(slug, name, emoji)
       `
     )
     .in("id", eventIds)
-    // "Мои встречи" — активные для САМОГО пользователя: показываем и
-    // published, и closed (заполненные — организатор/участники всё ещё
-    // должны их видеть и пользоваться чатом). Пропадают отсюда только
-    // completed (по-настоящему прошедшие) и cancelled.
-    .in("status", ["published", "closed"])
-    .order("event_date", { ascending: false });
+    .in("status", statuses)
+    .order("event_date", { ascending })
+    .order("event_time", { ascending })
+    .limit(100);
 
   if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
 
@@ -45,7 +52,8 @@ export async function GET() {
   // каждую его встречу — чтобы показать значок прямо на карточке встречи,
   // не только общим уведомлением. Плюс аватарка ОДНОГО (самого свежего)
   // заявителя — чтобы сразу было видно, КТО откликнулся, не только сколько.
-  const organizerEventIds = eventIds.filter((id) => roleByEventId.get(id) === "organizer");
+  const organizerEventIds =
+    scope === "archive" ? [] : (events ?? []).map((e) => e.id).filter((id) => roleByEventId.get(id) === "organizer");
   const pendingCountByEventId = new Map<string, number>();
   const pendingPreviewByEventId = new Map<string, { id: string; name: string; avatarUrl: string | null }>();
   if (organizerEventIds.length > 0) {
@@ -79,6 +87,7 @@ export async function GET() {
     status: e.status,
     category: e.category,
     isBusiness: e.is_business,
+    photoUrl: e.photo_url ?? null,
     role: roleByEventId.get(e.id) === "organizer" ? "organizer" : "participant",
     pendingApplicationsCount: pendingCountByEventId.get(e.id) ?? 0,
     pendingApplicantPreview: pendingPreviewByEventId.get(e.id) ?? null,
