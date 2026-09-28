@@ -83,7 +83,7 @@ export default function SettingsPage() {
     <div className="px-5 py-4">
       <div className="mb-5 flex items-center gap-3">
         <Link href="/profile" aria-label="Назад">
-          <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
+          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
         </Link>
         <h1 className="text-title">Настройки</h1>
       </div>
@@ -102,7 +102,7 @@ export default function SettingsPage() {
         )}
         <button onClick={openCityEditor} className="block w-full text-left">
           <div className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
-            <Image src="/brand/icons/location.svg" alt="" width={18} height={18} />
+            <Image src="/brand/3d/icon-location.png" alt="" width={18} height={18} />
             <span className="flex-1 text-sm text-ink-900">Город</span>
             {profile?.city && <span className="text-sm text-ink-400">{profile.city}</span>}
             <span className="text-ink-400">›</span>
