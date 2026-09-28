@@ -165,8 +165,14 @@ function MapPageContent() {
                   <p className="truncate text-xs text-ink-600">
                     {formatDate(event.eventDate)} · {event.eventTime.slice(0, 5)}
                   </p>
-                  {(event.placeName || event.address) && (
-                    <p className="truncate text-xs text-ink-400">{event.placeName || event.address}</p>
+                  {event.placeName && event.placeName !== event.address && (
+                    <p className="truncate text-xs font-medium text-ink-600">{event.placeName}</p>
+                  )}
+                  {event.address && (
+                    <p className="flex items-center gap-1 text-xs text-ink-400">
+                      <Image src="/brand/3d/icon-location.png" alt="" width={12} height={12} className="shrink-0" />
+                      <span className="line-clamp-2">{event.address.replace(/^Россия,\s*/, "")}</span>
+                    </p>
                   )}
                 </div>
               </Link>
