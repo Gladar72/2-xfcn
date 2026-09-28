@@ -1,13 +1,12 @@
-@font-face{font-family:Inter;src:url('/mesto/assets/fonts/InterVariable.woff2') format('woff2');font-weight:100 900;font-style:normal;font-display:swap}
 .mesto{
- --m-ink:#160631;--m-purple:#7430FF;--m-purple-dark:#340B83;--m-muted:#77757F;
+ --m-ink:#111111;--m-purple:#6C3BFF;--m-purple-dark:#4B25B8;--m-muted:#686868;
  --m-lilac:#F1EAFF;--m-white:#FFFFFF;--m-radius:22px;--m-gap:12px;--m-pad:20px;
  --m-safe-bottom:max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px),var(--tg-content-safe-area-inset-bottom,0px));
  --m-safe-top:max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px));
  --m-safe-left:max(env(safe-area-inset-left,0px),var(--tg-safe-area-inset-left,0px),var(--tg-content-safe-area-inset-left,0px));
  --m-safe-right:max(env(safe-area-inset-right,0px),var(--tg-safe-area-inset-right,0px),var(--tg-content-safe-area-inset-right,0px));
  --m-nav-height:72px;
- font:400 14px/1.45 Inter,Arial,sans-serif;font-optical-sizing:auto;color:var(--m-ink);color-scheme:light;
+ font:400 14px/1.45 var(--font-onest),Manrope,system-ui,sans-serif;font-optical-sizing:auto;color:var(--m-ink);color-scheme:light;
  overscroll-behavior:none;
  /* Тот же проверенный приём, что и на странице "Заявки": растягиваем на
     весь экран, а дублирующий отступ общего layout (pb-24) компенсируем
@@ -49,7 +48,7 @@
 .mesto .m-action:active:not(:disabled){transform:scale(.98)}
 .m-action img{width:52px;height:52px;flex:none;object-fit:contain}
 .m-action-label{overflow-wrap:anywhere;font-size:15px;line-height:1.25;font-weight:750;min-width:0}
-.mesto .m-requests{color:#fff;background:linear-gradient(128deg,#7735FF 0%,#9250EB 45%,#FF8A4E 100%)}
+.mesto .m-requests{color:#fff;background:linear-gradient(135deg,#6C3BFF 0%,#8A5CFF 45%,#FF8A2A 100%)}
 .mesto .m-boost{color:var(--m-purple);background:#F7F2FF}
 .m-cancel{margin-top:14px;min-height:58px;background:#fff;text-align:center;gap:10px;padding:7px 16px;box-shadow:0 10px 30px #3714730C}
 .m-cancel img{width:44px;height:44px}
