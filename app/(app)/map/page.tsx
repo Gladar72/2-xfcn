@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { EventsMap, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
+import { EventsMap, markerIconFor, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
 
 const PAGE_SIZE = 20; // показ длинного списка кластера порциями, а не всё разом
 
@@ -151,7 +151,15 @@ function MapPageContent() {
                 href={`/events/${event.id}`}
                 className="flex items-center gap-3 rounded-card bg-background p-3"
               >
-                <span className="text-xl">{event.category?.emoji}</span>
+                {/* Та же иконка, что и маркер на карте (раньше тут был эмодзи категории) */}
+                <Image
+                  src={markerIconFor(event)}
+                  alt=""
+                  width={44}
+                  height={44}
+                  unoptimized
+                  className="h-11 w-11 shrink-0 object-contain"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-ink-900">{event.title}</p>
                   <p className="truncate text-xs text-ink-600">
