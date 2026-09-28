@@ -16,8 +16,8 @@
 }
 .mesto,.mesto *,.mesto *::before,.mesto *::after{box-sizing:border-box}
 .mesto button,.mesto a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
-/* :where() обнуляет специфичность, чтобы Tailwind-классы кнопок (text-white, font-semibold) не перебивались — иначе «Я иду» был чёрным */
-.mesto :where(button){font:inherit;color:inherit;cursor:pointer;border:0}
+/* :where() целиком обнуляет специфичность (0,0,0), чтобы Tailwind-классы кнопок (text-white, font-semibold) не перебивались — иначе «Я иду» был чёрным */
+:where(.mesto button){font:inherit;color:inherit;cursor:pointer;border:0}
 .mesto button:disabled{cursor:default;opacity:.55}
 .mesto button:focus-visible,.mesto a:focus-visible{outline:3px solid var(--m-purple);outline-offset:4px}
 .mesto img{display:block;max-width:100%}
