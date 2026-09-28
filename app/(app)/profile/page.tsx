@@ -6,6 +6,7 @@ import Image from "next/image";
 import { type Plan } from "@/lib/subscriptions/limits";
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import { resizeImageFile } from "@/lib/photos/resize-image-client";
+import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
 
 interface Profile {
   name: string;
@@ -40,6 +41,37 @@ export default function ProfilePage() {
   const [editBio, setEditBio] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const viewportHeight = useVisualViewportHeight();
+  const [navHeight, setNavHeight] = useState(96);
+
+  // Профиль — экран без скролла: блокируем прокрутку документа, пока открыта
+  // страница, и меряем реальную высоту нижнего меню (с учётом safe-area),
+  // чтобы контент занял ровно оставшееся место.
+  useEffect(() => {
+    const html = document.documentElement;
+    const prevOverflow = html.style.overflow;
+    const prevOverscroll = html.style.overscrollBehavior;
+    const prevBodyOverflow = document.body.style.overflow;
+    html.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    window.scrollTo(0, 0);
+
+    const nav = document.querySelector("nav");
+    let ro: ResizeObserver | null = null;
+    if (nav) {
+      const update = () => setNavHeight(nav.getBoundingClientRect().height);
+      update();
+      ro = new ResizeObserver(update);
+      ro.observe(nav);
+    }
+    return () => {
+      html.style.overflow = prevOverflow;
+      html.style.overscrollBehavior = prevOverscroll;
+      document.body.style.overflow = prevBodyOverflow;
+      ro?.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     Promise.all([
@@ -127,120 +159,93 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="px-4 pb-6 pt-4">
-      <div className="mb-1 flex justify-end">
-        <Link
-          href="/settings"
-          aria-label="Настройки"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-white/60 backdrop-blur"
-        >
-          <Image src="/brand/icons/settings.svg" alt="" width={20} height={20} />
-        </Link>
-      </div>
+    // Профиль целиком помещается в один экран: высота = видимая область минус
+    // реальная высота нижнего меню. Ничего не скроллится; на низких экранах
+    // (iPhone SE и т.п.) элементы ужимаются через max-height-медиазапросы.
+    <div
+      className="relative flex flex-col gap-3 overflow-hidden px-4 pb-3 pt-3 [@media(max-height:680px)]:gap-2"
+      style={{
+        height: viewportHeight && !editing ? `${viewportHeight - navHeight}px` : `calc(100dvh - ${navHeight}px)`,
+      }}
+    >
+      <Link
+        href="/settings"
+        aria-label="Настройки"
+        className="absolute right-4 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/60 backdrop-blur"
+      >
+        <Image src="/brand/icons/settings.svg" alt="" width={20} height={20} />
+      </Link>
 
-      {/* Шапка: аватар, имя, город, рейтинг */}
-      <div className="mb-5 flex flex-col items-center text-center">
-        <div className="relative mb-4">
+      {/* Шапка: аватар, имя, город/рейтинг, bio, кнопка — занимает всё свободное место и центрируется */}
+      <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
+        <div className="relative mb-3 [@media(max-height:680px)]:mb-2">
           <div className="absolute inset-0 -z-10 scale-110 rounded-full bg-white/50 blur-xl" aria-hidden />
           {profile.avatarUrl ? (
             <AvatarViewer src={profile.avatarUrl} alt={profile.name}>
-              <div className="h-[120px] w-[120px] overflow-hidden rounded-full bg-white ring-4 ring-white/80 shadow-card">
+              <div className="h-[104px] w-[104px] overflow-hidden rounded-full bg-white ring-4 ring-white/80 shadow-card [@media(max-height:680px)]:h-[76px] [@media(max-height:680px)]:w-[76px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={profile.avatarUrl} alt={profile.name} className="h-full w-full object-cover" />
               </div>
             </AvatarViewer>
           ) : (
-            <div className="flex h-[120px] w-[120px] items-center justify-center rounded-full bg-white text-3xl font-semibold text-ink-600 ring-4 ring-white/80 shadow-card">
+            <div className="flex h-[104px] w-[104px] items-center justify-center rounded-full bg-white text-3xl font-semibold text-ink-600 ring-4 ring-white/80 shadow-card [@media(max-height:680px)]:h-[76px] [@media(max-height:680px)]:w-[76px]">
               {profile.name.charAt(0).toUpperCase()}
             </div>
           )}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={uploadingPhoto}
-            className="absolute -bottom-0.5 -right-0.5 flex h-11 w-11 items-center justify-center rounded-full bg-brand-gradient text-sm text-white ring-[3px] ring-white shadow-card active:scale-95 disabled:opacity-70"
+            className="absolute -bottom-0.5 -right-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-brand-gradient text-sm text-white ring-[3px] ring-white shadow-card active:scale-95 disabled:opacity-70"
             aria-label="Изменить фото"
           >
-            {uploadingPhoto ? "…" : <Image src="/brand/3d/icon-edit.png" alt="" width={24} height={24} />}
+            {uploadingPhoto ? "…" : <Image src="/brand/3d/icon-edit.png" alt="" width={20} height={20} />}
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handlePhotoSelected}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelected} />
         </div>
 
-        <h1 className="text-[26px] font-bold leading-tight text-ink-900">
+        <h1 className="max-w-full truncate px-10 text-[24px] font-bold leading-tight text-ink-900 [@media(max-height:680px)]:text-[21px]">
           {profile.name}, {profile.age}
         </h1>
-        <p className="mt-1.5 flex items-center gap-1.5 text-base text-ink-600">
-          <Image src="/brand/3d/icon-location.png" alt="" width={18} height={18} />
-          {profile.city}
+
+        <p className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5 text-[15px] text-ink-600">
+          <span className="flex items-center gap-1">
+            <Image src="/brand/3d/icon-location.png" alt="" width={16} height={16} />
+            {profile.city}
+          </span>
+          {profile.ratingCount > 0 && (
+            <span className="flex items-center gap-1">
+              <Image src="/brand/icons/star.svg" alt="" width={16} height={16} />
+              {profile.ratingAvg.toFixed(1)}
+              <span className="text-ink-400">
+                ({profile.ratingCount} {pluralize(profile.ratingCount, "оценка", "оценки", "оценок")})
+              </span>
+            </span>
+          )}
         </p>
-        {profile.ratingCount > 0 && (
-          <p className="mt-1 flex items-center gap-1.5 text-base text-ink-600">
-            <Image src="/brand/icons/star.svg" alt="" width={18} height={18} />
-            {profile.ratingAvg.toFixed(1)} ({profile.ratingCount}{" "}
-            {pluralize(profile.ratingCount, "оценка", "оценки", "оценок")})
+
+        {profile.bio && (
+          <p className="mt-2 line-clamp-2 max-w-[300px] text-[15px] leading-snug text-ink-900 [@media(max-height:680px)]:line-clamp-1">
+            {profile.bio}
           </p>
         )}
 
+        {uploadError && <p className="mt-1.5 text-sm text-red-600">{uploadError}</p>}
+
         <button
-          onClick={() => setEditing((v) => !v)}
-          className="mt-4 rounded-pill bg-white/70 px-12 py-3 text-base font-semibold text-accent shadow-card backdrop-blur active:scale-[0.98]"
+          onClick={() => setEditing(true)}
+          className="mt-3 rounded-pill bg-white/70 px-8 py-2.5 text-[15px] font-semibold text-accent shadow-card backdrop-blur active:scale-[0.98] [@media(max-height:680px)]:mt-2 [@media(max-height:680px)]:py-2"
         >
           Редактировать профиль
         </button>
       </div>
 
-      {editing && (
-        <div className="mb-5 space-y-2 rounded-card-lg bg-white/85 p-4 shadow-card backdrop-blur">
-          <input
-            value={editName}
-            onChange={(e) => setEditName(e.target.value)}
-            placeholder="Имя"
-            maxLength={50}
-            className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-background px-3 py-2 text-base outline-none focus:border-accent"
-          />
-          <textarea
-            value={editBio}
-            onChange={(e) => setEditBio(e.target.value)}
-            placeholder="О себе"
-            maxLength={300}
-            rows={3}
-            className="w-full min-w-0 box-border resize-none rounded-card border border-lavender-200 bg-background px-3 py-2 text-base outline-none focus:border-accent"
-          />
-          <div className="flex gap-2">
-            <button
-              onClick={() => setEditing(false)}
-              className="flex-1 rounded-pill border border-lavender-200 bg-white py-2.5 text-sm font-medium text-ink-600"
-            >
-              Отмена
-            </button>
-            <button
-              onClick={saveEdit}
-              disabled={savingEdit || editName.trim().length < 2}
-              className="flex-1 rounded-pill bg-brand-gradient py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              {savingEdit ? "Сохраняем..." : "Сохранить"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {uploadError && <p className="mb-4 text-center text-sm text-red-600">{uploadError}</p>}
-
-      {!editing && profile.bio && <p className="mb-5 text-center text-base text-ink-900">{profile.bio}</p>}
-
       {/* Статистика */}
-      <div className="mb-5 grid grid-cols-3 gap-2.5">
+      <div className="grid shrink-0 grid-cols-3 gap-2.5">
         <StatCard value={profile.eventsOrganizedCount} label="создано" icon={<PlusTile />} />
         <StatCard
           value={profile.eventsAttendedCount}
           label="посещено"
-          icon={<Image src="/brand/3d/icon-users.png" alt="" width={26} height={26} />}
-          tileClass="bg-lavender-100"
+          icon={<Image src="/brand/3d/icon-users.png" alt="" width={22} height={22} />}
         />
         <StatCard
           value={profile.completedMeetingsCount}
@@ -251,8 +256,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Мои разделы */}
-      <div className="rounded-[28px] bg-white/85 px-4 pb-1 pt-4 shadow-card backdrop-blur">
-        <h2 className="mb-1 px-1 text-[13px] font-medium uppercase tracking-wide text-ink-400">Мои разделы</h2>
+      <div className="shrink-0 rounded-[26px] bg-white/85 px-4 py-1.5 shadow-card backdrop-blur">
         <MenuRow href="/my-events" icon="/brand/3d/icon-calendar.png" label="Мои встречи" />
         <MenuRow href="/notifications" icon="/brand/3d/icon-bell.png" label="Уведомления" />
         <MenuRow
@@ -263,6 +267,55 @@ export default function ProfilePage() {
         />
         <MenuRow href="/reviews" icon="/brand/3d/icon-badge.png" label="Отзывы после встреч" last />
       </div>
+
+      {/* Редактирование — модальное окно поверх, чтобы не раздувать экран */}
+      {editing && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/30 px-4 backdrop-blur-sm"
+          onClick={() => !savingEdit && setEditing(false)}
+        >
+          <div
+            className="w-full max-w-sm space-y-2.5 rounded-card-lg bg-white p-4 shadow-card-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="pb-1 text-center text-[17px] font-semibold text-ink-900">Редактировать профиль</h2>
+            <input
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="Имя"
+              maxLength={50}
+              className="box-border w-full min-w-0 rounded-card border border-lavender-200 bg-background px-3 py-2 text-base outline-none focus:border-accent"
+            />
+            <textarea
+              value={editBio}
+              onChange={(e) => setEditBio(e.target.value)}
+              placeholder="О себе"
+              maxLength={300}
+              rows={3}
+              className="box-border w-full min-w-0 resize-none rounded-card border border-lavender-200 bg-background px-3 py-2 text-base outline-none focus:border-accent"
+            />
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={() => {
+                  setEditName(profile.name);
+                  setEditBio(profile.bio ?? "");
+                  setEditing(false);
+                }}
+                className="flex-1 rounded-pill border border-lavender-200 bg-white py-2.5 text-sm font-medium text-ink-600"
+              >
+                Отмена
+              </button>
+              <button
+                onClick={saveEdit}
+                disabled={savingEdit || editName.trim().length < 2}
+                className="flex-1 rounded-pill bg-brand-gradient py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {savingEdit ? "Сохраняем..." : "Сохранить"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -279,22 +332,22 @@ function StatCard({
   tileClass?: string;
 }) {
   return (
-    <div className="relative min-w-0 rounded-[24px] bg-white/80 px-3 pb-3 pt-3.5 shadow-card backdrop-blur">
+    <div className="relative min-w-0 rounded-[22px] bg-white/80 px-3 py-2.5 shadow-card backdrop-blur [@media(max-height:680px)]:py-2">
       <div
-        className={`absolute right-2.5 top-2.5 flex h-9 w-9 items-center justify-center rounded-[12px] ${tileClass}`}
+        className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-[10px] ${tileClass}`}
         aria-hidden
       >
         {icon}
       </div>
-      <div className="text-[26px] font-bold leading-8 text-ink-900">{value}</div>
-      <div className="mt-2 truncate text-[13px] text-ink-600">{label}</div>
+      <div className="text-[24px] font-bold leading-7 text-ink-900">{value}</div>
+      <div className="mt-1 truncate text-[13px] text-ink-600">{label}</div>
     </div>
   );
 }
 
 function PlusTile() {
   return (
-    <span className="flex h-6 w-6 items-center justify-center rounded-[8px] bg-brand-gradient text-base font-bold leading-none text-white">
+    <span className="flex h-5 w-5 items-center justify-center rounded-[7px] bg-brand-gradient text-sm font-bold leading-none text-white">
       +
     </span>
   );
@@ -302,7 +355,7 @@ function PlusTile() {
 
 function HeartIcon() {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden>
+    <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
       <defs>
         <linearGradient id="profile-heart" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0%" stopColor="#FF7AB6" />
@@ -331,12 +384,18 @@ function MenuRow({
   last?: boolean;
 }) {
   return (
-    <Link href={href} className="flex items-center gap-3.5 active:opacity-70">
-      <Image src={icon} alt="" width={48} height={48} className="shrink-0" />
+    <Link href={href} className="flex items-center gap-3 active:opacity-70">
+      <Image
+        src={icon}
+        alt=""
+        width={40}
+        height={40}
+        className="h-10 w-10 shrink-0 object-contain [@media(max-height:680px)]:h-8 [@media(max-height:680px)]:w-8"
+      />
       <div
-        className={`flex min-w-0 flex-1 items-center gap-2 py-5 ${last ? "" : "border-b border-lavender-100"}`}
+        className={`flex min-w-0 flex-1 items-center gap-2 py-3.5 [@media(max-height:680px)]:py-2.5 ${last ? "" : "border-b border-lavender-100"}`}
       >
-        <span className="flex-1 truncate text-[17px] text-ink-900">{label}</span>
+        <span className="flex-1 truncate text-[16px] text-ink-900">{label}</span>
         {value && <span className="shrink-0 text-[15px] text-ink-400">{value}</span>}
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="shrink-0 text-ink-400">
           <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
