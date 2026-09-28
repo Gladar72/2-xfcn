@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
+import { ApplicationStatusView, type ApplicationStatus } from "@/components/applications/ApplicationStatus";
 
 export interface EventCardData {
   id: string;
@@ -28,6 +29,8 @@ export interface EventCardData {
   isHighlighted?: boolean;
   isBusiness?: boolean;
   photoUrl?: string | null;
+  /** Статус заявки текущего пользователя на эту встречу (приходит из /api/events). */
+  myApplicationStatus?: ApplicationStatus | null;
 }
 
 interface EventCardProps {
@@ -35,6 +38,8 @@ interface EventCardProps {
   onApplyPress?: (eventId: string) => void;
   applied?: boolean;
   applying?: boolean;
+  /** Локальный статус (например, сразу после отклика) — важнее того, что пришёл с сервера. */
+  applicationStatus?: ApplicationStatus | null;
 }
 
 // 3D-иконки категорий МЕСТО (тот же комплект, что и на главном экране).
@@ -48,7 +53,15 @@ const CATEGORY_ICON: Record<string, string> = {
   custom: "/brand/3d/custom-proposal.png",
 };
 
-export function EventCard({ event, onApplyPress, applied = false, applying = false }: EventCardProps) {
+export function EventCard({
+  event,
+  onApplyPress,
+  applied = false,
+  applying = false,
+  applicationStatus,
+}: EventCardProps) {
+  const status: ApplicationStatus | null =
+    applicationStatus ?? event.myApplicationStatus ?? (applied ? "pending" : null);
   const seatsLeft = event.seatsTotal - event.seatsTaken;
   const isFull = seatsLeft <= 0;
   const isDisabled = isFull || applied || applying;
@@ -120,12 +133,21 @@ export function EventCard({ event, onApplyPress, applied = false, applying = fal
             </div>
           )}
 
+          {/* Карточка без фото — любой статус во всю ширину над строкой мест. */}
+          {!event.photoUrl && status && (
+            <div className="mb-3">
+              <ApplicationStatusView status={status} layout="wide" />
+            </div>
+          )}
+
           {!event.photoUrl && (
             <div className="flex items-center justify-between">
               <span className="text-sm text-ink-600">
                 {isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}
               </span>
-              <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} />
+              {!status && (
+                <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} />
+              )}
             </div>
           )}
           {event.photoUrl && (
@@ -134,14 +156,29 @@ export function EventCard({ event, onApplyPress, applied = false, applying = fal
         </div>
 
         {event.photoUrl && (
-          <div className="flex w-24 shrink-0 flex-col items-stretch gap-2">
-            <div className="relative aspect-square w-full overflow-hidden rounded-card">
+          <div className="flex shrink-0 flex-col items-end gap-2">
+            <div className="relative aspect-square w-24 overflow-hidden rounded-card">
               <Image src={event.photoUrl} alt="" fill className="object-cover" sizes="96px" />
             </div>
-            <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} fullWidth />
+            {!status && (
+              <div className="w-24">
+                <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} fullWidth />
+              </div>
+            )}
+            {(status === "accepted" || status === "rejected") && (
+              <ApplicationStatusView status={status} layout="compact" />
+            )}
           </div>
         )}
       </div>
+
+      {/* С фото: «ожидание» — широкая плашка под всей карточкой (макет),
+          «принят»/«отклонён» — компактно в колонке под фото (выше). */}
+      {event.photoUrl && status === "pending" && (
+        <div className="mt-3">
+          <ApplicationStatusView status="pending" layout="wide" />
+        </div>
+      )}
     </Link>
   );
 }

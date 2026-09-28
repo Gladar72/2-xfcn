@@ -7,6 +7,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
+import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
 import { Button } from "@/components/ui/Button";
 import { CityPicker } from "@/components/ui/CityPicker";
 
@@ -47,7 +48,9 @@ function FeedPageContent() {
   const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
+  // Статусы заявок, изменившиеся прямо сейчас на этом экране (после
+  // нажатия «Я иду») — поверх того, что пришло с сервера в myApplicationStatus.
+  const [localStatuses, setLocalStatuses] = useState<Record<string, ApplicationStatus>>({});
   const [applyingEventId, setApplyingEventId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -119,7 +122,8 @@ function FeedPageContent() {
   }
 
   async function handleApply(eventId: string) {
-    if (appliedEventIds.has(eventId) || applyingEventId) return;
+    const knownStatus = localStatuses[eventId] ?? events.find((e) => e.id === eventId)?.myApplicationStatus;
+    if (knownStatus || applyingEventId) return;
     setApplyingEventId(eventId);
     try {
       const res = await fetch("/api/applications", {
@@ -130,10 +134,10 @@ function FeedPageContent() {
       const data = await res.json();
 
       if (res.ok) {
-        setAppliedEventIds((prev) => new Set(prev).add(eventId));
-        setToast("Отклик отправлен! Организатор скоро ответит.");
+        setLocalStatuses((prev) => ({ ...prev, [eventId]: "pending" }));
+        setToast("Заявка отправлена! Ответ организатора придёт в Telegram.");
       } else if (data.error === "already_applied") {
-        setAppliedEventIds((prev) => new Set(prev).add(eventId));
+        setLocalStatuses((prev) => ({ ...prev, [eventId]: "pending" }));
         setToast("Ты уже откликался на эту встречу.");
       } else if (data.error === "event_full") {
         setToast("Мест уже не осталось.");
@@ -191,7 +195,7 @@ function FeedPageContent() {
           <EventCard
             key={event.id}
             event={event}
-            applied={appliedEventIds.has(event.id)}
+            applicationStatus={localStatuses[event.id]}
             applying={applyingEventId === event.id}
             onApplyPress={handleApply}
           />

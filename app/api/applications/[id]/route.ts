@@ -60,6 +60,27 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   if (action === "reject") {
     await admin.from("applications").update({ status: "rejected" }).eq("id", applicationId);
+
+    // Сообщаем человеку, что заявку не подтвердили — и в приложении
+    // (экран «Уведомления»), и сразу в Telegram, как при принятии. Иначе он
+    // так и ждал бы ответа, не зная, что можно искать другую встречу.
+    await admin.from("notifications").insert({
+      user_id: application.user_id,
+      type: "application_rejected",
+      payload: { eventId: application.event_id, applicationId },
+    });
+
+    const { data: rejectedUser } = await admin
+      .from("users")
+      .select("telegram_id")
+      .eq("id", application.user_id)
+      .maybeSingle();
+    if (rejectedUser) {
+      notifyTelegram(rejectedUser.telegram_id, buildNotificationText("application_rejected", eventTitle)).catch(
+        () => {}
+      );
+    }
+
     return NextResponse.json({ status: "rejected" });
   }
 

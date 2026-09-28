@@ -7,6 +7,7 @@ import Image from "next/image";
 import { ApplicantCard, type ApplicantCardData } from "@/components/applications/ApplicantCard";
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import "./mesto-event.css";
+import { ApplicationStatusView } from "@/components/applications/ApplicationStatus";
 
 interface EventDetails {
   id: string;
@@ -538,26 +539,8 @@ function BottomAction({
       </Link>
     );
   }
-  if (viewerStatus === "accepted") {
-    return (
-      <div className="w-full rounded-pill bg-ink-900 py-4 text-center text-base font-semibold text-white">
-        Ты идёшь ✓
-      </div>
-    );
-  }
-  if (viewerStatus === "pending") {
-    return (
-      <div className="w-full rounded-pill bg-ink-400/10 py-4 text-center text-base font-semibold text-ink-600">
-        Отклик отправлен
-      </div>
-    );
-  }
-  if (viewerStatus === "rejected") {
-    return (
-      <div className="w-full rounded-pill bg-ink-400/10 py-4 text-center text-base font-semibold text-ink-400">
-        Отклонено
-      </div>
-    );
+  if (viewerStatus === "accepted" || viewerStatus === "pending" || viewerStatus === "rejected") {
+    return <ApplicationStatusView status={viewerStatus} layout="wide" />;
   }
 
   return (

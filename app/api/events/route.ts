@@ -303,8 +303,33 @@ export async function GET(req: NextRequest) {
     };
   });
 
+  // Статус заявки ТЕКУЩЕГО пользователя на каждую встречу на странице —
+  // чтобы в ленте сразу было видно «Заявка отправлена» / «Вы в событии» /
+  // «Заявка не подтверждена», а не снова кнопка «Я иду». Один запрос на
+  // всю страницу, а не по запросу на карточку. Отменённые (cancelled)
+  // заявки не показываем — человек может откликнуться заново.
+  const statusByEventId = new Map<string, "pending" | "accepted" | "rejected">();
+  if (currentUser && pageItems.length > 0) {
+    const { data: myApplications } = await admin
+      .from("applications")
+      .select("event_id, status")
+      .eq("user_id", currentUser.userId)
+      .in(
+        "event_id",
+        pageItems.map((item) => item.id)
+      );
+    for (const application of myApplications ?? []) {
+      if (application.status === "pending" || application.status === "accepted" || application.status === "rejected") {
+        statusByEventId.set(application.event_id, application.status);
+      }
+    }
+  }
+
   return NextResponse.json({
-    items: pageItems,
+    items: pageItems.map((item) => ({
+      ...item,
+      myApplicationStatus: statusByEventId.get(item.id) ?? null,
+    })),
     page,
     hasMore: pageStart + PAGE_SIZE < ranked.length,
   });

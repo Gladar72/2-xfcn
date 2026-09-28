@@ -10,7 +10,9 @@ export function buildNotificationText(type: string, eventTitle: string | undefin
     case "new_application":
       return `Новый отклик на ${title}`;
     case "application_accepted":
-      return `Тебя приняли на ${title}`;
+      return `Организатор подтвердил твою заявку на ${title} 🎉 Ты в событии!`;
+    case "application_rejected":
+      return `Организатор не подтвердил твою заявку на ${title}. Загляни в приложение — там много других встреч.`;
     case "event_reminder":
       return `Скоро начнётся ${title}`;
     case "review_request":
