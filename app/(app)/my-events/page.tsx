@@ -13,6 +13,7 @@ interface MyEvent {
   status: string;
   category: { slug: string; name: string; emoji: string | null } | null;
   isBusiness: boolean;
+  photoUrl: string | null;
   role: "organizer" | "participant";
   pendingApplicationsCount: number;
   pendingApplicantPreview: { id: string; name: string; avatarUrl: string | null } | null;
@@ -25,8 +26,14 @@ const CATEGORY_ICON: Record<string, string> = {
   breakfast: "/brand/3d/breakfast.png",
   dinner: "/brand/3d/dinner.png",
   walk: "/brand/3d/walk.png",
-  custom: "/brand/3d/custom-proposal.png",
+  // Для "своего предложения" раньше стоял плюсик (custom-proposal) — на
+  // карточке встречи он читался как кнопка "создать". Теперь — иконка встречи.
+  custom: "/brand/3d/icon-calendar.png",
 };
+
+const DEFAULT_ICON = "/brand/3d/icon-calendar.png";
+
+type Scope = "upcoming" | "archive";
 
 const STATUS_LABEL: Record<string, string> = {
   published: "Активна",
@@ -36,15 +43,26 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function MyEventsPage() {
+  const [scope, setScope] = useState<Scope>("upcoming");
   const [items, setItems] = useState<MyEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/me/events")
+    let cancelled = false;
+    setLoading(true);
+    setItems([]);
+    fetch(`/api/me/events?scope=${scope}`)
       .then((r) => r.json())
-      .then((data) => setItems(data.items ?? []))
-      .finally(() => setLoading(false));
-  }, []);
+      .then((data) => {
+        if (!cancelled) setItems(data.items ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [scope]);
 
   return (
     <div className="px-5 py-4">
@@ -62,6 +80,26 @@ export default function MyEventsPage() {
         </span>
       </div>
 
+      {/* Предстоящие / Архив */}
+      <div className="mb-4 flex rounded-pill bg-white/60 p-1 shadow-card backdrop-blur">
+        {(
+          [
+            ["upcoming", "Предстоящие"],
+            ["archive", "Архив"],
+          ] as const
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            onClick={() => setScope(value)}
+            className={`flex-1 rounded-pill py-1.5 text-sm font-medium transition-colors ${
+              scope === value ? "bg-white text-ink-900 shadow-card" : "text-ink-600"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {loading && <p className="text-center text-sm text-ink-600">Загрузка...</p>}
 
       {!loading && items.length === 0 && (
@@ -69,40 +107,44 @@ export default function MyEventsPage() {
           <div className="relative mb-4 h-28 w-28">
             <Image src="/brand/3d/empty-quiet.png" alt="" fill className="object-contain" sizes="112px" />
           </div>
-          <p className="text-sm text-ink-600">Ты пока нигде не участвуешь и ничего не создавал.</p>
+          <p className="text-sm text-ink-600">
+            {scope === "archive"
+              ? "Прошедших встреч пока нет."
+              : "Предстоящих встреч нет — загляни в ленту или создай свою."}
+          </p>
         </div>
       )}
 
       <div className="space-y-2">
         {items.map((event) => {
-          const icon = event.isBusiness ? "/brand/markers/marker-business.png" : event.category ? CATEGORY_ICON[event.category.slug] : undefined;
+          const icon = event.isBusiness
+            ? "/brand/markers/marker-business.png"
+            : (event.category && CATEGORY_ICON[event.category.slug]) || DEFAULT_ICON;
+          const isPast = scope === "archive";
           return (
             <Link
               key={event.id}
               href={`/events/${event.id}`}
-              className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card"
+              className={`flex items-center gap-3 rounded-card bg-white p-3.5 shadow-card ${isPast ? "opacity-75" : ""}`}
             >
-              {icon ? (
-                <div className="relative h-10 w-10 shrink-0">
-                  <Image src={icon} alt="" fill className="object-contain" sizes="40px" />
-                  {event.pendingApplicationsCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-red-500 px-1 text-[10px] font-semibold text-white">
-                      {event.pendingApplicationsCount}
-                    </span>
-                  )}
-                  <ApplicantPreviewBadge preview={event.pendingApplicantPreview} />
-                </div>
-              ) : (
-                <div className="relative shrink-0">
-                  <span className="text-2xl">{event.category?.emoji}</span>
-                  {event.pendingApplicationsCount > 0 && (
-                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-red-500 px-1 text-[10px] font-semibold text-white">
-                      {event.pendingApplicationsCount}
-                    </span>
-                  )}
-                  <ApplicantPreviewBadge preview={event.pendingApplicantPreview} />
-                </div>
-              )}
+              <div className="relative h-12 w-12 shrink-0">
+                {event.photoUrl ? (
+                  <div className={`h-12 w-12 overflow-hidden rounded-[14px] bg-lavender-100 ${isPast ? "grayscale" : ""}`}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={event.photoUrl} alt="" className="h-full w-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-lavender-100">
+                    <Image src={icon} alt="" width={36} height={36} className="h-9 w-9 object-contain" />
+                  </div>
+                )}
+                {event.pendingApplicationsCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-red-500 px-1 text-[10px] font-semibold text-white">
+                    {event.pendingApplicationsCount}
+                  </span>
+                )}
+                <ApplicantPreviewBadge preview={event.pendingApplicantPreview} />
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-ink-900">{event.title}</p>
                 <p className="truncate text-xs text-ink-600">
