@@ -193,7 +193,7 @@ export function OnboardingWizard() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Имя"
-              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-lg outline-none focus:border-accent"
+              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
             />
           </StepBlock>
         )}
@@ -204,7 +204,7 @@ export function OnboardingWizard() {
               type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
-              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-lg outline-none focus:border-accent"
+              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
             />
           </StepBlock>
         )}
@@ -242,7 +242,7 @@ export function OnboardingWizard() {
               value={city}
               onChange={setCity}
               placeholder="Начни вводить город"
-              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-lg outline-none focus:border-accent"
+              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
             />
           </StepBlock>
         )}
@@ -255,7 +255,7 @@ export function OnboardingWizard() {
               maxLength={300}
               rows={4}
               placeholder="Расскажи немного о себе..."
-              className="w-full resize-none rounded-card border border-ink-400/20 bg-white px-5 py-4 text-lg outline-none focus:border-accent"
+              className="w-full resize-none rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
             />
           </StepBlock>
         )}
