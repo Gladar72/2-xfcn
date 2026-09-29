@@ -14,20 +14,31 @@ function isAtLeast18(birthDateIso: string, now: Date = new Date()): boolean {
 }
 
 export const onboardingSchema = z.object({
-  name: z.string().trim().min(2, "Имя слишком короткое").max(60),
+  name: z
+    .string({ required_error: "Напиши, как тебя зовут" })
+    .trim()
+    .min(2, "Имя слишком короткое — минимум 2 буквы")
+    .max(60, "Имя слишком длинное — максимум 60 символов"),
   birthDate: z
-    .string()
-    .refine((v) => !Number.isNaN(new Date(v).getTime()), "Некорректная дата")
+    .string({ required_error: "Укажи дату рождения" })
+    .refine((v) => !Number.isNaN(new Date(v).getTime()), "Укажи дату рождения")
     .refine((v) => isAtLeast18(v), "Сервис доступен только пользователям 18+"),
   gender: z.enum(["male", "female"], { errorMap: () => ({ message: "Укажите пол" }) }),
   agreedToTerms: z.literal(true, {
     errorMap: () => ({ message: "Нужно принять условия оферты и политики конфиденциальности" }),
   }),
-  city: z.string().trim().min(2, "Укажите город").max(80),
-  bio: z.string().trim().max(300).optional().default(""),
-  interestIds: z.array(z.string().uuid()).max(15).default([]),
+  city: z
+    .string({ required_error: "Выбери город" })
+    .trim()
+    .min(2, "Выбери город")
+    .max(80, "Название города слишком длинное"),
+  bio: z.string().trim().max(300, "Рассказ о себе — максимум 300 символов").optional().default(""),
+  interestIds: z
+    .array(z.string().uuid("Выбери интересы заново"))
+    .max(15, "Можно выбрать не больше 15 интересов")
+    .default([]),
   // Фото — base64 data URL (data:image/jpeg;base64,...), проверяем размер отдельно на бэкенде.
-  photoBase64: z.string().startsWith("data:image/", "Ожидается изображение").optional(),
+  photoBase64: z.string().startsWith("data:image/", "Не получилось прочитать фото — выбери его заново").optional(),
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;

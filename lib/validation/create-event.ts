@@ -1,26 +1,49 @@
 import { z } from "zod";
 import { getCityUtcOffset } from "@/lib/data/city-timezones";
 
+// Все сообщения — по-русски: первое из них сервер отдаёт человеку как есть
+// (см. describeValidationError), чтобы было понятно, что именно исправить.
 export const createEventSchema = z
   .object({
-    title: z.string().min(1).max(120).optional(),
-    description: z.string().max(1000).optional(),
-    categorySlug: z.string().min(1),
+    title: z
+      .string({ invalid_type_error: "Добавь название встречи" })
+      .trim()
+      .min(1, "Добавь название встречи")
+      .max(120, "Название слишком длинное — максимум 120 символов")
+      .optional(),
+    description: z.string().max(1000, "Описание слишком длинное — максимум 1000 символов").optional(),
+    // Для «Для бизнеса» категорию не выбирают — сервер подставит служебную.
+    categorySlug: z.string().optional().default(""),
     trainingTypeSlug: z.string().optional(),
-    city: z.string().min(1),
-    placeName: z.string().optional(),
-    address: z.string().optional(),
+    // Город берётся из профиля организатора на сервере (клиент его не шлёт).
+    city: z.string({ required_error: "Укажи город в профиле" }).min(1, "Укажи город в профиле"),
+    placeName: z.string().max(120, "Название места слишком длинное — максимум 120 символов").optional(),
+    address: z.string().max(300, "Адрес слишком длинный").optional(),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
-    eventDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Некорректная дата"),
-    eventTime: z.string().regex(/^\d{2}:\d{2}$/, "Некорректное время"),
-    eventEndTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
-    seatsTotal: z.number().int().min(2).max(100),
-    costType: z.enum(["each_pays", "organizer_treats", "free", "negotiable"]).optional(),
+    eventDate: z
+      .string({ required_error: "Выбери дату встречи" })
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "Выбери дату встречи"),
+    eventTime: z
+      .string({ required_error: "Укажи время начала" })
+      .regex(/^\d{2}:\d{2}$/, "Укажи время начала"),
+    eventEndTime: z.string().regex(/^\d{2}:\d{2}$/, "Укажи время окончания").optional(),
+    seatsTotal: z
+      .number({ required_error: "Укажи, сколько нужно участников", invalid_type_error: "Укажи, сколько нужно участников" })
+      .int("Количество участников — целое число")
+      .min(2, "В событии должно быть минимум 2 участника")
+      .max(500, "Слишком много участников — максимум 500"),
+    costType: z
+      .enum(["each_pays", "organizer_treats", "free", "negotiable"], {
+        errorMap: () => ({ message: "Выбери, кто платит за встречу" }),
+      })
+      .optional(),
     isBusiness: z.boolean().optional().default(false),
     hasChat: z.boolean().optional().default(true),
-    businessPricingType: z.enum(["ticket", "free", "custom"]).optional(),
-    businessPricingDetails: z.string().optional(),
+    businessPricingType: z
+      .enum(["ticket", "free", "custom"], { errorMap: () => ({ message: "Выбери условия участия" }) })
+      .optional(),
+    businessPricingDetails: z.string().max(300, "Условия слишком длинные — максимум 300 символов").optional(),
     businessCustomTerms: z.string().optional(),
     // Одна фотография события — обязательна для "Для бизнеса" и для "Своё
     // предложение" (categorySlug="custom"), а для остальных готовых
@@ -30,8 +53,14 @@ export const createEventSchema = z
     photoBase64: z.string().optional(),
   })
   .superRefine((data, ctx) => {
+    if (!data.isBusiness && !data.categorySlug) {
+      ctx.addIssue({ code: "custom", path: ["categorySlug"], message: "Выбери категорию встречи" });
+    }
+    if (!data.isBusiness && data.seatsTotal > 30) {
+      ctx.addIssue({ code: "custom", path: ["seatsTotal"], message: "В обычной встрече — максимум 30 участников" });
+    }
     if ((data.isBusiness || data.categorySlug === "custom") && !data.photoBase64) {
-      ctx.addIssue({ code: "custom", path: ["photoBase64"], message: "Фото обязательно для события" });
+      ctx.addIssue({ code: "custom", path: ["photoBase64"], message: "Добавь фото — для этого типа встречи оно обязательно" });
     }
     if (data.businessPricingType === "custom" && !data.businessCustomTerms?.trim()) {
       ctx.addIssue({ code: "custom", path: ["businessCustomTerms"], message: "Опишите условия участия" });
