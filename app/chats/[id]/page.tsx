@@ -69,6 +69,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const clientRef = useRef<SupabaseClient | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,46 +116,43 @@ export default function ChatPage({ params }: ChatPageProps) {
         const client = createBrowserRealtimeClient(tokenData.token);
         clientRef.current = client;
 
+        // Broadcast вместо postgres_changes: сервер сам рассылает новые
+        // сообщения и «прочитано» в приватный канал чата (слушать его могут
+        // только участники — политика в миграции 0033). Так Realtime не
+        // проверяет права на каждую вставку для каждого подписчика.
         const channel = client
-          .channel(`conversation:${conversationId}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "INSERT",
-              schema: "public",
-              table: "messages",
-              filter: `conversation_id=eq.${conversationId}`,
-            },
-            (payload) => {
-              const row = payload.new as {
-                id: string;
-                sender_id: string;
-                content: string;
-                created_at: string;
-              };
-              setMessages((prev) =>
-                prev.some((m) => m.id === row.id)
-                  ? prev
-                  : [...prev, { id: row.id, senderId: row.sender_id, content: row.content, createdAt: row.created_at }]
+          .channel(`conversation:${conversationId}`, { config: { private: true } })
+          .on("broadcast", { event: "message" }, ({ payload }) => {
+            const row = payload as { id: string; senderId: string; content: string; createdAt: string };
+            if (!row?.id) return;
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === row.id)) return prev;
+              const incoming = { id: row.id, senderId: row.senderId, content: row.content, createdAt: row.createdAt };
+              // Своё сообщение может прийти по каналу раньше ответа POST —
+              // тогда заменяем им временную копию, а не дублируем.
+              const tempIndex = prev.findIndex(
+                (m) => m.id.startsWith("temp-") && m.senderId === row.senderId && m.content === row.content
               );
+              if (tempIndex !== -1) return prev.map((m, i) => (i === tempIndex ? incoming : m));
+              return [...prev, incoming];
+            });
+            // Чат открыт — отмечаем входящие прочитанными (не чаще раза в 3 с).
+            if (row.senderId !== me.userId && !markReadTimerRef.current) {
+              markReadTimerRef.current = setTimeout(() => {
+                markReadTimerRef.current = null;
+                fetch(`/api/conversations/${conversationId}`, {
+                  method: "PATCH",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ action: "mark_read" }),
+                }).catch(() => {});
+              }, 3000);
             }
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "UPDATE",
-              schema: "public",
-              table: "conversation_members",
-              filter: `conversation_id=eq.${conversationId}`,
-            },
-            (payload) => {
-              const row = payload.new as { user_id: string; last_read_at: string | null };
-              if (row.user_id === me.userId) return;
-              setMembers((prev) =>
-                prev.map((m) => (m.id === row.user_id ? { ...m, lastReadAt: row.last_read_at } : m))
-              );
-            }
-          )
+          })
+          .on("broadcast", { event: "read" }, ({ payload }) => {
+            const row = payload as { userId: string; lastReadAt: string | null };
+            if (!row?.userId || row.userId === me.userId) return;
+            setMembers((prev) => prev.map((m) => (m.id === row.userId ? { ...m, lastReadAt: row.lastReadAt } : m)));
+          })
           .subscribe();
 
         channelRef.current = channel;
@@ -176,6 +174,8 @@ export default function ChatPage({ params }: ChatPageProps) {
     return () => {
       cancelled = true;
       if (channelRef.current) clientRef.current?.removeChannel(channelRef.current);
+      if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
+      markReadTimerRef.current = null;
     };
   }, [conversationId]);
 
@@ -206,7 +206,9 @@ export default function ChatPage({ params }: ChatPageProps) {
       }
       if (data.messageId && data.createdAt) {
         setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, id: data.messageId, createdAt: data.createdAt } : m))
+          prev.some((m) => m.id === data.messageId)
+            ? prev.filter((m) => m.id !== tempId)
+            : prev.map((m) => (m.id === tempId ? { ...m, id: data.messageId, createdAt: data.createdAt } : m))
         );
       }
     } catch {
