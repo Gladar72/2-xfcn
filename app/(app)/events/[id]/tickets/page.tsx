@@ -16,8 +16,9 @@ interface Ticket {
 
 /**
  * Билеты участников бизнес-события — для организатора на входе:
- * человек называет номер, организатор находит его (поиск по номеру или
- * имени) и отмечает «Пришёл».
+ * человек называет номер (MKS-007 или просто «семь»), организатор находит
+ * его (поиск по номеру или имени) и отмечает «Пришёл». Номера идут по
+ * порядку принятия — список удобно вести и сверять.
  */
 export default function EventTicketsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -27,6 +28,8 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [show, setShow] = useState<"all" | "waiting" | "arrived">("all");
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     fetch(`/api/events/${params.id}/tickets`)
@@ -43,14 +46,41 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
       .finally(() => setLoading(false));
   }, [params.id]);
 
+  // По порядку номеров: 001, 002, 003 …
+  const sorted = useMemo(
+    () => [...tickets].sort((a, b) => ticketNumber(a.ticketCode) - ticketNumber(b.ticketCode)),
+    [tickets]
+  );
+
   const filtered = useMemo(() => {
-    const raw = query.trim().toLowerCase();
-    if (!raw) return tickets;
-    const q = normalize(query);
-    return tickets.filter(
-      (t) => (q.length > 0 && normalize(t.ticketCode ?? "").includes(q)) || t.name.toLowerCase().includes(raw)
+    const byStatus = sorted.filter((t) =>
+      show === "all" ? true : show === "arrived" ? !!t.checkedInAt : !t.checkedInAt
     );
-  }, [tickets, query]);
+    const raw = query.trim().toLowerCase();
+    if (!raw) return byStatus;
+    // Только цифры («7», «07», «007») — ищем по номеру билета.
+    if (/^\d+$/.test(raw)) return byStatus.filter((t) => ticketNumber(t.ticketCode) === Number(raw));
+    const q = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    return byStatus.filter(
+      (t) =>
+        (q.length > 0 && (t.ticketCode ?? "").replace(/[^A-Z0-9]/g, "").includes(q)) ||
+        t.name.toLowerCase().includes(raw)
+    );
+  }, [sorted, query, show]);
+
+  function copyList() {
+    const lines = sorted.map(
+      (t, i) => `${i + 1}. ${t.ticketCode ?? "—"} — ${t.name} — ${t.checkedInAt ? "пришёл" : "не отмечен"}`
+    );
+    const text = `${title}\nПришли: ${arrived} из ${tickets.length}\n\n${lines.join("\n")}`;
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch(() => setError("Не получилось скопировать — попробуй ещё раз."));
+  }
 
   const arrived = tickets.filter((t) => t.checkedInAt).length;
 
@@ -88,18 +118,37 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
 
       {!loading && tickets.length > 0 && (
         <>
-          <div className="mb-3 flex items-center justify-between rounded-card bg-white p-4 shadow-card">
-            <span className="text-sm text-ink-600">Пришли</span>
-            <span className="text-base font-bold text-ink-900">
-              {arrived} из {tickets.length}
-            </span>
+          <div className="mb-3 grid grid-cols-3 gap-2">
+            <Stat label="Билетов" value={tickets.length} />
+            <Stat label="Пришли" value={arrived} accent />
+            <Stat label="Ждём" value={tickets.length - arrived} />
           </div>
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Номер билета или имя, например 7K4P"
+            inputMode="search"
+            placeholder="Номер (например, 7) или имя"
             className="mb-3 w-full rounded-card border border-ink-400/20 bg-white px-4 py-3 text-base outline-none focus:border-accent"
           />
+          <div className="mb-3 flex items-center gap-2">
+            {(
+              [
+                ["all", "Все"],
+                ["waiting", "Ждём"],
+                ["arrived", "Пришли"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                onClick={() => setShow(value)}
+                className={`rounded-pill px-4 py-1.5 text-sm font-medium ${
+                  show === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-600 shadow-card"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </>
       )}
 
@@ -116,7 +165,9 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
       )}
 
       {!loading && tickets.length > 0 && filtered.length === 0 && (
-        <p className="py-6 text-center text-sm text-ink-600">Билет с таким номером не найден.</p>
+        <p className="py-6 text-center text-sm text-ink-600">
+          {query.trim() ? "Билет с таким номером не найден." : "Здесь пока никого."}
+        </p>
       )}
 
       <div className="space-y-2">
@@ -131,8 +182,8 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
               )}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-ink-900">{t.name}</p>
               <p className="text-base font-bold tracking-wide text-accent">{t.ticketCode ?? "—"}</p>
+              <p className="truncate text-sm text-ink-900">{t.name}</p>
             </div>
             <button
               onClick={() => toggle(t)}
@@ -146,11 +197,30 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
           </div>
         ))}
       </div>
+
+      {!loading && tickets.length > 0 && (
+        <button
+          onClick={copyList}
+          className="mt-4 w-full rounded-pill bg-white py-3.5 text-base font-semibold text-accent shadow-card"
+        >
+          {copied ? "Список скопирован ✓" : "Скопировать список для учёта"}
+        </button>
+      )}
     </div>
   );
 }
 
-/** «m-7k4p», «7K4P», «M 7K4P» → «7K4P» — чтобы искать как угодно введённый номер. */
-function normalize(value: string): string {
-  return value.toUpperCase().replace(/[^A-Z0-9]/g, "").replace(/^M(?=[A-Z0-9]{4}$)/, "");
+/** «MKS-007» → 7. Билеты без номера — в конец списка. */
+function ticketNumber(code: string | null): number {
+  const match = code?.match(/(\d+)$/);
+  return match?.[1] ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
+}
+
+function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
+  return (
+    <div className="rounded-card bg-white p-3 text-center shadow-card">
+      <p className={`text-title ${accent ? "text-[#1E8E4E]" : "text-ink-900"}`}>{value}</p>
+      <p className="text-xs text-ink-600">{label}</p>
+    </div>
+  );
 }
