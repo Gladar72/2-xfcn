@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import { MiniProfileSheet } from "@/components/chat/MiniProfileSheet";
+import { RatingStar } from "@/components/ui/RatingStar";
 import { photoThumb } from "@/lib/photos/thumb";
 
 export interface ApplicantCardData {
@@ -51,8 +52,8 @@ export function ApplicantCard({ application, onAccept, onReject, onRemove, proce
             {applicant.name}, {applicant.age}
           </div>
           {applicant.ratingAvg > 0 && (
-            <div className="text-sm text-ink-600">
-              ⭐ {applicant.ratingAvg.toFixed(1)} · {applicant.completedMeetingsCount} встреч
+            <div className="flex items-center gap-1 text-sm text-ink-600">
+              <RatingStar /> {applicant.ratingAvg.toFixed(1)} · {applicant.completedMeetingsCount} встреч
             </div>
           )}
         </div>

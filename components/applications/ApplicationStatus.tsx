@@ -35,8 +35,8 @@ function PendingBlock() {
     <div className="flex w-full items-center gap-3 rounded-[16px] bg-lavender-100 px-4 py-3">
       <HourglassIcon />
       <div className="min-w-0">
-        <div className="text-[15px] font-semibold leading-tight text-accent">Заявка отправлена</div>
-        <div className="mt-0.5 text-[13px] leading-tight text-ink-600">Ждём ответа организатора</div>
+        <div className="text-sm font-semibold leading-tight text-accent">Заявка отправлена</div>
+        <div className="mt-0.5 text-xs leading-tight text-ink-600">Ждём ответа организатора</div>
       </div>
     </div>
   );
@@ -48,7 +48,7 @@ function AcceptedBlock({ layout }: { layout: "wide" | "compact" }) {
       <div
         className={clsx(
           "flex items-center justify-center gap-2 whitespace-nowrap rounded-pill bg-[#DDF7E6] font-semibold text-[#1E8E4E]",
-          layout === "compact" ? "px-3.5 py-2 text-[14px]" : "py-4 text-base"
+          layout === "compact" ? "px-3.5 py-2 text-sm" : "py-4 text-base"
         )}
       >
         <CheckIcon />
@@ -57,7 +57,7 @@ function AcceptedBlock({ layout }: { layout: "wide" | "compact" }) {
       <div
         className={clsx(
           "whitespace-nowrap text-ink-400",
-          layout === "compact" ? "text-[11px]" : "text-center text-[13px]"
+          layout === "compact" ? "text-caption" : "text-center text-xs"
         )}
       >
         Организатор подтвердил
@@ -81,7 +81,7 @@ function RejectedBlock({ layout }: { layout: "wide" | "compact" }) {
           <div
             className={clsx(
               "whitespace-nowrap font-semibold leading-tight text-[#E5334B]",
-              layout === "compact" ? "text-[12px]" : "text-[15px]"
+              layout === "compact" ? "text-xs" : "text-sm"
             )}
           >
             Заявка не подтверждена
@@ -89,7 +89,7 @@ function RejectedBlock({ layout }: { layout: "wide" | "compact" }) {
           <div
             className={clsx(
               "mt-0.5 leading-tight text-ink-600",
-              layout === "compact" ? "text-[11px]" : "text-[13px]"
+              layout === "compact" ? "text-caption" : "text-xs"
             )}
           >
             Вы не участвуете
@@ -105,7 +105,7 @@ function RejectedBlock({ layout }: { layout: "wide" | "compact" }) {
         }}
         className={clsx(
           "rounded-pill bg-lavender-100 font-semibold text-accent active:scale-95",
-          layout === "compact" ? "px-4 py-2 text-[13px]" : "py-3.5 text-base"
+          layout === "compact" ? "px-4 py-2 text-sm" : "py-3.5 text-base"
         )}
       >
         Смотреть другие
