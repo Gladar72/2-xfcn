@@ -321,7 +321,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   if (accessBlocked) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-8 text-center">
-        <p className="text-lg font-medium text-ink-900">Чат недоступен</p>
+        <p className="text-title text-ink-900">Чат недоступен</p>
         <p className="text-sm text-ink-600">Событие уже прошло или было отменено.</p>
         <button
           onClick={() => router.push("/chats")}
@@ -340,7 +340,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     >
       <div className={`flex shrink-0 items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3 ${isEventClosed ? "opacity-60" : ""}`}>
         <button onClick={() => router.push("/chats")} aria-label="Назад">
-          <Image src="/brand/icons/back.svg" alt="" width={22} height={22} />
+          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
         </button>
         <button
           onClick={() => (soleMember ? setShowMiniProfileFor(soleMember.id) : openParticipants())}
@@ -363,7 +363,7 @@ export default function ChatPage({ params }: ChatPageProps) {
                 soleMember.name.charAt(0).toUpperCase()
               )
             ) : (
-              <span className="text-sm">👥</span>
+              <Image src="/brand/3d/icon-users.png" alt="" width={20} height={20} className="object-contain" />
             )}
           </div>
           <span className="truncate font-medium">{headerTitle}</span>
@@ -513,7 +513,7 @@ export default function ChatPage({ params }: ChatPageProps) {
             <div key={message.id}>
               {showDaySeparator && (
                 <div className="my-3 flex justify-center">
-                  <span className="rounded-pill bg-lavender-100 px-3 py-1 text-[11px] font-medium text-ink-600">
+                  <span className="rounded-pill bg-lavender-100 px-3 py-1 text-caption font-medium text-ink-600">
                     {formatDayLabel(message.createdAt)}
                   </span>
                 </div>
