@@ -7,6 +7,7 @@ import Link from "next/link";
 import { LocationPicker } from "@/components/map/LocationPicker";
 import { PhotoCropModal } from "@/components/create-event/PhotoCropModal";
 import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
+import { photoThumb } from "@/lib/photos/thumb";
 
 interface Category {
   id: string;
@@ -275,7 +276,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
       <div className="space-y-4 px-5 py-4">
         <div className="relative aspect-[1.4] w-full overflow-hidden rounded-card-lg bg-lavender-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={newPhotoBase64 ?? photoUrl ?? undefined} alt="" className="h-full w-full object-cover" />
+          <img src={photoThumb(newPhotoBase64 ?? photoUrl ?? undefined, 400)} alt="" className="h-full w-full object-cover" />
           <label className="absolute bottom-3 right-3 flex cursor-pointer items-center gap-1.5 rounded-pill bg-black/60 px-3 py-2 text-sm font-medium text-white">
             📷 Изменить фото
             <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
