@@ -7,6 +7,7 @@ import Link from "next/link";
 import { LocationPicker } from "@/components/map/LocationPicker";
 import { PhotoCropModal } from "@/components/create-event/PhotoCropModal";
 import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
+import { apiErrorText } from "@/lib/validation/api-error-text";
 import { photoThumb } from "@/lib/photos/thumb";
 
 interface Category {
@@ -183,8 +184,24 @@ export default function EditEventPage({ params }: EditEventPageProps) {
     (isBusiness ||
       (categorySlug !== null && (categorySlug !== "training" || trainingTypeSlug !== null)));
 
+  /** Почему пока нельзя сохранить — чтобы не было молчаливой серой кнопки. */
+  function saveHint(): string {
+    if (title.trim().length < 3) return "Название встречи — минимум 3 символа.";
+    if (placeName.trim().length < 2) return "Укажи место встречи.";
+    if (latitude === undefined || longitude === undefined) return "Отметь место встречи на карте.";
+    if (!eventDate) return "Выбери дату встречи.";
+    if (!eventTime || !eventEndTime) return "Укажи время начала и окончания.";
+    if (seatsTotal < seatsTaken) return `Нельзя меньше ${seatsTaken} участников — столько уже подтверждено.`;
+    if (!isBusiness && categorySlug === null) return "Выбери категорию встречи.";
+    if (!isBusiness && categorySlug === "training" && trainingTypeSlug === null) return "Выбери вид тренировки.";
+    return "Проверь, что все поля заполнены.";
+  }
+
   async function handleSave() {
-    if (!canSave) return;
+    if (!canSave) {
+      setSaveError(saveHint());
+      return;
+    }
     setSaving(true);
     setSaveError(null);
     try {
@@ -217,15 +234,9 @@ export default function EditEventPage({ params }: EditEventPageProps) {
           photoBase64: newPhotoBase64,
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (data.error === "seats_below_taken") {
-          setSaveError(`Нельзя установить меньше ${data.seatsTaken} — столько человек уже подтверждено.`);
-        } else if (data.error === "photo_rejected") {
-          setSaveError("Это фото не прошло проверку — выбери другое.");
-        } else {
-          setSaveError("Не получилось сохранить изменения.");
-        }
+        setSaveError(apiErrorText(data, "Не получилось сохранить изменения. Попробуй ещё раз.", res.status));
         setSaving(false);
         return;
       }
@@ -266,8 +277,8 @@ export default function EditEventPage({ params }: EditEventPageProps) {
         <h1 className="text-base font-semibold text-ink-900">Редактировать событие</h1>
         <button
           onClick={handleSave}
-          disabled={!canSave || saving}
-          className="text-sm font-medium text-accent disabled:opacity-40"
+          disabled={saving}
+          className={`text-sm font-medium text-accent disabled:opacity-40 ${canSave ? "" : "opacity-40"}`}
         >
           Сохранить
         </button>
@@ -407,7 +418,19 @@ export default function EditEventPage({ params }: EditEventPageProps) {
           <div className="flex items-center justify-center gap-6">
             <button
               type="button"
-              onClick={() => setSeatsTotal((n) => Math.max(seatsTaken, n - 1))}
+              onClick={() => {
+                const min = Math.max(2, seatsTaken);
+                if (seatsTotal <= min) {
+                  setSaveError(
+                    seatsTaken > 2
+                      ? `Нельзя меньше ${seatsTaken} — столько человек уже подтверждено.`
+                      : "В событии должно быть минимум 2 участника."
+                  );
+                  return;
+                }
+                setSaveError(null);
+                setSeatsTotal((n) => n - 1);
+              }}
               className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
             >
               −
@@ -503,16 +526,29 @@ export default function EditEventPage({ params }: EditEventPageProps) {
           />
         </Field>
 
-        {saveError && <p className="text-center text-sm text-red-600">{saveError}</p>}
 
         <button
           onClick={handleSave}
-          disabled={!canSave || saving}
-          className="w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta disabled:opacity-40"
+          disabled={saving}
+          className={`w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta disabled:opacity-40 ${canSave ? "" : "opacity-40"}`}
         >
           {saving ? "Сохраняем..." : "Сохранить изменения"}
         </button>
       </div>
+
+      {/* Ошибка — плашкой поверх экрана, чтобы её было видно, даже если
+          «Сохранить» нажали в шапке, а форма прокручена вверх. */}
+      {saveError && (
+        <div className="fixed inset-x-5 bottom-28 z-40">
+          <div
+            role="alert"
+            onClick={() => setSaveError(null)}
+            className="rounded-card bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-700 shadow-card-lg"
+          >
+            {saveError}
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="fixed inset-x-0 bottom-28 z-40 flex justify-center px-5">
