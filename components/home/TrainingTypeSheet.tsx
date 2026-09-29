@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 interface TrainingType {
   id: string;
@@ -61,7 +62,7 @@ export function TrainingTypeSheet({ open, trainingTypes, onClose }: TrainingType
               disabled={checkingType === type.slug}
               className="flex items-center gap-2 rounded-card bg-background p-3 text-left text-sm font-medium active:scale-[0.98] disabled:opacity-60"
             >
-              <span className="text-lg">{type.emoji}</span>
+              <span className="text-xl leading-none">{type.emoji}</span>
               {type.name}
             </button>
           ))}
@@ -75,7 +76,9 @@ export function TrainingTypeSheet({ open, trainingTypes, onClose }: TrainingType
         >
           <div className="rounded-t-sheet bg-white p-5 pb-8 text-center" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <span className="mb-3 block text-4xl">{emptyType.emoji}</span>
+            <div className="relative mx-auto mb-3 h-14 w-14">
+              <Image src="/brand/3d/workout.png" alt="" fill className="object-contain" sizes="56px" />
+            </div>
             <h2 className="text-title mb-2">Такую встречу ещё никто не создал</h2>
             <p className="mb-5 text-sm text-ink-600">
               «{emptyType.name}» в твоём городе пока нет ни одной активной встречи — стань первым.
