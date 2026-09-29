@@ -61,6 +61,10 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [participantsTab, setParticipantsTab] = useState<ParticipantsTab>("all");
   const [participantsExpanded, setParticipantsExpanded] = useState(false);
   const [draft, setDraft] = useState("");
+  // Фото, выбранное через «+» и ещё не отправленное (уже ужатое, data URL).
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const [preparingImage, setPreparingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -123,15 +127,31 @@ export default function ChatPage({ params }: ChatPageProps) {
         const channel = client
           .channel(`conversation:${conversationId}`, { config: { private: true } })
           .on("broadcast", { event: "message" }, ({ payload }) => {
-            const row = payload as { id: string; senderId: string; content: string; createdAt: string };
+            const row = payload as {
+              id: string;
+              senderId: string;
+              content: string;
+              imageUrl?: string | null;
+              createdAt: string;
+            };
             if (!row?.id) return;
             setMessages((prev) => {
               if (prev.some((m) => m.id === row.id)) return prev;
-              const incoming = { id: row.id, senderId: row.senderId, content: row.content, createdAt: row.createdAt };
+              const incoming: MessageData = {
+                id: row.id,
+                senderId: row.senderId,
+                content: row.content,
+                imageUrl: row.imageUrl ?? null,
+                createdAt: row.createdAt,
+              };
               // Своё сообщение может прийти по каналу раньше ответа POST —
               // тогда заменяем им временную копию, а не дублируем.
               const tempIndex = prev.findIndex(
-                (m) => m.id.startsWith("temp-") && m.senderId === row.senderId && m.content === row.content
+                (m) =>
+                  m.id.startsWith("temp-") &&
+                  m.senderId === row.senderId &&
+                  m.content === row.content &&
+                  !!m.imageUrl === !!row.imageUrl
               );
               if (tempIndex !== -1) return prev.map((m, i) => (i === tempIndex ? incoming : m));
               return [...prev, incoming];
@@ -183,38 +203,93 @@ export default function ChatPage({ params }: ChatPageProps) {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, liveHeight]);
 
+  // «+» → системное окно выбора фото (галерея / камера). Доступ к фото
+  // телефон запрашивает сам, как в Telegram. Фото сразу ужимаем на
+  // телефоне (до 1600 px, JPEG) — отправляется быстро даже по мобильной сети.
+  async function handlePickImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // чтобы можно было выбрать то же фото ещё раз
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setError("Можно отправить только фото.");
+      return;
+    }
+    setPreparingImage(true);
+    try {
+      setPendingImage(await compressImage(file));
+      setError(null);
+    } catch {
+      setError("Не получилось открыть это фото. Попробуйте другое.");
+    } finally {
+      setPreparingImage(false);
+    }
+  }
+
   async function handleSend() {
     const content = draft.trim();
-    if (!content || sending || !myUserId || isEventClosed) return;
+    const image = pendingImage;
+    if ((!content && !image) || sending || !myUserId || isEventClosed) return;
 
     const tempId = `temp-${Date.now()}`;
-    setMessages((prev) => [...prev, { id: tempId, senderId: myUserId, content, createdAt: new Date().toISOString() }]);
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        senderId: myUserId,
+        content,
+        imageUrl: image,
+        uploading: !!image,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
     setSending(true);
     setDraft("");
+    setPendingImage(null);
+    const restore = () => {
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setDraft(content);
+      setPendingImage(image);
+    };
     try {
       const res = await fetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify(image ? { content, image } : { content }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError("Не получилось отправить сообщение.");
-        setMessages((prev) => prev.filter((m) => m.id !== tempId));
-        setDraft(content);
+        setError(
+          data.error === "photo_rejected"
+            ? "Фото не прошло проверку и не может быть отправлено."
+            : data.error === "photo_too_large"
+              ? "Фото слишком большое."
+              : data.error === "photo_invalid"
+                ? "Этот формат фото не поддерживается."
+                : "Не получилось отправить сообщение."
+        );
+        restore();
         return;
       }
       if (data.messageId && data.createdAt) {
         setMessages((prev) =>
           prev.some((m) => m.id === data.messageId)
             ? prev.filter((m) => m.id !== tempId)
-            : prev.map((m) => (m.id === tempId ? { ...m, id: data.messageId, createdAt: data.createdAt } : m))
+            : prev.map((m) =>
+                m.id === tempId
+                  ? {
+                      ...m,
+                      id: data.messageId,
+                      createdAt: data.createdAt,
+                      imageUrl: data.imageUrl ?? m.imageUrl,
+                      uploading: false,
+                    }
+                  : m
+              )
         );
       }
     } catch {
       setError("Проблема с соединением.");
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setDraft(content);
+      restore();
     } finally {
       setSending(false);
     }
@@ -453,6 +528,24 @@ export default function ChatPage({ params }: ChatPageProps) {
         <div ref={scrollRef} />
       </div>
 
+      {pendingImage && !isEventClosed && (
+        <div className="flex shrink-0 items-center gap-3 border-t border-lavender-100 bg-white px-3 pt-3">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={pendingImage} alt="Выбранное фото" className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => setPendingImage(null)}
+              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs leading-none text-white"
+              aria-label="Убрать фото"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-xs text-ink-600">Добавьте подпись или сразу отправьте</p>
+        </div>
+      )}
+
       <div className="flex shrink-0 items-center gap-2 border-t border-lavender-100 bg-white p-3">
         {isEventClosed ? (
           <p className="w-full text-center text-sm text-ink-400">
@@ -461,17 +554,37 @@ export default function ChatPage({ params }: ChatPageProps) {
         ) : (
           <>
             <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePickImage}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={sending || preparingImage}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lavender-100 disabled:opacity-40"
+              aria-label="Прикрепить фото"
+            >
+              {preparingImage ? (
+                <span className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
+              ) : (
+                <Image src="/brand/icons/plus.svg" alt="" width={22} height={22} />
+              )}
+            </button>
+            <input
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleSend();
               }}
-              placeholder="Написать сообщение..."
+              placeholder={pendingImage ? "Подпись к фото..." : "Написать сообщение..."}
               className="min-w-0 flex-1 rounded-pill border border-lavender-200 bg-background px-4 py-2.5 text-base outline-none focus:border-accent"
             />
             <button
               onClick={handleSend}
-              disabled={sending || !draft.trim()}
+              disabled={sending || (!draft.trim() && !pendingImage)}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-gradient disabled:opacity-40"
               aria-label="Отправить"
             >
@@ -518,4 +631,36 @@ function pluralizeParticipants(n: number): string {
   if (mod10 === 1 && mod100 !== 11) return "участника";
   if ([2, 3, 4].includes(mod10) && !(mod100 >= 12 && mod100 <= 14)) return "участников";
   return "участников";
+}
+
+/**
+ * Ужимает фото на телефоне перед отправкой: длинная сторона до 1600 px,
+ * JPEG 82% — обычно 200–500 КБ вместо 3–8 МБ с камеры. Заодно убирает
+ * EXIF (геолокацию и т.п.) — перерисовка через canvas его не сохраняет.
+ */
+async function compressImage(file: File): Promise<string> {
+  const MAX_SIDE = 1600;
+  const objectUrl = URL.createObjectURL(file);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new window.Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("decode_failed"));
+      el.src = objectUrl;
+    });
+    const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+    const width = Math.max(1, Math.round(img.naturalWidth * scale));
+    const height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("no_canvas");
+    ctx.fillStyle = "#ffffff"; // прозрачный PNG → белый фон, а не чёрный
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.82);
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
 }
