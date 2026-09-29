@@ -89,9 +89,9 @@ export default function SettingsPage() {
       </div>
 
       <Section title="Аккаунт">
-        <Row href="/profile" label="Профиль" value={profile ? profile.name : undefined} icon="/brand/icons/profile.svg" />
-        <Row href="/subscriptions" label="Мой тариф" icon="/brand/icons/gift.svg" />
-        <Row href="/notifications" label="Уведомления" icon="/brand/icons/bell.svg" />
+        <Row href="/profile" label="Профиль" value={profile ? profile.name : undefined} icon="/brand/3d/icon-users.png" />
+        <Row href="/subscriptions" label="Мой тариф" icon="/brand/3d/icon-gift.png" />
+        <Row href="/notifications" label="Уведомления" icon="/brand/3d/icon-bell.png" />
         {profile && (
           <ToggleRow
             label="Утренние приглашения"
@@ -102,8 +102,8 @@ export default function SettingsPage() {
         )}
         <button onClick={openCityEditor} className="block w-full text-left">
           <div className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
-            <Image src="/brand/3d/icon-location.png" alt="" width={18} height={18} />
-            <span className="flex-1 text-sm text-ink-900">Город</span>
+            <Image src="/brand/3d/icon-location.png" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
+            <span className="flex-1 text-base text-ink-900">Город</span>
             {profile?.city && <span className="text-sm text-ink-400">{profile.city}</span>}
             <span className="text-ink-400">›</span>
           </div>
@@ -111,7 +111,7 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="Помощь">
-        <Row external href={SUPPORT_BOT_URL} label="Написать в поддержку" icon="/brand/icons/help.svg" />
+        <Row external href={SUPPORT_BOT_URL} label="Написать в поддержку" icon="/brand/3d/empty-chats.png" />
       </Section>
 
       <Section title="О приложении">
@@ -135,8 +135,8 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <Row href="/legal/offer" label="Публичная оферта" icon="/brand/icons/info.svg" />
-        <Row href="/legal/privacy" label="Политика конфиденциальности" icon="/brand/icons/lock.svg" />
+        <Row href="/legal/offer" label="Публичная оферта" icon="/brand/3d/icon-document.png" />
+        <Row href="/legal/privacy" label="Политика конфиденциальности" icon="/brand/3d/icon-document.png" />
       </Section>
 
       <button
@@ -197,8 +197,8 @@ function Row({
 }) {
   const content = (
     <div className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
-      <Image src={icon} alt="" width={18} height={18} />
-      <span className="flex-1 text-sm text-ink-900">{label}</span>
+      <Image src={icon} alt="" width={28} height={28} className="h-7 w-7 object-contain" />
+      <span className="flex-1 text-base text-ink-900">{label}</span>
       {value && <span className="text-sm text-ink-400">{value}</span>}
       {href && <span className="text-ink-400">›</span>}
     </div>
