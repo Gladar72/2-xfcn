@@ -371,7 +371,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                     />
                   </svg>
                   {addressCopied && (
-                    <span className="absolute -top-8 right-0 whitespace-nowrap rounded-md bg-[color:var(--m-ink)] px-2 py-1 text-[11px] text-white">
+                    <span className="absolute -top-8 right-0 whitespace-nowrap rounded-md bg-[color:var(--m-ink)] px-2 py-1 text-caption text-white">
                       Скопировано
                     </span>
                   )}
@@ -395,7 +395,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           {event.description && <p className="m-description">{event.description}</p>}
 
           {event.viewerStatus !== "organizer" && (event.status === "published" || event.status === "closed") && (
-            <div className="mb-4">
+            <div className="mb-4 mt-5">
               <BottomAction
                 viewerStatus={event.viewerStatus}
                 isFull={isFull}
@@ -467,7 +467,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 {event.status === "published" && (
                   <button type="button" className="m-action m-boost" onClick={handleBoost} disabled={boosting} aria-busy={boosting}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/mesto/assets/icons/png/rocket.png" alt="" width={52} height={52} />
+                    <img src="/brand/3d/boost-icon.png" alt="" width={52} height={52} />
                     <span className="m-action-label">
                       {boosting ? "Поднимаем…" : (
                         <>
