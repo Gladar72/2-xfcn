@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import clsx from "clsx";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +12,7 @@ import { getInitData, useTelegramViewportHeight } from "@/lib/telegram/webapp-cl
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
 import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 import { PhotoCropModal } from "./PhotoCropModal";
+import { apiErrorText } from "@/lib/validation/api-error-text";
 
 interface Category {
   id: string;
@@ -213,8 +215,72 @@ export function CreateEventWizard() {
   }
 
   function goNext() {
+    // Кнопка «Далее» больше не серая-и-молчаливая: если на шаге чего-то не
+    // хватает, показываем, чего именно.
+    if (!canGoNext) {
+      setError(stepHint());
+      return;
+    }
     setError(null);
     if (stepIndex < steps.length - 1) setStepIndex(stepIndex + 1);
+  }
+
+  /** Что нужно сделать, чтобы пройти текущий шаг. */
+  function stepHint(): string {
+    switch (step) {
+      case "category":
+        return "Выбери, какую встречу создаёшь.";
+      case "trainingType":
+        return "Выбери вид тренировки.";
+      case "businessTitle":
+        return "Название — минимум 3 символа.";
+      case "where":
+        if (placeName.trim().length < 2) return "Напиши, где встречаемся — название места (минимум 2 символа).";
+        return "Отметь место на карте или выбери адрес из подсказок.";
+      case "when":
+        return "Выбери дату встречи.";
+      case "time":
+        if (!eventTime || !eventEndTime) return "Укажи время начала и окончания.";
+        return "Встреча должна длиться минимум 1 час.";
+      case "seats":
+        return "В событии должно быть минимум 2 участника.";
+      case "businessCost":
+        if (businessPricingType === null) return "Выбери условия участия.";
+        if (businessPricingType === "ticket") return "Укажи цену билета.";
+        return "Опиши условия участия.";
+      case "businessPhoto":
+        return "Добавь фото — для этого типа встречи оно обязательно.";
+      case "details":
+        return "Название встречи — минимум 3 символа.";
+      default:
+        return "Заполни этот шаг, чтобы продолжить.";
+    }
+  }
+
+  /** Шаг мастера, на котором заполняется поле, про которое пожаловался сервер. */
+  function stepForField(field: string | null | undefined): Step | null {
+    const map: Record<string, Step> = {
+      categorySlug: "category",
+      trainingTypeSlug: "trainingType",
+      title: isBusiness ? "businessTitle" : "details",
+      description: "details",
+      placeName: "where",
+      address: "where",
+      latitude: "where",
+      longitude: "where",
+      eventDate: "when",
+      eventTime: "time",
+      eventEndTime: "time",
+      seatsTotal: "seats",
+      costType: isBusiness ? "businessCost" : "cost",
+      businessPricingType: "businessCost",
+      businessPricingDetails: "businessCost",
+      businessCustomTerms: "businessCost",
+      photoBase64: "businessPhoto",
+      hasChat: "chat",
+    };
+    const target = field ? map[field] : undefined;
+    return target && steps.includes(target) ? target : null;
   }
   function goBack() {
     setError(null);
@@ -276,24 +342,14 @@ export function CreateEventWizard() {
         }),
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        if (data.error === "subscription_required") {
-          setError("Нужна активная подписка.");
-        } else if (data.error === "events_limit_reached") {
-          setError("Лимит встреч по твоему тарифу исчерпан на этот период.");
-        } else if (data.error === "group_size_exceeds_plan") {
-          setError(`Твой тариф позволяет группу максимум из ${data.groupMax} человек.`);
-        } else if (data.error === "photo_rejected") {
-          setError("Это фото не прошло проверку — выбери другое.");
-          setStepIndex(steps.indexOf("businessPhoto"));
-        } else if (data.error === "photo_invalid") {
-          setError("Не получилось прочитать фото — попробуй выбрать его заново.");
-          setStepIndex(steps.indexOf("businessPhoto"));
-        } else {
-          setError("Не получилось опубликовать встречу.");
-        }
+        // Сервер говорит, что именно не так (и в каком поле) — показываем
+        // это человеку и сразу открываем нужный шаг, чтобы исправить.
+        setError(apiErrorText(data, "Не получилось опубликовать встречу. Попробуй ещё раз.", res.status));
+        const targetStep = stepForField(data.field);
+        if (targetStep) setStepIndex(steps.indexOf(targetStep));
         setSubmitting(false);
         return;
       }
@@ -324,7 +380,7 @@ export function CreateEventWizard() {
     (step === "where" && placeName.trim().length >= 2 && latitude !== undefined && longitude !== undefined) ||
     (step === "when" && eventDate.length > 0) ||
     (step === "time" && eventTime.length > 0 && eventEndTime.length > 0 && (durationMinutes ?? 0) >= 60) ||
-    (step === "seats" && seatsTotal >= 1) ||
+    (step === "seats" && seatsTotal >= 2) ||
     step === "cost" ||
     (step === "businessCost" &&
       businessPricingType !== null &&
@@ -351,7 +407,12 @@ export function CreateEventWizard() {
           горизонтальной прокрутки здесь браузер мог "запомнить" сдвинутую
           вбок позицию скролла и перенести её на следующие шаги, из-за чего
           обычные поля (дата, время) визуально уезжали за правый край экрана. */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-start gap-3 overflow-x-hidden overflow-y-auto py-3 pb-24">
+      <div
+        className={clsx(
+          "flex min-h-0 min-w-0 flex-1 flex-col justify-start gap-3 overflow-x-hidden overflow-y-auto py-3",
+          error ? "pb-44" : "pb-24"
+        )}
+      >
         {step === "category" && (
           <StepBlock title="Что планируем?">
             <div className="grid grid-cols-2 gap-3">
@@ -570,14 +631,29 @@ export function CreateEventWizard() {
           <StepBlock title="Сколько человек нужно?">
             <div className="flex items-center justify-center gap-6">
               <button
-                onClick={() => setSeatsTotal((n) => Math.max(1, n - 1))}
+                onClick={() => {
+                  if (seatsTotal <= 2) {
+                    setError("В событии должно быть минимум 2 участника.");
+                    return;
+                  }
+                  setError(null);
+                  setSeatsTotal((n) => n - 1);
+                }}
                 className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
               >
                 −
               </button>
               <span className="text-display w-12 text-center">{seatsTotal}</span>
               <button
-                onClick={() => setSeatsTotal((n) => Math.min(isBusiness ? 500 : 30, n + 1))}
+                onClick={() => {
+                  const max = isBusiness ? 500 : 30;
+                  if (seatsTotal >= max) {
+                    setError(`Максимум ${max} участников.`);
+                    return;
+                  }
+                  setError(null);
+                  setSeatsTotal((n) => n + 1);
+                }}
                 className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
               >
                 +
@@ -772,10 +848,17 @@ export function CreateEventWizard() {
           </StepBlock>
         )}
 
-        {error && <p className="text-center text-sm text-red-600">{error}</p>}
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 flex shrink-0 gap-3 bg-background px-5 pb-3 pt-2">
+      <div className="absolute inset-x-0 bottom-0 shrink-0 bg-background px-5 pb-3 pt-2">
+        {/* Ошибка — прямо над кнопками, чтобы её было видно на любом шаге,
+            а не где-то внизу прокрутки. */}
+        {error && (
+          <div role="alert" className="mb-2 rounded-card bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-700">
+            {error}
+          </div>
+        )}
+        <div className="flex gap-3">
         <Button
           variant="secondary"
           onClick={stepIndex > 0 ? goBack : () => router.back()}
@@ -784,7 +867,7 @@ export function CreateEventWizard() {
           Назад
         </Button>
         {!isLastStep ? (
-          <Button onClick={goNext} disabled={!canGoNext}>
+          <Button onClick={goNext} className={clsx(!canGoNext && "opacity-40")}>
             Далее
           </Button>
         ) : (
@@ -792,6 +875,7 @@ export function CreateEventWizard() {
             {submitting ? "Публикуем..." : "Опубликовать"}
           </Button>
         )}
+        </div>
       </div>
 
       {cropSrc && (
