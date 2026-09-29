@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { photoThumb } from "@/lib/photos/thumb";
 
 interface AvatarViewerProps {
   src: string;
@@ -30,7 +31,7 @@ export function AvatarViewer({ src, alt, children }: AvatarViewerProps) {
         >
           <div className="aspect-square w-full max-w-sm overflow-hidden rounded-full">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={src} alt={alt} className="h-full w-full object-cover" />
+            <img src={photoThumb(src, 400)} alt={alt} className="h-full w-full object-cover" />
           </div>
         </div>
       )}
