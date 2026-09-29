@@ -26,12 +26,12 @@ const MEETING_TYPES = new Set([
 ]);
 
 const TYPE_ICON: Record<string, string> = {
-  new_application: "/brand/3d/icon-users.png",
-  application_accepted: "/brand/icons/check.svg",
+  new_application: "/brand/3d/applications-icon.png",
+  application_accepted: "/brand/3d/icon-calendar.png",
   event_reminder: "/brand/3d/icon-clock.png",
   review_request: "/brand/3d/icon-badge.png",
-  boost_suggestion: "/brand/icons/info.svg",
-  new_message: "/brand/icons/chat.svg",
+  boost_suggestion: "/brand/3d/boost-icon.png",
+  new_message: "/brand/3d/empty-chats.png",
 };
 
 export default function NotificationsPage() {
@@ -115,7 +115,7 @@ export default function NotificationsPage() {
             className="flex w-full items-start gap-3 rounded-card bg-white p-4 text-left shadow-card"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-lavender-100">
-              <Image src={TYPE_ICON[item.type] ?? "/brand/icons/bell.svg"} alt="" width={18} height={18} />
+              <Image src={TYPE_ICON[item.type] ?? "/brand/3d/icon-bell.png"} alt="" width={24} height={24} className="object-contain" />
             </div>
             <div className="min-w-0 flex-1">
               <p className={`text-sm ${item.isRead ? "text-ink-600" : "font-medium text-ink-900"}`}>{item.text}</p>
