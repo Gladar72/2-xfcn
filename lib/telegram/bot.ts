@@ -3,6 +3,7 @@ import { getSupportAiReply } from "@/lib/telegram/support-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activateSubscription } from "@/lib/subscriptions/server";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
+import { handleRsvpAnswer } from "@/lib/telegram/event-reminders";
 import type { Plan } from "@/lib/subscriptions/limits";
 import {
   REFERRAL_START_PREFIX,
@@ -215,6 +216,27 @@ export function getBot(): Bot {
     await admin.from("users").update({ morning_reminders_enabled: false }).eq("telegram_id", ctx.from.id);
     await ctx.answerCallbackQuery();
     await ctx.reply("Хорошо, больше не буду напоминать по утрам. Включить снова можно в настройках приложения в любой момент.");
+  });
+
+  // Кнопки «✅ Иду» / «❌ Не смогу» под напоминанием за 2 часа до встречи
+  // (см. lib/telegram/event-reminders.ts).
+  bot.callbackQuery(/^rsvp:(y|n):([0-9a-f-]{36})$/, async (ctx) => {
+    const match = ctx.match as RegExpMatchArray;
+    const answer = match[1] === "y" ? "going" : "not_going";
+    const result = await handleRsvpAnswer(createAdminClient(), ctx.api, {
+      rsvpId: match[2] ?? "",
+      answer,
+      fromTelegramId: ctx.from.id,
+    });
+    await ctx.answerCallbackQuery({ text: result.ok ? undefined : result.text });
+
+    // Убираем кнопки под напоминанием и дописываем ответ — чтобы было видно,
+    // что выбор учтён, и нельзя было нажать повторно.
+    const sourceMessage = ctx.callbackQuery.message;
+    const originalText = sourceMessage && "text" in sourceMessage ? sourceMessage.text ?? "" : "";
+    await ctx
+      .editMessageText(`${originalText}\n\n${result.text}`, { reply_markup: undefined })
+      .catch(() => {});
   });
 
   // ─── Партнёрская программа для блогеров ───────────────────────────────
