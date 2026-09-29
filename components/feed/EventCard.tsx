@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
 import { ApplicationStatusView, type ApplicationStatus } from "@/components/applications/ApplicationStatus";
+import { CATEGORY_ICON } from "@/lib/data/category-icons";
+import { RatingStar } from "@/components/ui/RatingStar";
 import { photoThumb } from "@/lib/photos/thumb";
 
 export interface EventCardData {
@@ -48,17 +50,6 @@ interface EventCardProps {
   /** Локальный статус (например, сразу после отклика) — важнее того, что пришёл с сервера. */
   applicationStatus?: ApplicationStatus | null;
 }
-
-// 3D-иконки категорий МЕСТО (тот же комплект, что и на главном экране).
-const CATEGORY_ICON: Record<string, string> = {
-  training: "/brand/3d/workout.png",
-  cinema: "/brand/3d/movie.png",
-  coffee: "/brand/3d/coffee.png",
-  breakfast: "/brand/3d/breakfast.png",
-  dinner: "/brand/3d/dinner.png",
-  walk: "/brand/3d/walk.png",
-  custom: "/brand/markers/marker-custom-proposal.png",
-};
 
 export function EventCard({
   event,
@@ -132,8 +123,8 @@ export function EventCard({
                 <span className="font-medium text-ink-900">{event.organizer.name}</span>
                 <span className="text-ink-400">, {event.organizer.age}</span>
                 {event.organizer.ratingAvg > 0 && (
-                  <span className="ml-2 text-ink-600">
-                    ⭐ {event.organizer.ratingAvg.toFixed(1)} · {event.organizer.completedMeetingsCount} встреч
+                  <span className="ml-2 inline-flex items-center gap-1 text-ink-600">
+                    <RatingStar /> {event.organizer.ratingAvg.toFixed(1)} · {event.organizer.completedMeetingsCount} встреч
                   </span>
                 )}
               </div>
@@ -152,7 +143,7 @@ export function EventCard({
           )}
 
           {!event.photoUrl && (
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3">
               <span className="text-sm text-ink-600">
                 {isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}
               </span>
@@ -211,7 +202,7 @@ function GoingRow({
         {preview.map((person) => (
           <div
             key={person.id}
-            className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-[11px] font-semibold text-ink-600"
+            className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-caption font-semibold text-ink-600"
           >
             {person.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -222,7 +213,7 @@ function GoingRow({
           </div>
         ))}
         {extra > 0 && (
-          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-lavender-100 text-[11px] font-semibold text-accent">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-lavender-100 text-caption font-semibold text-accent">
             +{extra}
           </div>
         )}
@@ -272,8 +263,9 @@ function ApplyButton({
       }}
       disabled={isDisabled}
       className={clsx(
-        "rounded-pill py-2 text-sm font-semibold",
-        fullWidth ? "w-full px-2 text-center" : "px-5",
+        "shrink-0 whitespace-nowrap rounded-pill py-2 font-semibold",
+        fullWidth ? "w-full px-1 text-center" : "px-5",
+        fullWidth && applied ? "text-caption" : "text-sm",
         isDisabled ? "bg-ink-400/10 text-ink-400" : "bg-brand-gradient text-white shadow-cta active:scale-95"
       )}
     >
