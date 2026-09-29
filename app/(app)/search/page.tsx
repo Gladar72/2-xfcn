@@ -6,6 +6,7 @@ import Link from "next/link";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
 import { CityPicker } from "@/components/ui/CityPicker";
 import { apiErrorText } from "@/lib/validation/api-error-text";
+import { CATEGORY_ICON } from "@/lib/data/category-icons";
 import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 
 interface Category {
@@ -191,7 +192,7 @@ export default function SearchPage() {
           <Image src="/brand/icons/filter.svg" alt="" width={16} height={16} />
           Фильтры
           {activeFilterCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-[10px] font-semibold text-white">
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-caption font-semibold text-white">
               {activeFilterCount}
             </span>
           )}
@@ -246,13 +247,18 @@ export default function SearchPage() {
                   <button
                     key={c.id}
                     onClick={() => toggleCategory(c.slug)}
-                    className={`rounded-pill px-3.5 py-2 text-sm font-medium ${
+                    className={`flex items-center gap-1.5 rounded-pill px-3.5 py-2 text-sm font-medium ${
                       selectedCategorySlugs.includes(c.slug)
                         ? "bg-brand-gradient text-white"
                         : "bg-lavender-50 text-ink-900"
                     }`}
                   >
-                    {c.emoji} {c.name}
+                    {CATEGORY_ICON[c.slug] ? (
+                      <Image src={CATEGORY_ICON[c.slug] as string} alt="" width={20} height={20} className="object-contain" />
+                    ) : (
+                      <span className="text-base leading-none">{c.emoji}</span>
+                    )}
+                    {c.name}
                   </button>
                 ))}
               </div>
