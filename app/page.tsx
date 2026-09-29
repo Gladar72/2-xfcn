@@ -53,7 +53,13 @@ function EntryPageInner() {
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.status === "authenticated") {
           const allowedGotoPaths = new Set(["subscriptions", "admin"]);
-          window.location.href = goto && allowedGotoPaths.has(goto) ? `/${goto}` : "/feed";
+          // Кнопка «Открыть встречу» под напоминанием в боте: ?goto=event_<id>.
+          const eventMatch = goto?.match(/^event_([0-9a-f-]{36})$/);
+          window.location.href = eventMatch
+            ? `/events/${eventMatch[1]}`
+            : goto && allowedGotoPaths.has(goto)
+              ? `/${goto}`
+              : "/feed";
         } else if (res.ok && data.status === "needs_registration") {
           window.location.href = "/onboarding";
         } else {
