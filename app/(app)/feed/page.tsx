@@ -9,6 +9,7 @@ import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
 import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
 import { Button } from "@/components/ui/Button";
+import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CityPicker } from "@/components/ui/CityPicker";
 
 interface Category {
@@ -131,7 +132,7 @@ function FeedPageContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ eventId }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
         setLocalStatuses((prev) => ({ ...prev, [eventId]: "pending" }));
@@ -144,7 +145,7 @@ function FeedPageContent() {
       } else if (data.error === "cannot_apply_to_own_event") {
         setToast("Это твоя встреча — не нужно откликаться на неё самому.");
       } else {
-        setToast("Не получилось отправить отклик.");
+        setToast(apiErrorText(data, "Не получилось отправить отклик.", res.status));
       }
     } catch {
       setToast("Проблема с соединением.");
