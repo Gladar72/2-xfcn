@@ -86,7 +86,7 @@ function Card({ label, value, hint }: { label: string; value: string | number; h
     <div className="rounded-card bg-white p-4 shadow-card">
       <p className="text-xs text-ink-600">{label}</p>
       <p className="text-2xl font-bold text-ink-900">{value}</p>
-      {hint && <p className="mt-1 text-[10px] text-ink-400">{hint}</p>}
+      {hint && <p className="mt-1 text-caption text-ink-400">{hint}</p>}
     </div>
   );
 }
