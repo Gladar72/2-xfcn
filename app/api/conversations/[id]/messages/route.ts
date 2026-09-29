@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { buildNotificationText } from "@/lib/notifications/text";
 import { broadcastToConversation } from "@/lib/supabase/broadcast";
+import { uploadChatPhoto } from "@/lib/photos/upload-chat-photo";
 
 const MESSAGE_HISTORY_LIMIT = 50;
 
@@ -67,7 +68,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const [{ data: messages, error }, { data: otherMemberRows }, { data: conversationRow }] = await Promise.all([
     admin
       .from("messages")
-      .select("id, sender_id, content, created_at")
+      .select("id, sender_id, content, image_url, created_at")
       .eq("conversation_id", conversationId)
       .order("created_at", { ascending: false })
       .limit(MESSAGE_HISTORY_LIMIT),
@@ -133,7 +134,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // выглядели одинаково.
     messages: (messages ?? [])
       .reverse()
-      .map((m) => ({ id: m.id, senderId: m.sender_id, content: m.content, createdAt: m.created_at })),
+      .map((m) => ({
+        id: m.id,
+        senderId: m.sender_id,
+        content: m.content,
+        imageUrl: m.image_url ?? null,
+        createdAt: m.created_at,
+      })),
     eventTitle: eventInfo?.title ?? null,
     eventStatus: eventInfo?.status ?? null,
     category: eventInfo?.category ?? null,
@@ -146,7 +153,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 /**
  * POST /api/conversations/[id]/messages
- * Body: { content: string }
+ * Body: { content: string; image?: string (data URL фото) }
  * Отправка сообщения. После сохранения сервер сам рассылает его в канал
  * чата через Realtime Broadcast (см. lib/supabase/broadcast.ts).
  */
@@ -157,7 +164,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const body = await req.json().catch(() => null);
   const content = typeof body?.content === "string" ? body.content.trim() : "";
-  if (!content) return NextResponse.json({ error: "empty_message" }, { status: 400 });
+  // Фото (необязательно) — data URL, уже ужатый телефоном; с ним текст
+  // можно не писать (подпись к фото необязательна, как в Telegram).
+  const imageDataUrl = typeof body?.image === "string" ? body.image : null;
+  if (!content && !imageDataUrl) return NextResponse.json({ error: "empty_message" }, { status: 400 });
   if (content.length > 2000) return NextResponse.json({ error: "message_too_long" }, { status: 422 });
 
   const admin = createAdminClient();
@@ -178,9 +188,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "event_closed" }, { status: 422 });
   }
 
+  // Фото загружаем только после всех проверок доступа выше.
+  let imageUrl: string | null = null;
+  if (imageDataUrl) {
+    const upload = await uploadChatPhoto(admin, conversationId, imageDataUrl);
+    if (!upload.ok) return NextResponse.json({ error: upload.error }, { status: 422 });
+    imageUrl = upload.publicUrl;
+  }
+
   const { data: message, error } = await admin
     .from("messages")
-    .insert({ conversation_id: conversationId, sender_id: currentUser.userId, content })
+    .insert({ conversation_id: conversationId, sender_id: currentUser.userId, content, image_url: imageUrl })
     .select("id, created_at")
     .single();
 
@@ -193,6 +211,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       id: message.id,
       senderId: currentUser.userId,
       content,
+      imageUrl,
       createdAt: message.created_at,
     }),
     admin.rpc("increment_conversation_unread", {
@@ -231,5 +250,5 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
-  return NextResponse.json({ status: "sent", messageId: message.id, createdAt: message.created_at });
+  return NextResponse.json({ status: "sent", messageId: message.id, createdAt: message.created_at, imageUrl });
 }
