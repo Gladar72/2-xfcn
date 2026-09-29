@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateTelegramInitData } from "@/lib/telegram/validate-init-data";
 import { onboardingSchema } from "@/lib/validation/onboarding";
+import { describeValidationError } from "@/lib/validation/describe-error";
 import { issueSessionToken, SESSION_COOKIE } from "@/lib/telegram/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { uploadAvatar } from "@/lib/photos/upload-avatar";
@@ -38,8 +39,9 @@ export async function POST(req: NextRequest) {
 
   const parsedProfile = onboardingSchema.safeParse(body.profile);
   if (!parsedProfile.success) {
+    const { field, message } = describeValidationError(parsedProfile.error);
     return NextResponse.json(
-      { error: "validation_failed", issues: parsedProfile.error.flatten() },
+      { error: "validation_failed", field, message, issues: parsedProfile.error.flatten() },
       { status: 422 }
     );
   }
@@ -74,20 +76,30 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insertUserError || !createdUser) {
-    return NextResponse.json({ error: "create_failed" }, { status: 500 });
+    console.error("POST /api/users — не удалось создать профиль:", insertUserError);
+    return NextResponse.json(
+      { error: "create_failed", message: "Сервер не смог сохранить профиль. Попробуй ещё раз через минуту." },
+      { status: 500 }
+    );
   }
 
   const userId = createdUser.id as string;
 
   // Фото — необязательно на регистрации (можно добавить позже из профиля),
   // но если прислано — грузим в Storage и обновляем avatar_url.
+  // Если фото не подошло — профиль всё равно создаём (раньше регистрация
+  // обрывалась на полпути: профиль уже был, а входа в приложение — нет),
+  // а человеку показываем, что именно не так с фото: добавить другое можно
+  // в профиле.
+  let photoError: string | null = null;
   if (profile.photoBase64) {
     const uploadResult = await uploadAvatar(admin, userId, profile.photoBase64);
-    if (!uploadResult.ok) {
-      return NextResponse.json({ error: uploadResult.error }, { status: 422 });
+    if (uploadResult.ok) {
+      await admin.from("users").update({ avatar_url: uploadResult.publicUrl }).eq("id", userId);
+      await admin.from("user_photos").insert({ user_id: userId, url: uploadResult.publicUrl, position: 0 });
+    } else {
+      photoError = uploadResult.error;
     }
-    await admin.from("users").update({ avatar_url: uploadResult.publicUrl }).eq("id", userId);
-    await admin.from("user_photos").insert({ user_id: userId, url: uploadResult.publicUrl, position: 0 });
   }
 
   if (profile.interestIds.length > 0) {
@@ -96,7 +108,7 @@ export async function POST(req: NextRequest) {
   }
 
   const sessionToken = issueSessionToken(userId, telegramUser.id);
-  const response = NextResponse.json({ status: "registered", userId });
+  const response = NextResponse.json({ status: "registered", userId, photoError });
   response.cookies.set(SESSION_COOKIE.name, sessionToken, {
     httpOnly: true,
     secure: true,
