@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { photoThumb } from "@/lib/photos/thumb";
 
 interface MyEvent {
   id: string;
@@ -131,7 +132,7 @@ export default function MyEventsPage() {
                 {event.photoUrl ? (
                   <div className={`h-12 w-12 overflow-hidden rounded-[14px] bg-lavender-100 ${isPast ? "grayscale" : ""}`}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={event.photoUrl} alt="" className="h-full w-full object-cover" />
+                    <img src={photoThumb(event.photoUrl, 48)} alt="" className="h-full w-full object-cover" />
                   </div>
                 ) : (
                   <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-lavender-100">
@@ -186,7 +187,7 @@ function ApplicantPreviewBadge({
     <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-[9px] font-semibold text-ink-600">
       {preview.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={preview.avatarUrl} alt={preview.name} className="h-full w-full object-cover" />
+        <img src={photoThumb(preview.avatarUrl, 24)} alt={preview.name} className="h-full w-full object-cover" />
       ) : (
         <span>+</span>
       )}
