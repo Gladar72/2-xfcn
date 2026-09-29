@@ -62,7 +62,13 @@ const config: Config = {
         pill: "999px",
         sheet: "32px",
       },
+      // Единая шкала шрифтов всего приложения (по запросу — «везде одинаково»):
+      // display 28 — заголовок экрана, title 20 — заголовок блока,
+      // base 16 — поля ввода и строки меню, sm 14 — основной текст,
+      // xs 12 — вторичный текст, caption 11 — бейджи, счётчики, время.
+      // Произвольные размеры вроде text-[13px] больше не используются.
       fontSize: {
+        caption: ["11px", { lineHeight: "14px" }],
         display: ["28px", { lineHeight: "34px", fontWeight: "800" }],
         title: ["20px", { lineHeight: "26px", fontWeight: "700" }],
       },
