@@ -7,6 +7,7 @@ import { type Plan } from "@/lib/subscriptions/limits";
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import { resizeImageFile } from "@/lib/photos/resize-image-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
+import { photoThumb } from "@/lib/photos/thumb";
 
 interface Profile {
   name: string;
@@ -184,7 +185,7 @@ export default function ProfilePage() {
             <AvatarViewer src={profile.avatarUrl} alt={profile.name}>
               <div className="h-[104px] w-[104px] overflow-hidden rounded-full bg-white ring-4 ring-white/80 shadow-card [@media(max-height:680px)]:h-[76px] [@media(max-height:680px)]:w-[76px]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={profile.avatarUrl} alt={profile.name} className="h-full w-full object-cover" />
+                <img src={photoThumb(profile.avatarUrl, 128)} alt={profile.name} className="h-full w-full object-cover" />
               </div>
             </AvatarViewer>
           ) : (
