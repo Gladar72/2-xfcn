@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RatingStar } from "@/components/ui/RatingStar";
 import { photoThumb } from "@/lib/photos/thumb";
 
 interface MiniProfile {
@@ -61,7 +62,7 @@ export function MiniProfileSheet({ userId, onClose }: { userId: string; onClose:
             </h2>
 
             <div className="mt-1 flex items-center gap-3 text-sm text-ink-600">
-              <span>⭐ {profile.ratingAvg.toFixed(1)}</span>
+              <span className="inline-flex items-center gap-1"><RatingStar /> {profile.ratingAvg.toFixed(1)}</span>
               <span>·</span>
               <span>{profile.completedMeetingsCount} встреч</span>
               {profile.gender && <span>· {profile.gender === "male" ? "Мужчина" : "Женщина"}</span>}

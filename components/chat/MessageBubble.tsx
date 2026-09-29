@@ -65,7 +65,7 @@ export function MessageBubble({ message, isOwn, readStatus }: MessageBubbleProps
           {message.content && <p className="whitespace-pre-wrap break-words">{message.content}</p>}
           <span
             className={clsx(
-              "mt-1 flex items-center justify-end gap-1 text-[10px]",
+              "mt-1 flex items-center justify-end gap-1 text-caption",
               isOwn ? "text-white/70" : "text-ink-400"
             )}
           >
