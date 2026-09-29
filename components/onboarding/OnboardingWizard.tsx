@@ -7,6 +7,7 @@ import { StepProgress } from "@/components/ui/StepProgress";
 import { CityPicker } from "@/components/ui/CityPicker";
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { resizeImageFile } from "@/lib/photos/resize-image-client";
+import { apiErrorText } from "@/lib/validation/api-error-text";
 
 interface Interest {
   id: string;
@@ -43,8 +44,27 @@ export function OnboardingWizard() {
   const isLastStep = stepIndex === STEPS.length - 1;
 
   function goNext() {
+    // Если на шаге чего-то не хватает — говорим, чего именно, а не просто
+    // держим кнопку серой.
+    const hint = stepHint();
+    if (hint) {
+      setError(hint);
+      return;
+    }
     setError(null);
     if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
+  }
+
+  /** Что не так на текущем шаге (null — всё в порядке). */
+  function stepHint(): string | null {
+    if (step === "name" && name.trim().length < 2) return "Напиши имя — минимум 2 буквы.";
+    if (step === "birthDate") {
+      if (!birthDate) return "Укажи дату рождения.";
+      if (!isAtLeast18(birthDate)) return "Сервис доступен только с 18 лет.";
+    }
+    if (step === "gender" && gender === null) return "Выбери пол.";
+    if (step === "city" && city.trim().length < 2) return "Выбери город из списка.";
+    return null;
   }
   function goBack() {
     setError(null);
@@ -64,6 +84,10 @@ export function OnboardingWizard() {
   }
 
   async function handleSubmit() {
+    if (!agreedToTerms) {
+      setError("Отметь галочку — нужно согласие с условиями оферты и политикой конфиденциальности.");
+      return;
+    }
     setSubmitting(true);
     setError(null);
 
@@ -93,19 +117,37 @@ export function OnboardingWizard() {
         }),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        if (data.error === "validation_failed") {
-          setError("Проверь, что все поля заполнены корректно.");
-        } else if (data.error === "photo_rejected") {
-          setError("Фото не прошло проверку — выбери другое и попробуй снова.");
-        } else if (data.error === "already_registered") {
-          window.location.href = "/feed";
+        if (data.error === "already_registered") {
+          window.location.href = "/";
           return;
-        } else {
-          setError("Не получилось сохранить профиль. Попробуй ещё раз.");
         }
+        // Сервер говорит, что именно не так — показываем и открываем нужный шаг.
+        setError(apiErrorText(data, "Не получилось сохранить профиль. Попробуй ещё раз.", res.status));
+        const fieldStep: Partial<Record<string, Step>> = {
+          name: "name",
+          birthDate: "birthDate",
+          gender: "gender",
+          city: "city",
+          bio: "bio",
+          interestIds: "interests",
+          photoBase64: "photo",
+        };
+        const target = typeof data.field === "string" ? fieldStep[data.field] : undefined;
+        if (target) setStepIndex(STEPS.indexOf(target));
         setSubmitting(false);
+        return;
+      }
+
+      // Профиль создан, но фото не подошло — говорим об этом, а не молчим.
+      if (data.photoError) {
+        setError(
+          `Профиль создан! ${apiErrorText({ error: data.photoError }, "Фото загрузить не получилось.")} Добавить фото можно в профиле.`
+        );
+        setTimeout(() => {
+          window.location.href = "/feed";
+        }, 3500);
         return;
       }
 
@@ -273,8 +315,13 @@ export function OnboardingWizard() {
           </StepBlock>
         )}
 
-        {error && <p className="text-center text-sm text-red-600">{error}</p>}
       </div>
+
+      {error && (
+        <div role="alert" className="mb-3 rounded-card bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-700">
+          {error}
+        </div>
+      )}
 
       <div className="flex gap-3">
         {stepIndex > 0 && (
@@ -283,11 +330,11 @@ export function OnboardingWizard() {
           </Button>
         )}
         {!isLastStep ? (
-          <Button onClick={goNext} disabled={!canGoNext}>
+          <Button onClick={goNext} className={canGoNext ? undefined : "opacity-40"}>
             Далее
           </Button>
         ) : (
-          <Button onClick={handleSubmit} disabled={submitting || !agreedToTerms}>
+          <Button onClick={handleSubmit} disabled={submitting} className={agreedToTerms ? undefined : "opacity-40"}>
             {submitting ? "Сохраняем..." : "Готово"}
           </Button>
         )}
@@ -323,4 +370,12 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
       <span className="text-right font-medium text-ink-900">{value}</span>
     </div>
   );
+}
+
+function isAtLeast18(birthDateIso: string): boolean {
+  const birthDate = new Date(birthDateIso);
+  if (Number.isNaN(birthDate.getTime())) return false;
+  const eighteenYearsAgo = new Date();
+  eighteenYearsAgo.setFullYear(eighteenYearsAgo.getFullYear() - 18);
+  return birthDate <= eighteenYearsAgo;
 }
