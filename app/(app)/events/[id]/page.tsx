@@ -402,6 +402,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 applying={applying}
                 onApply={handleApply}
                 eventId={event.id}
+                isBusiness={event.isBusiness}
               />
             </div>
           )}
@@ -482,6 +483,17 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </div>
               {boostMessage && <p className="mt-2 text-center text-xs text-ink-600">{boostMessage}</p>}
 
+              {event.isBusiness && (
+                <Link
+                  href={`/events/${event.id}/tickets`}
+                  className="mt-3 flex w-full items-center gap-3 rounded-card bg-white p-4 shadow-card"
+                >
+                  <Image src="/mesto/assets/icons/png/ticket.png" alt="" width={32} height={32} className="object-contain" />
+                  <span className="flex-1 text-base font-semibold text-ink-900">Билеты участников</span>
+                  <span className="text-sm text-ink-600">{event.participants.length}</span>
+                </Link>
+              )}
+
               {!confirmingCancel ? (
                 <button type="button" className="m-action m-cancel" onClick={() => setConfirmingCancel(true)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -522,12 +534,14 @@ function BottomAction({
   applying,
   onApply,
   eventId,
+  isBusiness,
 }: {
   viewerStatus: EventDetails["viewerStatus"];
   isFull: boolean;
   applying: boolean;
   onApply: () => void;
   eventId: string;
+  isBusiness: boolean;
 }) {
   if (viewerStatus === "organizer") {
     return (
@@ -540,6 +554,20 @@ function BottomAction({
         </span>
         Управлять заявками
       </Link>
+    );
+  }
+  if (viewerStatus === "accepted" && isBusiness) {
+    return (
+      <div className="space-y-3">
+        <ApplicationStatusView status="accepted" layout="wide" />
+        <Link
+          href={`/events/${eventId}/ticket`}
+          className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta"
+        >
+          <Image src="/mesto/assets/icons/png/ticket.png" alt="" width={26} height={26} className="object-contain" />
+          Открыть билет
+        </Link>
+      </div>
     );
   }
   if (viewerStatus === "accepted" || viewerStatus === "pending" || viewerStatus === "rejected") {
