@@ -11,6 +11,7 @@ import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
 import { useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
 import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
+import { photoThumb } from "@/lib/photos/thumb";
 
 interface ChatPageProps {
   // Next.js 14 (в этом проекте) передаёт params клиентским компонентам
@@ -272,7 +273,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-xs font-semibold text-ink-600">
             {eventPhotoUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={eventPhotoUrl} alt="" className="h-full w-full object-cover" />
+              <img src={photoThumb(eventPhotoUrl, 48)} alt="" className="h-full w-full object-cover" />
             ) : categoryIcon ? (
               <Image src={categoryIcon} alt="" width={20} height={20} className="object-contain" />
             ) : category?.emoji ? (
@@ -280,7 +281,7 @@ export default function ChatPage({ params }: ChatPageProps) {
             ) : soleMember ? (
               soleMember.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={soleMember.avatarUrl} alt="" className="h-full w-full object-cover" />
+                <img src={photoThumb(soleMember.avatarUrl, 48)} alt="" className="h-full w-full object-cover" />
               ) : (
                 soleMember.name.charAt(0).toUpperCase()
               )
@@ -312,7 +313,7 @@ export default function ChatPage({ params }: ChatPageProps) {
               >
                 {m.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={m.avatarUrl} alt="" className="h-full w-full object-cover" />
+                  <img src={photoThumb(m.avatarUrl, 48)} alt="" className="h-full w-full object-cover" />
                 ) : (
                   m.name.charAt(0).toUpperCase()
                 )}
@@ -384,7 +385,7 @@ export default function ChatPage({ params }: ChatPageProps) {
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-sm font-semibold text-ink-600">
                       {m.avatarUrl ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={m.avatarUrl} alt="" className="h-full w-full object-cover" />
+                        <img src={photoThumb(m.avatarUrl, 48)} alt="" className="h-full w-full object-cover" />
                       ) : (
                         m.name.charAt(0).toUpperCase()
                       )}
