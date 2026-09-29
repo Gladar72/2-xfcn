@@ -15,6 +15,8 @@ export function buildNotificationText(type: string, eventTitle: string | undefin
       return `Организатор не подтвердил твою заявку на ${title}. Загляни в приложение — там много других встреч.`;
     case "event_reminder":
       return `Скоро начнётся ${title}`;
+    case "event_soon":
+      return `Встречаемся через 2 часа — ${title}`;
     case "review_request":
       return `Оцени, как прошла ${title}`;
     case "boost_suggestion":
