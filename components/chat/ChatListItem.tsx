@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ReadTicks } from "./ReadTicks";
 import { CATEGORY_ICON } from "@/lib/data/category-icons";
+import { photoThumb } from "@/lib/photos/thumb";
 
 export interface ChatListItemData {
   conversationId: string;
@@ -49,7 +50,7 @@ export function ChatListItem({
       <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
         {chat.eventPhotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={chat.eventPhotoUrl} alt="" className="h-full w-full object-cover" />
+          <img src={photoThumb(chat.eventPhotoUrl, 56)} alt="" className="h-full w-full object-cover" />
         ) : chat.category ? (
           categoryIcon ? (
             <Image src={categoryIcon} alt="" width={28} height={28} className="object-contain" />
@@ -58,7 +59,7 @@ export function ChatListItem({
           )
         ) : chat.otherUser?.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={chat.otherUser.avatarUrl} alt={name} className="h-full w-full object-cover" />
+          <img src={photoThumb(chat.otherUser.avatarUrl, 56)} alt={name} className="h-full w-full object-cover" />
         ) : (
           name.charAt(0).toUpperCase()
         )}

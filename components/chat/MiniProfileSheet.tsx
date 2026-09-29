@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { photoThumb } from "@/lib/photos/thumb";
 
 interface MiniProfile {
   id: string;
@@ -47,7 +48,7 @@ export function MiniProfileSheet({ userId, onClose }: { userId: string; onClose:
             <div className="mb-3 h-24 w-24 overflow-hidden rounded-full bg-lavender-100 text-3xl font-semibold text-ink-600">
               {profile.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={profile.avatarUrl} alt={profile.name} className="h-full w-full object-cover" />
+                <img src={photoThumb(profile.avatarUrl, 96)} alt={profile.name} className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
                   {profile.name.charAt(0).toUpperCase()}
