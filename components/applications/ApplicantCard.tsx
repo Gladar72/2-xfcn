@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import { MiniProfileSheet } from "@/components/chat/MiniProfileSheet";
+import { photoThumb } from "@/lib/photos/thumb";
 
 export interface ApplicantCardData {
   id: string; // applicationId
@@ -39,7 +40,7 @@ export function ApplicantCard({ application, onAccept, onReject, onRemove, proce
           {applicant.avatarUrl ? (
             <AvatarViewer src={applicant.avatarUrl} alt={applicant.name}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={applicant.avatarUrl} alt={applicant.name} className="h-full w-full object-cover" />
+              <img src={photoThumb(applicant.avatarUrl, 56)} alt={applicant.name} className="h-full w-full object-cover" />
             </AvatarViewer>
           ) : (
             applicant.name.charAt(0).toUpperCase()
