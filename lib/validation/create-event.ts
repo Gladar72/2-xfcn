@@ -62,8 +62,17 @@ export const createEventSchema = z
     if ((data.isBusiness || data.categorySlug === "custom") && !data.photoBase64) {
       ctx.addIssue({ code: "custom", path: ["photoBase64"], message: "Добавь фото — для этого типа встречи оно обязательно" });
     }
-    if (data.businessPricingType === "custom" && !data.businessCustomTerms?.trim()) {
-      ctx.addIssue({ code: "custom", path: ["businessCustomTerms"], message: "Опишите условия участия" });
+    // Мастер присылает свои условия в businessPricingDetails (отдельного
+    // businessCustomTerms он не шлёт) — раньше из-за этого «Свои условия»
+    // у бизнес-встречи никогда не проходили проверку.
+    if (
+      data.businessPricingType === "custom" &&
+      !(data.businessCustomTerms ?? data.businessPricingDetails ?? "").trim()
+    ) {
+      ctx.addIssue({ code: "custom", path: ["businessCustomTerms"], message: "Опиши условия участия" });
+    }
+    if (data.businessPricingType === "ticket" && !(data.businessPricingDetails ?? "").trim()) {
+      ctx.addIssue({ code: "custom", path: ["businessPricingDetails"], message: "Укажи цену билета" });
     }
 
     // Событие не может начинаться в прошлом — иначе оно тут же становится
