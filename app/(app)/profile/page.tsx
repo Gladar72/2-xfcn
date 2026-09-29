@@ -7,6 +7,7 @@ import { type Plan } from "@/lib/subscriptions/limits";
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import { resizeImageFile } from "@/lib/photos/resize-image-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
+import { RatingStar } from "@/components/ui/RatingStar";
 import { photoThumb } from "@/lib/photos/thumb";
 
 interface Profile {
@@ -204,18 +205,18 @@ export default function ProfilePage() {
           <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelected} />
         </div>
 
-        <h1 className="max-w-full truncate px-10 text-[24px] font-bold leading-tight text-ink-900 [@media(max-height:680px)]:text-[21px]">
+        <h1 className="max-w-full truncate px-10 text-2xl font-bold leading-tight text-ink-900 [@media(max-height:680px)]:text-title">
           {profile.name}, {profile.age}
         </h1>
 
-        <p className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5 text-[15px] text-ink-600">
+        <p className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5 text-sm text-ink-600">
           <span className="flex items-center gap-1">
             <Image src="/brand/3d/icon-location.png" alt="" width={16} height={16} />
             {profile.city}
           </span>
           {profile.ratingCount > 0 && (
             <span className="flex items-center gap-1">
-              <Image src="/brand/icons/star.svg" alt="" width={16} height={16} />
+              <RatingStar size={16} />
               {profile.ratingAvg.toFixed(1)}
               <span className="text-ink-400">
                 ({profile.ratingCount} {pluralize(profile.ratingCount, "оценка", "оценки", "оценок")})
@@ -225,7 +226,7 @@ export default function ProfilePage() {
         </p>
 
         {profile.bio && (
-          <p className="mt-2 line-clamp-2 max-w-[300px] text-[15px] leading-snug text-ink-900 [@media(max-height:680px)]:line-clamp-1">
+          <p className="mt-2 line-clamp-2 max-w-[300px] text-sm leading-snug text-ink-900 [@media(max-height:680px)]:line-clamp-1">
             {profile.bio}
           </p>
         )}
@@ -234,7 +235,7 @@ export default function ProfilePage() {
 
         <button
           onClick={() => setEditing(true)}
-          className="mt-3 rounded-pill bg-white/70 px-8 py-2.5 text-[15px] font-semibold text-accent shadow-card backdrop-blur active:scale-[0.98] [@media(max-height:680px)]:mt-2 [@media(max-height:680px)]:py-2"
+          className="mt-3 rounded-pill bg-white/70 px-8 py-2.5 text-sm font-semibold text-accent shadow-card backdrop-blur active:scale-[0.98] [@media(max-height:680px)]:mt-2 [@media(max-height:680px)]:py-2"
         >
           Редактировать профиль
         </button>
@@ -279,7 +280,7 @@ export default function ProfilePage() {
             className="w-full max-w-sm space-y-2.5 rounded-card-lg bg-white p-4 shadow-card-lg"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="pb-1 text-center text-[17px] font-semibold text-ink-900">Редактировать профиль</h2>
+            <h2 className="pb-1 text-center text-title text-ink-900">Редактировать профиль</h2>
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
@@ -340,8 +341,8 @@ function StatCard({
       >
         {icon}
       </div>
-      <div className="text-[24px] font-bold leading-7 text-ink-900">{value}</div>
-      <div className="mt-1 truncate text-[13px] text-ink-600">{label}</div>
+      <div className="text-2xl font-bold leading-7 text-ink-900">{value}</div>
+      <div className="mt-1 truncate text-xs text-ink-600">{label}</div>
     </div>
   );
 }
@@ -396,8 +397,8 @@ function MenuRow({
       <div
         className={`flex min-w-0 flex-1 items-center gap-2 py-3.5 [@media(max-height:680px)]:py-2.5 ${last ? "" : "border-b border-lavender-100"}`}
       >
-        <span className="flex-1 truncate text-[16px] text-ink-900">{label}</span>
-        {value && <span className="shrink-0 text-[15px] text-ink-400">{value}</span>}
+        <span className="flex-1 truncate text-base text-ink-900">{label}</span>
+        {value && <span className="shrink-0 text-sm text-ink-400">{value}</span>}
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="shrink-0 text-ink-400">
           <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
