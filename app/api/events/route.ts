@@ -6,6 +6,7 @@ import { rankEvents, type EventForScoring, type SubscriptionPlan } from "@/lib/s
 import { getActiveSubscriptionInfo, incrementEventsCreated } from "@/lib/subscriptions/server";
 import { canCreateMoreEvents, maxGroupSize, PLAN_LIMITS } from "@/lib/subscriptions/limits";
 import { createEventSchema, type CreateEventInput } from "@/lib/validation/create-event";
+import { describeValidationError } from "@/lib/validation/describe-error";
 import { notifyN8n } from "@/lib/n8n/notify";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
@@ -435,7 +436,10 @@ function getUpcomingWeekendRange(): { from: string; to: string } {
 export async function POST(req: NextRequest) {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "unauthorized", message: "Сессия истекла — закрой приложение и открой его заново через бота." },
+      { status: 401 }
+    );
   }
 
   const admin = createAdminClient();
@@ -448,19 +452,41 @@ export async function POST(req: NextRequest) {
   const subscriptionInfo = await getActiveSubscriptionInfo(admin, currentUser.userId);
   if (!isAdmin) {
     if (!subscriptionInfo) {
-      return NextResponse.json({ error: "subscription_required" }, { status: 402 });
+      return NextResponse.json(
+        { error: "subscription_required", message: "Чтобы создавать встречи, нужна активная подписка." },
+        { status: 402 }
+      );
     }
 
     if (!canCreateMoreEvents(subscriptionInfo.plan, subscriptionInfo.eventsCreatedCount)) {
-      return NextResponse.json({ error: "events_limit_reached" }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: "events_limit_reached",
+          message: "Лимит встреч по твоему тарифу на этот период исчерпан. Можно перейти на тариф выше.",
+        },
+        { status: 403 }
+      );
     }
   }
 
+  const { data: organizerProfile } = await admin
+    .from("users")
+    .select("city")
+    .eq("id", currentUser.userId)
+    .maybeSingle();
+
   const body = await req.json().catch(() => null);
-  const parsed = createEventSchema.safeParse(body);
+  // Город встречи = город из профиля организатора (клиент его не присылает) —
+  // нужен схеме, чтобы проверить, что время встречи ещё не прошло по местному
+  // времени. Раньше схема требовала city от клиента, и из-за этого ЛЮБАЯ
+  // попытка опубликовать встречу молча падала с «Не получилось».
+  const parsed = createEventSchema.safeParse(
+    body && typeof body === "object" ? { ...body, city: organizerProfile?.city ?? "" } : body
+  );
   if (!parsed.success) {
+    const { field, message } = describeValidationError(parsed.error);
     return NextResponse.json(
-      { error: "validation_failed", issues: parsed.error.flatten() },
+      { error: "validation_failed", field, message, issues: parsed.error.flatten() },
       { status: 422 }
     );
   }
@@ -470,7 +496,12 @@ export async function POST(req: NextRequest) {
   const groupMax = maxGroupSize(plan, input.isBusiness);
   if (!isAdmin && groupMax !== null && input.seatsTotal > groupMax) {
     return NextResponse.json(
-      { error: "group_size_exceeds_plan", groupMax },
+      {
+        error: "group_size_exceeds_plan",
+        groupMax,
+        field: "seatsTotal",
+        message: `Твой тариф позволяет группу максимум из ${groupMax} человек. Уменьши число участников или перейди на тариф выше.`,
+      },
       { status: 422 }
     );
   }
@@ -493,13 +524,19 @@ export async function POST(req: NextRequest) {
     .eq("slug", categorySlugForLookup)
     .maybeSingle();
   if (!category) {
-    return NextResponse.json({ error: "invalid_category" }, { status: 422 });
+    return NextResponse.json(
+      { error: "invalid_category", field: "categorySlug", message: "Такой категории нет — выбери категорию заново." },
+      { status: 422 }
+    );
   }
 
   let trainingTypeId: string | null = null;
   if (input.categorySlug === "training") {
     if (!input.trainingTypeSlug) {
-      return NextResponse.json({ error: "training_type_required" }, { status: 422 });
+      return NextResponse.json(
+        { error: "training_type_required", field: "trainingTypeSlug", message: "Выбери вид тренировки." },
+        { status: 422 }
+      );
     }
     const { data: trainingType } = await admin
       .from("training_types")
@@ -507,16 +544,13 @@ export async function POST(req: NextRequest) {
       .eq("slug", input.trainingTypeSlug)
       .maybeSingle();
     if (!trainingType) {
-      return NextResponse.json({ error: "invalid_training_type" }, { status: 422 });
+      return NextResponse.json(
+        { error: "invalid_training_type", field: "trainingTypeSlug", message: "Такого вида тренировки нет — выбери заново." },
+        { status: 422 }
+      );
     }
     trainingTypeId = trainingType.id;
   }
-
-  const { data: organizerProfile } = await admin
-    .from("users")
-    .select("city")
-    .eq("id", currentUser.userId)
-    .maybeSingle();
 
   // Модерация фото — ДО создания записи о встрече, а не после (иначе
   // при отклонении фото событие уже успело бы создаться без него, хотя
@@ -529,11 +563,17 @@ export async function POST(req: NextRequest) {
     const mimeType = match?.[1];
     const base64Content = match?.[2];
     if (!mimeType || !base64Content) {
-      return NextResponse.json({ error: "photo_invalid" }, { status: 422 });
+      return NextResponse.json(
+        { error: "photo_invalid", field: "photoBase64", message: "Не получилось прочитать фото — выбери его заново." },
+        { status: 422 }
+      );
     }
     const moderation = await moderateImage(Buffer.from(base64Content, "base64"), mimeType);
     if (!moderation.safe) {
-      return NextResponse.json({ error: "photo_rejected" }, { status: 422 });
+      return NextResponse.json(
+        { error: "photo_rejected", field: "photoBase64", message: "Это фото не прошло проверку — выбери другое." },
+        { status: 422 }
+      );
     }
   }
 
@@ -566,7 +606,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (insertError || !createdEvent) {
-    return NextResponse.json({ error: "create_failed" }, { status: 500 });
+    console.error("POST /api/events — не удалось создать встречу:", insertError);
+    return NextResponse.json(
+      { error: "create_failed", message: "Сервер не смог сохранить встречу. Попробуй ещё раз через минуту." },
+      { status: 500 }
+    );
   }
 
   await admin.from("event_members").insert({
