@@ -7,6 +7,23 @@ const MIN_HOURS_AFTER_SIGNUP = 48;
 // день и без случайного времени внутри окна — по явному запросу).
 const TARGET_HOUR = 8;
 const TARGET_MINUTE = 0;
+const PAGE_SIZE = 1000;
+const INSERT_CHUNK = 1000;
+
+/** Читает все строки запроса постранично (PostgREST режет ответ до 1000 строк). */
+async function fetchAllPages<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: unknown[] | null; error: unknown }>
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = (data ?? []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return all;
+}
 
 /** Понедельник ISO-недели, которой принадлежит дата (в UTC-календарных сутках). */
 function isoWeekStart(date: Date): Date {
@@ -62,25 +79,34 @@ export async function scheduleCurrentWeekReminders(admin: ReturnType<typeof crea
   // проверяем по конкретным ДНЯМ (slot_index = смещение дня от начала
   // недели, 0=понедельник) — так система сама "доберёт" недостающие дни,
   // что бы ни изменилось в логике планирования.
-  const { data: alreadyScheduled } = await admin
-    .from("morning_reminders")
-    .select("user_id, slot_index")
-    .eq("week_start", weekStartIso);
+  // PostgREST отдаёт не больше 1000 строк за запрос — раньше при >1000
+  // пользователей напоминания молча планировались только первой тысяче.
+  // Теперь читаем постранично.
+  const alreadyScheduled = await fetchAllPages<{ user_id: string; slot_index: number }>((from, to) =>
+    admin
+      .from("morning_reminders")
+      .select("user_id, slot_index")
+      .eq("week_start", weekStartIso)
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
   const alreadyScheduledSlotsByUser = new Map<string, Set<number>>();
-  for (const row of alreadyScheduled ?? []) {
+  for (const row of alreadyScheduled) {
     if (!alreadyScheduledSlotsByUser.has(row.user_id)) {
       alreadyScheduledSlotsByUser.set(row.user_id, new Set());
     }
     alreadyScheduledSlotsByUser.get(row.user_id)!.add(row.slot_index);
   }
 
-  const { data: candidates } = await admin
-    .from("users")
-    .select("id, city, created_at")
-    .eq("morning_reminders_enabled", true)
-    .eq("moderation_status", "active");
-
-  if (!candidates) return { scheduledUsers: 0, scheduledSlots: 0 };
+  const candidates = await fetchAllPages<{ id: string; city: string; created_at: string }>((from, to) =>
+    admin
+      .from("users")
+      .select("id, city, created_at")
+      .eq("morning_reminders_enabled", true)
+      .eq("moderation_status", "active")
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
 
   const rowsToInsert: {
     user_id: string;
@@ -138,10 +164,14 @@ export async function scheduleCurrentWeekReminders(admin: ReturnType<typeof crea
     // upsert с ignoreDuplicates — если строка для (user_id, week_start,
     // slot_index) уже существует (например, из-за гонки параллельных
     // запусков cron), просто пропускаем её вместо ошибки.
-    await admin.from("morning_reminders").upsert(rowsToInsert, {
-      onConflict: "user_id,week_start,slot_index",
-      ignoreDuplicates: true,
-    });
+    // Порциями — одна огромная вставка на десятки тысяч строк упирается
+    // в размер запроса и таймауты.
+    for (let i = 0; i < rowsToInsert.length; i += INSERT_CHUNK) {
+      await admin.from("morning_reminders").upsert(rowsToInsert.slice(i, i + INSERT_CHUNK), {
+        onConflict: "user_id,week_start,slot_index",
+        ignoreDuplicates: true,
+      });
+    }
   }
 
   return { scheduledUsers, scheduledSlots: rowsToInsert.length };
