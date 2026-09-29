@@ -34,6 +34,10 @@ export interface EventCardData {
   isMine?: boolean;
   /** Статус заявки текущего пользователя на эту встречу (приходит из /api/events). */
   myApplicationStatus?: ApplicationStatus | null;
+  /** Сколько человек уже идёт (организатор + принятые); 0 — пока никого, кроме организатора. */
+  goingCount?: number;
+  /** До трёх первых идущих — для кружков с аватарками. */
+  goingPreview?: { id: string; name: string; avatarUrl: string | null }[];
 }
 
 interface EventCardProps {
@@ -136,6 +140,10 @@ export function EventCard({
             </div>
           )}
 
+          {!!event.goingCount && event.goingCount > 0 && (
+            <GoingRow count={event.goingCount} preview={event.goingPreview ?? []} />
+          )}
+
           {/* Карточка без фото — любой статус во всю ширину над строкой мест. */}
           {!event.photoUrl && status && (
             <div className="mb-3">
@@ -186,6 +194,51 @@ export function EventCard({
       )}
     </Link>
   );
+}
+
+/** «Уже идут N человек» — кружки с аватарками, как в шапке чата встречи. */
+function GoingRow({
+  count,
+  preview,
+}: {
+  count: number;
+  preview: { id: string; name: string; avatarUrl: string | null }[];
+}) {
+  const extra = count - preview.length;
+  return (
+    <div className="mb-3 flex items-center gap-2">
+      <div className="flex shrink-0 -space-x-2">
+        {preview.map((person) => (
+          <div
+            key={person.id}
+            className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-[11px] font-semibold text-ink-600"
+          >
+            {person.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoThumb(person.avatarUrl, 28)} alt="" className="h-full w-full object-cover" />
+            ) : (
+              person.name.charAt(0).toUpperCase()
+            )}
+          </div>
+        ))}
+        {extra > 0 && (
+          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-lavender-100 text-[11px] font-semibold text-accent">
+            +{extra}
+          </div>
+        )}
+      </div>
+      <span className="text-sm font-medium text-ink-900">
+        Уже {count === 1 ? "идёт" : "идут"} {count} {pluralPeople(count)}
+      </span>
+    </div>
+  );
+}
+
+function pluralPeople(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "человека";
+  return "человек";
 }
 
 /** Вместо «Я иду» на своей встрече — метка, что это встреча самого пользователя. */
