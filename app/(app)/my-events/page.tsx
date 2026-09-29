@@ -140,7 +140,7 @@ export default function MyEventsPage() {
                   </div>
                 )}
                 {event.pendingApplicationsCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-red-500 px-1 text-[10px] font-semibold text-white">
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-red-500 px-1 text-caption font-semibold text-white">
                     {event.pendingApplicationsCount}
                   </span>
                 )}
@@ -154,10 +154,10 @@ export default function MyEventsPage() {
                 </p>
               </div>
               <div className="shrink-0 text-right">
-                <span className="block text-[11px] font-medium text-accent">
+                <span className="block text-caption font-medium text-accent">
                   {event.role === "organizer" ? "Организатор" : "Участник"}
                 </span>
-                <span className="block text-[11px] text-ink-400">{STATUS_LABEL[event.status] ?? event.status}</span>
+                <span className="block text-caption text-ink-400">{STATUS_LABEL[event.status] ?? event.status}</span>
               </div>
             </Link>
           );
@@ -184,7 +184,7 @@ function ApplicantPreviewBadge({
   if (!preview) return null;
 
   return (
-    <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-[9px] font-semibold text-ink-600">
+    <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-caption font-semibold text-ink-600">
       {preview.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={photoThumb(preview.avatarUrl, 24)} alt={preview.name} className="h-full w-full object-cover" />
