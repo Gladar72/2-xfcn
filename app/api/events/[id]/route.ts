@@ -194,8 +194,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (latitude === null || longitude === null) return invalid("placeName", "Отметь место встречи на карте.");
     if (!eventDate) return invalid("eventDate", "Выбери дату встречи.");
     if (!eventTime || !eventEndTime) return invalid("eventTime", "Укажи время начала и окончания.");
-    if (!Number.isFinite(seatsTotal) || seatsTotal < 2) {
-      return invalid("seatsTotal", "В событии должно быть минимум 2 участника.");
+    if (!Number.isFinite(seatsTotal) || seatsTotal < 1) {
+      return invalid("seatsTotal", "Нужен хотя бы 1 участник кроме тебя.");
     }
 
     // Нельзя установить лимит меньше уже подтверждённых участников — см.
