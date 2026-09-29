@@ -10,6 +10,7 @@ import { notifyN8n } from "@/lib/n8n/notify";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { moderateImage } from "@/lib/photos/moderate-image";
+import { cachedFeed, clearFeedCache } from "@/lib/data/feed-cache";
 
 const PAGE_SIZE = 20;
 // Сколько кандидатов тянем из БД до ranking (больше видимого лимита,
@@ -87,93 +88,138 @@ export async function GET(req: NextRequest) {
   }
 
   const todayIso = new Date().toISOString().slice(0, 10);
+  const feedCity = city;
 
-  let query = admin
-    .from("events")
-    .select(
-      `
-      id, title, description, city, latitude, longitude, place_name, address,
-      event_date, event_time, event_end_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
-      is_business, has_chat, business_pricing_type, business_pricing_details, photo_url,
-      category:categories(slug, name, emoji),
-      training_type:training_types(slug, name, emoji),
-      organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count, telegram_id)
-      `
-    )
-    .eq("status", "published")
-    .eq("city", city)
-    .gte("event_date", todayIso)
-    .order("event_date", { ascending: true })
-    .limit(CANDIDATE_POOL_SIZE);
+  // Общая для всех часть ленты (встречи города по фильтрам + тарифы их
+  // организаторов) берётся из 15-секундного кэша — см. lib/data/feed-cache.ts.
+  // Всё личное (блокировки, возраст/пол, интересы, «Ваша встреча», заявки)
+  // считается ниже для каждого человека отдельно.
+  const loadFeed = async () => {
+    let query = admin
+      .from("events")
+      .select(
+        `
+        id, title, description, city, latitude, longitude, place_name, address,
+        event_date, event_time, event_end_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
+        is_business, has_chat, business_pricing_type, business_pricing_details, photo_url,
+        category:categories(slug, name, emoji),
+        training_type:training_types(slug, name, emoji),
+        organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count, telegram_id)
+        `
+      )
+      .eq("status", "published")
+      .eq("city", feedCity)
+      .gte("event_date", todayIso)
+      .order("event_date", { ascending: true })
+      .limit(CANDIDATE_POOL_SIZE);
 
-  // "Для бизнеса" (?business=true, сам раздел /business) — показываем
-  // ТОЛЬКО бизнес-события. В остальных случаях (обычная лента, "Интересные
-  // встречи рядом", любые фильтры по категории) бизнес-события НЕ
-  // исключаются — по явному уточнению пользователя, они должны быть видны
-  // везде наравне с обычными. Фильтр по конкретной категории и так
-  // естественно не покажет их там (у всех бизнес-событий служебная
-  // категория "custom", а не выбранная пользователем).
-  if (businessOnly) {
-    query = query.eq("is_business", true);
-  }
-
-  if (categorySlugsParam) {
-    const slugs = categorySlugsParam.split(",").map((s) => s.trim()).filter(Boolean);
-    if (slugs.length > 0) {
-      const { data: categoryRows } = await admin.from("categories").select("id").in("slug", slugs);
-      const ids = (categoryRows ?? []).map((c) => c.id);
-      if (ids.length > 0) query = query.in("category_id", ids);
+    // "Для бизнеса" (?business=true, сам раздел /business) — показываем
+    // ТОЛЬКО бизнес-события. В остальных случаях (обычная лента, "Интересные
+    // встречи рядом", любые фильтры по категории) бизнес-события НЕ
+    // исключаются — по явному уточнению пользователя, они должны быть видны
+    // везде наравне с обычными. Фильтр по конкретной категории и так
+    // естественно не покажет их там (у всех бизнес-событий служебная
+    // категория "custom", а не выбранная пользователем).
+    if (businessOnly) {
+      query = query.eq("is_business", true);
     }
-  } else if (categorySlug) {
-    const { data: category } = await admin
-      .from("categories")
-      .select("id")
-      .eq("slug", categorySlug)
-      .maybeSingle();
-    if (category) query = query.eq("category_id", category.id);
-  }
 
-  if (typeSlug) {
-    const { data: trainingType } = await admin
-      .from("training_types")
-      .select("id")
-      .eq("slug", typeSlug)
-      .maybeSingle();
-    if (trainingType) query = query.eq("training_type_id", trainingType.id);
-  }
+    if (categorySlugsParam) {
+      const slugs = categorySlugsParam.split(",").map((s) => s.trim()).filter(Boolean);
+      if (slugs.length > 0) {
+        const { data: categoryRows } = await admin.from("categories").select("id").in("slug", slugs);
+        const ids = (categoryRows ?? []).map((c) => c.id);
+        if (ids.length > 0) query = query.in("category_id", ids);
+      }
+    } else if (categorySlug) {
+      const { data: category } = await admin
+        .from("categories")
+        .select("id")
+        .eq("slug", categorySlug)
+        .maybeSingle();
+      if (category) query = query.eq("category_id", category.id);
+    }
 
-  if (costTypeParam && costTypeParam !== "any") {
-    query = query.eq("cost_type", costTypeParam);
-  }
+    if (typeSlug) {
+      const { data: trainingType } = await admin
+        .from("training_types")
+        .select("id")
+        .eq("slug", typeSlug)
+        .maybeSingle();
+      if (trainingType) query = query.eq("training_type_id", trainingType.id);
+    }
 
-  // Дата: конкретный день, либо "выходные" (ближайшие сб/вс от сегодня).
-  if (dateFilter === "today") {
-    query = query.eq("event_date", todayIso);
-  } else if (dateFilter === "tomorrow") {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    query = query.eq("event_date", tomorrow.toISOString().slice(0, 10));
-  } else if (dateFilter === "weekend") {
-    const { from, to } = getUpcomingWeekendRange();
-    query = query.gte("event_date", from).lte("event_date", to);
-  } else if (dateFilter && dateFilter !== "any" && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
-    query = query.eq("event_date", dateFilter);
-  }
+    if (costTypeParam && costTypeParam !== "any") {
+      query = query.eq("cost_type", costTypeParam);
+    }
 
-  // Время суток: утро/день/вечер по времени начала встречи.
-  if (timeOfDay === "morning") {
-    query = query.gte("event_time", "05:00:00").lt("event_time", "12:00:00");
-  } else if (timeOfDay === "day") {
-    query = query.gte("event_time", "12:00:00").lt("event_time", "18:00:00");
-  } else if (timeOfDay === "evening") {
-    query = query.gte("event_time", "18:00:00").lt("event_time", "23:59:59");
-  }
+    // Дата: конкретный день, либо "выходные" (ближайшие сб/вс от сегодня).
+    if (dateFilter === "today") {
+      query = query.eq("event_date", todayIso);
+    } else if (dateFilter === "tomorrow") {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      query = query.eq("event_date", tomorrow.toISOString().slice(0, 10));
+    } else if (dateFilter === "weekend") {
+      const { from, to } = getUpcomingWeekendRange();
+      query = query.gte("event_date", from).lte("event_date", to);
+    } else if (dateFilter && dateFilter !== "any" && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
+      query = query.eq("event_date", dateFilter);
+    }
 
-  const { data: rows, error } = await query;
-  if (error) {
+    // Время суток: утро/день/вечер по времени начала встречи.
+    if (timeOfDay === "morning") {
+      query = query.gte("event_time", "05:00:00").lt("event_time", "12:00:00");
+    } else if (timeOfDay === "day") {
+      query = query.gte("event_time", "12:00:00").lt("event_time", "18:00:00");
+    } else if (timeOfDay === "evening") {
+      query = query.gte("event_time", "18:00:00").lt("event_time", "23:59:59");
+    }
+
+    const { data: rows, error } = await query;
+    if (error) throw error;
+
+    // Активные подписки организаторов одним запросом — для planCoefficient в ranking.
+    const organizerIds = Array.from(
+      new Set((rows ?? []).map((r) => (r.organizer as unknown as { id: string } | null)?.id).filter(Boolean))
+    ) as string[];
+
+    const { data: activeSubs } = organizerIds.length
+      ? await admin
+          .from("subscriptions")
+          .select("user_id, plan")
+          .in("user_id", organizerIds)
+          .eq("status", "active")
+      : { data: [] as { user_id: string; plan: SubscriptionPlan }[] };
+
+    return {
+      rows: rows ?? [],
+      planByOrganizer: new Map<string, SubscriptionPlan>(
+        (activeSubs ?? []).map((sub) => [sub.user_id, sub.plan as SubscriptionPlan])
+      ),
+    };
+  };
+
+  const feedKey = JSON.stringify([
+    feedCity,
+    todayIso,
+    businessOnly,
+    categorySlugsParam,
+    categorySlug,
+    typeSlug,
+    costTypeParam,
+    dateFilter,
+    timeOfDay,
+  ]);
+
+  let feed: Awaited<ReturnType<typeof loadFeed>>;
+  try {
+    feed = await cachedFeed(feedKey, loadFeed);
+  } catch (error) {
     console.error("GET /api/events — ошибка запроса к Supabase:", error);
     return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
   }
+  const { rows, planByOrganizer } = feed;
 
   let visibleRows = (rows ?? []).filter(
     (row) => !blockedOrganizerIds.includes((row.organizer as unknown as { id: string } | null)?.id ?? "")
@@ -199,22 +245,6 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Подтягиваем активные подписки организаторов одним запросом — для planCoefficient в ranking.
-  const organizerIds = Array.from(
-    new Set(visibleRows.map((r) => (r.organizer as unknown as { id: string } | null)?.id).filter(Boolean))
-  ) as string[];
-
-  const { data: activeSubs } = organizerIds.length
-    ? await admin
-        .from("subscriptions")
-        .select("user_id, plan")
-        .in("user_id", organizerIds)
-        .eq("status", "active")
-    : { data: [] as { user_id: string; plan: SubscriptionPlan }[] };
-
-  const planByOrganizer = new Map<string, SubscriptionPlan>(
-    (activeSubs ?? []).map((s) => [s.user_id, s.plan as SubscriptionPlan])
-  );
 
   const now = new Date();
   const scorable: (EventForScoring & { _row: (typeof visibleRows)[number] })[] = visibleRows.map((row) => {
@@ -571,6 +601,9 @@ export async function POST(req: NextRequest) {
     trainingTypeSlug: input.trainingTypeSlug ?? null,
     title: input.title ?? "",
   }).catch(() => {});
+
+  // Автор сразу видит свою встречу в ленте, не дожидаясь конца 15-секундного кэша.
+  clearFeedCache();
 
   return NextResponse.json({ status: "created", eventId: createdEvent.id });
 }
