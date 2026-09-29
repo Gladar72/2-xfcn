@@ -62,7 +62,8 @@ export async function GET() {
   for (const msg of lastMessages ?? []) {
     if (!lastMessageByConversation.has(msg.conversation_id)) {
       lastMessageByConversation.set(msg.conversation_id, {
-        content: msg.content,
+        // Сообщение «только фото» — в списке чатов показываем как в Telegram.
+        content: msg.content || "📷 Фото",
         createdAt: msg.created_at,
         isMine: msg.sender_id === currentUser.userId,
       });
