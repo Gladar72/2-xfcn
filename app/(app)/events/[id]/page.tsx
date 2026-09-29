@@ -8,6 +8,7 @@ import { ApplicantCard, type ApplicantCardData } from "@/components/applications
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import "./mesto-event.css";
 import { ApplicationStatusView } from "@/components/applications/ApplicationStatus";
+import { apiErrorText } from "@/lib/validation/api-error-text";
 import { photoThumb } from "@/lib/photos/thumb";
 
 interface EventDetails {
@@ -138,9 +139,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             ? "Мест больше нет."
             : data.error === "cannot_apply_to_own_event"
               ? "Это твоя собственная встреча."
-              : data.error === "applications_limit_reached"
-                ? "Лимит откликов на встречи по твоему тарифу исчерпан за этот период — загляни в раздел «Подписка», чтобы поднять лимит."
-                : "Не получилось отправить отклик."
+              : apiErrorText(data, "Не получилось отправить отклик.", res.status)
         );
         return;
       }
