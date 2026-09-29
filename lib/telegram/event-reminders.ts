@@ -112,7 +112,10 @@ export async function sendDueEventReminders(
 
   const eventIds = due.map((d) => d.event.id);
   const [{ data: memberRows }, { data: existingRows }] = await Promise.all([
-    admin.from("event_members").select("event_id, role, user:users(id, telegram_id, name)").in("event_id", eventIds),
+    admin
+      .from("event_members")
+      .select("event_id, role, ticket_code, user:users(id, telegram_id, name)")
+      .in("event_id", eventIds),
     admin
       .from("event_rsvps")
       .select("id, event_id, user_id, role, status, reminder_count, last_sent_at")
@@ -126,8 +129,14 @@ export async function sendDueEventReminders(
   for (const { event, minutesLeft } of due) {
     const members = (memberRows ?? [])
       .filter((m) => m.event_id === event.id)
-      .map((m) => ({ role: m.role as "organizer" | "participant", user: m.user as unknown as MemberUser | null }))
-      .filter((m): m is { role: "organizer" | "participant"; user: MemberUser } => !!m.user);
+      .map((m) => ({
+        role: m.role as "organizer" | "participant",
+        ticketCode: (m.ticket_code as string | null) ?? null,
+        user: m.user as unknown as MemberUser | null,
+      }))
+      .filter(
+        (m): m is { role: "organizer" | "participant"; ticketCode: string | null; user: MemberUser } => !!m.user
+      );
 
     const participantsCount = members.filter((m) => m.role === "participant").length;
 
@@ -152,6 +161,14 @@ export async function sendDueEventReminders(
         .upsert(toInsert, { onConflict: "event_id,user_id", ignoreDuplicates: true })
         .select("id, user_id, role");
 
+      // Та же новость — карточкой «Встречаемся через 2 часа» в разделе
+      // «Уведомления» приложения (с билетом и кнопкой чата).
+      if (inserted && inserted.length > 0) {
+        await admin
+          .from("notifications")
+          .insert(inserted.map((row) => ({ user_id: row.user_id, type: "event_soon", payload: { eventId: event.id } })));
+      }
+
       for (const row of inserted ?? []) {
         const member = members.find((m) => m.user.id === row.user_id);
         if (!member) continue;
@@ -171,6 +188,7 @@ export async function sendDueEventReminders(
               member.user.telegram_id,
               `⏰ ${when[0]?.toUpperCase()}${when.slice(1)} встреча «${event.title}» — в ${time}.\n` +
                 placeLine(event) +
+                (member.ticketCode ? `\n🎟 Твой билет: ${member.ticketCode} — назови номер организатору на входе.` : "") +
                 `\nПодтверди, пожалуйста: ты идёшь?`,
               { reply_markup: participantKeyboard(row.id, event.id) }
             );
