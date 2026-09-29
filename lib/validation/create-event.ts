@@ -31,7 +31,7 @@ export const createEventSchema = z
     seatsTotal: z
       .number({ required_error: "Укажи, сколько нужно участников", invalid_type_error: "Укажи, сколько нужно участников" })
       .int("Количество участников — целое число")
-      .min(2, "В событии должно быть минимум 2 участника")
+      .min(1, "Нужен хотя бы 1 участник кроме тебя")
       .max(500, "Слишком много участников — максимум 500"),
     costType: z
       .enum(["each_pays", "organizer_treats", "free", "negotiable"], {
