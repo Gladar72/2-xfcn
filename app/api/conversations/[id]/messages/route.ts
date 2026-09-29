@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { buildNotificationText } from "@/lib/notifications/text";
+import { broadcastToConversation } from "@/lib/supabase/broadcast";
 
 const MESSAGE_HISTORY_LIMIT = 50;
 
@@ -146,9 +147,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 /**
  * POST /api/conversations/[id]/messages
  * Body: { content: string }
- * Отправка сообщения. Realtime сам разошлёт INSERT всем подписанным
- * участникам (включая отправителя) — фронтенду не нужно оптимистично
- * добавлять сообщение в UI, оно придёт через подписку.
+ * Отправка сообщения. После сохранения сервер сам рассылает его в канал
+ * чата через Realtime Broadcast (см. lib/supabase/broadcast.ts).
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: conversationId } = await params;
@@ -186,10 +186,20 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   if (error || !message) return NextResponse.json({ error: "send_failed" }, { status: 500 });
 
-  await admin.rpc("increment_conversation_unread", {
-    p_conversation_id: conversationId,
-    p_exclude_user_id: currentUser.userId,
-  });
+  // Сразу рассылаем сообщение всем, у кого открыт этот чат (Broadcast),
+  // параллельно со счётчиком непрочитанных.
+  await Promise.all([
+    broadcastToConversation(conversationId, "message", {
+      id: message.id,
+      senderId: currentUser.userId,
+      content,
+      createdAt: message.created_at,
+    }),
+    admin.rpc("increment_conversation_unread", {
+      p_conversation_id: conversationId,
+      p_exclude_user_id: currentUser.userId,
+    }),
+  ]);
 
   // Уведомляем остальных участников диалога о новом сообщении (кроме
   // отправителя) — иначе у людей нет способа узнать о непрочитанном,
