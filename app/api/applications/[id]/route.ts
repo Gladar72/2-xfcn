@@ -92,11 +92,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   await admin.from("applications").update({ status: "accepted" }).eq("id", applicationId);
 
-  await admin.from("event_members").insert({
-    event_id: application.event_id,
-    user_id: application.user_id,
-    role: "participant",
-  });
+  // Для бизнес-события триггер в БД сразу выдаёт номер билета (M-XXXX).
+  const { data: newMember } = await admin
+    .from("event_members")
+    .insert({
+      event_id: application.event_id,
+      user_id: application.user_id,
+      role: "participant",
+    })
+    .select("ticket_code")
+    .maybeSingle();
+  const ticketCode = (newMember?.ticket_code as string | null | undefined) ?? null;
 
   // Один общий чат на всю встречу — не отдельный чат на каждого принятого
   // человека. Ищем уже существующий (создан при первом принятии на эту
@@ -144,7 +150,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .eq("id", application.user_id)
     .maybeSingle();
   if (participant) {
-    notifyTelegram(participant.telegram_id, buildNotificationText("application_accepted", eventTitle)).catch(
+    const ticketLine = ticketCode
+      ? `\n\n🎟 Твой билет: ${ticketCode}\nНазови номер организатору на входе. Билет всегда под рукой в приложении: Уведомления → «Открыть билет».`
+      : "";
+    notifyTelegram(participant.telegram_id, buildNotificationText("application_accepted", eventTitle) + ticketLine).catch(
       () => {}
     );
   }
