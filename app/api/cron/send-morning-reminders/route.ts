@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendDueMorningReminders } from "@/lib/morning-reminders/send";
 
+// Рассылка на десятки тысяч пользователей идёт несколько минут (лимит
+// Telegram ~25 сообщений/с) — поднимаем лимит времени функции до 5 минут.
+export const maxDuration = 300;
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/cron/send-morning-reminders
  *
