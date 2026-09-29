@@ -342,8 +342,8 @@ export async function GET(req: NextRequest) {
   // заявки не показываем — человек может откликнуться заново.
   const statusByEventId = new Map<string, "pending" | "accepted" | "rejected">();
 
-  // «Уже идут N» на карточке: принятые участники встреч этой страницы
-  // (одним запросом). Организатор тоже идёт — он первый в кружках аватарок.
+  // «Уже идут N» на карточке: принятые организатором участники встреч этой
+  // страницы (одним запросом). Сам организатор в счёт не входит.
   const eventIdsWithParticipants = pageItems.filter((item) => item.seatsTaken > 0).map((item) => item.id);
   const [{ data: myApplications }, { data: participantRows }] = await Promise.all([
     currentUser && pageItems.length > 0
@@ -383,19 +383,13 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     items: pageItems.map((item) => {
+      // Только принятые организатором участники — сам организатор не считается.
       const participants = participantsByEventId.get(item.id) ?? [];
-      const going = [
-        ...(item.organizer
-          ? [{ id: item.organizer.id, name: item.organizer.name, avatarUrl: item.organizer.avatarUrl }]
-          : []),
-        ...participants,
-      ];
       return {
         ...item,
         myApplicationStatus: statusByEventId.get(item.id) ?? null,
-        // Показываем только когда кроме организатора уже кто-то идёт.
-        goingCount: participants.length > 0 ? going.length : 0,
-        goingPreview: participants.length > 0 ? going.slice(0, 3) : [],
+        goingCount: participants.length,
+        goingPreview: participants.slice(0, 3),
       };
     }),
     page,
