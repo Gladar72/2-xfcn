@@ -88,7 +88,7 @@ function NavTab({
       <span className="relative">
         <Image src={src} alt="" width={24} height={24} />
         {badge > 0 && (
-          <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-white">
+          <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-caption font-semibold leading-none text-white">
             {badge > 9 ? "9+" : badge}
           </span>
         )}

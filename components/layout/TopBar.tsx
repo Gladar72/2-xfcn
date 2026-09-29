@@ -48,7 +48,7 @@ export function TopBar({ city, avatarUrl, onCityPress }: TopBarProps) {
           className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-card"
           aria-label="Уведомления"
         >
-          <Image src="/brand/icons/bell.svg" alt="" width={20} height={20} />
+          <Image src="/brand/3d/icon-bell.png" alt="" width={26} height={26} className="object-contain" />
           {hasUnread && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />}
         </Link>
 
