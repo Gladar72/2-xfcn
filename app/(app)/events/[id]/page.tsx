@@ -8,6 +8,7 @@ import { ApplicantCard, type ApplicantCardData } from "@/components/applications
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import "./mesto-event.css";
 import { ApplicationStatusView } from "@/components/applications/ApplicationStatus";
+import { photoThumb } from "@/lib/photos/thumb";
 
 interface EventDetails {
   id: string;
@@ -311,7 +312,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   {event.organizer.avatarUrl ? (
                     <AvatarViewer src={event.organizer.avatarUrl} alt={event.organizer.name}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={event.organizer.avatarUrl} alt="" className="h-full w-full object-cover" />
+                      <img src={photoThumb(event.organizer.avatarUrl, 56)} alt="" className="h-full w-full object-cover" />
                     </AvatarViewer>
                   ) : (
                     <span className="flex h-full w-full items-center justify-center bg-lavender-100 text-sm font-semibold text-ink-600">
@@ -416,7 +417,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   >
                     {p.avatarUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.avatarUrl} alt={p.name} className="h-full w-full object-cover" />
+                      <img src={photoThumb(p.avatarUrl, 48)} alt={p.name} className="h-full w-full object-cover" />
                     ) : (
                       p.name.charAt(0).toUpperCase()
                     )}
