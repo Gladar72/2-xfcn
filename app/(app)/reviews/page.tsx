@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ReviewForm } from "@/components/reviews/ReviewForm";
+import { photoThumb } from "@/lib/photos/thumb";
 
 interface ReviewableMember {
   id: string;
@@ -104,7 +105,7 @@ export default function ReviewsPage() {
                     <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
                       {member.avatar_url ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={member.avatar_url} alt={member.name} className="h-full w-full object-cover" />
+                        <img src={photoThumb(member.avatar_url, 48)} alt={member.name} className="h-full w-full object-cover" />
                       ) : (
                         member.name.charAt(0).toUpperCase()
                       )}
