@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
 import { CityPicker } from "@/components/ui/CityPicker";
+import { apiErrorText } from "@/lib/validation/api-error-text";
 import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 
 interface Category {
@@ -49,6 +50,7 @@ export default function SearchPage() {
 
   const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
   const [applyingEventId, setApplyingEventId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/me/profile")
@@ -138,9 +140,19 @@ export default function SearchPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ eventId }),
       });
-      if (res.ok) setAppliedEventIds((prev) => new Set(prev).add(eventId));
+      const data = await res.json().catch(() => ({}));
+      if (res.ok || data.error === "already_applied") {
+        setAppliedEventIds((prev) => new Set(prev).add(eventId));
+        setToast(res.ok ? "Заявка отправлена! Ответ организатора придёт в Telegram." : apiErrorText(data, ""));
+      } else {
+        // Раньше при ошибке ничего не происходило — человек не понимал почему.
+        setToast(apiErrorText(data, "Не получилось отправить отклик.", res.status));
+      }
+    } catch {
+      setToast("Проблема с соединением.");
     } finally {
       setApplyingEventId(null);
+      setTimeout(() => setToast(null), 3500);
     }
   }
 
@@ -341,6 +353,12 @@ export default function SearchPage() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {toast && (
+        <div className="fixed inset-x-5 bottom-24 z-50 rounded-card bg-ink-900 px-4 py-3 text-center text-sm text-white shadow-card">
+          {toast}
         </div>
       )}
     </div>
