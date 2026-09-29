@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
 import { ApplicationStatusView, type ApplicationStatus } from "@/components/applications/ApplicationStatus";
+import { photoThumb } from "@/lib/photos/thumb";
 
 export interface EventCardData {
   id: string;
@@ -118,7 +119,7 @@ export function EventCard({
               <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
                 {event.organizer.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={event.organizer.avatarUrl} alt={event.organizer.name} className="h-full w-full object-cover" />
+                  <img src={photoThumb(event.organizer.avatarUrl, 32)} alt={event.organizer.name} className="h-full w-full object-cover" />
                 ) : (
                   event.organizer.name.charAt(0).toUpperCase()
                 )}
