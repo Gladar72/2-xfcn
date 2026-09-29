@@ -29,6 +29,10 @@ const KNOWN_ERRORS: Record<string, string> = {
   applications_limit_reached:
     "Лимит откликов по твоему тарифу на этот период исчерпан — загляни в раздел «Подписка», чтобы поднять лимит.",
   missing_event_id: "Не получилось определить встречу — обнови страницу.",
+  // Билеты
+  ticket_not_found: "Билета нет — возможно, участие отменено.",
+  event_already_started: "Событие уже началось — отменить участие нельзя.",
+  not_a_member: "Ты уже не участник этого события.",
 };
 
 export function apiErrorText(data: unknown, fallback: string, status?: number): string {
