@@ -243,7 +243,7 @@ export function CreateEventWizard() {
         if (!eventTime || !eventEndTime) return "Укажи время начала и окончания.";
         return "Встреча должна длиться минимум 1 час.";
       case "seats":
-        return "В событии должно быть минимум 2 участника.";
+        return "Нужен хотя бы 1 участник кроме тебя.";
       case "businessCost":
         if (businessPricingType === null) return "Выбери условия участия.";
         if (businessPricingType === "ticket") return "Укажи цену билета.";
@@ -380,7 +380,7 @@ export function CreateEventWizard() {
     (step === "where" && placeName.trim().length >= 2 && latitude !== undefined && longitude !== undefined) ||
     (step === "when" && eventDate.length > 0) ||
     (step === "time" && eventTime.length > 0 && eventEndTime.length > 0 && (durationMinutes ?? 0) >= 60) ||
-    (step === "seats" && seatsTotal >= 2) ||
+    (step === "seats" && seatsTotal >= 1) ||
     step === "cost" ||
     (step === "businessCost" &&
       businessPricingType !== null &&
@@ -480,7 +480,7 @@ export function CreateEventWizard() {
                     trainingTypeSlug === t.slug ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
                   }`}
                 >
-                  <span className="text-xl">{t.emoji}</span>
+                  <span className="text-xl leading-none">{t.emoji}</span>
                   {t.name}
                 </button>
               ))}
@@ -628,12 +628,12 @@ export function CreateEventWizard() {
         )}
 
         {step === "seats" && (
-          <StepBlock title="Сколько человек нужно?">
+          <StepBlock title="Сколько человек ищешь?" subtitle={`Не считая тебя. На встрече будет: ты + ${seatsTotal} = ${seatsTotal + 1} чел.`}>
             <div className="flex items-center justify-center gap-6">
               <button
                 onClick={() => {
-                  if (seatsTotal <= 2) {
-                    setError("В событии должно быть минимум 2 участника.");
+                  if (seatsTotal <= 1) {
+                    setError("Нужен хотя бы 1 участник кроме тебя.");
                     return;
                   }
                   setError(null);
