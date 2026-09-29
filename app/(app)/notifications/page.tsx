@@ -176,11 +176,9 @@ function formatRelativeTime(iso: string): string {
   if (diffMin < 1) return "только что";
   if (diffMin < 60) return `${diffMin} мин назад`;
   const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours} ч назад`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return "вчера";
-  if (diffDays < 7) return `${diffDays} дн назад`;
-  return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  if (diffHours < 6) return `${diffHours} ч назад`;
+  // День уже виден в заголовке группы («Вчера», «27 сентября») — здесь только время.
+  return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
 }
 
 /** Карточка с событием внутри: «Ты в деле!» и «Встречаемся через 2 часа». */
