@@ -341,27 +341,63 @@ export async function GET(req: NextRequest) {
   // всю страницу, а не по запросу на карточку. Отменённые (cancelled)
   // заявки не показываем — человек может откликнуться заново.
   const statusByEventId = new Map<string, "pending" | "accepted" | "rejected">();
-  if (currentUser && pageItems.length > 0) {
-    const { data: myApplications } = await admin
-      .from("applications")
-      .select("event_id, status")
-      .eq("user_id", currentUser.userId)
-      .in(
-        "event_id",
-        pageItems.map((item) => item.id)
-      );
-    for (const application of myApplications ?? []) {
-      if (application.status === "pending" || application.status === "accepted" || application.status === "rejected") {
-        statusByEventId.set(application.event_id, application.status);
-      }
+
+  // «Уже идут N» на карточке: принятые участники встреч этой страницы
+  // (одним запросом). Организатор тоже идёт — он первый в кружках аватарок.
+  const eventIdsWithParticipants = pageItems.filter((item) => item.seatsTaken > 0).map((item) => item.id);
+  const [{ data: myApplications }, { data: participantRows }] = await Promise.all([
+    currentUser && pageItems.length > 0
+      ? admin
+          .from("applications")
+          .select("event_id, status")
+          .eq("user_id", currentUser.userId)
+          .in(
+            "event_id",
+            pageItems.map((item) => item.id)
+          )
+      : Promise.resolve({ data: [] as { event_id: string; status: string }[] }),
+    eventIdsWithParticipants.length > 0
+      ? admin
+          .from("event_members")
+          .select("event_id, user:users(id, name, avatar_url)")
+          .in("event_id", eventIdsWithParticipants)
+          .eq("role", "participant")
+          .order("joined_at", { ascending: true })
+      : Promise.resolve({ data: [] as { event_id: string; user: unknown }[] }),
+  ]);
+
+  const participantsByEventId = new Map<string, { id: string; name: string; avatarUrl: string | null }[]>();
+  for (const row of participantRows ?? []) {
+    const user = row.user as unknown as { id: string; name: string; avatar_url: string | null } | null;
+    if (!user) continue;
+    const list = participantsByEventId.get(row.event_id) ?? [];
+    list.push({ id: user.id, name: user.name, avatarUrl: user.avatar_url });
+    participantsByEventId.set(row.event_id, list);
+  }
+
+  for (const application of myApplications ?? []) {
+    if (application.status === "pending" || application.status === "accepted" || application.status === "rejected") {
+      statusByEventId.set(application.event_id, application.status);
     }
   }
 
   return NextResponse.json({
-    items: pageItems.map((item) => ({
-      ...item,
-      myApplicationStatus: statusByEventId.get(item.id) ?? null,
-    })),
+    items: pageItems.map((item) => {
+      const participants = participantsByEventId.get(item.id) ?? [];
+      const going = [
+        ...(item.organizer
+          ? [{ id: item.organizer.id, name: item.organizer.name, avatarUrl: item.organizer.avatarUrl }]
+          : []),
+        ...participants,
+      ];
+      return {
+        ...item,
+        myApplicationStatus: statusByEventId.get(item.id) ?? null,
+        // Показываем только когда кроме организатора уже кто-то идёт.
+        goingCount: participants.length > 0 ? going.length : 0,
+        goingPreview: participants.length > 0 ? going.slice(0, 3) : [],
+      };
+    }),
     page,
     hasMore: pageStart + PAGE_SIZE < ranked.length,
   });
