@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { broadcastToConversation } from "@/lib/supabase/broadcast";
 
 type Action = "mark_read" | "hide" | "unhide" | "block" | "unblock" | "favorite" | "unfavorite";
 
@@ -61,6 +62,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   await admin.from("conversation_members").update(updates).eq("id", membership.id);
+
+  // Галочки «прочитано» у собеседников — через Broadcast в канал чата.
+  if (action === "mark_read") {
+    await broadcastToConversation(conversationId, "read", {
+      userId: currentUser.userId,
+      lastReadAt: updates.last_read_at,
+    });
+  }
 
   return NextResponse.json({ status: "ok" });
 }
