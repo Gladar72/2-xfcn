@@ -168,7 +168,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   if (body?.action === "update") {
     if (event.status !== "published" && event.status !== "closed") {
-      return NextResponse.json({ error: "cannot_edit" }, { status: 422 });
+      return NextResponse.json(
+        { error: "cannot_edit", message: "Эту встречу уже нельзя изменить — она прошла или отменена." },
+        { status: 422 }
+      );
     }
 
     const title = typeof body.title === "string" ? body.title.trim() : "";
@@ -182,24 +185,31 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     const eventEndTime = typeof body.eventEndTime === "string" ? body.eventEndTime : "";
     const seatsTotal = Number(body.seatsTotal);
 
-    if (
-      !title ||
-      !placeName ||
-      latitude === null ||
-      longitude === null ||
-      !eventDate ||
-      !eventTime ||
-      !eventEndTime ||
-      !Number.isFinite(seatsTotal) ||
-      seatsTotal < 1
-    ) {
-      return NextResponse.json({ error: "invalid_input" }, { status: 422 });
+    // Конкретная причина вместо общего invalid_input — чтобы человек видел,
+    // что именно исправить.
+    const invalid = (field: string, message: string) =>
+      NextResponse.json({ error: "invalid_input", field, message }, { status: 422 });
+    if (!title) return invalid("title", "Добавь название встречи.");
+    if (!placeName) return invalid("placeName", "Укажи место встречи.");
+    if (latitude === null || longitude === null) return invalid("placeName", "Отметь место встречи на карте.");
+    if (!eventDate) return invalid("eventDate", "Выбери дату встречи.");
+    if (!eventTime || !eventEndTime) return invalid("eventTime", "Укажи время начала и окончания.");
+    if (!Number.isFinite(seatsTotal) || seatsTotal < 2) {
+      return invalid("seatsTotal", "В событии должно быть минимум 2 участника.");
     }
 
     // Нельзя установить лимит меньше уже подтверждённых участников — см.
     // явное требование ТЗ.
     if (seatsTotal < event.seats_taken) {
-      return NextResponse.json({ error: "seats_below_taken", seatsTaken: event.seats_taken }, { status: 422 });
+      return NextResponse.json(
+        {
+          error: "seats_below_taken",
+          seatsTaken: event.seats_taken,
+          field: "seatsTotal",
+          message: `Нельзя поставить меньше ${event.seats_taken} — столько человек уже подтверждено.`,
+        },
+        { status: 422 }
+      );
     }
 
     const updatePayload: Record<string, unknown> = {
