@@ -8,6 +8,7 @@ import { LocationPicker } from "@/components/map/LocationPicker";
 import { PhotoCropModal } from "@/components/create-event/PhotoCropModal";
 import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
 import { apiErrorText } from "@/lib/validation/api-error-text";
+import { CATEGORY_ICON } from "@/lib/data/category-icons";
 import { photoThumb } from "@/lib/photos/thumb";
 
 interface Category {
@@ -271,7 +272,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
     <div className="pb-28">
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-lavender-100 bg-background/95 px-5 py-3 backdrop-blur">
         <button onClick={() => router.back()} className="flex items-center gap-1 text-sm font-medium text-accent">
-          <Image src="/brand/icons/back.svg" alt="" width={18} height={18} />
+          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
           Назад
         </button>
         <h1 className="text-base font-semibold text-ink-900">Редактировать событие</h1>
@@ -318,7 +319,11 @@ export default function EditEventPage({ params }: EditEventPageProps) {
                     categorySlug === c.slug ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
                   }`}
                 >
-                  <span className="text-lg">{c.emoji}</span>
+                  {CATEGORY_ICON[c.slug] ? (
+                    <Image src={CATEGORY_ICON[c.slug] as string} alt="" width={28} height={28} className="object-contain" />
+                  ) : (
+                    <span className="text-xl leading-none">{c.emoji}</span>
+                  )}
                   {c.name}
                 </button>
               ))}
@@ -334,7 +339,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
                       trainingTypeSlug === t.slug ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
                     }`}
                   >
-                    <span>{t.emoji}</span>
+                    <span className="text-xl leading-none">{t.emoji}</span>
                     {t.name}
                   </button>
                 ))}
@@ -414,17 +419,17 @@ export default function EditEventPage({ params }: EditEventPageProps) {
           />
         </Field>
 
-        <Field label="Количество участников" counter={`из ${seatsTaken > 0 ? `мин. ${seatsTaken}` : "30"}`}>
+        <Field label="Участников (не считая тебя)" counter={`из ${seatsTaken > 0 ? `мин. ${seatsTaken}` : "30"}`}>
           <div className="flex items-center justify-center gap-6">
             <button
               type="button"
               onClick={() => {
-                const min = Math.max(2, seatsTaken);
+                const min = Math.max(1, seatsTaken);
                 if (seatsTotal <= min) {
                   setSaveError(
-                    seatsTaken > 2
+                    seatsTaken > 1
                       ? `Нельзя меньше ${seatsTaken} — столько человек уже подтверждено.`
-                      : "В событии должно быть минимум 2 участника."
+                      : "Нужен хотя бы 1 участник кроме тебя."
                   );
                   return;
                 }
