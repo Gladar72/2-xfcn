@@ -4,6 +4,7 @@ import { onboardingSchema } from "@/lib/validation/onboarding";
 import { describeValidationError } from "@/lib/validation/describe-error";
 import { issueSessionToken, SESSION_COOKIE } from "@/lib/telegram/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { applyPendingGifts } from "@/lib/gifts/channel-gift";
 import { uploadAvatar } from "@/lib/photos/upload-avatar";
 
 /**
@@ -106,6 +107,12 @@ export async function POST(req: NextRequest) {
     const rows = profile.interestIds.map((interestId) => ({ user_id: userId, interest_id: interestId }));
     await admin.from("user_interests").insert(rows);
   }
+
+  // Подарок из канала (кнопка «Забрать подписку»), забранный до регистрации, —
+  // включаем сразу после создания профиля. Ошибка подарка не мешает регистрации.
+  await applyPendingGifts(admin, telegramUser.id, userId).catch((err) =>
+    console.error("POST /api/users — не удалось включить подарок:", err)
+  );
 
   const sessionToken = issueSessionToken(userId, telegramUser.id);
   const response = NextResponse.json({ status: "registered", userId, photoError });
