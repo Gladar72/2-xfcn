@@ -22,6 +22,18 @@ import {
   setPartnerStatus,
   type ReferralPartner,
 } from "@/lib/subscriptions/referrals";
+import {
+  DEFAULT_GIFT_CAMPAIGN,
+  GIFT_START_PREFIX,
+  bindGiftChannel,
+  channelPostText,
+  claimGift,
+  getGiftCampaign,
+  giftStats,
+  planTitle,
+  saveGiftVideoNote,
+  welcomeText,
+} from "@/lib/gifts/channel-gift";
 
 function getAdminId(): number | null {
   const first = (process.env.ADMIN_TELEGRAM_IDS ?? "").split(",")[0]?.trim();
@@ -100,6 +112,11 @@ export function getBot(): Bot {
     // Переход по партнёрской ссылке t.me/<bot>?start=ref_<code> —
     // закрепляем человека за блогером (первый переход решает).
     const payload = typeof ctx.match === "string" ? ctx.match.trim() : "";
+    // Кнопка «🎁 Забрать подписку» из поста в канале.
+    if (ctx.from && payload.startsWith(GIFT_START_PREFIX)) {
+      await handleGiftClaim(ctx, payload.slice(GIFT_START_PREFIX.length));
+      return;
+    }
     if (ctx.from && payload.startsWith(REFERRAL_START_PREFIX)) {
       await recordReferralStart(createAdminClient(), ctx.from.id, payload.slice(REFERRAL_START_PREFIX.length)).catch((err) =>
         console.error("recordReferralStart failed:", err)
@@ -110,6 +127,214 @@ export function getBot(): Bot {
       reply_markup: startKeyboard(isAdmin),
     });
     await ctx.reply("Кнопки закреплены внизу 👇", { reply_markup: pinnedKeyboard(isAdmin) });
+  });
+
+  // ── Подарок подписчикам канала («Двор» и т.п.) ───────────────────────
+  // Бот не может сам написать тому, кто его не запускал, поэтому подарок
+  // забирают кнопкой из поста в канале: бот проверяет подписку на канал
+  // (он там админ), включает месяц подписки и присылает приветствие.
+  async function handleGiftClaim(ctx: Context, code: string) {
+    if (!ctx.from) return;
+    const admin = createAdminClient();
+    const campaign = await getGiftCampaign(admin, code || DEFAULT_GIFT_CAMPAIGN);
+    if (!campaign || !campaign.is_active) {
+      await ctx.reply("Эта акция уже закончилась 🙏 Но «Место» открыто всем — заходи 👇", {
+        reply_markup: openAppKeyboard(),
+      });
+      return;
+    }
+    if (!campaign.channel_id) {
+      await ctx.reply("Подарок ещё готовится — загляни чуть позже 🙏", { reply_markup: openAppKeyboard() });
+      return;
+    }
+
+    let isSubscriber = false;
+    try {
+      const member = await ctx.api.getChatMember(campaign.channel_id, ctx.from.id);
+      isSubscriber =
+        member.status === "creator" ||
+        member.status === "administrator" ||
+        member.status === "member" ||
+        (member.status === "restricted" && member.is_member);
+    } catch (err) {
+      console.error("gift: getChatMember failed", err);
+      await ctx.reply("Не получилось проверить подписку на канал — попробуй ещё раз через минуту 🙏", {
+        reply_markup: new InlineKeyboard().text("🔄 Проверить ещё раз", `gift_check:${campaign.code}`),
+      });
+      return;
+    }
+
+    if (!isSubscriber) {
+      const kb = new InlineKeyboard();
+      if (campaign.channel_username) kb.url(`📢 Подписаться на «${campaign.title}»`, `https://t.me/${campaign.channel_username}`).row();
+      kb.text("✅ Я подписался — проверить", `gift_check:${campaign.code}`);
+      await ctx.reply(
+        `Этот подарок — для подписчиков канала «${campaign.title}» 🎁\nПодпишись на канал и нажми «Проверить».`,
+        { reply_markup: kb }
+      );
+      return;
+    }
+
+    try {
+      const result = await claimGift(admin, campaign, ctx.from.id);
+      if (result.kind !== "already" && campaign.video_note_file_id) {
+        await ctx.replyWithVideoNote(campaign.video_note_file_id).catch((err) => console.error("gift: video note failed", err));
+      }
+      await ctx.reply(welcomeText(campaign, result), { reply_markup: openAppKeyboard() });
+    } catch (err) {
+      console.error("gift: claim failed", err);
+      await ctx.reply("Что-то пошло не так при включении подарка 🙏 Попробуй ещё раз чуть позже или напиши в поддержку: /support");
+    }
+  }
+
+  bot.callbackQuery(/^gift_check:([a-z0-9_-]+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await handleGiftClaim(ctx, (ctx.match as RegExpMatchArray)[1] ?? DEFAULT_GIFT_CAMPAIGN);
+  });
+
+  function giftPostKeyboard(botUsername: string, code: string) {
+    return new InlineKeyboard().url("🎁 Забрать подписку", `https://t.me/${botUsername}?start=${GIFT_START_PREFIX}${code}`);
+  }
+
+  async function sendGiftMenu(ctx: Context) {
+    const admin = createAdminClient();
+    const campaign = await getGiftCampaign(admin, DEFAULT_GIFT_CAMPAIGN);
+    if (!campaign) {
+      await ctx.reply("Кампания подарка не найдена.");
+      return;
+    }
+    const stats = await giftStats(admin, campaign.code);
+    const channelLine = campaign.channel_id
+      ? `Канал: «${campaign.channel_title ?? campaign.title}»${campaign.channel_username ? ` (@${campaign.channel_username})` : ""} ✅`
+      : `Канал ещё не привязан. Добавь бота @${ctx.me.username} админом канала (право «Публикация сообщений») — я сам пришлю кнопку привязки. Или пришли: /gift @имя_канала`;
+    const videoLine = campaign.video_note_file_id
+      ? "Кружок: записан ✅ (выйдет перед постом; чтобы заменить — просто пришли новый)"
+      : "Кружок: не записан — запиши и пришли мне приветственный кружок, он выйдет перед постом.";
+    const kb = new InlineKeyboard().text("👀 Предпросмотр поста", "gift_preview");
+    if (campaign.channel_id) kb.row().text("📣 Опубликовать в канал", "gift_publish_ask");
+    await ctx.reply(
+      `🎁 Подарок «${campaign.title}»: подписка «${planTitle(campaign.plan)}» на ${campaign.days} дней.\n` +
+        `${channelLine}\n${videoLine}\n\n` +
+        `Забрали: ${stats.claimed} · включено: ${stats.applied} (остальные включатся после регистрации в приложении).`,
+      { reply_markup: kb }
+    );
+  }
+
+  bot.command("gift", async (ctx) => {
+    if (!isAdminTelegramId(ctx.from?.id ?? 0)) return;
+    const arg = typeof ctx.match === "string" ? ctx.match.trim() : "";
+    if (arg) {
+      // Ручная привязка канала: /gift @username
+      try {
+        const chat = await ctx.api.getChat(arg.startsWith("@") || arg.startsWith("-") ? arg : `@${arg}`);
+        const me = await ctx.api.getChatMember(chat.id, ctx.me.id);
+        if (me.status !== "administrator") {
+          await ctx.reply("Я не админ в этом канале. Добавь меня админом с правом публикации и повтори.");
+          return;
+        }
+        await bindGiftChannel(createAdminClient(), DEFAULT_GIFT_CAMPAIGN, {
+          id: chat.id,
+          title: "title" in chat ? chat.title ?? null : null,
+          username: "username" in chat ? chat.username ?? null : null,
+        });
+        await ctx.reply("✅ Канал привязан к подарку.");
+      } catch (err) {
+        console.error("gift bind failed", err);
+        await ctx.reply("Не нашёл такой канал. Проверь имя (например, /gift @dvor) и что я там админ.");
+        return;
+      }
+    }
+    await sendGiftMenu(ctx);
+  });
+
+  // Бота сделали админом канала — предлагаем привязать канал к подарку.
+  bot.on("my_chat_member", async (ctx) => {
+    const chat = ctx.myChatMember.chat;
+    const status = ctx.myChatMember.new_chat_member.status;
+    if (chat.type !== "channel" || status !== "administrator") return;
+    const adminId = getAdminId();
+    if (!adminId) return;
+    await ctx.api
+      .sendMessage(adminId, `Меня добавили админом в канал «${chat.title}». Привязать его к подарку «Двор»?`, {
+        reply_markup: new InlineKeyboard().text("✅ Привязать", `gift_bind:${chat.id}`),
+      })
+      .catch((err) => console.error("gift: notify admin failed", err));
+  });
+
+  bot.callbackQuery(/^gift_bind:(-?\d+)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!isAdminTelegramId(ctx.from.id)) return;
+    const chatId = Number((ctx.match as RegExpMatchArray)[1]);
+    try {
+      const chat = await ctx.api.getChat(chatId);
+      await bindGiftChannel(createAdminClient(), DEFAULT_GIFT_CAMPAIGN, {
+        id: chat.id,
+        title: "title" in chat ? chat.title ?? null : null,
+        username: "username" in chat ? chat.username ?? null : null,
+      });
+      await ctx.reply("✅ Канал привязан к подарку.");
+      await sendGiftMenu(ctx);
+    } catch (err) {
+      console.error("gift bind failed", err);
+      await ctx.reply("Не получилось привязать канал — проверь, что я там админ.");
+    }
+  });
+
+  bot.callbackQuery("gift_preview", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!isAdminTelegramId(ctx.from.id)) return;
+    const campaign = await getGiftCampaign(createAdminClient(), DEFAULT_GIFT_CAMPAIGN);
+    if (!campaign) return;
+    await ctx.reply("Так будет выглядеть публикация в канале 👇");
+    if (campaign.video_note_file_id) await ctx.replyWithVideoNote(campaign.video_note_file_id);
+    await ctx.reply(channelPostText(campaign), { reply_markup: giftPostKeyboard(ctx.me.username, campaign.code) });
+    await ctx.reply("А так — приветствие, которое получит человек после нажатия кнопки 👇");
+    await ctx.reply(welcomeText(campaign, { kind: "granted", until: new Date(Date.now() + campaign.days * 86_400_000) }), {
+      reply_markup: openAppKeyboard(),
+    });
+  });
+
+  bot.callbackQuery("gift_publish_ask", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!isAdminTelegramId(ctx.from.id)) return;
+    const campaign = await getGiftCampaign(createAdminClient(), DEFAULT_GIFT_CAMPAIGN);
+    if (!campaign?.channel_id) return;
+    await ctx.reply(`Опубликовать пост с подарком в канал «${campaign.channel_title ?? campaign.title}»?`, {
+      reply_markup: new InlineKeyboard().text("✅ Да, опубликовать", "gift_publish_go").text("Отмена", "gift_publish_cancel"),
+    });
+  });
+
+  bot.callbackQuery("gift_publish_cancel", async (ctx) => {
+    await ctx.answerCallbackQuery({ text: "Отменено" });
+  });
+
+  bot.callbackQuery("gift_publish_go", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (!isAdminTelegramId(ctx.from.id)) return;
+    const campaign = await getGiftCampaign(createAdminClient(), DEFAULT_GIFT_CAMPAIGN);
+    if (!campaign?.channel_id) return;
+    try {
+      // Сначала приветственный кружок, сразу за ним — пост с кнопкой-подарком.
+      if (campaign.video_note_file_id) {
+        await ctx.api.sendVideoNote(campaign.channel_id, campaign.video_note_file_id);
+      }
+      await ctx.api.sendMessage(campaign.channel_id, channelPostText(campaign), {
+        reply_markup: giftPostKeyboard(ctx.me.username, campaign.code),
+      });
+      await ctx.reply("📣 Опубликовано! Статистика — командой /gift");
+    } catch (err) {
+      console.error("gift publish failed", err);
+      await ctx.reply("Не получилось опубликовать — проверь, что у меня есть право «Публикация сообщений» в канале.");
+    }
+  });
+
+  // Админ присылает боту кружок — сохраняем его как приветствие к подарку.
+  bot.on("message:video_note", async (ctx) => {
+    if (!isAdminTelegramId(ctx.from.id)) return;
+    await saveGiftVideoNote(createAdminClient(), DEFAULT_GIFT_CAMPAIGN, ctx.message.video_note.file_id);
+    await ctx.reply("🎥 Кружок сохранён — он выйдет в канале перед постом-подарком и придёт каждому, кто заберёт подарок.", {
+      reply_markup: new InlineKeyboard().text("👀 Предпросмотр", "gift_preview"),
+    });
   });
 
   bot.command("admin", async (ctx) => {
