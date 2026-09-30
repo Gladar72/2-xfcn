@@ -55,9 +55,17 @@ export async function GET() {
     otherMembersByConversation.set(m.conversation_id, list);
   }
 
+  // Имя автора последнего сообщения. Раньше в превью подставлялось имя
+  // ПЕРВОГО участника чата, а не того, кто написал: в групповом чате
+  // сообщение Ника выглядело как «Валерия: …». Теперь — имя отправителя.
+  const nameById = new Map<string, string>();
+  for (const list of Array.from(otherMembersByConversation.values())) {
+    for (const member of list) nameById.set(member.id, member.name);
+  }
+
   const lastMessageByConversation = new Map<
     string,
-    { content: string; createdAt: string; isMine: boolean }
+    { content: string; createdAt: string; isMine: boolean; senderId: string; senderName: string | null }
   >();
   for (const msg of lastMessages ?? []) {
     if (!lastMessageByConversation.has(msg.conversation_id)) {
@@ -66,8 +74,25 @@ export async function GET() {
         content: msg.content || "📷 Фото",
         createdAt: msg.created_at,
         isMine: msg.sender_id === currentUser.userId,
+        senderId: msg.sender_id,
+        senderName: null,
       });
     }
+  }
+
+  // Автор мог уже выйти из чата — тогда его имя берём из users отдельно.
+  const missingSenderIds = Array.from(lastMessageByConversation.values())
+    .filter((m) => !m.isMine && !nameById.has(m.senderId))
+    .map((m) => m.senderId);
+  if (missingSenderIds.length > 0) {
+    const { data: senders } = await admin
+      .from("users")
+      .select("id, name")
+      .in("id", Array.from(new Set(missingSenderIds)));
+    for (const u of senders ?? []) nameById.set(u.id, u.name);
+  }
+  for (const m of Array.from(lastMessageByConversation.values())) {
+    m.senderName = m.isMine ? null : nameById.get(m.senderId) ?? null;
   }
 
   const items = (memberships ?? []).map((m) => {
