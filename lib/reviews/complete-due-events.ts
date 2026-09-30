@@ -1,7 +1,5 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
-import { localEventTimeToUtc } from "@/lib/reviews/timezone";
-
-const ASSUMED_EVENT_DURATION_HOURS = 4; // допущение для старых встреч без указанного времени окончания — увеличено с 2ч по явному запросу (2ч закрывало чат слишком рано для встреч вроде "Учёба")
+import { eventTiming } from "@/lib/events/timing";
 
 export interface DueReviewItem {
   eventId: string;
@@ -37,43 +35,47 @@ export async function completeDueEvents(
 
   const { data: candidates } = await admin
     .from("events")
-    .select("id, title, event_date, event_time, event_end_time, longitude")
+    .select("id, title, event_date, event_time, event_end_time, longitude, city")
     // "closed" (заполнена целиком) тоже нужно проверять — иначе заполненная
     // встреча, у которой уже прошло время, никогда не завершается, и её
     // чат остаётся открытым навсегда (реальный найденный случай).
     .in("status", ["published", "closed"])
     .lte("event_date", tomorrowIso);
 
-  const finished = (candidates ?? []).filter((e) => {
-    // event_time/event_end_time — "наивное" время: то самое, что
-    // организатор ввёл у себя на телефоне, БЕЗ привязки к часовому поясу.
-    // Раньше это сравнивалось с now() (UTC) напрямую, как будто оно уже
-    // в UTC — из-за этого встречи в поясах восточнее Москвы (Тюмень,
-    // Екатеринбург и дальше) считались "ещё идущими" на несколько часов
-    // дольше, чем на самом деле. Теперь поправка на пояс — по долготе
-    // точки встречи (см. lib/reviews/timezone.ts).
-    const start = localEventTimeToUtc(e.event_date, e.event_time, e.longitude);
-    // Встреча может заканчиваться на СЛЕДУЮЩИЙ день (например, начало в
-    // 22:00, конец в 04:00) — event_end_time сам по себе не говорит, на
-    // какую дату он приходится, только event_date у самой записи и
-    // сравнение с event_time позволяют это понять: если время окончания
-    // МЕНЬШЕ времени начала — окончание точно на следующий календарный
-    // день, а не в тот же (иначе получилось бы "закончилось раньше, чем
-    // началось").
-    const endDateIso = e.event_end_time && e.event_end_time < e.event_time
-      ? new Date(new Date(e.event_date + "T00:00:00Z").getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
-      : e.event_date;
-    const end = e.event_end_time
-      ? localEventTimeToUtc(endDateIso, e.event_end_time, e.longitude)
-      : new Date(start.getTime() + ASSUMED_EVENT_DURATION_HOURS * 60 * 60 * 1000);
-    return end <= now;
-  });
+  // Встреча идёт ровно до времени окончания и ещё 30 минут после него
+  // (COMPLETION_GRACE_MINUTES) — только потом закрывается автоматически.
+  // Организатор может завершить её сам раньше (PATCH action "complete").
+  const finished = (candidates ?? []).filter((e) => eventTiming(e).autoCompleteAt <= now);
 
   if (finished.length === 0) return [];
+  return finalizeCompletedEvents(admin, finished);
+}
 
+/**
+ * Завершает встречи: статус 'completed', +1 посещённая встреча участникам,
+ * запросы отзывов. Общая для автозавершения по времени и для ручного
+ * «Завершить встречу» организатором. Встречи, которые уже кто-то завершил
+ * (параллельный запуск), повторно не обрабатываются.
+ */
+export async function finalizeCompletedEvents(
+  admin: ReturnType<typeof createAdminClient>,
+  events: { id: string; title: string }[]
+): Promise<DueReviewItem[]> {
+  if (events.length === 0) return [];
+
+  const { data: updatedRows } = await admin
+    .from("events")
+    .update({ status: "completed" })
+    .in(
+      "id",
+      events.map((e) => e.id)
+    )
+    .in("status", ["published", "closed"])
+    .select("id");
+  const updatedIds = new Set((updatedRows ?? []).map((r) => r.id));
+  const finished = events.filter((e) => updatedIds.has(e.id));
+  if (finished.length === 0) return [];
   const finishedIds = finished.map((e) => e.id);
-
-  await admin.from("events").update({ status: "completed" }).in("id", finishedIds).in("status", ["published", "closed"]);
 
   const { data: allFinishedMembers } = await admin
     .from("event_members")

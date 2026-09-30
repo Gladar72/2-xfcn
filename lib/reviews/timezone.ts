@@ -16,7 +16,7 @@ export function estimateRussiaUtcOffsetHours(longitude: number | null | undefine
   if (longitude < 30) return 2; // Калининград
   if (longitude < 41) return 3; // Москва и европейская часть России
   if (longitude < 49) return 4; // Самара, Ижевск
-  if (longitude < 61) return 5; // Екатеринбург, Тюмень
+  if (longitude < 69) return 5; // Екатеринбург, Тюмень, Тобольск (Тюмень — 65° в. д., раньше граница 61° давала ей UTC+6)
   if (longitude < 76) return 6; // Омск
   if (longitude < 105) return 7; // Красноярск, Новосибирск
   if (longitude < 116) return 8; // Иркутск
