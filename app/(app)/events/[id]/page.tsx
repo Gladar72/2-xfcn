@@ -22,6 +22,9 @@ interface EventDetails {
   eventDate: string;
   eventTime: string;
   eventEndTime: string | null;
+  /** UTC-моменты с сервера (с учётом часового пояса города встречи). */
+  startsAt?: string;
+  autoCompleteAt?: string;
   seatsTotal: number;
   seatsTaken: number;
   status: string;
@@ -68,6 +71,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const [applying, setApplying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
+  const [confirmingComplete, setConfirmingComplete] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [addressCopied, setAddressCopied] = useState(false);
   const [boosting, setBoosting] = useState(false);
   const [boostMessage, setBoostMessage] = useState<string | null>(null);
@@ -168,6 +173,29 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     }
   }
 
+  async function handleComplete() {
+    setCompleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/events/${eventId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "complete" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setEvent((prev) => (prev ? { ...prev, status: "completed" } : prev));
+        setConfirmingComplete(false);
+      } else {
+        setError(apiErrorText(data, "Не получилось завершить встречу.", res.status));
+      }
+    } catch {
+      setError("Проблема с соединением — попробуй ещё раз.");
+    } finally {
+      setCompleting(false);
+    }
+  }
+
   async function handleBoost() {
     setBoosting(true);
     setBoostMessage(null);
@@ -252,6 +280,12 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const heroPhotoSrc = event.photoUrl ?? categoryIcon ?? "/brand/markers/marker-custom-proposal.png";
   const heroIsRealPhoto = !!event.photoUrl;
   const canManage = event.viewerStatus === "organizer" && (event.status === "published" || event.status === "closed");
+  // Встреча уже началась — вместо «Отменить» организатор может её завершить.
+  // Сама она закроется в autoCompleteAt (окончание + 30 минут).
+  const hasStarted = !!event.startsAt && new Date(event.startsAt).getTime() <= Date.now();
+  const autoCompleteLabel = event.autoCompleteAt
+    ? new Date(event.autoCompleteAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
+    : null;
 
   return (
     <div className="-mb-24">
@@ -432,6 +466,12 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
 
           {error && <p className="mb-3 text-center text-sm text-red-600">{error}</p>}
 
+          {event.status === "completed" && (
+            <div className="mb-3 rounded-card bg-white p-4 text-center text-sm text-ink-600 shadow-card">
+              Встреча завершена. Спасибо, что были вместе!
+            </div>
+          )}
+
           {event.status === "cancelled" && (
             <div className="mb-3 rounded-card bg-red-50 p-4 text-center text-sm text-red-600">
               Эта встреча отменена организатором.
@@ -494,7 +534,45 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 </Link>
               )}
 
-              {!confirmingCancel ? (
+              {hasStarted ? (
+                !confirmingComplete ? (
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmingComplete(true)}
+                      className="w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta"
+                    >
+                      Завершить встречу
+                    </button>
+                    {autoCompleteLabel && (
+                      <p className="mt-2 text-center text-xs text-ink-600">
+                        Иначе встреча закроется сама в {autoCompleteLabel} — через 30 минут после окончания.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-card bg-white p-4 text-center shadow-card-lg">
+                    <p className="mb-3 text-sm text-ink-900">
+                      Завершить встречу? Чат закроется, участники смогут оставить отзывы.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setConfirmingComplete(false)}
+                        className="flex-1 rounded-pill bg-white py-2.5 text-sm font-medium text-ink-600 shadow-card"
+                      >
+                        Не сейчас
+                      </button>
+                      <button
+                        onClick={handleComplete}
+                        disabled={completing}
+                        className="flex-1 rounded-pill bg-brand-gradient py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        {completing ? "Завершаем..." : "Да, завершить"}
+                      </button>
+                    </div>
+                  </div>
+                )
+              ) : !confirmingCancel ? (
                 <button type="button" className="m-action m-cancel" onClick={() => setConfirmingCancel(true)}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src="/mesto/assets/icons/png/cancel.png" alt="" width={44} height={44} />
