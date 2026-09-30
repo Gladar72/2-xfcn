@@ -41,3 +41,8 @@ alter table gift_claims enable row level security;
 insert into gift_campaigns (code, title, plan, days)
 values ('dvor', 'Двор', 'start', 30)
 on conflict (code) do nothing;
+
+-- Приветственный «кружок» (video note) от автора: админ присылает его боту,
+-- бот публикует его в канал перед постом-подарком и шлёт в личку при
+-- получении подарка.
+alter table gift_campaigns add column if not exists video_note_file_id text;
