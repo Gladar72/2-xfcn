@@ -3,6 +3,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
+import { eventTiming } from "@/lib/events/timing";
+import { finalizeCompletedEvents } from "@/lib/reviews/complete-due-events";
+import { clearFeedCache } from "@/lib/data/feed-cache";
 
 /**
  * GET /api/events/[id]
@@ -68,10 +71,17 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     }
   }
 
+  // Когда встреча началась и когда закроется сама (окончание + 30 минут) —
+  // чтобы организатор видел «Завершить встречу» и время автозакрытия.
+  const timing = eventTiming(event);
+
   return NextResponse.json({
     id: event.id,
     title: event.title,
     description: event.description,
+    startsAt: timing.start.toISOString(),
+    endsAt: timing.end.toISOString(),
+    autoCompleteAt: timing.autoCompleteAt.toISOString(),
     category: event.category,
     trainingType: event.training_type,
     city: event.city,
@@ -164,6 +174,36 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     return NextResponse.json({ status: "cancelled" });
+  }
+
+  // «Завершить встречу» — организатор закрывает встречу сам в любой момент
+  // после её начала, не дожидаясь автозакрытия (окончание + 30 минут).
+  if (body?.action === "complete") {
+    if (event.status !== "published" && event.status !== "closed") {
+      return NextResponse.json(
+        { error: "cannot_complete", message: "Встреча уже завершена или отменена." },
+        { status: 422 }
+      );
+    }
+    const { data: timingRow } = await admin
+      .from("events")
+      .select("title, event_date, event_time, event_end_time, city, longitude")
+      .eq("id", eventId)
+      .maybeSingle();
+    if (!timingRow) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    if (eventTiming(timingRow).start.getTime() > Date.now()) {
+      return NextResponse.json(
+        {
+          error: "not_started",
+          message: "Встреча ещё не началась — завершить её можно после начала. Если она не состоится, отмени её.",
+        },
+        { status: 422 }
+      );
+    }
+
+    await finalizeCompletedEvents(admin, [{ id: eventId, title: timingRow.title }]);
+    clearFeedCache();
+    return NextResponse.json({ status: "completed" });
   }
 
   if (body?.action === "update") {
