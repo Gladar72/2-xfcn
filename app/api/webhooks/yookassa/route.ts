@@ -58,7 +58,12 @@ export async function POST(req: Request) {
   }
 
   if (!realStatus.paid || realStatus.status !== "succeeded") {
-    await admin.from("payments").update({ status: realStatus.status }).eq("id", paymentRow.id);
+    // В payments.status допустимы только pending/succeeded/failed/refunded.
+    // Отменённый в ЮKassa платёж помечаем failed; промежуточные статусы
+    // (pending, waiting_for_capture) не пишем — строка остаётся pending.
+    if (realStatus.status === "canceled") {
+      await admin.from("payments").update({ status: "failed" }).eq("id", paymentRow.id);
+    }
     return NextResponse.json({ status: "not_paid_yet" });
   }
 
