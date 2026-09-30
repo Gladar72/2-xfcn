@@ -20,7 +20,13 @@ export interface ChatListItemData {
   otherUser: { id: string; name: string; avatarUrl: string | null } | null;
   /** Сколько всего человек в чате, кроме меня — 1 = обычный диалог, больше 1 = групповой чат встречи. */
   otherMembersCount: number;
-  lastMessage: { content: string; createdAt: string; isMine: boolean } | null;
+  lastMessage: {
+    content: string;
+    createdAt: string;
+    isMine: boolean;
+    /** Имя того, кто написал последнее сообщение (не первого участника чата). */
+    senderName?: string | null;
+  } | null;
   /** Прочитали ли ВСЕ остальные участники наше последнее сообщение (только когда lastMessage.isMine). */
   isLastMessageRead?: boolean;
 }
@@ -42,7 +48,7 @@ export function ChatListItem({
   const isUnread = chat.unreadCount > 0;
 
   const previewText = chat.lastMessage
-    ? `${chat.lastMessage.isMine ? "Вы" : name.split(" ")[0]}: ${chat.lastMessage.content}`
+    ? `${chat.lastMessage.isMine ? "Вы" : (chat.lastMessage.senderName ?? "Участник").split(" ")[0]}: ${chat.lastMessage.content}`
     : "Чат создан";
 
   const chatBody = (
