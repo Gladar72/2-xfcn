@@ -18,6 +18,18 @@ interface Interest {
 type Step = "photo" | "name" | "birthDate" | "gender" | "city" | "bio" | "interests" | "review";
 const STEPS: Step[] = ["photo", "name", "birthDate", "gender", "city", "bio", "interests", "review"];
 
+/** Куда вести после анкеты: на встречу, если человек пришёл по ссылке на неё (см. app/page.tsx), иначе в ленту. */
+function afterOnboardingPath(): string {
+  try {
+    const path = sessionStorage.getItem("mesto_after_onboarding");
+    sessionStorage.removeItem("mesto_after_onboarding");
+    if (path && /^\/events\/[0-9a-f-]{36}$/.test(path)) return path;
+  } catch {
+    /* хранилище недоступно */
+  }
+  return "/feed";
+}
+
 export function OnboardingWizard() {
   const [stepIndex, setStepIndex] = useState(0);
   const [interests, setInterests] = useState<Interest[]>([]);
@@ -146,12 +158,12 @@ export function OnboardingWizard() {
           `Профиль создан! ${apiErrorText({ error: data.photoError }, "Фото загрузить не получилось.")} Добавить фото можно в профиле.`
         );
         setTimeout(() => {
-          window.location.href = "/feed";
+          window.location.href = afterOnboardingPath();
         }, 3500);
         return;
       }
 
-      window.location.href = "/feed";
+      window.location.href = afterOnboardingPath();
     } catch {
       setError("Проблема с соединением. Попробуй ещё раз.");
       setSubmitting(false);
