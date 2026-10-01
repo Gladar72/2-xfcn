@@ -46,6 +46,8 @@ const TYPE_ICON: Record<string, string> = {
   event_reminder: "/brand/3d/icon-clock.png",
   event_soon: "/brand/3d/icon-clock.png",
   application_rejected: "/brand/3d/icon-document.png",
+  subscription_expiring: "/brand/3d/subscription-coins.png",
+  subscription_expired: "/brand/3d/subscription-coins.png",
   review_request: "/brand/3d/icon-badge.png",
   boost_suggestion: "/brand/3d/boost-icon.png",
   new_message: "/brand/3d/empty-chats.png",
@@ -87,7 +89,9 @@ export default function NotificationsPage() {
   }, [filtered]);
 
   function handlePress(item: NotificationItem) {
-    if (item.type === "new_application" && item.linkEventId) {
+    if (item.type === "subscription_expiring" || item.type === "subscription_expired") {
+      router.push("/subscriptions");
+    } else if (item.type === "new_application" && item.linkEventId) {
       router.push(`/events/${item.linkEventId}/applications`);
     } else if (item.linkEventId && item.type !== "new_message") {
       router.push(`/events/${item.linkEventId}`);
