@@ -117,7 +117,8 @@ export async function findChannelContact(handle: string): Promise<string | null>
   });
   if (!res.ok) return null;
   const html = await res.text();
-  const m = html.match(/<div class="tgme_page_description[^"]*">([\s\S]*?)<\/div>/);
+  // <div class="tgme_page_description" dir="auto">…</div> — после class бывают другие атрибуты.
+  const m = html.match(/<div class="tgme_page_description[^"]*"[^>]*>([\s\S]*?)<\/div>/);
   if (!m) return null;
   const desc = m[1] ?? "";
 
