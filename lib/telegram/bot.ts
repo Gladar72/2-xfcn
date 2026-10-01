@@ -29,6 +29,7 @@ import {
   keyboardAfter as outreachKeyboardAfter,
   outreachStatsText,
   runOutreach,
+  sendPartnerReply,
   setOutreachContact,
 } from "@/lib/outreach/assistant";
 import {
@@ -384,6 +385,18 @@ export function getBot(): Bot {
     }
   });
 
+  // /otvet id — готовый ответ контакту (пост + партнёрство) в любой момент.
+  bot.command("otvet", async (ctx) => {
+    if (!ctx.from || !isAdminTelegramId(ctx.from.id)) return;
+    const id = (typeof ctx.match === "string" ? ctx.match : "").trim();
+    if (!id) {
+      await ctx.reply("Формат: /otvet id — id контакта из карточки (или из /ostat).");
+      return;
+    }
+    const ok = await sendPartnerReply(createAdminClient(), ctx.api, ctx.chat?.id ?? ctx.from.id, id);
+    if (!ok) await ctx.reply(`Не нашёл контакт с id «${id}».`);
+  });
+
   bot.command("ostat", async (ctx) => {
     if (!ctx.from || !isAdminTelegramId(ctx.from.id)) return;
     await ctx.reply(await outreachStatsText(createAdminClient()), { parse_mode: "HTML" });
@@ -422,6 +435,12 @@ export function getBot(): Bot {
           link_preview_options: { is_disabled: true },
         })
         .catch(() => {});
+    }
+    // Ответили — сразу присылаем готовый ответ: пост + условия партнёрства.
+    if (action === "rep") {
+      await sendPartnerReply(createAdminClient(), ctx.api, ctx.chat?.id ?? ctx.from.id, id).catch((err) =>
+        console.error("sendPartnerReply failed:", err)
+      );
     }
   });
 
