@@ -152,25 +152,28 @@ export function getBot(): Bot {
       });
       return;
     }
-    if (!campaign.channel_id) {
+    if (!campaign.channel_id && !campaign.open_to_all) {
       await ctx.reply("Подарок ещё готовится — загляни чуть позже 🙏", { reply_markup: openAppKeyboard() });
       return;
     }
 
-    let isSubscriber = false;
-    try {
-      const member = await ctx.api.getChatMember(campaign.channel_id, ctx.from.id);
-      isSubscriber =
-        member.status === "creator" ||
-        member.status === "administrator" ||
-        member.status === "member" ||
-        (member.status === "restricted" && member.is_member);
-    } catch (err) {
-      console.error("gift: getChatMember failed", err);
-      await ctx.reply("Не получилось проверить подписку на канал — попробуй ещё раз через минуту 🙏", {
-        reply_markup: new InlineKeyboard().text("🔄 Проверить ещё раз", `gift_check:${campaign.code}`),
-      });
-      return;
+    // Подарок из рекламы в пабликах — для всех, кто пришёл по ссылке.
+    let isSubscriber = campaign.open_to_all;
+    if (campaign.channel_id && !campaign.open_to_all) {
+      try {
+        const member = await ctx.api.getChatMember(campaign.channel_id, ctx.from.id);
+        isSubscriber =
+          member.status === "creator" ||
+          member.status === "administrator" ||
+          member.status === "member" ||
+          (member.status === "restricted" && member.is_member);
+      } catch (err) {
+        console.error("gift: getChatMember failed", err);
+        await ctx.reply("Не получилось проверить подписку на канал — попробуй ещё раз через минуту 🙏", {
+          reply_markup: new InlineKeyboard().text("🔄 Проверить ещё раз", `gift_check:${campaign.code}`),
+        });
+        return;
+      }
     }
 
     if (!isSubscriber) {
