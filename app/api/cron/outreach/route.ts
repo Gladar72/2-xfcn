@@ -25,7 +25,18 @@ export async function GET(req: NextRequest) {
 
   const api = getBot().api;
   try {
-    const result = await runOutreach(createAdminClient(), api, adminId);
+    const admin = createAdminClient();
+    // Разовые напоминания владельцу (таблица admin_reminders) — до пачки охвата.
+    const { data: due } = await admin
+      .from("admin_reminders")
+      .select("id, text")
+      .is("sent_at", null)
+      .lte("send_at", new Date().toISOString());
+    for (const r of due ?? []) {
+      await api.sendMessage(adminId, `⏰ Напоминание\n\n${r.text}`).catch((err) => console.error("admin reminder failed:", err));
+      await admin.from("admin_reminders").update({ sent_at: new Date().toISOString() }).eq("id", r.id);
+    }
+    const result = await runOutreach(admin, api, adminId);
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
