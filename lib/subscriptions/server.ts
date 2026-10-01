@@ -29,6 +29,9 @@ export async function getActiveSubscriptionInfo(
     .select("id, plan, current_period_start, current_period_end")
     .eq("user_id", userId)
     .eq("status", "active")
+    // Срок вышел, а почасовая проверка (app/api/cron/subscriptions) ещё не
+    // успела выключить подписку — всё равно считаем её закончившейся.
+    .gt("current_period_end", new Date().toISOString())
     .maybeSingle();
 
   if (!subscription) return null;
