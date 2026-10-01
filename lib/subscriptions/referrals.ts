@@ -87,6 +87,62 @@ export async function setPartnerStatus(admin: Admin, partnerId: string, status: 
     .eq("id", partnerId);
 }
 
+/** Сколько дней действует бесплатный Премиум партнёра (продлевается при каждом начислении). */
+export const PARTNER_PREMIUM_DAYS = 365;
+
+/**
+ * Блогерам-партнёрам — бесплатный тариф «Премиум» (самый максимальный).
+ * Если у человека уже есть подписка — тариф поднимается до Премиума, срок
+ * продлевается минимум на PARTNER_PREMIUM_DAYS от сегодня (не сокращается);
+ * если нет — создаётся. Человек ещё не зарегистрирован в приложении —
+ * ничего не делаем: Премиум включится при регистрации (app/api/users).
+ * Возвращает true, если Премиум включён.
+ */
+export async function grantPartnerPremium(admin: Admin, telegramId: number): Promise<boolean> {
+  const { data: user } = await admin.from("users").select("id").eq("telegram_id", telegramId).maybeSingle();
+  if (!user) return false;
+
+  const now = new Date();
+  const minEnd = new Date(now.getTime() + PARTNER_PREMIUM_DAYS * 24 * 60 * 60 * 1000);
+
+  const { data: existing } = await admin
+    .from("subscriptions")
+    .select("id, plan, current_period_end")
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (existing) {
+    const currentEnd = new Date(existing.current_period_end as string);
+    const end = currentEnd > minEnd ? currentEnd : minEnd;
+    await admin
+      .from("subscriptions")
+      .update({ plan: "premium", current_period_end: end.toISOString() })
+      .eq("id", existing.id);
+    return true;
+  }
+
+  const { error } = await admin.from("subscriptions").insert({
+    user_id: user.id,
+    plan: "premium",
+    status: "active",
+    current_period_start: now.toISOString(),
+    current_period_end: minEnd.toISOString(),
+  });
+  return !error;
+}
+
+/** При регистрации в приложении: одобренный партнёр сразу получает Премиум. */
+export async function grantPartnerPremiumIfPartner(admin: Admin, telegramId: number): Promise<boolean> {
+  const { data: partner } = await admin
+    .from("referral_partners")
+    .select("status")
+    .eq("telegram_id", telegramId)
+    .maybeSingle();
+  if (partner?.status !== "approved") return false;
+  return grantPartnerPremium(admin, telegramId);
+}
+
 /**
  * Переход по ссылке /start ref_<code>. Закрепляем человека за партнёром,
  * только если он ещё ни за кем не закреплён (первый переход решает) и это
