@@ -191,6 +191,7 @@ export async function GET(req: NextRequest) {
           .select("user_id, plan")
           .in("user_id", organizerIds)
           .eq("status", "active")
+          .gt("current_period_end", new Date().toISOString())
       : { data: [] as { user_id: string; plan: SubscriptionPlan }[] };
 
     return {
