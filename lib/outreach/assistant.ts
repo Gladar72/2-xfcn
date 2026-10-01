@@ -104,40 +104,105 @@ function whoLine(c: OutreachContact): string {
 
 // ─── Поиск контакта в описании Telegram-канала ─────────────────────────
 
+const SERVICE_PATHS = new Set(["boost", "addstickers", "addemoji", "share", "s", "c", "proxy", "socks", "iv", "setlanguage", "addtheme"]);
+const AD_WORDS = /реклам|сотруднич|по вопросам|по всем вопросам|связь|связаться|предлож|менеджер|админ|размещ|прайс|коммерч|контакт/i;
+
+async function fetchText(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36" },
+      signal: AbortSignal.timeout(8000),
+      cache: "no-store",
+      redirect: "follow",
+    });
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null;
+  }
+}
+
+function decodeEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&nbsp;/g, " ");
+}
+
 /**
- * Открывает публичную страницу t.me/<канал> и ищет в описании, кому писать:
- * сначала @username человека/бота, затем ссылку t.me/... (кроме самого канала).
+ * Все Telegram-контакты во фрагменте HTML/текста: @username, ссылки
+ * t.me/username и приглашения t.me/+… — кроме самого канала и служебных ссылок.
+ */
+function telegramContactsIn(fragment: string, channel: string): string[] {
+  const html = decodeEntities(fragment);
+  const out: string[] = [];
+  const push = (v: string) => {
+    if (v && !out.some((x) => x.toLowerCase() === v.toLowerCase())) out.push(v);
+  };
+  const isSelf = (u: string) => u.toLowerCase() === channel.toLowerCase();
+
+  // Ссылки (href и просто текстом): t.me/xxx, telegram.me/xxx.
+  for (const m of html.matchAll(/(?:https?:\/\/)?(?:t|telegram)\.me\/([^\s"'<>)]+)/gi)) {
+    const raw = (m[1] ?? "").replace(/[.,;!]+$/, "");
+    const path = raw.split(/[/?#]/)[0] ?? "";
+    if (!path || isSelf(path) || SERVICE_PATHS.has(path.toLowerCase())) continue;
+    if (/^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(path)) push(path);
+    else if (path.startsWith("+") || path.toLowerCase() === "joinchat") push(`https://t.me/${raw}`);
+  }
+  // @упоминания в тексте (без e-mail).
+  const text = html.replace(/<[^>]+>/g, " ");
+  for (const m of text.matchAll(/(^|[^A-Za-z0-9_.@])@([A-Za-z][A-Za-z0-9_]{3,31})\b/g)) {
+    const u = m[2] ?? "";
+    if (!isSelf(u)) push(u);
+  }
+  // Упоминания идут первыми — обычно это живой человек/бот для рекламы.
+  return out.sort((a, b) => Number(a.startsWith("http")) - Number(b.startsWith("http")));
+}
+
+/**
+ * Ищет, кому писать про рекламу в Telegram-канале — как это сделал бы человек:
+ *   1. описание канала на t.me/<канал> (@username, t.me-ссылки);
+ *   2. если там только внешняя ссылка (taplink, сайт с прайсом) — открывает её
+ *      и ищет Telegram-контакт на той странице;
+ *   3. если и там пусто — пролистывает последние посты (t.me/s/<канал>) и
+ *      берёт контакт из постов со словами «реклама», «по вопросам», «связь»…
  */
 export async function findChannelContact(handle: string): Promise<string | null> {
   const channel = handle.replace(/^@/, "");
-  const res = await fetch(`https://t.me/${channel}`, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; MestoBot/1.0)" },
-    signal: AbortSignal.timeout(8000),
-    cache: "no-store",
-  });
-  if (!res.ok) return null;
-  const html = await res.text();
-  // <div class="tgme_page_description" dir="auto">…</div> — после class бывают другие атрибуты.
-  const m = html.match(/<div class="tgme_page_description[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-  if (!m) return null;
-  const desc = m[1] ?? "";
 
-  const mentions = Array.from(desc.replace(/<[^>]+>/g, " ").matchAll(/@([A-Za-z][A-Za-z0-9_]{3,31})/g))
-    .map((x) => x[1] ?? "")
-    .filter((u) => u && u.toLowerCase() !== channel.toLowerCase());
-  if (mentions.length > 0) return mentions[0] ?? null;
+  const page = await fetchText(`https://t.me/${channel}`);
+  const desc = page?.match(/<div class="tgme_page_description[^"]*"[^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "";
+  const fromDesc = telegramContactsIn(desc, channel);
+  if (fromDesc.length > 0) return fromDesc[0] ?? null;
 
-  const links = Array.from(desc.matchAll(/href="(https?:\/\/(?:t|telegram)\.me\/[^"]+)"/g))
-    .map((x) => x[1] ?? "")
-    .filter((l) => {
-      const path = l.replace(/^https?:\/\/(?:t|telegram)\.me\//, "").split(/[/?]/)[0] ?? "";
-      return path && path.toLowerCase() !== channel.toLowerCase() && path.toLowerCase() !== "boost";
-    });
-  if (links.length === 0) return null;
-  const first = links[0] ?? "";
-  const path = first.replace(/^https?:\/\/(?:t|telegram)\.me\//, "");
-  // t.me/username → просто username; приглашения (+…, joinchat) — оставляем ссылкой.
-  return /^[A-Za-z][A-Za-z0-9_]{3,31}$/.test(path) ? path : first;
+  // 2. Внешние ссылки из описания (taplink, сайт, прайс).
+  const external = Array.from(decodeEntities(desc).matchAll(/href="(https?:\/\/[^"]+)"/g))
+    .map((m) => m[1] ?? "")
+    .filter((u) => u && !/(?:^https?:\/\/)(?:t|telegram)\.me\//i.test(u) && !/gosuslugi|rkn\.gov|clck\.ru/i.test(u))
+    .slice(0, 2);
+  for (const url of external) {
+    const html = await fetchText(url);
+    if (!html) continue;
+    const found = telegramContactsIn(html, channel);
+    if (found.length > 0) return found[0] ?? null;
+  }
+
+  // 3. Последние посты канала.
+  const feed = await fetchText(`https://t.me/s/${channel}`);
+  if (feed) {
+    const posts = Array.from(feed.matchAll(/<div class="tgme_widget_message_text[^"]*"[^>]*>([\s\S]*?)<\/div>/g)).map((m) => m[1] ?? "");
+    const counts = new Map<string, number>();
+    for (const post of posts) {
+      if (!AD_WORDS.test(post.replace(/<[^>]+>/g, " "))) continue;
+      for (const c of telegramContactsIn(post, channel)) counts.set(c, (counts.get(c) ?? 0) + 1);
+    }
+    const best = Array.from(counts.entries()).sort((a, b) => b[1] - a[1])[0];
+    if (best) return best[0];
+  }
+  return null;
 }
 
 async function resolveMissingContacts(admin: Admin): Promise<{ found: string[]; missing: OutreachContact[] }> {
