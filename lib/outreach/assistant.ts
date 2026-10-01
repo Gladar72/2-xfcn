@@ -1,6 +1,6 @@
 import { InlineKeyboard, type Api } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
-import { firstMessageText, reminderText } from "@/lib/outreach/templates";
+import { firstMessageText, partnerReplyTexts, reminderText } from "@/lib/outreach/templates";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -454,12 +454,12 @@ export async function setOutreachContact(admin: Admin, id: string, contact: stri
 }
 
 export async function outreachStatsText(admin: Admin): Promise<string> {
-  const { data } = await admin.from("outreach_contacts").select("name, platform, status");
-  const rows = (data ?? []) as Pick<OutreachContact, "name" | "platform" | "status">[];
+  const { data } = await admin.from("outreach_contacts").select("id, name, platform, status");
+  const rows = (data ?? []) as Pick<OutreachContact, "id" | "name" | "platform" | "status">[];
   const by = (s: OutreachStatus) => rows.filter((r) => r.status === s);
   const section = (title: string, s: OutreachStatus) => {
     const list = by(s);
-    return list.length ? `\n<b>${title} (${list.length})</b>\n${list.map((r) => `• ${escapeHtml(r.name)}`).join("\n")}` : "";
+    return list.length ? `\n<b>${title} (${list.length})</b>\n${list.map((r) => `• ${escapeHtml(r.name)} <code>${r.id}</code>`).join("\n")}` : "";
   };
   return (
     "📊 <b>Охват — где мы</b>\n" +
@@ -469,6 +469,25 @@ export async function outreachStatsText(admin: Admin): Promise<string> {
     section("💬 Ответили", "replied") +
     section("✅ Написали, ждём", "sent") +
     section("⚠️ Нет контакта", "no_contact") +
-    "\n\nКоманды: /outreach — пачка на сегодня, /oc id @user — указать контакт."
+    "\n\nКоманды: /outreach — пачка на сегодня, /otvet id — готовый ответ (пост + партнёрство), /oc id @user — указать контакт."
   );
+}
+
+/**
+ * Контакт ответил («💬 Ответили») — присылаем два готовых сообщения для
+ * ответа: пост про сервис и условия партнёрства (как ответили Динаре).
+ */
+export async function sendPartnerReply(admin: Admin, api: Api, chatId: number, id: string): Promise<boolean> {
+  const { data } = await admin.from("outreach_contacts").select("*").eq("id", id).maybeSingle();
+  if (!data) return false;
+  const c = data as OutreachContact;
+  const [post, partner] = partnerReplyTexts(c);
+  const opts = { parse_mode: "HTML" as const, link_preview_options: { is_disabled: true } };
+  await api.sendMessage(
+    chatId,
+    `💬 <b>${escapeHtml(c.name)}</b> ответил(а) — вот готовый ответ из двух сообщений. Нажми на текст, чтобы скопировать.\n\n<b>Сообщение 1 — пост</b>\n<pre>${escapeHtml(post)}</pre>`,
+    opts
+  );
+  await api.sendMessage(chatId, `<b>Сообщение 2 — партнёрство</b>\n<pre>${escapeHtml(partner)}</pre>`, opts);
+  return true;
 }
