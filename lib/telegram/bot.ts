@@ -44,6 +44,9 @@ import {
   welcomeText,
 } from "@/lib/gifts/channel-gift";
 
+/** Подарок тем, кто пришёл по личной ссылке партнёра (см. миграцию 0044). */
+const PARTNER_GIFT_CAMPAIGN = "ref";
+
 function getAdminId(): number | null {
   const first = (process.env.ADMIN_TELEGRAM_IDS ?? "").split(",")[0]?.trim();
   const id = Number(first);
@@ -127,9 +130,23 @@ export function getBot(): Bot {
       return;
     }
     if (ctx.from && payload.startsWith(REFERRAL_START_PREFIX)) {
-      await recordReferralStart(createAdminClient(), ctx.from.id, payload.slice(REFERRAL_START_PREFIX.length)).catch((err) =>
-        console.error("recordReferralStart failed:", err)
-      );
+      const admin = createAdminClient();
+      const attributed = await recordReferralStart(admin, ctx.from.id, payload.slice(REFERRAL_START_PREFIX.length)).catch((err) => {
+        console.error("recordReferralStart failed:", err);
+        return false;
+      });
+      // Пришёл по ссылке партнёра (блогера, паблика) впервые — месяц «Старт» в подарок.
+      if (attributed) {
+        try {
+          const campaign = await getGiftCampaign(admin, PARTNER_GIFT_CAMPAIGN);
+          if (campaign?.is_active) {
+            const result = await claimGift(admin, campaign, ctx.from.id);
+            if (result.kind !== "already") await ctx.reply(welcomeText(campaign, result));
+          }
+        } catch (err) {
+          console.error("partner gift failed:", err);
+        }
+      }
     }
     const isAdmin = isAdminTelegramId(ctx.from?.id ?? 0);
     await ctx.reply("Отлично, теперь запустим наше МЕСТО! 🚀🧡", {
