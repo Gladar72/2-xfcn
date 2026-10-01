@@ -16,6 +16,8 @@ export interface GiftCampaign {
   channel_username: string | null;
   /** Приветственный «кружок» — публикуется перед постом-подарком. */
   video_note_file_id: string | null;
+  /** true — подарок для всех по ссылке (реклама в пабликах, ВК), без проверки подписки на канал. */
+  open_to_all: boolean;
   plan: Plan;
   days: number;
   is_active: boolean;
@@ -30,7 +32,7 @@ export function planTitle(plan: Plan): string {
 export async function getGiftCampaign(admin: Admin, code: string): Promise<GiftCampaign | null> {
   const { data } = await admin
     .from("gift_campaigns")
-    .select("code, title, channel_id, channel_title, channel_username, video_note_file_id, plan, days, is_active")
+    .select("code, title, channel_id, channel_title, channel_username, video_note_file_id, open_to_all, plan, days, is_active")
     .eq("code", code)
     .maybeSingle();
   if (!data) return null;
@@ -182,10 +184,15 @@ export function welcomeText(campaign: GiftCampaign, result: ClaimResult): string
     `Кино, кофе, тренировка, прогулка, вечеринка — выбираешь встречу рядом, жмёшь «Я иду» и идёшь в компании. ` +
     `Или создаёшь свою — и к тебе присоединяются.\n\n`;
 
+  // Подарок из рекламы (open_to_all) — без «от создателей …»: канал-рекламодатель не автор подарка.
+  const giftLine = campaign.open_to_all
+    ? `🎁 Держи подарок — подписка «${planTitle(campaign.plan)}» на месяц бесплатно.`
+    : `🎁 Держи твой подарок — бесплатная подписка «${planTitle(campaign.plan)}» на месяц от создателей «${campaign.title}».`;
+
   if (result.kind === "granted") {
     return (
       intro +
-      `🎁 Держи твой подарок — бесплатная подписка «${planTitle(campaign.plan)}» на месяц от создателей «${campaign.title}».\n` +
+      `${giftLine}\n` +
       `Уже включена ✅ — действует до ${formatUntil(result.until)}.\n\n` +
       `Открывай и находи компанию 👇`
     );
@@ -193,10 +200,12 @@ export function welcomeText(campaign: GiftCampaign, result: ClaimResult): string
   if (result.kind === "pending") {
     return (
       intro +
-      `🎁 Держи твой подарок — бесплатная подписка «${planTitle(campaign.plan)}» на месяц от создателей «${campaign.title}».\n` +
+      `${giftLine}\n` +
       `Она уже закреплена за тобой: открой приложение и заполни короткую анкету — подписка включится сразу после регистрации ✅\n\n` +
       `Жми кнопку 👇`
     );
   }
-  return `Подарок от «${campaign.title}» уже у тебя 🙂 Открывай приложение и находи компанию 👇`;
+  return campaign.open_to_all
+    ? "Подарок уже у тебя 🙂 Открывай приложение и находи компанию 👇"
+    : `Подарок от «${campaign.title}» уже у тебя 🙂 Открывай приложение и находи компанию 👇`;
 }
