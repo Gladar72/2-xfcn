@@ -20,6 +20,7 @@ import {
   savePayoutDetails,
   setAwaitingPayoutDetails,
   setPartnerStatus,
+  grantPartnerPremium,
   type ReferralPartner,
 } from "@/lib/subscriptions/referrals";
 import {
@@ -702,8 +703,14 @@ export function getBot(): Bot {
 
     if (status === "approved") {
       const link = referralLink(ctx.me.username, partner.code);
+      // Партнёрам-блогерам — бесплатный Премиум (если уже зарегистрированы в
+      // приложении; иначе включится при регистрации).
+      const premiumOn = await grantPartnerPremium(admin, Number(partner.telegram_id)).catch(() => false);
+      const premiumLine = premiumOn
+        ? "🎁 Тебе включён бесплатный тариф «Премиум» — все функции приложения без ограничений."
+        : "🎁 Тебе положен бесплатный тариф «Премиум» — он включится сразу, как зарегистрируешься в приложении.";
       await ctx.api
-        .sendMessage(Number(partner.telegram_id), `🎉 Заявка одобрена! Добро пожаловать в партнёры МЕСТО.\n\n${PROJECT_BRIEF}\n\n${PARTNER_TERMS}\n\n${approvedPartnerText(link)}`, {
+        .sendMessage(Number(partner.telegram_id), `🎉 Заявка одобрена! Добро пожаловать в партнёры МЕСТО.\n\n${premiumLine}\n\n${PROJECT_BRIEF}\n\n${PARTNER_TERMS}\n\n${approvedPartnerText(link)}`, {
           reply_markup: partnerMenuKeyboard(link),
           link_preview_options: { is_disabled: true },
         })
