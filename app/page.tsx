@@ -61,6 +61,15 @@ function EntryPageInner() {
               ? `/${goto}`
               : "/feed";
         } else if (res.ok && data.status === "needs_registration") {
+          // Пришёл по ссылке на встречу — после анкеты вернём его на эту встречу.
+          const pendingEvent = goto?.match(/^event_([0-9a-f-]{36})$/);
+          if (pendingEvent) {
+            try {
+              sessionStorage.setItem("mesto_after_onboarding", `/events/${pendingEvent[1]}`);
+            } catch {
+              /* хранилище недоступно — просто попадёт в ленту */
+            }
+          }
           window.location.href = "/onboarding";
         } else {
           setStatus("error");
