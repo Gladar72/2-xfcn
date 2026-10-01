@@ -5,6 +5,7 @@ import { describeValidationError } from "@/lib/validation/describe-error";
 import { issueSessionToken, SESSION_COOKIE } from "@/lib/telegram/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { applyPendingGifts } from "@/lib/gifts/channel-gift";
+import { grantPartnerPremiumIfPartner } from "@/lib/subscriptions/referrals";
 import { uploadAvatar } from "@/lib/photos/upload-avatar";
 
 /**
@@ -112,6 +113,10 @@ export async function POST(req: NextRequest) {
   // включаем сразу после создания профиля. Ошибка подарка не мешает регистрации.
   await applyPendingGifts(admin, telegramUser.id, userId).catch((err) =>
     console.error("POST /api/users — не удалось включить подарок:", err)
+  );
+  // Одобренный партнёр-блогер — сразу бесплатный Премиум.
+  await grantPartnerPremiumIfPartner(admin, telegramUser.id).catch((err) =>
+    console.error("POST /api/users — не удалось включить Премиум партнёру:", err)
   );
 
   const sessionToken = issueSessionToken(userId, telegramUser.id);
