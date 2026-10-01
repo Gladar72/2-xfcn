@@ -21,6 +21,10 @@ export function buildNotificationText(type: string, eventTitle: string | undefin
       return `Оцени, как прошла ${title}`;
     case "boost_suggestion":
       return `Мало откликов на ${title} — можно поднять её в ленте`;
+    case "subscription_expiring":
+      return "Подписка скоро закончится — продли, чтобы не потерять доступ";
+    case "subscription_expired":
+      return "Подписка закончилась — продли её в разделе «Подписка»";
     case "new_message":
       return "Новое сообщение в чате";
     default:
