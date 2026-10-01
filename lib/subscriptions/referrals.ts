@@ -205,7 +205,7 @@ export async function recordReferralCommission(
 
     await notify?.(
       Number(partner.telegram_id),
-      `💰 Новая оплата по вашей ссылке!\nНачислено: +${formatMoney(commission, params.currency)} (30% от ${formatMoney(
+      `💰 Новая оплата по твоей ссылке!\nНачислено: +${formatMoney(commission, params.currency)} (30% от ${formatMoney(
         params.amount,
         params.currency
       )}).`
