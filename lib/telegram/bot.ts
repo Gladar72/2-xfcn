@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { activateSubscription } from "@/lib/subscriptions/server";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import { handleRsvpAnswer } from "@/lib/telegram/event-reminders";
+import { EVENT_START_PREFIX, buildEventCard } from "@/lib/telegram/event-card";
 import type { Plan } from "@/lib/subscriptions/limits";
 import {
   REFERRAL_START_PREFIX,
@@ -125,6 +126,11 @@ export function getBot(): Bot {
     // Переход по партнёрской ссылке t.me/<bot>?start=ref_<code> —
     // закрепляем человека за блогером (первый переход решает).
     const payload = typeof ctx.match === "string" ? ctx.match.trim() : "";
+    // Ссылка на встречу t.me/<bot>?start=e_<id> — карточка встречи с кнопкой «Открыть».
+    if (ctx.from && payload.startsWith(EVENT_START_PREFIX)) {
+      await sendEventCard(ctx, payload.slice(EVENT_START_PREFIX.length));
+      return;
+    }
     // Кнопка «🎁 Забрать подписку» из поста в канале.
     if (ctx.from && payload.startsWith(GIFT_START_PREFIX)) {
       await handleGiftClaim(ctx, payload.slice(GIFT_START_PREFIX.length));
@@ -155,6 +161,25 @@ export function getBot(): Bot {
     });
     await ctx.reply("Кнопки закреплены внизу 👇", { reply_markup: pinnedKeyboard(isAdmin) });
   });
+
+  async function sendEventCard(ctx: Context, eventId: string) {
+    const card = await buildEventCard(createAdminClient(), eventId).catch((err) => {
+      console.error("buildEventCard failed:", err);
+      return { ok: false, text: "Не получилось загрузить встречу 🙏 Попробуй ещё раз чуть позже.", photoUrl: null };
+    });
+    const kb = card.ok
+      ? new InlineKeyboard().webApp("🙌 Открыть встречу", `${validatedAppUrl}?goto=event_${eventId}`)
+      : openAppKeyboard();
+    if (card.photoUrl) {
+      try {
+        await ctx.replyWithPhoto(card.photoUrl, { caption: card.text, parse_mode: "HTML", reply_markup: kb });
+        return;
+      } catch (err) {
+        console.error("event card photo failed:", err);
+      }
+    }
+    await ctx.reply(card.text, { parse_mode: "HTML", reply_markup: kb, link_preview_options: { is_disabled: true } });
+  }
 
   // ── Подарок подписчикам канала («Двор» и т.п.) ───────────────────────
   // Бот не может сам написать тому, кто его не запускал, поэтому подарок
