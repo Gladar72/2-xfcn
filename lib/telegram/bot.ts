@@ -24,6 +24,14 @@ import {
   type ReferralPartner,
 } from "@/lib/subscriptions/referrals";
 import {
+  applyOutreachAction,
+  escapeHtml as escapeOutreachHtml,
+  keyboardAfter as outreachKeyboardAfter,
+  outreachStatsText,
+  runOutreach,
+  setOutreachContact,
+} from "@/lib/outreach/assistant";
+import {
   DEFAULT_GIFT_CAMPAIGN,
   GIFT_START_PREFIX,
   bindGiftChannel,
@@ -341,6 +349,60 @@ export function getBot(): Bot {
   bot.command("admin", async (ctx) => {
     if (!isAdminTelegramId(ctx.from?.id ?? 0)) return;
     await ctx.reply("Админ-панель:", { reply_markup: adminPanelKeyboard() });
+  });
+
+  // ─── Помощник по охвату (только админ) ────────────────────────────────
+  // Утренняя пачка приходит сама (cron /api/cron/outreach). /outreach —
+  // показать пачку сейчас, /ostat — где мы, /oc id @user — указать контакт.
+  bot.command("outreach", async (ctx) => {
+    if (!ctx.from || !isAdminTelegramId(ctx.from.id)) return;
+    try {
+      await runOutreach(createAdminClient(), ctx.api, ctx.chat?.id ?? ctx.from.id, { force: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      await ctx.reply(`⚠️ Не получилось собрать пачку: ${message}`);
+    }
+  });
+
+  bot.command("ostat", async (ctx) => {
+    if (!ctx.from || !isAdminTelegramId(ctx.from.id)) return;
+    await ctx.reply(await outreachStatsText(createAdminClient()), { parse_mode: "HTML" });
+  });
+
+  bot.command("oc", async (ctx) => {
+    if (!ctx.from || !isAdminTelegramId(ctx.from.id)) return;
+    const [id, contact] = (typeof ctx.match === "string" ? ctx.match : "").trim().split(/\s+/);
+    if (!id || !contact) {
+      await ctx.reply("Формат: /oc id @username (или ссылка). id — из списка «Не нашёл, кому писать».");
+      return;
+    }
+    const ok = await setOutreachContact(createAdminClient(), id, contact);
+    await ctx.reply(ok ? `✅ Контакт сохранён: ${contact}. Попадёт в одну из следующих пачек.` : `Не нашёл контакт с id «${id}».`);
+  });
+
+  bot.callbackQuery(/^out:(sent|skip|rem|rep|deal|live|no):(.+)$/, async (ctx) => {
+    if (!isAdminTelegramId(ctx.from.id)) {
+      await ctx.answerCallbackQuery({ text: "Нет доступа" });
+      return;
+    }
+    const match = ctx.match as RegExpMatchArray;
+    const action = match[1] ?? "";
+    const id = match[2] ?? "";
+    const result = await applyOutreachAction(createAdminClient(), action, id);
+    await ctx.answerCallbackQuery({ text: result.label });
+    if (!result.ok) return;
+    const msg = ctx.callbackQuery.message;
+    if (msg && "text" in msg) {
+      // Сворачиваем карточку: оставляем шапку без длинного текста + статус.
+      const head = (msg.text ?? "").split("\n\n")[0] ?? "";
+      await ctx
+        .editMessageText(`${escapeOutreachHtml(head)}\n\n<b>${escapeOutreachHtml(result.label)}</b>`, {
+          parse_mode: "HTML",
+          reply_markup: result.status ? outreachKeyboardAfter({ id }, result.status) : undefined,
+          link_preview_options: { is_disabled: true },
+        })
+        .catch(() => {});
+    }
   });
 
   bot.command("app", async (ctx) => {
