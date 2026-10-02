@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createMap, type MapLibreMap } from "@/lib/maps/load-maplibre";
+import { openRoute as openRouteTo } from "@/lib/maps/route";
 
 interface EventPlaceMapProps {
   latitude: number;
@@ -55,12 +56,8 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
     };
   }, [latitude, longitude, markerSrc]);
 
-  const routeUrl = `https://yandex.ru/maps/?rtext=~${latitude},${longitude}&rtt=auto`;
-
   function openRoute() {
-    const tg = (window as unknown as { Telegram?: { WebApp?: { openLink?: (u: string) => void } } }).Telegram?.WebApp;
-    if (tg?.openLink) tg.openLink(routeUrl);
-    else window.open(routeUrl, "_blank", "noopener");
+    openRouteTo(latitude, longitude);
   }
 
   return (
