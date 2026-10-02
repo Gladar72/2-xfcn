@@ -53,7 +53,8 @@ export async function GET(req: NextRequest) {
       organizer:users(birth_date, gender)
       `
     )
-    .eq("status", "published")
+    // Заполненные встречи (status = closed) тоже остаются в ленте — с пометкой «Мест нет».
+    .in("status", ["published", "closed"])
     .eq("city", city)
     .gte("event_date", todayIso)
     .not("latitude", "is", null)
