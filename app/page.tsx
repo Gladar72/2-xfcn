@@ -85,37 +85,79 @@ function EntryPageInner() {
   return <SplashScreen status={status} />;
 }
 
+/** Предметы вокруг маскота: картинка, позиция в % от сцены, размер, задержка «парения». */
+const SPLASH_PROPS = [
+  { src: "/brand/3d/coffee.png", left: "4%", top: "0%", size: 92, delay: "0s", tilt: -8 },
+  { src: "/brand/3d/workout.png", left: "68%", top: "6%", size: 96, delay: "0.6s", tilt: 10 },
+  { src: "/brand/3d/movie.png", left: "-2%", top: "54%", size: 84, delay: "1.1s", tilt: -10 },
+  { src: "/brand/3d/walk.png", left: "72%", top: "60%", size: 88, delay: "0.3s", tilt: 8 },
+];
+
 function SplashScreen({ status }: { status: "loading" | "no_telegram" | "error" }) {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-8 text-center">
-      <div className="relative h-[180px] w-[180px]">
-        <Image src="/brand/logo/mesto-mascot.png" alt="МЕСТО" fill className="object-contain" priority />
+    <div
+      className="flex min-h-[100dvh] flex-col items-center justify-center px-6 pb-10 pt-6 text-center"
+      style={{ background: "radial-gradient(120% 70% at 50% 40%, #FFFFFF 0%, #F6F2FF 60%, #F1ECFF 100%)" }}
+    >
+      {/* Сцена: маскот в центре, вокруг парят кофе, гантеля, кино и кроссовок */}
+      <div className="relative h-[330px] w-[340px] max-w-full">
+        {SPLASH_PROPS.map((p) => (
+          <div
+            key={p.src}
+            className="splash-float absolute"
+            style={{ left: p.left, top: p.top, width: p.size, height: p.size, animationDelay: p.delay }}
+            aria-hidden
+          >
+            <Image
+              src={p.src}
+              alt=""
+              fill
+              sizes="100px"
+              priority
+              className="object-contain drop-shadow-[0_10px_14px_rgba(108,59,255,0.18)]"
+              style={{ transform: `rotate(${p.tilt}deg)` }}
+            />
+          </div>
+        ))}
+        <div className="absolute left-1/2 top-[24%] h-[240px] w-[230px] -translate-x-1/2">
+          <Image
+            src="/brand/logo/mesto-mascot.png"
+            alt="МЕСТО"
+            fill
+            sizes="240px"
+            priority
+            className="splash-wave object-contain drop-shadow-[0_16px_22px_rgba(76,40,180,0.22)]"
+          />
+        </div>
       </div>
 
+      <h1 className="mt-10 text-[56px] font-black leading-none tracking-tight text-[#20102F]">МЕСТО</h1>
+      <p className="mt-3 text-xl leading-snug text-[#20102F]">
+        Когда есть куда пойти,
+        <br />
+        но не с кем.
+      </p>
+
       {status === "loading" && (
-        <>
-          <div className="h-1.5 w-48 overflow-hidden rounded-pill bg-lavender-100">
-            <div className="splash-progress-bar h-full rounded-pill bg-brand-gradient" />
-          </div>
-          <span className="relative block h-[29px] w-[220px]">
-            <Image
-              src="/brand/logo/mesto-tagline.svg"
-              alt="Когда есть куда пойти, но не с кем"
-              fill
-              className="object-contain"
+        <div className="mt-14 flex items-center gap-3" role="status" aria-label="Загрузка">
+          {[0, 1, 2].map((i) => (
+            <span
+              key={i}
+              className="splash-dot h-3 w-3 rounded-full bg-accent"
+              style={{ animationDelay: `${i * 0.18}s` }}
             />
-          </span>
-        </>
+          ))}
+        </div>
       )}
 
       {status === "no_telegram" && (
-        <p className="max-w-[280px] text-sm text-ink-600">
+        <p className="mt-10 max-w-[280px] text-sm text-ink-600">
           Это приложение открывается только внутри Telegram. Открой его через кнопку в боте.
         </p>
       )}
 
       {status === "error" && (
-        <p className="max-w-[280px] text-sm text-ink-600">
+        <p className="mt-10 max-w-[280px] text-sm text-ink-600">
           Что-то пошло не так. Попробуй закрыть и открыть приложение снова.
         </p>
       )}
