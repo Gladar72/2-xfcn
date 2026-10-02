@@ -55,8 +55,12 @@ function EntryPageInner() {
           const allowedGotoPaths = new Set(["subscriptions", "admin"]);
           // Кнопка «Открыть встречу» под напоминанием в боте: ?goto=event_<id>.
           const eventMatch = goto?.match(/^event_([0-9a-f-]{36})$/);
+          // Кнопка «Открыть чат» под уведомлением о сообщении: ?goto=chat_<id>.
+          const chatMatch = goto?.match(/^chat_([0-9a-f-]{36})$/);
           window.location.href = eventMatch
             ? `/events/${eventMatch[1]}`
+            : chatMatch
+              ? `/chats/${chatMatch[1]}`
             : goto && allowedGotoPaths.has(goto)
               ? `/${goto}`
               : "/feed";
