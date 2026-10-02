@@ -165,81 +165,87 @@ export default function ProfilePage() {
     // реальная высота нижнего меню. Ничего не скроллится; на низких экранах
     // (iPhone SE и т.п.) элементы ужимаются через max-height-медиазапросы.
     <div
-      className="relative flex flex-col gap-3 overflow-hidden px-4 pb-3 pt-3 [@media(max-height:680px)]:gap-2"
+      className="relative flex flex-col gap-3 overflow-y-auto px-4 pb-3 pt-3 [@media(max-height:680px)]:gap-2"
       style={{
         height: viewportHeight && !editing ? `${viewportHeight - navHeight}px` : `calc(100dvh - ${navHeight}px)`,
       }}
     >
-      <Link
-        href="/settings"
-        aria-label="Настройки"
-        className="absolute right-4 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/60 backdrop-blur"
-      >
-        <Image src="/brand/icons/settings.svg" alt="" width={20} height={20} />
-      </Link>
-
-      {/* Шапка: аватар, имя, город/рейтинг, bio, кнопка — занимает всё свободное место и центрируется */}
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center text-center">
-        <div className="relative mb-3 [@media(max-height:680px)]:mb-2">
-          <div className="absolute inset-0 -z-10 scale-110 rounded-full bg-white/50 blur-xl" aria-hidden />
-          {profile.avatarUrl ? (
-            <AvatarViewer src={profile.avatarUrl} alt={profile.name}>
-              <div className="h-[104px] w-[104px] overflow-hidden rounded-full bg-white ring-4 ring-white/80 shadow-card [@media(max-height:680px)]:h-[76px] [@media(max-height:680px)]:w-[76px]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photoThumb(profile.avatarUrl, 128)} alt={profile.name} className="h-full w-full object-cover" />
-              </div>
-            </AvatarViewer>
-          ) : (
-            <div className="flex h-[104px] w-[104px] items-center justify-center rounded-full bg-white text-3xl font-semibold text-ink-600 ring-4 ring-white/80 shadow-card [@media(max-height:680px)]:h-[76px] [@media(max-height:680px)]:w-[76px]">
-              {profile.name.charAt(0).toUpperCase()}
-            </div>
-          )}
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={uploadingPhoto}
-            className="absolute -bottom-0.5 -right-0.5 flex h-9 w-9 items-center justify-center rounded-full bg-brand-gradient text-sm text-white ring-[3px] ring-white shadow-card active:scale-95 disabled:opacity-70"
-            aria-label="Изменить фото"
-          >
-            {uploadingPhoto ? "…" : <Image src="/brand/3d/icon-edit.png" alt="" width={20} height={20} />}
-          </button>
-          <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelected} />
-        </div>
-
-        <h1 className="max-w-full truncate px-10 text-2xl font-bold leading-tight text-ink-900 [@media(max-height:680px)]:text-title">
-          {profile.name}, {profile.age}
-        </h1>
-
-        <p className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5 text-sm text-ink-600">
-          <span className="flex items-center gap-1">
-            <Image src="/brand/3d/icon-location.png" alt="" width={16} height={16} />
-            {profile.city}
-          </span>
-          {profile.ratingCount > 0 && (
-            <span className="flex items-center gap-1">
-              <RatingStar size={16} />
-              {profile.ratingAvg.toFixed(1)}
-              <span className="text-ink-400">
-                ({profile.ratingCount} {pluralize(profile.ratingCount, "оценка", "оценки", "оценок")})
-              </span>
-            </span>
-          )}
-        </p>
-
-        {profile.bio && (
-          <p className="mt-2 line-clamp-2 max-w-[300px] text-sm leading-snug text-ink-900 [@media(max-height:680px)]:line-clamp-1">
-            {profile.bio}
-          </p>
-        )}
-
-        {uploadError && <p className="mt-1.5 text-sm text-red-600">{uploadError}</p>}
-
-        <button
-          onClick={() => setEditing(true)}
-          className="mt-3 rounded-pill bg-white/70 px-8 py-2.5 text-sm font-semibold text-accent shadow-card backdrop-blur active:scale-[0.98] [@media(max-height:680px)]:mt-2 [@media(max-height:680px)]:py-2"
+      {/* Заголовок экрана и настройки */}
+      <div className="flex shrink-0 items-center justify-between pt-1">
+        <h1 className="text-display text-ink-900">Профиль</h1>
+        <Link
+          href="/settings"
+          aria-label="Настройки"
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-ink-900/[0.05] active:scale-95"
         >
-          Редактировать профиль
-        </button>
+          <Image src="/brand/icons/settings.svg" alt="" width={22} height={22} />
+        </Link>
       </div>
+
+      {/* Карточка профиля: фото слева, имя/город/рейтинг/о себе, маскот справа */}
+      <div className="relative shrink-0 overflow-hidden rounded-[28px] bg-white px-4 py-5 shadow-card [@media(max-height:680px)]:py-3.5">
+        <Image
+          src="/brand/logo/mesto-mascot.png"
+          alt=""
+          width={120}
+          height={115}
+          unoptimized
+          aria-hidden
+          className="pointer-events-none absolute -bottom-3 -right-2 h-[110px] w-auto object-contain [@media(max-height:680px)]:h-[84px]"
+        />
+        <div className="relative flex items-center gap-4 pr-16">
+          <div className="shrink-0">
+            {profile.avatarUrl ? (
+              <AvatarViewer src={profile.avatarUrl} alt={profile.name}>
+                <div className="h-[104px] w-[104px] overflow-hidden rounded-full bg-lavender-100 [@media(max-height:680px)]:h-[80px] [@media(max-height:680px)]:w-[80px]">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={photoThumb(profile.avatarUrl, 128)} alt={profile.name} className="h-full w-full object-cover" />
+                </div>
+              </AvatarViewer>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Добавить фото"
+                className="flex h-[104px] w-[104px] items-center justify-center rounded-full bg-lavender-100 text-3xl font-semibold text-ink-600 [@media(max-height:680px)]:h-[80px] [@media(max-height:680px)]:w-[80px]"
+              >
+                {profile.name.charAt(0).toUpperCase()}
+              </button>
+            )}
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelected} />
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-title font-extrabold text-ink-900">
+              {profile.name}, {profile.age}
+            </h2>
+            <p className="mt-1.5 flex items-center gap-1.5 text-sm text-ink-600">
+              <Image src="/brand/3d/icon-location.png" alt="" width={18} height={18} className="shrink-0" />
+              <span className="truncate">{profile.city}</span>
+            </p>
+            {profile.ratingCount > 0 && (
+              <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-600">
+                <RatingStar size={18} />
+                {profile.ratingAvg.toFixed(1).replace(".", ",")} · {profile.ratingCount}{" "}
+                {pluralize(profile.ratingCount, "оценка", "оценки", "оценок")}
+              </p>
+            )}
+            {profile.bio && (
+              <p className="mt-2 line-clamp-2 text-sm leading-snug text-ink-900 [@media(max-height:680px)]:line-clamp-1">
+                {profile.bio}
+              </p>
+            )}
+            {uploadingPhoto && <p className="mt-1 text-xs text-ink-400">Загружаем фото…</p>}
+            {uploadError && <p className="mt-1 text-xs text-red-600">{uploadError}</p>}
+          </div>
+        </div>
+      </div>
+
+      <button
+        onClick={() => setEditing(true)}
+        className="shrink-0 rounded-[22px] bg-lavender-100 py-4 text-base font-bold text-accent active:scale-[0.99] [@media(max-height:680px)]:py-3"
+      >
+        Редактировать профиль
+      </button>
 
       {/* Статистика */}
       <div className="grid shrink-0 grid-cols-3 gap-2.5">
@@ -258,7 +264,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Мои разделы */}
-      <div className="shrink-0 rounded-[26px] bg-white/85 px-4 py-1.5 shadow-card backdrop-blur">
+      <div className="shrink-0 rounded-[28px] bg-white px-4 py-1 shadow-card">
         <MenuRow href="/my-events" icon="/brand/3d/icon-calendar.png" label="Мои встречи" />
         <MenuRow href="/notifications" icon="/brand/3d/icon-bell.png" label="Уведомления" />
         <MenuRow
@@ -266,6 +272,7 @@ export default function ProfilePage() {
           icon="/brand/3d/icon-gift.png"
           label="Подписка"
           value={subscription?.active ? PLAN_TITLES[subscription.plan!] : "не оформлена"}
+          badge={!!subscription?.active}
         />
         <MenuRow href="/reviews" icon="/brand/3d/icon-badge.png" label="Отзывы после встреч" last />
       </div>
@@ -281,6 +288,14 @@ export default function ProfilePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="pb-1 text-center text-title text-ink-900">Редактировать профиль</h2>
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingPhoto}
+              className="flex w-full items-center justify-center gap-2 rounded-card bg-lavender-50 py-2.5 text-sm font-medium text-accent disabled:opacity-60"
+            >
+              <Image src="/brand/3d/icon-camera.png" alt="" width={20} height={20} />
+              {uploadingPhoto ? "Загружаем фото…" : "Изменить фото"}
+            </button>
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
@@ -334,7 +349,7 @@ function StatCard({
   tileClass?: string;
 }) {
   return (
-    <div className="relative min-w-0 rounded-[22px] bg-white/80 px-3 py-2.5 shadow-card backdrop-blur [@media(max-height:680px)]:py-2">
+    <div className="relative min-w-0 rounded-[22px] bg-white px-3 py-3 shadow-card [@media(max-height:680px)]:py-2">
       <div
         className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-[10px] ${tileClass}`}
         aria-hidden
@@ -377,12 +392,15 @@ function MenuRow({
   icon,
   label,
   value,
+  badge = false,
   last = false,
 }: {
   href: string;
   icon: string;
   label: string;
   value?: string;
+  /** Показать значение плашкой (как тариф подписки), а не серым текстом. */
+  badge?: boolean;
   last?: boolean;
 }) {
   return (
@@ -392,13 +410,18 @@ function MenuRow({
         alt=""
         width={40}
         height={40}
-        className="h-10 w-10 shrink-0 object-contain [@media(max-height:680px)]:h-8 [@media(max-height:680px)]:w-8"
+        className="h-12 w-12 shrink-0 object-contain [@media(max-height:680px)]:h-9 [@media(max-height:680px)]:w-9"
       />
       <div
         className={`flex min-w-0 flex-1 items-center gap-2 py-3.5 [@media(max-height:680px)]:py-2.5 ${last ? "" : "border-b border-lavender-100"}`}
       >
         <span className="flex-1 truncate text-base text-ink-900">{label}</span>
-        {value && <span className="shrink-0 text-sm text-ink-400">{value}</span>}
+        {value &&
+          (badge ? (
+            <span className="shrink-0 rounded-full bg-lavender-100 px-4 py-1.5 text-sm font-semibold text-accent">{value}</span>
+          ) : (
+            <span className="shrink-0 text-sm text-ink-400">{value}</span>
+          ))}
         <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden className="shrink-0 text-ink-400">
           <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
