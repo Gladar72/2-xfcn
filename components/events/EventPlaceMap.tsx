@@ -29,7 +29,7 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
     let cancelled = false;
     const container = containerRef.current;
     if (!container) return;
-    createMap(container, { center: [longitude, latitude], zoom: 15.5, style: "positron" })
+    createMap(container, { center: [longitude, latitude], zoom: 15.5, style: "positron", ownAttribution: true })
       .then(({ maplibregl, map: created }) => {
         if (cancelled) {
           created.remove();
@@ -69,7 +69,8 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
       onClick={openRoute}
       aria-label={`Маршрут до места встречи${placeName ? `: ${placeName}` : ""}`}
       className="relative block w-full overflow-hidden text-left"
-      style={{ aspectRatio: "1.4", borderRadius: "var(--m-radius)", background: "#F1EAFF" }}
+      // isolation — всё, что рисует карта, остаётся «под» карточкой организатора.
+      style={{ aspectRatio: "1.4", borderRadius: "var(--m-radius)", background: "#F1EAFF", isolation: "isolate", zIndex: 0 }}
     >
       {/* Заглушка под картой — видна, пока тайлы грузятся или если карта не загрузилась. */}
       {(!ready || failed) && (
@@ -89,6 +90,11 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
       >
         <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
       </div>
+      {/* Атрибуция данных карты (лицензия OpenStreetMap) — мелко в верхнем левом углу,
+          чтобы не наезжать на карточку организатора внизу. */}
+      <span className="absolute left-3 top-3 rounded bg-white/70 px-1.5 py-0.5 text-[9px] leading-none text-ink-600">
+        © OpenStreetMap
+      </span>
       <span className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink-900 shadow-card">
         Маршрут ↗
       </span>
