@@ -37,6 +37,9 @@ export function OnboardingWizard() {
   const [error, setError] = useState<string | null>(null);
 
   const [photoBase64, setPhotoBase64] = useState<string | undefined>();
+  // Фото подставлено из Telegram автоматически (а не выбрано вручную).
+  const [photoFromTelegram, setPhotoFromTelegram] = useState(false);
+  const [photoLoading, setPhotoLoading] = useState(false);
   const [name, setName] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [gender, setGender] = useState<"male" | "female" | null>(null);
@@ -44,6 +47,35 @@ export function OnboardingWizard() {
   const [bio, setBio] = useState("");
   const [selectedInterestIds, setSelectedInterestIds] = useState<string[]>([]);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  // Аватарка из Telegram: если она есть — сразу показываем на шаге «Фото»,
+  // человек может заменить её своей. Если нет (или скрыта приватностью) —
+  // как раньше, загружает сам.
+  useEffect(() => {
+    const initData = getInitData();
+    if (!initData) return;
+    let cancelled = false;
+    setPhotoLoading(true);
+    fetch("/api/telegram/profile-photo", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ initData }),
+    })
+      .then((r) => r.json())
+      .then((data: { photo?: string | null }) => {
+        if (cancelled || !data.photo) return;
+        setPhotoBase64((current) => {
+          if (current) return current; // уже выбрал своё — не перетираем
+          setPhotoFromTelegram(true);
+          return data.photo ?? undefined;
+        });
+      })
+      .catch(() => {})
+      .finally(() => !cancelled && setPhotoLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     fetch("/api/interests")
@@ -92,7 +124,10 @@ export function OnboardingWizard() {
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    resizeImageFile(file, 1600, 0.82).then(setPhotoBase64);
+    resizeImageFile(file, 1600, 0.82).then((dataUrl) => {
+      setPhotoBase64(dataUrl);
+      setPhotoFromTelegram(false);
+    });
   }
 
   async function handleSubmit() {
@@ -185,11 +220,22 @@ export function OnboardingWizard() {
 
       <div className="flex flex-1 flex-col justify-center gap-6 py-10">
         {step === "photo" && (
-          <StepBlock title="Добавь фото" subtitle="Можно пропустить и добавить позже, в профиле.">
+          <StepBlock
+            title={photoFromTelegram ? "Твоё фото" : "Добавь фото"}
+            subtitle={
+              photoFromTelegram
+                ? "Взяли аватарку из Telegram. Нажми на фото, чтобы выбрать другое."
+                : photoLoading
+                  ? "Ищем твою аватарку в Telegram…"
+                  : "Можно пропустить и добавить позже, в профиле."
+            }
+          >
             <label className="flex aspect-square w-40 mx-auto items-center justify-center overflow-hidden rounded-full bg-white shadow-card">
               {photoBase64 ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={photoBase64} alt="Фото профиля" className="h-full w-full object-cover" />
+              ) : photoLoading ? (
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-lavender-100 border-t-accent" />
               ) : (
                 <Image src="/brand/3d/icon-camera.png" alt="" width={44} height={44} />
               )}
