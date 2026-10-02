@@ -15,7 +15,12 @@
 const MAPLIBRE_VERSION = "4.7.1";
 const MAPLIBRE_JS = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.js`;
 const MAPLIBRE_CSS = `https://unpkg.com/maplibre-gl@${MAPLIBRE_VERSION}/dist/maplibre-gl.css`;
-const MAP_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+const MAP_STYLE_URLS = {
+  liberty: "https://tiles.openfreemap.org/styles/liberty",
+  // Светлая, почти монохромная — фото-булавки встреч на ней читаются лучше (как у Invitor).
+  positron: "https://tiles.openfreemap.org/styles/positron",
+} as const;
+export type MapStyleName = keyof typeof MAP_STYLE_URLS;
 
 // Минимальные типы — ровно то, что используется в компонентах карты.
 export type LngLat = [number, number];
@@ -58,7 +63,7 @@ declare global {
 }
 
 let libPromise: Promise<MapLibreNamespace> | null = null;
-let stylePromise: Promise<Record<string, unknown>> | null = null;
+const stylePromises: Partial<Record<MapStyleName, Promise<Record<string, unknown>>>> = {};
 
 function loadCss() {
   if (document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) return;
@@ -94,9 +99,10 @@ export function loadMapLibre(): Promise<MapLibreNamespace> {
  * названия в виде «Tyumen Тюмень» (латиница + оригинал) — заменяем на
  * русское название, а если его нет — на местное.
  */
-export function loadMapStyle(): Promise<Record<string, unknown>> {
-  if (stylePromise) return stylePromise;
-  stylePromise = fetch(MAP_STYLE_URL)
+export function loadMapStyle(name: MapStyleName = "liberty"): Promise<Record<string, unknown>> {
+  const cached = stylePromises[name];
+  if (cached) return cached;
+  const promise = fetch(MAP_STYLE_URLS[name])
     .then((r) => {
       if (!r.ok) throw new Error(`style ${r.status}`);
       return r.json() as Promise<Record<string, unknown>>;
@@ -111,17 +117,18 @@ export function loadMapStyle(): Promise<Record<string, unknown>> {
       return style;
     })
     .catch((err) => {
-      stylePromise = null;
+      delete stylePromises[name];
       throw err;
     });
-  return stylePromise;
+  stylePromises[name] = promise;
+  return promise;
 }
 
 export async function createMap(
   container: HTMLElement,
-  opts: { center: LngLat; zoom: number }
+  opts: { center: LngLat; zoom: number; style?: MapStyleName }
 ): Promise<{ maplibregl: MapLibreNamespace; map: MapLibreMap }> {
-  const [maplibregl, style] = await Promise.all([loadMapLibre(), loadMapStyle()]);
+  const [maplibregl, style] = await Promise.all([loadMapLibre(), loadMapStyle(opts.style)]);
   const map = new maplibregl.Map({
     container,
     style,
