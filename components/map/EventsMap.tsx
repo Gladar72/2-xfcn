@@ -16,11 +16,18 @@ export interface MapEventItem {
   seatsLeft: number;
   category: { slug: string; name: string; emoji: string | null } | null;
   isBusiness?: boolean;
+  /** Начало/конец встречи в UTC и пояс города — для метки «сейчас / через 1 ч / 20:30 / завтра». */
+  startsAt?: string;
+  endsAt?: string;
+  utcOffset?: number;
+  organizer?: { name: string; avatarUrl: string | null } | null;
 }
 
 export interface EventsMapHandle {
   /** Приближает карту так, чтобы в кадре поместились все переданные точки. */
   fitBounds: (points: [number, number][]) => void;
+  /** Показывает «я здесь» (геолокация Telegram/браузера) и переезжает туда. */
+  locate: () => Promise<boolean>;
 }
 
 interface EventsMapProps {
@@ -84,7 +91,6 @@ const FALLBACK_MARKER = "/brand/markers/marker-custom-proposal.png";
 export function markerIconFor(event: Pick<MapEventItem, "isBusiness" | "category">): string {
   return event.isBusiness ? "/brand/markers/marker-business.png" : MARKER_BY_SLUG[event.category?.slug ?? ""] ?? FALLBACK_MARKER;
 }
-const MARKER_ASPECT = 288 / 256; // высота/ширина viewBox маркера
 
 /**
  * Круглый счётчик встреч — из пакета MESTO_MAP_CLUSTERS (cluster.css/.js):
@@ -151,28 +157,84 @@ function jitterExactDuplicates(events: MapEventItem[]): MapEventItem[] {
   return result;
 }
 
-/** Размеры и «кончик» пина для HTML-маркера встречи (см. комментарии внутри). */
+const MONTHS_SHORT = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+
+/**
+ * Подпись над булавкой, как у Invitor: «сейчас», «через 40 мин», «через 2 ч»,
+ * «20:30» (сегодня), «завтра 19:00», «5 окт». «Сегодня/завтра» — по времени
+ * города встречи, а не телефона.
+ */
+export function eventTimeLabel(event: MapEventItem, now: Date = new Date()): { text: string; live: boolean } {
+  if (!event.startsAt) return { text: event.eventTime.slice(0, 5), live: false };
+  const start = new Date(event.startsAt).getTime();
+  const end = event.endsAt ? new Date(event.endsAt).getTime() : start + 2 * 3600_000;
+  const t = now.getTime();
+  if (t >= start && t < end) return { text: "сейчас", live: true };
+  const diffMin = Math.round((start - t) / 60_000);
+  if (diffMin > 0 && diffMin < 60) return { text: `через ${Math.max(5, Math.round(diffMin / 5) * 5)} мин`, live: false };
+  if (diffMin >= 60 && diffMin < 180) return { text: `через ${Math.round(diffMin / 60)} ч`, live: false };
+
+  const offsetMs = (event.utcOffset ?? 5) * 3600_000;
+  const dayOf = (ms: number) => Math.floor((ms + offsetMs) / 86_400_000);
+  const days = dayOf(start) - dayOf(t);
+  const hhmm = event.eventTime.slice(0, 5);
+  if (days <= 0) return { text: hhmm, live: false };
+  if (days === 1) return { text: `завтра ${hhmm}`, live: false };
+  const local = new Date(start + offsetMs);
+  return { text: `${local.getUTCDate()} ${MONTHS_SHORT[local.getUTCMonth()]}`, live: false };
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
+}
+
+const PIN = 52; // диаметр белой «капли»
+const PHOTO = 44; // фото внутри неё
+
+/**
+ * Маркер встречи в стиле Invitor: белая капля-булавка, внутри круглое фото
+ * организатора (нет фото — первая буква имени на фирменном градиенте или
+ * значок категории), сверху белая «пилюля» со временем. Бизнес-события —
+ * с оранжево-фиолетовой обводкой, заполненные — приглушённые.
+ */
 function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el: HTMLElement; offsetY: number } {
-  // "Для бизнеса" — отдельный, чуть более крупный значок (маскот с
-  // кошельком в булавке-геолокации).
-  const src = markerIconFor(event);
-  const isCustom = !event.isBusiness && src === FALLBACK_MARKER;
-  const width = event.isBusiness ? 60 : 46;
-  // marker-business.png — квадратный кадр (1:1); marker-custom-proposal.png —
-  // своя пропорция (1229/944), у SVG-пинов категорий — 288/256.
-  const height = event.isBusiness ? width : Math.round(width * (isCustom ? 1229 / 944 : MARKER_ASPECT));
-  // "Кончик" пина — не у самого низа картинки: у SVG-пинов y≈269/288, у
-  // бизнес-пина ≈95.2%, у своего предложения ≈99.3%. Маркер ставится
-  // серединой нижнего края в точку, поэтому сдвигаем вниз на остаток.
-  const tipRatioY = event.isBusiness ? 0.952 : isCustom ? 0.993 : 269 / 288;
+  const label = eventTimeLabel(event);
+  const isFull = event.seatsLeft <= 0;
+  const avatar = event.organizer?.avatarUrl;
+  const initial = (event.organizer?.name || event.title || "М").trim().charAt(0).toUpperCase();
+
+  const ring = event.isBusiness
+    ? "background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#6c3bff,#ff8a2a) border-box;border:3px solid transparent;"
+    : "background:#fff;border:0;";
+  const photoInner = avatar
+    ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.replaceWith(Object.assign(document.createElement('img'),{src:'${markerIconFor(event)}',style:'width:100%;height:100%;object-fit:contain;background:#f3efff'}))" />`
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6c3bff,#8a5cff 55%,#ff8a2a);color:#fff;font:800 19px/1 var(--font-onest),Onest,Arial,sans-serif;">${escapeHtml(initial)}</div>`;
+
+  const pillBg = label.live ? "#6c3bff" : "#fff";
+  const pillColor = label.live ? "#fff" : "#1d1a2b";
+  const pillText = isFull ? "мест нет" : label.text;
+
   const el = document.createElement("div");
-  el.style.cssText = `width:${width}px;height:${height}px;cursor:pointer;`;
-  el.innerHTML = `<img src="${src}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.25));" />`;
+  el.setAttribute("role", "button");
+  el.setAttribute("aria-label", `${event.title}, ${pillText}`);
+  el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer;${isFull ? "opacity:0.6;filter:grayscale(0.7);" : ""}`;
+  el.innerHTML = `
+    <div style="margin-bottom:4px;padding:3px 8px;border-radius:999px;background:${pillBg};color:${pillColor};
+      font:700 11px/1.2 var(--font-onest),Onest,Arial,sans-serif;white-space:nowrap;
+      box-shadow:0 2px 8px rgba(29,26,43,0.18);">${label.live && !isFull ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#7CFFB2;margin-right:4px;vertical-align:1px"></span>' : ""}${escapeHtml(pillText)}</div>
+    <div style="position:relative;width:${PIN}px;height:${PIN}px;">
+      <div style="position:absolute;inset:0;box-sizing:border-box;${ring}border-radius:50% 50% 50% 0;transform:rotate(-45deg);
+        box-shadow:0 6px 14px rgba(29,26,43,0.22);"></div>
+      <div style="position:absolute;left:${(PIN - PHOTO) / 2}px;top:${(PIN - PHOTO) / 2}px;width:${PHOTO}px;height:${PHOTO}px;border-radius:50%;overflow:hidden;background:#f3efff;">
+        ${photoInner}
+      </div>
+    </div>`;
   el.addEventListener("click", (e) => {
     e.stopPropagation();
     onClick();
   });
-  return { el, offsetY: Math.round((1 - tipRatioY) * height) };
+  // Кончик капли (повёрнутый на 45° угол) выступает ниже квадрата на ~0.2 диаметра.
+  return { el, offsetY: -Math.round(PIN * 0.2) };
 }
 
 export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function EventsMap(
@@ -183,6 +245,8 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
   const mapRef = useRef<MapLibreMap | null>(null);
+  const libRef = useRef<{ Marker: new (o: { element: HTMLElement; anchor?: string }) => MapLibreMarker } | null>(null);
+  const meMarkerRef = useRef<MapLibreMarker | null>(null);
 
   useImperativeHandle(ref, () => ({
     fitBounds(points) {
@@ -202,6 +266,29 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
         ],
         { padding: 60, maxZoom: 18 }
       );
+    },
+    locate() {
+      return new Promise<boolean>((resolve) => {
+        const map = mapRef.current;
+        if (!map || !navigator.geolocation) return resolve(false);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const point: LngLat = [pos.coords.longitude, pos.coords.latitude];
+            meMarkerRef.current?.remove();
+            const lib = libRef.current;
+            if (lib) {
+              const dot = document.createElement("div");
+              dot.style.cssText =
+                "width:18px;height:18px;border-radius:50%;background:#2f80ff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,128,255,0.2),0 2px 6px rgba(0,0,0,0.25);";
+              meMarkerRef.current = new lib.Marker({ element: dot, anchor: "center" }).setLngLat(point).addTo(map);
+            }
+            map.flyTo({ center: point, zoom: 15 });
+            resolve(true);
+          },
+          () => resolve(false),
+          { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        );
+      });
     },
   }));
 
@@ -223,12 +310,13 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
             : DEFAULT_CENTER;
       if (cancelled || !container) return;
 
-      const created = await createMap(container, { center, zoom: 12 });
+      const created = await createMap(container, { center, zoom: 12, style: "positron" });
       if (cancelled) {
         created.map.remove();
         return;
       }
       const { maplibregl } = created;
+      libRef.current = maplibregl;
       map = created.map;
       mapRef.current = map;
       const activeMap = map;
