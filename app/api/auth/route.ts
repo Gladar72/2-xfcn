@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { validateTelegramInitData } from "@/lib/telegram/validate-init-data";
 import { issueSessionToken, SESSION_COOKIE } from "@/lib/telegram/session";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { fetchTelegramAvatarDataUrl } from "@/lib/telegram/profile-photo";
+import { uploadAvatar } from "@/lib/photos/upload-avatar";
 
 /**
  * POST /api/auth
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest) {
 
   const { data: existingUser, error: findError } = await admin
     .from("users")
-    .select("id, telegram_id, moderation_status")
+    .select("id, telegram_id, moderation_status, avatar_url")
     .eq("telegram_id", telegramUser.id)
     .maybeSingle();
 
@@ -71,6 +73,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "user_banned" }, { status: 403 });
   }
 
+  // Зарегистрировался без фото — подтягиваем аватарку из Telegram (если
+  // она там есть и открыта). Делается при каждом входе, пока фото нет;
+  // не дольше нескольких секунд и без влияния на сам вход.
+  if (!existingUser.avatar_url) {
+    await Promise.race([
+      fillAvatarFromTelegram(admin, existingUser.id, telegramUser.id, botToken),
+      new Promise((resolve) => setTimeout(resolve, 7000)),
+    ]).catch((err) => console.error("POST /api/auth — аватарка из Telegram:", err));
+  }
+
   const sessionToken = issueSessionToken(existingUser.id, telegramUser.id);
 
   const response = NextResponse.json({ status: "authenticated" });
@@ -82,4 +94,19 @@ export async function POST(req: NextRequest) {
     maxAge: SESSION_COOKIE.maxAgeSeconds,
   });
   return response;
+}
+
+async function fillAvatarFromTelegram(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  telegramId: number,
+  botToken: string
+): Promise<void> {
+  const dataUrl = await fetchTelegramAvatarDataUrl(botToken, telegramId);
+  if (!dataUrl) return;
+  const uploaded = await uploadAvatar(admin, userId, dataUrl);
+  if (!uploaded.ok) return;
+  await admin.from("users").update({ avatar_url: uploaded.publicUrl }).eq("id", userId).is("avatar_url", null);
+  const { count } = await admin.from("user_photos").select("id", { count: "exact", head: true }).eq("user_id", userId);
+  if (!count) await admin.from("user_photos").insert({ user_id: userId, url: uploaded.publicUrl, position: 0 });
 }
