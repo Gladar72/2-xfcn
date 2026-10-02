@@ -238,26 +238,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }))
     );
 
-    // Уведомление в Telegram: от кого, из какого чата и сам текст сообщения,
-    // с кнопкой «Открыть чат». Не шлём тем, кто заблокировал чат, и тем, у
+    // Уведомление в Telegram с кнопкой «Открыть чат»: от организатора — с
+    // именем и текстом, от остальных — «Новое сообщение в чате». Не шлём тем, кто заблокировал чат, и тем, у
     // кого чат открыт прямо сейчас (отметил прочитанным за последние 20 с).
     const [{ data: sender }, { data: conv }] = await Promise.all([
       admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
-      admin.from("conversations").select("events(title)").eq("id", conversationId).maybeSingle(),
+      admin.from("conversations").select("events(title, organizer_id)").eq("id", conversationId).maybeSingle(),
     ]);
     const senderName = (sender?.name as string | undefined)?.trim() || "Участник";
-    const chatTitle = (conv?.events as unknown as { title: string } | null)?.title ?? null;
+    const convEvent = conv?.events as unknown as { title: string; organizer_id: string } | null;
+    const chatTitle = convEvent?.title ?? null;
+    // Текст сообщения показываем, только если пишет организатор встречи.
+    // Сообщения остальных участников — просто «Новое сообщение в чате».
+    const fromOrganizer = !!convEvent && convEvent.organizer_id === currentUser.userId;
     const preview = content
       ? content.length > 600
         ? `${content.slice(0, 597)}…`
         : content
       : "📷 Фото";
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const text =
-      `💬 <b>${esc(senderName)}</b>` +
-      (chatTitle ? ` · ${esc(chatTitle)}` : "") +
-      `\n\n${esc(preview)}` +
-      (content && imageUrl ? "\n📷 + фото" : "");
+    const text = fromOrganizer
+      ? `📣 <b>${esc(senderName)}</b> (организатор)` +
+        (chatTitle ? ` · ${esc(chatTitle)}` : "") +
+        `\n\n${esc(preview)}` +
+        (content && imageUrl ? "\n📷 + фото" : "")
+      : `💬 Новое сообщение в чате${chatTitle ? ` «${esc(chatTitle)}»` : ""}`;
     const appUrl = process.env.APP_URL;
     const keyboard = appUrl
       ? new InlineKeyboard().webApp("💬 Открыть чат", `${appUrl}?goto=chat_${conversationId}`)
