@@ -8,6 +8,7 @@ import { CityPicker } from "@/components/ui/CityPicker";
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { resizeImageFile } from "@/lib/photos/resize-image-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
+import { BirthDatePicker, isCompleteBirthDate } from "./BirthDatePicker";
 
 interface Interest {
   id: string;
@@ -103,7 +104,7 @@ export function OnboardingWizard() {
   function stepHint(): string | null {
     if (step === "name" && name.trim().length < 2) return "Напиши имя — минимум 2 буквы.";
     if (step === "birthDate") {
-      if (!birthDate) return "Укажи дату рождения.";
+      if (!isCompleteBirthDate(birthDate)) return "Выбери день, месяц и год рождения.";
       if (!isAtLeast18(birthDate)) return "Сервис доступен только с 18 лет.";
     }
     if (step === "gender" && gender === null) return "Выбери пол.";
@@ -208,7 +209,7 @@ export function OnboardingWizard() {
   const canGoNext =
     (step === "photo") ||
     (step === "name" && name.trim().length >= 2) ||
-    (step === "birthDate" && birthDate.length > 0) ||
+    (step === "birthDate" && isCompleteBirthDate(birthDate)) ||
     (step === "gender" && gender !== null) ||
     (step === "city" && city.trim().length >= 2) ||
     (step === "bio") ||
@@ -258,12 +259,7 @@ export function OnboardingWizard() {
 
         {step === "birthDate" && (
           <StepBlock title="Дата рождения" subtitle="Сервис доступен пользователям 18+.">
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
-            />
+            <BirthDatePicker value={birthDate} onChange={setBirthDate} />
           </StepBlock>
         )}
 
@@ -346,7 +342,7 @@ export function OnboardingWizard() {
           <StepBlock title="Всё верно?">
             <div className="space-y-2 rounded-card bg-white p-5 shadow-card">
               <ReviewRow label="Имя" value={name} />
-              <ReviewRow label="Дата рождения" value={birthDate} />
+              <ReviewRow label="Дата рождения" value={isCompleteBirthDate(birthDate) ? birthDate.split("-").reverse().join(".") : birthDate} />
               <ReviewRow label="Пол" value={gender === "male" ? "Мужчина" : "Женщина"} />
               <ReviewRow label="Город" value={city} />
               {bio && <ReviewRow label="О себе" value={bio} />}
