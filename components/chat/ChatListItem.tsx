@@ -54,13 +54,13 @@ export function ChatListItem({
 
   const chatBody = (
     <>
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
+      <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-base font-semibold text-ink-600">
         {chat.eventPhotoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photoThumb(chat.eventPhotoUrl, 56)} alt="" className="h-full w-full object-cover" />
         ) : chat.category ? (
           categoryIcon ? (
-            <Image src={categoryIcon} alt="" width={28} height={28} className="object-contain" />
+            <Image src={categoryIcon} alt="" width={34} height={34} className="object-contain" />
           ) : (
             <span className="text-xl">{chat.category.emoji ?? "💬"}</span>
           )
@@ -74,12 +74,10 @@ export function ChatListItem({
 
       <div className="min-w-0 flex-1">
         <div className="flex items-center justify-between gap-2">
-          <span className={`truncate ${isUnread ? "font-semibold text-ink-900" : "font-medium text-ink-900"}`}>
+          <span className={`truncate text-base ${isUnread ? "font-bold text-ink-900" : "font-semibold text-ink-900"}`}>
             {title}
           </span>
-          {isEventClosed ? (
-            <span className="shrink-0 text-xs text-ink-400">Событие закрыто</span>
-          ) : (
+          {!isEventClosed && (
             chat.lastMessage && (
               <span
                 className={`flex shrink-0 items-center gap-1 text-xs ${isUnread ? "font-medium text-accent" : "text-ink-400"}`}
@@ -102,7 +100,7 @@ export function ChatListItem({
   );
 
   return (
-    <div className={`flex items-center gap-2 rounded-card bg-white p-3 shadow-card ${isEventClosed ? "opacity-60" : ""}`}>
+    <div className="flex items-center gap-2 rounded-card bg-white px-3 py-3 shadow-card">
       {isEventClosed ? (
         // Закрытая встреча — в чат вообще нельзя зайти (не просто нельзя
         // писать), поэтому здесь обычный div, а не ссылка.
@@ -126,7 +124,7 @@ export function ChatListItem({
 
 function StarIcon({ filled }: { filled: boolean }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill={filled ? "#FFB800" : "none"}>
+    <svg width="24" height="24" viewBox="0 0 24 24" fill={filled ? "#FFB800" : "none"}>
       <path
         d="M12 2.5l2.9 6.6 7.1.7-5.4 4.7 1.6 7-6.2-3.8-6.2 3.8 1.6-7-5.4-4.7 7.1-.7L12 2.5z"
         stroke={filled ? "#FFB800" : "#B8B8C8"}
