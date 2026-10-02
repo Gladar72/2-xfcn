@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
+import { eventTiming, eventUtcOffsetHours } from "@/lib/events/timing";
 
 /**
  * GET /api/events/map?city=...
@@ -48,9 +49,9 @@ export async function GET(req: NextRequest) {
     .from("events")
     .select(
       `
-      id, title, event_date, event_time, latitude, longitude, place_name, address, seats_total, seats_taken, cost_type, is_business,
+      id, title, event_date, event_time, event_end_time, city, latitude, longitude, place_name, address, seats_total, seats_taken, cost_type, is_business,
       category:categories(slug, name, emoji),
-      organizer:users(birth_date, gender)
+      organizer:users(name, avatar_url, birth_date, gender)
       `
     )
     // Заполненные встречи (status = closed) тоже остаются в ленте — с пометкой «Мест нет».
@@ -137,6 +138,26 @@ export async function GET(req: NextRequest) {
     seatsLeft: e.seats_total - e.seats_taken,
     category: e.category as unknown as { slug: string; name: string; emoji: string | null } | null,
     isBusiness: e.is_business,
+    // Для меток над булавкой в стиле Invitor («сейчас», «через 1 ч», «20:30», «завтра»):
+    // начало/конец в UTC и пояс города — «сегодня/завтра» считаем по времени города.
+    ...(() => {
+      const t = eventTiming({
+        event_date: e.event_date,
+        event_time: e.event_time,
+        event_end_time: e.event_end_time,
+        city: e.city,
+        longitude: e.longitude,
+      });
+      return {
+        startsAt: t.start.toISOString(),
+        endsAt: t.end.toISOString(),
+        utcOffset: eventUtcOffsetHours({ city: e.city, longitude: e.longitude }),
+      };
+    })(),
+    organizer: (() => {
+      const o = e.organizer as unknown as { name: string | null; avatar_url: string | null } | null;
+      return o ? { name: o.name ?? "", avatarUrl: o.avatar_url } : null;
+    })(),
   }));
 
   return NextResponse.json({ items, city });
