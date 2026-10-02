@@ -108,7 +108,8 @@ export async function GET(req: NextRequest) {
         organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count, telegram_id)
         `
       )
-      .eq("status", "published")
+      // Заполненные встречи (status = closed) тоже остаются в ленте — с пометкой «Мест нет».
+      .in("status", ["published", "closed"])
       .eq("city", feedCity)
       .gte("event_date", todayIso)
       .order("event_date", { ascending: true })
@@ -285,6 +286,9 @@ export async function GET(req: NextRequest) {
     viewerLongitude,
     viewerInterestSlugs,
   });
+
+  // Заполненные встречи — в конце ленты: сначала те, куда ещё можно пойти.
+  ranked.sort((a, b) => Number(a._row.seats_taken >= a._row.seats_total) - Number(b._row.seats_taken >= b._row.seats_total));
 
   const pageStart = page * PAGE_SIZE;
   const pageItems = ranked.slice(pageStart, pageStart + PAGE_SIZE).map(({ _row, organizerPlan }) => {
