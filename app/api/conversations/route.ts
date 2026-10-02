@@ -119,6 +119,11 @@ export async function GET() {
       !!lastMessage?.isMine &&
       otherMembersList.length > 0 &&
       otherMembersList.every((om) => om.lastReadAt && lastMessage.createdAt <= om.lastReadAt);
+    // Прочитали не все (групповой чат) — две белые галочки, а не одна.
+    const isLastMessagePartlyRead =
+      !!lastMessage?.isMine &&
+      !isLastMessageRead &&
+      otherMembersList.some((om) => om.lastReadAt && lastMessage.createdAt <= om.lastReadAt);
 
     return {
       conversationId: m.conversation_id,
@@ -137,6 +142,7 @@ export async function GET() {
       otherMembersCount: otherMembersList.length,
       lastMessage,
       isLastMessageRead,
+      isLastMessagePartlyRead,
       // Для сортировки — если сообщений в чате ещё нет (только что создан),
       // раньше здесь была "" (пустая строка), которая как самая ранняя
       // дата всегда тонула в самый низ списка. Теперь используем момент
