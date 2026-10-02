@@ -98,6 +98,11 @@ export function EventCard({
           </div>
 
           <h3 className="text-title mb-1">{event.title}</h3>
+          {isFull && (
+            <span className="mb-2 inline-flex items-center rounded-pill bg-ink-400/10 px-2.5 py-0.5 text-caption font-semibold text-ink-600">
+              Заполнено
+            </span>
+          )}
 
           <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-600">
             <span>{formatDate(event.eventDate)}</span>
@@ -148,7 +153,7 @@ export function EventCard({
                 {isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}
               </span>
               {!status && !event.isMine && (
-                <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} />
+                <ApplyButton isDisabled={isDisabled} isFull={isFull} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} />
               )}
               {event.isMine && <MyEventLabel />}
             </div>
@@ -166,7 +171,7 @@ export function EventCard({
             {event.isMine && <MyEventLabel />}
             {!status && !event.isMine && (
               <div className="w-24">
-                <ApplyButton isDisabled={isDisabled} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} fullWidth />
+                <ApplyButton isDisabled={isDisabled} isFull={isFull} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} fullWidth />
               </div>
             )}
             {(status === "accepted" || status === "rejected") && (
@@ -241,6 +246,7 @@ function MyEventLabel() {
 
 function ApplyButton({
   isDisabled,
+  isFull,
   applied,
   applying,
   onApplyPress,
@@ -248,6 +254,7 @@ function ApplyButton({
   fullWidth,
 }: {
   isDisabled: boolean;
+  isFull?: boolean;
   applied: boolean;
   applying: boolean;
   onApplyPress?: (eventId: string) => void;
@@ -269,7 +276,7 @@ function ApplyButton({
         isDisabled ? "bg-ink-400/10 text-ink-400" : "bg-brand-gradient text-white shadow-cta active:scale-95"
       )}
     >
-      {applied ? "Отклик отправлен" : applying ? "Отправляем..." : "Я иду"}
+      {applied ? "Отклик отправлен" : applying ? "Отправляем..." : isFull ? "Мест нет" : "Я иду"}
     </button>
   );
 }
