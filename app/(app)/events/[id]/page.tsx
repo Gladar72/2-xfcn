@@ -1,6 +1,7 @@
 "use client";
 
 import { EventPlaceMap } from "@/components/events/EventPlaceMap";
+import { RouteButton } from "@/components/events/RouteButton";
 import { markerIconFor } from "@/components/map/EventsMap";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -345,6 +346,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 fallbackSrc={heroPhotoSrc}
               />
             ) : (
+              <div style={{ position: "relative" }}>
               <Image
                 className="m-photo"
                 src={heroPhotoSrc}
@@ -355,6 +357,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 sizes="100vw"
                 priority
               />
+              {/* Маршрут и поверх фото события — как на карте. */}
+              {event.latitude != null && event.longitude != null && (
+                <RouteButton latitude={event.latitude} longitude={event.longitude} className="absolute right-3 top-3" />
+              )}
+              </div>
             )}
             {event.organizer && (
               <div className="m-organizer">
