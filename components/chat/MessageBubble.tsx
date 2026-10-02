@@ -19,18 +19,24 @@ export interface MessageData {
 interface MessageBubbleProps {
   message: MessageData;
   isOwn: boolean;
-  /** Только для своих сообщений: показать ли и какую галочку. */
-  readStatus?: "sent" | "read";
+  /** Только для своих сообщений: какую галочку показать. */
+  readStatus?: "sent" | "partial" | "read";
+  /** Групповой чат: под сообщением — кто прочитал («Прочитали: Ник, Валерия»). */
+  readCaption?: string | null;
+  /** Нажатие на своё сообщение — открыть список «кто прочитал». */
+  onOwnPress?: () => void;
 }
 
-export function MessageBubble({ message, isOwn, readStatus }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, readStatus, readCaption, onOwnPress }: MessageBubbleProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const hasImage = !!message.imageUrl;
 
   return (
-    <div className={clsx("flex", isOwn ? "justify-end" : "justify-start")}>
+    <div className={clsx("flex flex-col", isOwn ? "items-end" : "items-start")}>
       <div
+        onClick={isOwn && onOwnPress && !message.uploading ? onOwnPress : undefined}
         className={clsx(
+          isOwn && onOwnPress && "cursor-pointer",
           "max-w-[75%] text-sm",
           hasImage ? "p-1" : "px-4 py-2.5",
           isOwn
@@ -41,7 +47,10 @@ export function MessageBubble({ message, isOwn, readStatus }: MessageBubbleProps
         {message.imageUrl && (
           <button
             type="button"
-            onClick={() => !message.uploading && setViewerOpen(true)}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!message.uploading) setViewerOpen(true);
+            }}
             className="relative block overflow-hidden rounded-[18px]"
             aria-label="Открыть фото"
           >
@@ -74,6 +83,16 @@ export function MessageBubble({ message, isOwn, readStatus }: MessageBubbleProps
           </span>
         </div>
       </div>
+
+      {isOwn && readCaption && (
+        <button
+          type="button"
+          onClick={onOwnPress}
+          className="mr-1 mt-0.5 max-w-[75%] truncate text-caption text-ink-400"
+        >
+          {readCaption}
+        </button>
+      )}
 
       {viewerOpen && message.imageUrl && (
         <div

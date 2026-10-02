@@ -29,6 +29,7 @@ export interface ChatListItemData {
   } | null;
   /** Прочитали ли ВСЕ остальные участники наше последнее сообщение (только когда lastMessage.isMine). */
   isLastMessageRead?: boolean;
+  isLastMessagePartlyRead?: boolean;
 }
 
 export function ChatListItem({
@@ -83,7 +84,7 @@ export function ChatListItem({
               <span
                 className={`flex shrink-0 items-center gap-1 text-xs ${isUnread ? "font-medium text-accent" : "text-ink-400"}`}
               >
-                {chat.lastMessage.isMine && <ReadTicks status={chat.isLastMessageRead ? "read" : "sent"} />}
+                {chat.lastMessage.isMine && <ReadTicks status={chat.isLastMessageRead ? "read" : chat.isLastMessagePartlyRead ? "partial" : "sent"} />}
                 {formatListTime(chat.lastMessage.createdAt)}
               </span>
             )
