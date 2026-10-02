@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { EventsMap, markerIconFor, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
+import { EventsMap, eventTimeLabel, markerIconFor, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
 
 const PAGE_SIZE = 20; // показ длинного списка кластера порциями, а не всё разом
 
@@ -29,6 +29,8 @@ function MapPageContent() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [locating, setLocating] = useState(false);
+  const [locateFailed, setLocateFailed] = useState(false);
   const mapRef = useRef<EventsMapHandle>(null);
   // Реальный город, которым пользуется API (см. ниже) — не то же самое,
   // что city из URL: при прямом переходе на /map (не через кнопку
@@ -92,6 +94,18 @@ function MapPageContent() {
     setVisibleCount(PAGE_SIZE);
   }
 
+  async function handleLocate() {
+    if (!mapRef.current || locating) return;
+    setLocating(true);
+    setLocateFailed(false);
+    const ok = await mapRef.current.locate();
+    setLocating(false);
+    if (!ok) {
+      setLocateFailed(true);
+      setTimeout(() => setLocateFailed(false), 3000);
+    }
+  }
+
   function handleZoomToGroup() {
     if (!selected || !mapRef.current) return;
     mapRef.current.fitBounds(selected.map((e) => [e.longitude, e.latitude] as [number, number]));
@@ -120,6 +134,35 @@ function MapPageContent() {
         <div className="flex h-full items-center justify-center text-sm text-ink-600">Загрузка карты...</div>
       ) : (
         <EventsMap ref={mapRef} events={events} onSelect={handleSelect} city={resolvedCity} />
+      )}
+
+      {!error && !selected && (
+        <>
+          {/* Как у Invitor: справа внизу — «где я» и большая «+» создать встречу. */}
+          <div className="absolute bottom-6 right-4 z-40 flex flex-col items-center gap-3">
+            <button
+              onClick={handleLocate}
+              aria-label="Показать, где я"
+              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink-900 shadow-card active:scale-95"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className={locating ? "animate-pulse" : ""}>
+                <path d="M21 3 3 10.5l7.5 3L13.5 21 21 3Z" stroke="#2f80ff" strokeWidth="2" strokeLinejoin="round" fill={locating ? "#2f80ff" : "none"} />
+              </svg>
+            </button>
+            <Link
+              href="/create"
+              aria-label="Создать встречу"
+              className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-gradient text-3xl font-light leading-none text-white shadow-cta active:scale-95"
+            >
+              +
+            </Link>
+          </div>
+          {locateFailed && (
+            <div className="absolute bottom-6 left-4 right-24 z-40 rounded-card bg-white px-3 py-2 text-xs text-ink-600 shadow-card">
+              Не удалось определить, где ты. Разреши доступ к геопозиции для Telegram.
+            </div>
+          )}
+        </>
       )}
 
       {selected && (
@@ -151,19 +194,25 @@ function MapPageContent() {
                 href={`/events/${event.id}`}
                 className="flex items-center gap-3 rounded-card bg-background p-3"
               >
-                {/* Та же иконка, что и маркер на карте (раньше тут был эмодзи категории) */}
-                <Image
-                  src={markerIconFor(event)}
-                  alt=""
-                  width={44}
-                  height={44}
-                  unoptimized
-                  className="h-11 w-11 shrink-0 object-contain"
-                />
+                {/* То же фото организатора, что и в булавке на карте */}
+                {event.organizer?.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={event.organizer.avatarUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
+                ) : (
+                  <Image
+                    src={markerIconFor(event)}
+                    alt=""
+                    width={44}
+                    height={44}
+                    unoptimized
+                    className="h-11 w-11 shrink-0 object-contain"
+                  />
+                )}
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-ink-900">{event.title}</p>
                   <p className="truncate text-xs text-ink-600">
                     {formatDate(event.eventDate)} · {event.eventTime.slice(0, 5)}
+                    {eventTimeLabel(event).live && <span className="ml-1 font-semibold text-accent">· идёт сейчас</span>}
                   </p>
                   {event.placeName && event.placeName !== event.address && (
                     <p className="truncate text-xs font-medium text-ink-600">{event.placeName}</p>
