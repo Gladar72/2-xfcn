@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyTelegram } from "@/lib/telegram/notify";
-import { buildNotificationText } from "@/lib/notifications/text";
+import { InlineKeyboard } from "grammy";
+import { getBot } from "@/lib/telegram/bot";
 import { broadcastToConversation } from "@/lib/supabase/broadcast";
 import { uploadChatPhoto } from "@/lib/photos/upload-chat-photo";
 
@@ -225,7 +225,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // кроме как самим зайти в чат.
   const { data: otherMembers } = await admin
     .from("conversation_members")
-    .select("user_id, users(telegram_id)")
+    .select("user_id, is_blocked, last_read_at, users(telegram_id)")
     .eq("conversation_id", conversationId)
     .neq("user_id", currentUser.userId);
 
@@ -238,14 +238,46 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }))
     );
 
-    // Тот же текст, что и на экране "Уведомления" в приложении — без
-    // содержимого самого сообщения (не пересылаем переписку в Telegram).
-    const notificationText = buildNotificationText("new_message", undefined);
+    // Уведомление в Telegram: от кого, из какого чата и сам текст сообщения,
+    // с кнопкой «Открыть чат». Не шлём тем, кто заблокировал чат, и тем, у
+    // кого чат открыт прямо сейчас (отметил прочитанным за последние 20 с).
+    const [{ data: sender }, { data: conv }] = await Promise.all([
+      admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
+      admin.from("conversations").select("events(title)").eq("id", conversationId).maybeSingle(),
+    ]);
+    const senderName = (sender?.name as string | undefined)?.trim() || "Участник";
+    const chatTitle = (conv?.events as unknown as { title: string } | null)?.title ?? null;
+    const preview = content
+      ? content.length > 600
+        ? `${content.slice(0, 597)}…`
+        : content
+      : "📷 Фото";
+    const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const text =
+      `💬 <b>${esc(senderName)}</b>` +
+      (chatTitle ? ` · ${esc(chatTitle)}` : "") +
+      `\n\n${esc(preview)}` +
+      (content && imageUrl ? "\n📷 + фото" : "");
+    const appUrl = process.env.APP_URL;
+    const keyboard = appUrl
+      ? new InlineKeyboard().webApp("💬 Открыть чат", `${appUrl}?goto=chat_${conversationId}`)
+      : undefined;
+    const now = Date.now();
+
     await Promise.all(
-      otherMembers.map((m) => {
+      otherMembers.map(async (m) => {
         const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
-        if (!telegramId) return Promise.resolve();
-        return notifyTelegram(telegramId, notificationText);
+        if (!telegramId || m.is_blocked) return;
+        if (m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000) return;
+        try {
+          await getBot().api.sendMessage(telegramId, text, {
+            parse_mode: "HTML",
+            reply_markup: keyboard,
+            link_preview_options: { is_disabled: true },
+          });
+        } catch (err) {
+          console.error(`chat notify — не удалось отправить ${telegramId}:`, err);
+        }
       })
     );
   }
