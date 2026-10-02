@@ -102,7 +102,7 @@ export default function SettingsPage() {
         )}
         <button onClick={openCityEditor} className="block w-full text-left">
           <div className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
-            <Image src="/brand/3d/icon-location.png" alt="" width={28} height={28} className="h-7 w-7 object-contain" />
+            <IconTile src="/brand/3d/icon-location.png" />
             <span className="flex-1 text-base text-ink-900">Город</span>
             {profile?.city && <span className="text-sm text-ink-400">{profile.city}</span>}
             <span className="text-ink-400">›</span>
@@ -116,7 +116,8 @@ export default function SettingsPage() {
 
       <Section title="О приложении">
         <div className="rounded-card bg-white p-4 shadow-card">
-          <div className="relative mb-4 h-6 w-24">
+          {/* У логотипа в SVG есть отступ слева — сдвигаем, чтобы буква «М» стояла ровно по тексту. */}
+          <div className="relative -ml-[3px] mb-4 h-6 w-24">
             <Image src="/brand/logo/wordmark-purple.svg" alt="МЕСТО" fill className="object-contain object-left" />
           </div>
           <p className="mb-2 text-sm font-medium text-ink-900">
@@ -173,6 +174,32 @@ export default function SettingsPage() {
   );
 }
 
+/**
+ * Иконка строки настроек: одинаковая «плитка» 36×36, иконка по центру.
+ * У 3D-иконок разные поля внутри картинки (у одних отступ, у других — нет),
+ * поэтому некоторым задан свой масштаб, чтобы визуально все были одного размера.
+ */
+const ICON_SCALE: Record<string, number> = {
+  "/brand/3d/empty-chats.png": 0.82,
+};
+
+function IconTile({ src }: { src: string }) {
+  const scale = ICON_SCALE[src] ?? 1;
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center" aria-hidden>
+      <Image
+        src={src}
+        alt=""
+        width={30}
+        height={30}
+        unoptimized
+        className="h-[30px] w-[30px] object-contain"
+        style={scale !== 1 ? { transform: `scale(${scale})` } : undefined}
+      />
+    </span>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mb-5">
@@ -197,7 +224,7 @@ function Row({
 }) {
   const content = (
     <div className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
-      <Image src={icon} alt="" width={28} height={28} className="h-7 w-7 object-contain" />
+      <IconTile src={icon} />
       <span className="flex-1 text-base text-ink-900">{label}</span>
       {value && <span className="text-sm text-ink-400">{value}</span>}
       {href && <span className="text-ink-400">›</span>}
