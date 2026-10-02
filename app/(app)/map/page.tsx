@@ -4,6 +4,7 @@ import Image from "next/image";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { RouteButton } from "@/components/events/RouteButton";
 import { EventsMap, eventTimeLabel, markerIconFor, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
 
 const PAGE_SIZE = 20; // показ длинного списка кластера порциями, а не всё разом
@@ -224,6 +225,7 @@ function MapPageContent() {
                     </p>
                   )}
                 </div>
+                <RouteButton latitude={event.latitude} longitude={event.longitude} className="shrink-0 self-center" />
               </Link>
             ))}
           </div>
