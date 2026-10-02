@@ -126,7 +126,7 @@ export function loadMapStyle(name: MapStyleName = "liberty"): Promise<Record<str
 
 export async function createMap(
   container: HTMLElement,
-  opts: { center: LngLat; zoom: number; style?: MapStyleName }
+  opts: { center: LngLat; zoom: number; style?: MapStyleName; /** Своя подпись © OpenStreetMap вместо кнопки «i» (маленькие превью карты). */ ownAttribution?: boolean }
 ): Promise<{ maplibregl: MapLibreNamespace; map: MapLibreMap }> {
   const [maplibregl, style] = await Promise.all([loadMapLibre(), loadMapStyle(opts.style)]);
   const map = new maplibregl.Map({
@@ -141,10 +141,12 @@ export async function createMap(
     touchPitch: false,
   });
   // Атрибуция OpenStreetMap обязательна по лицензии данных — компактная кнопка «i».
-  (map as unknown as { addControl: (c: unknown, pos?: string) => void }).addControl(
-    new maplibregl.AttributionControl({ compact: true }),
-    "bottom-left"
-  );
+  if (!opts.ownAttribution) {
+    (map as unknown as { addControl: (c: unknown, pos?: string) => void }).addControl(
+      new maplibregl.AttributionControl({ compact: true }),
+      "bottom-left"
+    );
+  }
   (map as unknown as { touchZoomRotate?: { disableRotation?: () => void } }).touchZoomRotate?.disableRotation?.();
   return { maplibregl, map };
 }
