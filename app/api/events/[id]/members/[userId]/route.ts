@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { eventTiming } from "@/lib/events/timing";
 
 /**
  * DELETE /api/events/[id]/members/[userId]
@@ -22,7 +23,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
 
   const { data: event } = await admin
     .from("events")
-    .select("id, organizer_id, title, event_date, event_time, status")
+    .select("id, organizer_id, title, event_date, event_time, event_end_time, city, longitude, status")
     .eq("id", eventId)
     .maybeSingle();
 
@@ -34,7 +35,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "cannot_remove_organizer" }, { status: 422 });
   }
 
-  const eventStartsAt = new Date(`${event.event_date}T${event.event_time}`);
+  // Начало встречи — по часовому поясу её города (а не по UTC сервера).
+  const eventStartsAt = eventTiming(event).start;
   if (eventStartsAt.getTime() <= Date.now()) {
     return NextResponse.json({ error: "event_already_started" }, { status: 422 });
   }
