@@ -1,5 +1,7 @@
 "use client";
 
+import { EventPlaceMap } from "@/components/events/EventPlaceMap";
+import { markerIconFor } from "@/components/map/EventsMap";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -20,6 +22,8 @@ interface EventDetails {
   trainingType: { slug: string; name: string; emoji: string | null } | null;
   placeName: string | null;
   address: string | null;
+  latitude: number | null;
+  longitude: number | null;
   eventDate: string;
   eventTime: string;
   eventEndTime: string | null;
@@ -330,16 +334,28 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           <h1 className="m-title">{event.title}</h1>
 
           <figure className="m-hero">
-            <Image
-              className="m-photo"
-              src={heroPhotoSrc}
-              alt=""
-              width={480}
-              height={343}
-              style={heroIsRealPhoto ? undefined : { objectFit: "contain", padding: 40, background: "#F1EAFF" }}
-              sizes="100vw"
-              priority
-            />
+            {/* Своё фото у встречи (бизнес-события) — показываем его; иначе
+                вместо картинки категории — карта с местом встречи. */}
+            {!heroIsRealPhoto && event.latitude != null && event.longitude != null ? (
+              <EventPlaceMap
+                latitude={event.latitude}
+                longitude={event.longitude}
+                markerSrc={markerIconFor({ isBusiness: event.isBusiness, category: event.category })}
+                placeName={event.placeName}
+                fallbackSrc={heroPhotoSrc}
+              />
+            ) : (
+              <Image
+                className="m-photo"
+                src={heroPhotoSrc}
+                alt=""
+                width={480}
+                height={343}
+                style={heroIsRealPhoto ? undefined : { objectFit: "contain", padding: 40, background: "#F1EAFF" }}
+                sizes="100vw"
+                priority
+              />
+            )}
             {event.organizer && (
               <div className="m-organizer">
                 <span className="m-avatar" style={{ overflow: "hidden", display: "block" }}>
