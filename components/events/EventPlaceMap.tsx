@@ -81,11 +81,14 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
           style={{ objectFit: "contain", padding: 40 }}
         />
       )}
+      {/* MapLibre вешает на контейнер карты свой класс с position: relative —
+          поэтому позиционируем обёртку, а сама карта просто 100% × 100%. */}
       <div
-        ref={containerRef}
         className="absolute inset-0 transition-opacity duration-300"
         style={{ opacity: ready && !failed ? 1 : 0, pointerEvents: "none" }}
-      />
+      >
+        <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+      </div>
       <span className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink-900 shadow-card">
         Маршрут ↗
       </span>
