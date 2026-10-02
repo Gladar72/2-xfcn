@@ -58,6 +58,8 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [members, setMembers] = useState<Member[]>([]);
   const [showMiniProfileFor, setShowMiniProfileFor] = useState<string | null>(null);
   const [showParticipants, setShowParticipants] = useState(false);
+  // Своё сообщение, для которого открыт список «кто прочитал» (групповой чат).
+  const [readersFor, setReadersFor] = useState<MessageData | null>(null);
   const [participantsTab, setParticipantsTab] = useState<ParticipantsTab>("all");
   const [participantsExpanded, setParticipantsExpanded] = useState(false);
   const [draft, setDraft] = useState("");
@@ -414,6 +416,57 @@ export default function ChatPage({ params }: ChatPageProps) {
         <MiniProfileSheet userId={showMiniProfileFor} onClose={() => setShowMiniProfileFor(null)} />
       )}
 
+      {readersFor && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={() => setReadersFor(null)}>
+          <div
+            className="max-h-[70vh] overflow-y-auto rounded-t-sheet bg-white p-5 pb-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
+            <h2 className="text-title mb-1 text-center">Кто прочитал</h2>
+            <p className="mb-4 line-clamp-2 text-center text-sm text-ink-600">
+              {readersFor.content || "Фото"}
+            </p>
+            {(() => {
+              const read = members.filter((m) => m.lastReadAt && readersFor.createdAt <= m.lastReadAt);
+              const unread = members.filter((m) => !(m.lastReadAt && readersFor.createdAt <= m.lastReadAt));
+              const row = (m: Member, isRead: boolean) => (
+                <div key={m.id} className="flex items-center gap-3 py-2">
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
+                    {m.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photoThumb(m.avatarUrl, 36)} alt={m.name} className="h-full w-full object-cover" />
+                    ) : (
+                      m.name.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                  <span className="flex-1 text-sm font-medium text-ink-900">{m.name}</span>
+                  <span className={isRead ? "text-xs font-medium text-accent" : "text-xs text-ink-400"}>
+                    {isRead ? "прочитал(а)" : "не прочитал(а)"}
+                  </span>
+                </div>
+              );
+              return (
+                <>
+                  {read.length > 0 && (
+                    <>
+                      <p className="mb-1 text-xs font-semibold uppercase text-ink-400">Прочитали · {read.length}</p>
+                      {read.map((m) => row(m, true))}
+                    </>
+                  )}
+                  {unread.length > 0 && (
+                    <>
+                      <p className="mb-1 mt-3 text-xs font-semibold uppercase text-ink-400">Ещё не прочитали · {unread.length}</p>
+                      {unread.map((m) => row(m, false))}
+                    </>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {showParticipants && (
         <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={() => setShowParticipants(false)}>
           <div
@@ -502,10 +555,22 @@ export default function ChatPage({ params }: ChatPageProps) {
 
         {messages.map((message, index) => {
           const prev = messages[index - 1];
+          const readers = members.filter((m) => m.lastReadAt && message.createdAt <= m.lastReadAt);
+          const isGroup = members.length > 1;
+          // Подпись «кто прочитал» — только под последним своим сообщением в групповом чате.
+          const isLastOwn = message.senderId === myUserId && !messages.slice(index + 1).some((m) => m.senderId === myUserId);
           const showDaySeparator = !prev || !isSameDay(prev.createdAt, message.createdAt);
           const isOwn = message.senderId === myUserId;
-          const isRead =
-            members.length > 0 && members.every((m) => m.lastReadAt && message.createdAt <= m.lastReadAt);
+          const readStatus: "sent" | "partial" | "read" =
+            members.length > 0 && readers.length === members.length ? "read" : readers.length > 0 ? "partial" : "sent";
+          const readCaption =
+            isGroup && isLastOwn && !message.id.startsWith("temp-")
+              ? readers.length === members.length
+                ? "Прочитали все"
+                : readers.length === 0
+                  ? "Ещё никто не прочитал"
+                  : `Прочитали: ${readers.slice(0, 3).map((m) => m.name).join(", ")}${readers.length > 3 ? ` и ещё ${readers.length - 3}` : ""}`
+              : null;
           const sender = members.find((m) => m.id === message.senderId);
           const showSenderLabel = !isOwn && (!prev || prev.senderId !== message.senderId || showDaySeparator);
 
@@ -521,7 +586,13 @@ export default function ChatPage({ params }: ChatPageProps) {
               {showSenderLabel && (
                 <p className="mb-1 ml-1 text-xs font-medium text-ink-600">{sender?.name ?? "Участник"}</p>
               )}
-              <MessageBubble message={message} isOwn={isOwn} readStatus={isRead ? "read" : "sent"} />
+              <MessageBubble
+                message={message}
+                isOwn={isOwn}
+                readStatus={readStatus}
+                readCaption={readCaption}
+                onOwnPress={isOwn && isGroup && !message.id.startsWith("temp-") ? () => setReadersFor(message) : undefined}
+              />
             </div>
           );
         })}
