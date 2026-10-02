@@ -8,6 +8,7 @@ import { ApplicantCard, type ApplicantCardData } from "@/components/applications
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import "./mesto-event.css";
 import { ApplicationStatusView } from "@/components/applications/ApplicationStatus";
+import { ManageParticipants } from "@/components/events/ManageParticipants";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { photoThumb } from "@/lib/photos/thumb";
 
@@ -480,6 +481,21 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
 
           {canManage && (
             <>
+              {!hasStarted && (
+                <ManageParticipants
+                  eventId={event.id}
+                  participants={event.participants}
+                  isFull={isFull}
+                  pendingCount={pendingApplicants.length}
+                  onChanged={() => {
+                    loadPendingApplicants();
+                    fetch(`/api/events/${eventId}`)
+                      .then((r) => r.json())
+                      .then((data) => !data.error && setEvent(data));
+                  }}
+                />
+              )}
+
               {event.status === "published" && pendingApplicants.length > 0 && (
                 <div className="mb-3 rounded-card bg-white p-4 shadow-card">
                   <h3 className="mb-3 text-sm font-semibold text-ink-900">
