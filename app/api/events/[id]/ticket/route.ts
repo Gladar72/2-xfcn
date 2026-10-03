@@ -124,7 +124,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
   ]);
   if (organizer) {
-    notifyTelegram(
+    await notifyTelegram(
       organizer.telegram_id,
       `😔 ${me?.name ?? "Участник"} отменил(а) участие в «${event.title}». Место снова свободно.`
     ).catch(() => {});
