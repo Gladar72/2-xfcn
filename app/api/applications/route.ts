@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     .eq("id", event.organizer_id)
     .maybeSingle();
   if (organizer) {
-    notifyTelegram(organizer.telegram_id, buildNotificationText("new_application", event.title)).catch(() => {});
+    await notifyTelegram(organizer.telegram_id, buildNotificationText("new_application", event.title)).catch(() => {});
   }
 
   return NextResponse.json({ status: "created", applicationId: application.id });
