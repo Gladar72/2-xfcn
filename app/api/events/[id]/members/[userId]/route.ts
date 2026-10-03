@@ -76,7 +76,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     .eq("id", memberUserId)
     .maybeSingle();
   if (removedUser) {
-    notifyTelegram(removedUser.telegram_id, `Организатор убрал тебя из встречи «${event.title}».`).catch(() => {});
+    await notifyTelegram(removedUser.telegram_id, `Организатор убрал тебя из встречи «${event.title}».`).catch(() => {});
   }
 
   return NextResponse.json({ status: "removed" });
