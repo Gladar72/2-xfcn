@@ -10,7 +10,7 @@ export type TelegramLoginResult = AuthResult & { phoneLinked?: string | null; ph
  * Вход через Telegram: открываем страницу с виджетом Telegram во встроенном
  * браузере, она возвращает подписанные данные ссылкой mesto://auth, сервер
  * проверяет подпись. null — если человек закрыл окно.
- * phoneTicket — привязать к Telegram-профилю номер, только что подтверждённый по SMS.
+ * phoneTicket — привязать к Telegram-профилю почту (или номер), только что подтверждённые кодом.
  */
 export async function loginWithTelegram(phoneTicket?: string | null): Promise<TelegramLoginResult | null> {
   const redirect = Linking.createURL("auth");
