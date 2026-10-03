@@ -72,4 +72,5 @@ export interface MyProfile {
   completedMeetingsCount: number;
   eventsOrganizedCount: number;
   eventsAttendedCount: number;
+  phone: string | null;
 }

@@ -14,8 +14,10 @@ interface AuthState {
   ready: boolean;
   signedIn: boolean;
   ticket: string | null;
+  /** Откуда пропуск на регистрацию: подтверждённый телефон или Telegram. */
+  ticketKind: "phone" | "telegram" | null;
   prefillName: string | null;
-  handleAuthResult: (r: AuthResult) => Promise<void>;
+  handleAuthResult: (r: AuthResult, source?: "phone" | "telegram") => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -26,10 +28,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [signedIn, setSignedIn] = useState(false);
   const [ticket, setTicket] = useState<string | null>(null);
   const [prefillName, setPrefillName] = useState<string | null>(null);
+  const [ticketKind, setTicketKind] = useState<"phone" | "telegram" | null>(null);
 
   const signOut = useCallback(async () => {
     await setToken(null);
     setTicket(null);
+    setTicketKind(null);
     setSignedIn(false);
   }, []);
 
@@ -51,20 +55,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => setUnauthorizedHandler(null);
   }, [signOut]);
 
-  const handleAuthResult = useCallback(async (r: AuthResult) => {
+  const handleAuthResult = useCallback(async (r: AuthResult, source: "phone" | "telegram" = "telegram") => {
     if (r.status === "authenticated") {
       await setToken(r.token);
       setTicket(null);
+      setTicketKind(null);
       setSignedIn(true);
     } else {
       setTicket(r.ticket);
+      setTicketKind(source);
       setPrefillName(r.telegramProfile?.firstName ?? null);
     }
   }, []);
 
   const value = useMemo(
-    () => ({ ready, signedIn, ticket, prefillName, handleAuthResult, signOut }),
-    [ready, signedIn, ticket, prefillName, handleAuthResult, signOut]
+    () => ({ ready, signedIn, ticket, ticketKind, prefillName, handleAuthResult, signOut }),
+    [ready, signedIn, ticket, ticketKind, prefillName, handleAuthResult, signOut]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
