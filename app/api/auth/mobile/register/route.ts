@@ -31,7 +31,9 @@ export async function POST(req: NextRequest) {
   const existing =
     ticket.kind === "phone"
       ? await admin.from("users").select("id, telegram_id").eq("phone", ticket.phone).maybeSingle()
-      : await admin.from("users").select("id, telegram_id").eq("telegram_id", ticket.telegramId).maybeSingle();
+      : ticket.kind === "email"
+        ? await admin.from("users").select("id, telegram_id").eq("email", ticket.email).maybeSingle()
+        : await admin.from("users").select("id, telegram_id").eq("telegram_id", ticket.telegramId).maybeSingle();
   if (existing.data) {
     // Уже зарегистрирован (двойное нажатие) — просто входим.
     return NextResponse.json(await mobileSessionPayload(admin, existing.data));
@@ -43,6 +45,7 @@ export async function POST(req: NextRequest) {
       telegram_id: ticket.kind === "telegram" ? ticket.telegramId : null,
       telegram_username: ticket.kind === "telegram" ? ticket.username : null,
       phone: ticket.kind === "phone" ? ticket.phone : null,
+      email: ticket.kind === "email" ? ticket.email : null,
       name: profile.name,
       birth_date: profile.birthDate,
       gender: profile.gender,
