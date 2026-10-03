@@ -26,7 +26,7 @@ export default function CodeScreen() {
     setError(null);
     try {
       const r = await api<AuthResult>("/api/auth/mobile/phone/verify", { body: { phone, code: value }, auth: false });
-      await handleAuthResult(r);
+      await handleAuthResult(r, "phone");
     } catch (e) {
       setError((e as Error).message);
       setCode("");

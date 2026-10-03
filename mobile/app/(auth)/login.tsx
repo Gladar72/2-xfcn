@@ -2,13 +2,11 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
 import { router } from "expo-router";
 import { Button, ErrorText, Field } from "@/components/ui";
 import { api } from "@/lib/api";
-import { useAuth, type AuthResult } from "@/lib/auth";
-import { API_URL } from "@/lib/config";
+import { useAuth } from "@/lib/auth";
+import { loginWithTelegram } from "@/lib/telegramLogin";
 import { formatPhoneInput } from "@/lib/format";
 import { colors, font } from "@/lib/theme";
 
@@ -36,15 +34,8 @@ export default function LoginScreen() {
     setError(null);
     setLoading("tg");
     try {
-      const redirect = Linking.createURL("auth");
-      const result = await WebBrowser.openAuthSessionAsync(
-        `${API_URL}/auth/telegram-mobile?redirect=${encodeURIComponent(redirect)}`,
-        redirect
-      );
-      if (result.type !== "success") return;
-      const { queryParams } = Linking.parse(result.url);
-      const r = await api<AuthResult>("/api/auth/mobile/telegram", { body: { authData: queryParams ?? {} }, auth: false });
-      await handleAuthResult(r);
+      const r = await loginWithTelegram();
+      if (r) await handleAuthResult(r, "telegram");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -75,6 +66,11 @@ export default function LoginScreen() {
           <Button title="Получить код" onPress={sendCode} loading={loading === "sms"} disabled={digits.length !== 11} />
           <Text style={styles.or}>или</Text>
           <Button title="Войти через Telegram" variant="telegram" onPress={telegramLogin} loading={loading === "tg"} />
+          <View style={styles.hint}>
+            <Text style={styles.hintText}>
+              Уже пользуешься «Место» в Telegram? Входи через Telegram — профиль, встречи и чаты сохранятся.
+            </Text>
+          </View>
           <Text style={styles.legal}>Продолжая, ты принимаешь условия оферты и политику конфиденциальности.</Text>
         </View>
       </KeyboardAvoidingView>
@@ -88,5 +84,7 @@ const styles = StyleSheet.create({
   logo: { fontSize: 34, fontWeight: "900", color: colors.accent, letterSpacing: 2 },
   tagline: { fontSize: font.base, color: colors.ink600 },
   or: { textAlign: "center", color: colors.ink400, fontSize: font.sm },
+  hint: { backgroundColor: colors.lavender100, borderRadius: 14, padding: 12 },
+  hintText: { color: colors.accent, fontSize: font.sm, textAlign: "center", fontWeight: "600" },
   legal: { textAlign: "center", color: colors.ink400, fontSize: font.xs, marginTop: 4 },
 });

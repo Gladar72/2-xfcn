@@ -7,6 +7,7 @@ import * as ImageManipulator from "expo-image-manipulator";
 import { Button, Chip, ErrorText, Field } from "@/components/ui";
 import { api, type ApiError } from "@/lib/api";
 import { useAuth, type AuthResult } from "@/lib/auth";
+import { loginWithTelegram } from "@/lib/telegramLogin";
 import { colors, font } from "@/lib/theme";
 
 const POPULAR_CITIES = ["Тюмень", "Москва", "Санкт-Петербург", "Екатеринбург", "Новосибирск", "Казань"];
@@ -18,7 +19,9 @@ interface Interest {
 }
 
 export default function RegisterScreen() {
-  const { ticket, prefillName, handleAuthResult, signOut } = useAuth();
+  const { ticket, ticketKind, prefillName, handleAuthResult, signOut } = useAuth();
+  const [tgBusy, setTgBusy] = useState(false);
+  const [tgError, setTgError] = useState<string | null>(null);
   const [name, setName] = useState(prefillName ?? "");
   const [day, setDay] = useState("");
   const [month, setMonth] = useState("");
@@ -48,6 +51,26 @@ export default function RegisterScreen() {
       base64: true,
     });
     if (out.base64) setPhoto({ uri: out.uri, base64: `data:image/jpeg;base64,${out.base64}` });
+  }
+
+  // Номер новый, но у человека уже есть профиль в Telegram-версии:
+  // входим через Telegram и привязываем к тому профилю этот номер.
+  async function useExistingTelegramProfile() {
+    setTgError(null);
+    setTgBusy(true);
+    try {
+      const r = await loginWithTelegram(ticket);
+      if (!r) return;
+      if (r.status === "authenticated") {
+        await handleAuthResult(r);
+      } else {
+        setTgError("Профиль с этим Telegram не найден — заполни анкету ниже, чтобы создать новый.");
+      }
+    } catch (e) {
+      setTgError((e as Error).message);
+    } finally {
+      setTgBusy(false);
+    }
   }
 
   async function submit() {
@@ -87,6 +110,15 @@ export default function RegisterScreen() {
       <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Расскажи о себе</Text>
         <Text style={styles.sub}>Так люди поймут, с кем идут на встречу</Text>
+
+        {ticketKind === "phone" ? (
+          <View style={styles.tgBox}>
+            <Text style={styles.tgTitle}>Уже есть профиль в «Место» в Telegram?</Text>
+            <Text style={styles.tgText}>Войди через Telegram — номер привяжется к твоему профилю, встречи и чаты сохранятся.</Text>
+            <Button title="Войти через Telegram" variant="telegram" onPress={useExistingTelegramProfile} loading={tgBusy} />
+            <ErrorText>{tgError}</ErrorText>
+          </View>
+        ) : null}
 
         <Pressable onPress={pickPhoto} style={styles.photo}>
           {photo ? (
@@ -167,6 +199,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     overflow: "hidden",
   },
+  tgBox: { backgroundColor: colors.lavender100, borderRadius: 18, padding: 14, gap: 8, marginBottom: 8 },
+  tgTitle: { fontSize: font.base, fontWeight: "800", color: colors.ink900 },
+  tgText: { fontSize: font.sm, color: colors.ink600 },
   terms: { flexDirection: "row", gap: 12, alignItems: "center", marginVertical: 8 },
   check: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
 });
