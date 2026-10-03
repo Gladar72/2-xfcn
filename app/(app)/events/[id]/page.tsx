@@ -298,11 +298,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     <div className="-mb-24">
       <div className="mesto">
         <main className="m-page">
-          <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="mb-3 flex items-center gap-3">
             <button onClick={() => router.back()} aria-label="Назад">
               <Image src="/brand/3d/icon-back.png" alt="" width={28} height={28} />
             </button>
-            <ShareEventButton eventId={event.id} title={event.title} when={dateLabel} />
           </div>
 
           {canManage && (
@@ -322,16 +321,21 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               <img src={categoryIcon ?? "/brand/3d/icon-calendar.png"} alt="" width={20} height={20} />
               <span>{categoryLabel}</span>
             </div>
-            {canManage && (
-              <Link
-                href={`/events/${event.id}/edit`}
-                className="flex shrink-0 items-center gap-1.5 rounded-pill bg-[#F1EAFF] px-4 py-2 text-sm font-medium text-[color:var(--m-purple)]"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/icon-edit.png" alt="" width={18} height={18} />
-                Редактировать
-              </Link>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {canManage && (
+                <Link
+                  href={`/events/${event.id}/edit`}
+                  className="flex shrink-0 items-center gap-1.5 rounded-pill bg-[#F1EAFF] px-4 py-2 text-sm font-medium text-[color:var(--m-purple)]"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/brand/3d/icon-edit.png" alt="" width={18} height={18} />
+                  Редактировать
+                </Link>
+              )}
+              {/* «Поделиться» — на одном уровне с плашкой категории; у организатора
+                  рядом ещё «Редактировать», поэтому кнопка сжимается до иконки. */}
+              <ShareEventButton eventId={event.id} title={event.title} when={dateLabel} compact={canManage} />
+            </div>
           </div>
 
           <h1 className="m-title">{event.title}</h1>
