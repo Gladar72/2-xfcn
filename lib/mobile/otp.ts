@@ -11,7 +11,26 @@ export async function checkAndConsumeOtp(
   phone: string,
   code: string
 ): Promise<OtpCheck> {
-  const { data: otp } = await admin.from("phone_otps").select("*").eq("phone", phone).maybeSingle();
+  return checkAndConsumeCode(admin, "phone_otps", "phone", phone, code);
+}
+
+/** То же для кодов, отправленных на почту (таблица email_otps). */
+export async function checkAndConsumeEmailOtp(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string,
+  code: string
+): Promise<OtpCheck> {
+  return checkAndConsumeCode(admin, "email_otps", "email", email, code);
+}
+
+async function checkAndConsumeCode(
+  admin: ReturnType<typeof createAdminClient>,
+  table: "phone_otps" | "email_otps",
+  column: "phone" | "email",
+  phone: string,
+  code: string
+): Promise<OtpCheck> {
+  const { data: otp } = await admin.from(table).select("*").eq(column, phone).maybeSingle();
   if (!otp || new Date(otp.expires_at).getTime() < Date.now()) {
     return { ok: false, status: 400, error: "code_expired", message: "Код устарел — запроси новый" };
   }
@@ -19,10 +38,25 @@ export async function checkAndConsumeOtp(
     return { ok: false, status: 429, error: "too_many_attempts", message: "Слишком много попыток — запроси новый код" };
   }
   if (!safeEqualHex(hashOtp(phone, code), otp.code_hash)) {
-    await admin.from("phone_otps").update({ attempts: otp.attempts + 1 }).eq("phone", phone);
+    await admin.from(table).update({ attempts: otp.attempts + 1 }).eq(column, phone);
     return { ok: false, status: 400, error: "wrong_code", message: "Неверный код" };
   }
-  await admin.from("phone_otps").update({ expires_at: new Date(0).toISOString() }).eq("phone", phone);
+  await admin.from(table).update({ expires_at: new Date(0).toISOString() }).eq(column, phone);
+  return { ok: true };
+}
+
+/** Привязывает подтверждённую почту к профилю (почта не должна принадлежать другому). */
+export async function attachEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  email: string
+): Promise<{ ok: true } | { ok: false; status: number; error: string; message: string }> {
+  const { data: owner } = await admin.from("users").select("id").eq("email", email).maybeSingle();
+  if (owner && owner.id !== userId) {
+    return { ok: false, status: 409, error: "email_taken", message: "Эта почта уже привязана к другому профилю «Место»" };
+  }
+  const { error } = await admin.from("users").update({ email }).eq("id", userId);
+  if (error) return { ok: false, status: 500, error: "update_failed", message: "Не получилось сохранить почту" };
   return { ok: true };
 }
 

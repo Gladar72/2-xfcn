@@ -17,6 +17,13 @@ export function normalizePhone(raw: string): string | null {
   return "+" + d;
 }
 
+/** Почта в нижнем регистре; null — если не похоже на адрес. */
+export function normalizeEmail(raw: unknown): string | null {
+  const e = String(raw ?? "").trim().toLowerCase();
+  if (e.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) return null;
+  return e;
+}
+
 export function generateOtp(): string {
   return String(randomInt(0, 10000)).padStart(4, "0");
 }
@@ -109,6 +116,7 @@ export function verifyTelegramLogin(
 /** Короткоживущий «пропуск на регистрацию»: подтверждённый телефон или Telegram-аккаунт. */
 export type RegistrationTicket =
   | { kind: "phone"; phone: string }
+  | { kind: "email"; email: string }
   | { kind: "telegram"; telegramId: number; username: string | null };
 
 const TICKET_AUDIENCE = "mesto-mobile-registration";
@@ -123,6 +131,7 @@ export function verifyRegistrationTicket(token: string): RegistrationTicket | nu
     if (typeof decoded === "string") return null;
     const t = (decoded as { t?: RegistrationTicket }).t;
     if (t?.kind === "phone" && typeof t.phone === "string") return t;
+    if (t?.kind === "email" && typeof t.email === "string") return t;
     if (t?.kind === "telegram" && typeof t.telegramId === "number") return t;
     return null;
   } catch {
