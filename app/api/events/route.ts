@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { runInBackground, sendInBatches } from "@/lib/server/background";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
@@ -12,6 +13,9 @@ import { notifyTelegram } from "@/lib/telegram/notify";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { moderateImage } from "@/lib/photos/moderate-image";
 import { cachedFeed, clearFeedCache } from "@/lib/data/feed-cache";
+
+// Рассылки после создания (бизнес-событие — всему городу) идут фоном после ответа — даём им время.
+export const maxDuration = 60;
 
 const PAGE_SIZE = 20;
 // Сколько кандидатов тянем из БД до ranking (больше видимого лимита,
@@ -658,8 +662,12 @@ export async function POST(req: NextRequest) {
     // Bot API), и ждать её целиком перед ответом клиенту ощущалось бы
     // как "всё долго грузит" при создании (реальная жалоба пользователя).
     // Публикация встречи не зависит от того, дошла рассылка или нет.
-    void Promise.allSettled(
-      cityTelegramIds.map((telegramId) => notifyTelegram(telegramId, formatBusinessEventBroadcastMessage(input)))
+    // Раньше здесь было «void Promise.allSettled(...)» — на Vercel функция
+    // замораживается сразу после ответа, и рассылка обрывалась на первых
+    // сообщениях. Теперь — фоном через waitUntil и пачками (лимит Telegram).
+    const broadcastText = formatBusinessEventBroadcastMessage(input);
+    await runInBackground(() =>
+      sendInBatches(cityTelegramIds as number[], (telegramId) => notifyTelegram(telegramId, broadcastText))
     );
   }
 
@@ -672,14 +680,16 @@ export async function POST(req: NextRequest) {
   // Workflow 1 (п.27 ТЗ): находим потенциально релевантных пользователей —
   // та же логика интересов, что и в ranking (lib/scoring), но здесь как
   // одноразовый список получателей для n8n, а не как скоринг.
-  notifyRelevantUsers(admin, {
-    eventId: createdEvent.id,
-    organizerId: currentUser.userId,
-    city: organizerProfile?.city ?? "",
-    categorySlug: input.categorySlug,
-    trainingTypeSlug: input.trainingTypeSlug ?? null,
-    title: input.title ?? "",
-  }).catch(() => {});
+  await runInBackground(() =>
+    notifyRelevantUsers(admin, {
+      eventId: createdEvent.id,
+      organizerId: currentUser.userId,
+      city: organizerProfile?.city ?? "",
+      categorySlug: input.categorySlug,
+      trainingTypeSlug: input.trainingTypeSlug ?? null,
+      title: input.title ?? "",
+    })
+  );
 
   // Автор сразу видит свою встречу в ленте, не дожидаясь конца 15-секундного кэша.
   clearFeedCache();
