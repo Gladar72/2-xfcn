@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "Место",
+    "slug": "mesto",
+    "scheme": "mesto",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FCFAFF"
+    },
+    "ios": {
+      "bundleIdentifier": "ru.mesto.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Чтобы показать встречи рядом с тобой на карте.",
+        "NSPhotoLibraryUsageDescription": "Чтобы выбрать фото для профиля и встречи.",
+        "NSCameraUsageDescription": "Чтобы сделать фото для профиля."
+      }
+    },
+    "android": {
+      "package": "ru.mesto.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F4EFFF"
+      },
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "config": {
+        "googleMaps": { "apiKey": "GOOGLE_MAPS_ANDROID_API_KEY" }
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-web-browser",
+      ["expo-location", { "locationWhenInUsePermission": "Чтобы показать встречи рядом с тобой на карте." }],
+      ["expo-image-picker", { "photosPermission": "Чтобы выбрать фото для профиля и встречи." }],
+      ["expo-notifications", { "color": "#6C3BFF" }]
+    ],
+    "experiments": { "typedRoutes": true },
+    "extra": {
+      "apiUrl": "https://2-xfcn.vercel.app",
+      "eas": { "projectId": "" }
+    }
+  }
+}
