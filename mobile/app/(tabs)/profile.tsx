@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Avatar, Button } from "@/components/ui";
@@ -45,6 +45,11 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        <Row
+          icon="call-outline"
+          label={me?.phone ? `Телефон ${me.phone}` : "Привязать номер телефона"}
+          onPress={() => router.push("/link-phone")}
+        />
         <Row icon="document-text-outline" label="Оферта" onPress={() => Linking.openURL(`${API_URL}/legal/offer`)} />
         <Row icon="shield-checkmark-outline" label="Политика конфиденциальности" onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)} />
         <Row icon="paper-plane-outline" label="Открыть «Место» в Telegram" onPress={() => Linking.openURL("https://t.me/Mesto_people_bot")} />
