@@ -46,9 +46,9 @@ export default function ProfileScreen() {
         </View>
 
         <Row
-          icon="call-outline"
-          label={me?.phone ? `Телефон ${me.phone}` : "Привязать номер телефона"}
-          onPress={() => router.push("/link-phone")}
+          icon="mail-outline"
+          label={me?.email ? `Почта ${me.email}` : "Привязать почту для входа"}
+          onPress={() => router.push("/link-email")}
         />
         <Row icon="document-text-outline" label="Оферта" onPress={() => Linking.openURL(`${API_URL}/legal/offer`)} />
         <Row icon="shield-checkmark-outline" label="Политика конфиденциальности" onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)} />
