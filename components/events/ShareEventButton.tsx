@@ -15,11 +15,14 @@ export function ShareEventButton({
   eventId,
   title,
   when,
+  compact = false,
   className = "",
 }: {
   eventId: string;
   title: string;
   when: string;
+  /** Только иконка, без надписи — когда рядом есть другие кнопки. */
+  compact?: boolean;
   className?: string;
 }) {
   function share() {
@@ -43,13 +46,13 @@ export function ShareEventButton({
       type="button"
       onClick={share}
       aria-label="Поделиться встречей"
-      className={`flex items-center gap-1.5 rounded-pill bg-[#F1EAFF] px-4 py-2 text-sm font-semibold text-[color:var(--m-purple)] active:opacity-80 ${className}`}
+      className={`flex shrink-0 items-center gap-1.5 rounded-pill bg-[#F1EAFF] ${compact ? "px-2.5" : "px-4"} py-2 text-sm font-semibold text-[color:var(--m-purple)] active:opacity-80 ${className}`}
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M21.5 4.5 2.8 11.7c-.9.4-.9 1.6.1 1.9l4.7 1.5 1.8 5.6c.3.9 1.4 1.1 2 .4l2.6-2.7 4.9 3.6c.7.5 1.7.1 1.9-.8l3.1-14.9c.2-1.1-.8-1.9-1.9-1.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
         <path d="m7.6 15.1 10-7.6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
       </svg>
-      Поделиться
+      {compact ? null : "Поделиться"}
     </button>
   );
 }
