@@ -18,7 +18,7 @@ export async function GET() {
   const { data: user, error } = await admin
     .from("users")
     .select(
-      "id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at, receipt_contact, last_active_at, morning_reminders_enabled, phone"
+      "id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at, receipt_contact, last_active_at, morning_reminders_enabled, phone, email"
     )
     .eq("id", currentUser.userId)
     .maybeSingle();
@@ -58,6 +58,7 @@ export async function GET() {
     receiptContact: user.receipt_contact,
     morningRemindersEnabled: user.morning_reminders_enabled,
     phone: user.phone ?? null,
+    email: user.email ?? null,
     eventsOrganizedCount: eventsOrganizedCount ?? 0,
     eventsAttendedCount: eventsAttendedCount ?? 0,
     memberSince: user.created_at,
