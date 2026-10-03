@@ -8,7 +8,7 @@ import { useAuth, type AuthResult } from "@/lib/auth";
 import { colors, font } from "@/lib/theme";
 
 export default function CodeScreen() {
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { email } = useLocalSearchParams<{ email: string }>();
   const { handleAuthResult } = useAuth();
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -25,8 +25,8 @@ export default function CodeScreen() {
     setBusy(true);
     setError(null);
     try {
-      const r = await api<AuthResult>("/api/auth/mobile/phone/verify", { body: { phone, code: value }, auth: false });
-      await handleAuthResult(r, "phone");
+      const r = await api<AuthResult>("/api/auth/mobile/email/verify", { body: { email, code: value }, auth: false });
+      await handleAuthResult(r, "email");
     } catch (e) {
       setError((e as Error).message);
       setCode("");
@@ -38,7 +38,7 @@ export default function CodeScreen() {
   async function resend() {
     setError(null);
     try {
-      await api("/api/auth/mobile/phone/send", { body: { phone }, auth: false });
+      await api("/api/auth/mobile/email/send", { body: { email }, auth: false });
       setResendIn(60);
     } catch (e) {
       setError((e as Error).message);
@@ -50,8 +50,8 @@ export default function CodeScreen() {
       <Pressable onPress={() => router.back()}>
         <Text style={styles.back}>‹ Назад</Text>
       </Pressable>
-      <Text style={styles.title}>Код из SMS</Text>
-      <Text style={styles.sub}>Отправили на {phone}</Text>
+      <Text style={styles.title}>Код из письма</Text>
+      <Text style={styles.sub}>Отправили на {email}. Если письма нет — проверь папку «Спам».</Text>
 
       <Pressable onPress={() => input.current?.focus()} style={styles.boxes}>
         {[0, 1, 2, 3].map((i) => (
@@ -70,7 +70,7 @@ export default function CodeScreen() {
         }}
         keyboardType="number-pad"
         textContentType="oneTimeCode"
-        autoComplete="sms-otp"
+        autoComplete="one-time-code"
         autoFocus
         style={styles.hidden}
       />

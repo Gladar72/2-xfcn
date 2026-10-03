@@ -7,22 +7,22 @@ import { Button, ErrorText, Field } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { loginWithTelegram } from "@/lib/telegramLogin";
-import { formatPhoneInput } from "@/lib/format";
 import { colors, font } from "@/lib/theme";
 
 export default function LoginScreen() {
   const { handleAuthResult } = useAuth();
-  const [phone, setPhone] = useState("+7");
-  const [loading, setLoading] = useState<"sms" | "tg" | null>(null);
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState<"email" | "tg" | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const digits = phone.replace(/\D/g, "");
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
   async function sendCode() {
     setError(null);
-    setLoading("sms");
+    setLoading("email");
     try {
-      await api("/api/auth/mobile/phone/send", { body: { phone }, auth: false });
-      router.push({ pathname: "/(auth)/code", params: { phone } });
+      const clean = email.trim().toLowerCase();
+      await api("/api/auth/mobile/email/send", { body: { email: clean }, auth: false });
+      router.push({ pathname: "/(auth)/code", params: { email: clean } });
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -53,24 +53,25 @@ export default function LoginScreen() {
         </View>
 
         <View style={{ gap: 12 }}>
-          <Field
-            label="Номер телефона"
-            value={phone}
-            onChangeText={(t) => setPhone(formatPhoneInput(t))}
-            keyboardType="phone-pad"
-            textContentType="telephoneNumber"
-            autoComplete="tel"
-            maxLength={16}
-          />
-          <ErrorText>{error}</ErrorText>
-          <Button title="Получить код" onPress={sendCode} loading={loading === "sms"} disabled={digits.length !== 11} />
-          <Text style={styles.or}>или</Text>
           <Button title="Войти через Telegram" variant="telegram" onPress={telegramLogin} loading={loading === "tg"} />
           <View style={styles.hint}>
             <Text style={styles.hintText}>
               Уже пользуешься «Место» в Telegram? Входи через Telegram — профиль, встречи и чаты сохранятся.
             </Text>
           </View>
+          <Text style={styles.or}>или по почте</Text>
+          <Field
+            value={email}
+            onChangeText={setEmail}
+            placeholder="you@mail.ru"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <ErrorText>{error}</ErrorText>
+          <Button title="Получить код на почту" variant="soft" onPress={sendCode} loading={loading === "email"} disabled={!emailOk} />
           <Text style={styles.legal}>Продолжая, ты принимаешь условия оферты и политику конфиденциальности.</Text>
         </View>
       </KeyboardAvoidingView>
