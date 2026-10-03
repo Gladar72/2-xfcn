@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -28,6 +29,15 @@ export default function EventScreen() {
     api<EventDetail>(`/api/events/${id}`).then(setEvent).catch((e) => setError((e as Error).message));
   }, [id]);
   useEffect(load, [load]);
+
+  // «Поделиться»: системное окно (Telegram, WhatsApp, VK…). Ссылка ведёт в бота,
+  // он присылает карточку встречи с кнопкой «Открыть встречу».
+  async function share() {
+    if (!event) return;
+    const link = `https://t.me/Mesto_people_bot?start=e_${event.id}`;
+    const when = formatEventDate(event.eventDate, event.eventTime);
+    await Share.share({ message: `${event.title} — ${when}. Пойдёшь со мной? 🙌\n${link}` }).catch(() => {});
+  }
 
   async function apply() {
     setBusy(true);
@@ -69,7 +79,16 @@ export default function EventScreen() {
 
   return (
     <SafeAreaView edges={["bottom"]} style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: event.category?.name ?? "Встреча" }} />
+      <Stack.Screen
+        options={{
+          title: event.category?.name ?? "Встреча",
+          headerRight: () => (
+            <Pressable onPress={share} hitSlop={10} accessibilityLabel="Поделиться встречей">
+              <Ionicons name="share-outline" size={24} color={colors.accent} />
+            </Pressable>
+          ),
+        }}
+      />
       <ScrollView contentContainerStyle={{ paddingBottom: 24 }}>
         {event.photoUrl ? (
           <Image source={{ uri: event.photoUrl }} style={styles.hero} contentFit="cover" />
@@ -88,9 +107,12 @@ export default function EventScreen() {
           <Text style={styles.meta}>🗓 {formatEventDate(event.eventDate, event.eventTime)}{event.eventEndTime ? ` – ${event.eventEndTime.slice(0, 5)}` : ""}</Text>
           {event.placeName || event.address ? <Text style={styles.meta}>📍 {[event.placeName, event.address].filter(Boolean).join(", ")}</Text> : null}
           <Text style={styles.meta}>👥 {seatsLeft(event.seatsTotal, event.seatsTaken)} из {event.seatsTotal}</Text>
-          {hasCoords ? (
-            <Button title="Маршрут ↗" variant="soft" onPress={() => openRoute(event.latitude!, event.longitude!)} style={{ marginTop: 8 }} />
-          ) : null}
+          <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+            {hasCoords ? (
+              <Button title="Маршрут ↗" variant="soft" onPress={() => openRoute(event.latitude!, event.longitude!)} style={{ flex: 1 }} />
+            ) : null}
+            <Button title="Поделиться" variant="soft" onPress={share} style={{ flex: 1 }} />
+          </View>
 
           {event.description ? <Text style={styles.desc}>{event.description}</Text> : null}
 
