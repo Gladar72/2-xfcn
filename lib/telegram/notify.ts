@@ -15,7 +15,9 @@ import { getBot } from "@/lib/telegram/bot";
  * Telegram вернёт ошибку; она перехватывается и логируется, не роняя
  * основной запрос (создание отклика, отправку сообщения и т.д.).
  */
-export async function notifyTelegram(telegramId: number, text: string): Promise<void> {
+export async function notifyTelegram(telegramId: number | null | undefined, text: string): Promise<void> {
+  // У пользователей, вошедших в мобильное приложение по номеру телефона, Telegram нет.
+  if (!telegramId) return;
   const appUrl = process.env.APP_URL;
 
   try {

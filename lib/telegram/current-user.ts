@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { verifySessionToken, SESSION_COOKIE } from "@/lib/telegram/session";
 
 export interface CurrentUser {
@@ -18,7 +18,10 @@ export interface CurrentUser {
  */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE.name)?.value;
+  // Мини-приложение в Telegram хранит сессию в cookie, мобильное приложение
+  // присылает тот же JWT в заголовке Authorization: Bearer <token>.
+  const bearer = (await headers()).get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const token = cookieStore.get(SESSION_COOKIE.name)?.value ?? bearer;
   if (!token) return null;
 
   const payload = verifySessionToken(token);
