@@ -2,6 +2,7 @@
 
 import { EventPlaceMap } from "@/components/events/EventPlaceMap";
 import { RouteButton } from "@/components/events/RouteButton";
+import { ShareEventButton } from "@/components/events/ShareEventButton";
 import { markerIconFor } from "@/components/map/EventsMap";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -297,10 +298,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     <div className="-mb-24">
       <div className="mesto">
         <main className="m-page">
-          <div className="mb-3 flex items-center gap-3">
+          <div className="mb-3 flex items-center justify-between gap-3">
             <button onClick={() => router.back()} aria-label="Назад">
               <Image src="/brand/3d/icon-back.png" alt="" width={28} height={28} />
             </button>
+            <ShareEventButton eventId={event.id} title={event.title} when={dateLabel} />
           </div>
 
           {canManage && (
