@@ -111,7 +111,8 @@ export async function middleware(req: NextRequest) {
   // 2. Вход обязателен для API с данными. Регистрация (POST /api/users) — без сессии.
   const isPublic =
     PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p)) || (pathname === "/api/users" && req.method === "POST");
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
+  const bearer = req.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const token = req.cookies.get(SESSION_COOKIE)?.value ?? bearer;
   // Если секрет почему-то недоступен в этой среде — не ломаем приложение:
   // требуем хотя бы наличие cookie, а полную проверку делают сами обработчики.
   const userId = process.env.SUPABASE_JWT_SECRET ? await verifySession(token) : token ? "cookie" : null;
