@@ -91,6 +91,10 @@ export default function NotificationsPage() {
   function handlePress(item: NotificationItem) {
     if (item.type === "subscription_expiring" || item.type === "subscription_expired") {
       router.push("/subscriptions");
+    } else if (item.type === "review_request") {
+      // Оценка встречи — сразу на форму оценки, а не на страницу события
+      // (там нет кнопки «Оценить», человек проваливался и не мог оценить).
+      router.push(item.linkEventId ? `/reviews?event=${item.linkEventId}` : "/reviews");
     } else if (item.type === "new_application" && item.linkEventId) {
       router.push(`/events/${item.linkEventId}/applications`);
     } else if (item.linkEventId && item.type !== "new_message") {
