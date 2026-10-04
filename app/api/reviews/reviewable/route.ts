@@ -23,7 +23,7 @@ export async function GET() {
 
   const { data: myMemberships } = await admin
     .from("event_members")
-    .select("event_id, events!inner(id, title, event_date, status)")
+    .select("event_id, events!inner(id, title, event_date, status, is_business, organizer_id)")
     .eq("user_id", currentUser.userId);
 
   const completedEventIds = (myMemberships ?? [])
@@ -52,13 +52,23 @@ export async function GET() {
         id: string;
         title: string;
         event_date: string;
+        is_business: boolean | null;
+        organizer_id: string;
       };
+      // Бизнес-событие: участник оценивает ОДИН раз — только организатора,
+      // а организатор не получает просьбу оценить каждого гостя.
+      if (meta.is_business && meta.organizer_id === currentUser.userId) {
+        return { eventId, title: meta.title, eventDate: meta.event_date, reviewableMembers: [] };
+      }
       const otherMembers = (allMembers ?? [])
         .filter((m) => m.event_id === eventId)
         .map((m) => m.users as unknown as { id: string; name: string; avatar_url: string | null } | null)
         .filter(
           (u): u is { id: string; name: string; avatar_url: string | null } =>
-            !!u && u.id !== currentUser.userId && !alreadyReviewedKeys.has(`${eventId}:${u.id}`)
+            !!u &&
+            u.id !== currentUser.userId &&
+            !alreadyReviewedKeys.has(`${eventId}:${u.id}`) &&
+            (!meta.is_business || u.id === meta.organizer_id)
         );
       return {
         eventId,
