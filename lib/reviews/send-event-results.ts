@@ -2,8 +2,11 @@ import type { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { eventTiming } from "@/lib/events/timing";
 
-/** Через сколько после окончания бизнес-события организатору приходят итоги (один раз). */
-const BUSINESS_RESULTS_DELAY_HOURS = 12;
+/**
+ * Итоги бизнес-события организатору — ОДИН раз: когда оценили все гости,
+ * либо через столько часов после окончания (кто успел — тот успел).
+ */
+const BUSINESS_RESULTS_DELAY_HOURS = 24;
 
 /**
  * Сразу после того, как кто-то оценил встречу, рассылает ВСЕМ участникам
@@ -57,8 +60,9 @@ export async function sendEventResultsNow(admin: ReturnType<typeof createAdminCl
 }
 
 /**
- * Итоги бизнес-событий — ОДИН раз организатору, через
- * BUSINESS_RESULTS_DELAY_HOURS после окончания (гости успевают оценить).
+ * Итоги бизнес-событий — ОДИН общий итог организатору (не по каждому
+ * гостю): как только оценили все гости, или через
+ * BUSINESS_RESULTS_DELAY_HOURS после окончания — что наступит раньше.
  * Вызывается из cron /api/cron/complete-events. Сначала ставим
  * results_sent_at (условно, только если ещё null), потом шлём —
  * повторный/параллельный запуск дубля не пришлёт.
@@ -73,12 +77,27 @@ export async function sendDueBusinessResults(admin: ReturnType<typeof createAdmi
     .limit(50);
 
   const now = Date.now();
-  const due = (candidates ?? []).filter(
-    (e) => eventTiming(e).end.getTime() + BUSINESS_RESULTS_DELAY_HOURS * 60 * 60 * 1000 <= now
-  );
 
   let sent = 0;
-  for (const event of due) {
+  for (const event of candidates ?? []) {
+    const timeIsUp = eventTiming(event).end.getTime() + BUSINESS_RESULTS_DELAY_HOURS * 60 * 60 * 1000 <= now;
+    if (!timeIsUp) {
+      // Раньше срока — только если уже оценили ВСЕ гости.
+      const [{ count: rated }, { count: total }] = await Promise.all([
+        admin
+          .from("reviews")
+          .select("id", { count: "exact", head: true })
+          .eq("event_id", event.id)
+          .eq("reviewee_id", event.organizer_id),
+        admin
+          .from("event_members")
+          .select("user_id", { count: "exact", head: true })
+          .eq("event_id", event.id)
+          .eq("role", "participant"),
+      ]);
+      if (!total || (rated ?? 0) < total) continue;
+    }
+
     const { data: claimed } = await admin
       .from("events")
       .update({ results_sent_at: new Date().toISOString() })
