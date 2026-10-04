@@ -1,12 +1,20 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
-import { getCityUtcOffset } from "@/lib/data/city-timezones";
 
 const MIN_HOURS_AFTER_SIGNUP = 48;
-// Ровно 8:00 утра по времени пользователя (по городу его регистрации) —
-// всем зарегистрированным пользователям, каждый день (без пропуска через
-// день и без случайного времени внутри окна — по явному запросу).
-const TARGET_HOUR = 8;
-const TARGET_MINUTE = 0;
+// Одно время для всех: 10:00 по Тюмени (UTC+5) = 8:00 по Москве (UTC+3),
+// т.е. 05:00 UTC — по явному запросу владельца.
+const SEND_UTC_HOUR = 5;
+const SEND_UTC_MINUTE = 0;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Через день: шлём только в "чётные" дни от 1970-01-01 (UTC). Считаем от
+ * эпохи, а не от понедельника — в неделе 7 дней, и иначе чередование
+ * сбивалось бы на стыке недель (вс → пн подряд).
+ */
+function isReminderDay(day: Date): boolean {
+  return Math.round(day.getTime() / DAY_MS) % 2 === 0;
+}
 const PAGE_SIZE = 1000;
 const INSERT_CHUNK = 1000;
 
@@ -121,26 +129,24 @@ export async function scheduleCurrentWeekReminders(admin: ReturnType<typeof crea
   for (const user of candidates) {
     const signupCutoff = new Date(new Date(user.created_at).getTime() + MIN_HOURS_AFTER_SIGNUP * 60 * 60 * 1000);
     const existingSlots = alreadyScheduledSlotsByUser.get(user.id) ?? new Set<number>();
-    // Всем зарегистрированным пользователям, КАЖДЫЙ оставшийся день недели
-    // (без пропуска через день) — без тех дней, на которые запись уже есть.
+    // Всем зарегистрированным пользователям, ЧЕРЕЗ ДЕНЬ (см. isReminderDay)
+    // — без тех дней, на которые запись уже есть.
     const chosenDays = remainingDays.filter(
       (d) =>
+        isReminderDay(d) &&
         addDays(d, 1).getTime() > signupCutoff.getTime() &&
         !existingSlots.has(Math.round((d.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000)))
     );
     if (chosenDays.length === 0) continue; // ничего нового на эту неделю — либо всё уже создано, либо слишком свежая регистрация
-
-    const offsetHours = getCityUtcOffset(user.city);
 
     chosenDays.forEach((day) => {
       // slot_index = смещение дня от понедельника этой недели (0..6) —
       // стабильный и однозначный номер, а не просто порядок среди
       // выбранных дней (важно для проверки выше при повторных запусках).
       const slotIndex = Math.round((day.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000));
-      // День+время указаны в местном времени пользователя — переводим в UTC
-      // вычитанием смещения (местное = UTC + offset ⇒ UTC = местное - offset).
+      // Единое время для всех городов — 05:00 UTC (10:00 Тюмень / 8:00 Москва).
       const scheduledUtc = new Date(
-        Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), TARGET_HOUR - offsetHours, TARGET_MINUTE)
+        Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), SEND_UTC_HOUR, SEND_UTC_MINUTE)
       );
       // Не планируем момент, который уже прошёл (например, сегодняшний
       // день, а случайное время внутри окна уже позади) — такой слот
