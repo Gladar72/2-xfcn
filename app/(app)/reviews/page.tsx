@@ -22,18 +22,34 @@ export default function ReviewsPage() {
   const [loading, setLoading] = useState(true);
   const [activeTarget, setActiveTarget] = useState<{ eventId: string; member: ReviewableMember } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Пришли из уведомления «Оцени, как прошла встреча» — /reviews?event=<id>
+  const [focusEventId, setFocusEventId] = useState<string | null>(null);
 
   useEffect(() => {
-    load();
+    const eventParam = new URLSearchParams(window.location.search).get("event");
+    setFocusEventId(eventParam);
+    load(eventParam, true);
   }, []);
 
-  function load() {
+  function load(focusId: string | null = focusEventId, autoOpen = false) {
     setLoading(true);
     fetch("/api/reviews/reviewable")
       .then((r) => r.json())
-      .then((data) => setEvents(data.events ?? []))
+      .then((data) => {
+        let list: ReviewableEvent[] = data.events ?? [];
+        if (focusId) {
+          // Нужную встречу — наверх и сразу открываем форму оценки.
+          list = [...list.filter((e) => e.eventId === focusId), ...list.filter((e) => e.eventId !== focusId)];
+          const target = list.find((e) => e.eventId === focusId);
+          const first = target?.reviewableMembers[0];
+          if (autoOpen && target && first) setActiveTarget({ eventId: target.eventId, member: first });
+        }
+        setEvents(list);
+      })
       .finally(() => setLoading(false));
   }
+
+  const focusDone = !!focusEventId && !loading && !events.some((e) => e.eventId === focusEventId);
 
   async function handleSubmit(data: {
     rating: number;
@@ -60,7 +76,7 @@ export default function ReviewsPage() {
       if (res.ok) {
         setToast("Спасибо за отзыв!");
         setActiveTarget(null);
-        load();
+        load(focusEventId, true);
       } else {
         setToast("Не получилось отправить отзыв.");
       }
@@ -77,7 +93,13 @@ export default function ReviewsPage() {
 
       {loading && <p className="text-center text-ink-600">Загрузка...</p>}
 
-      {!loading && events.length === 0 && (
+      {focusDone && (
+        <div className="mb-4 rounded-card bg-white p-4 text-center text-sm text-ink-600 shadow-card">
+          Эта встреча уже оценена — спасибо! 🙌
+        </div>
+      )}
+
+      {!loading && events.length === 0 && !focusDone && (
         <div className="rounded-card bg-white p-6 text-center text-sm text-ink-600 shadow-card">
           Пока нет завершённых встреч, которые можно оценить.
         </div>
