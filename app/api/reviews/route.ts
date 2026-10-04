@@ -37,9 +37,18 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
-  const { data: event } = await admin.from("events").select("status").eq("id", input.eventId).maybeSingle();
+  const { data: event } = await admin
+    .from("events")
+    .select("status, is_business, organizer_id")
+    .eq("id", input.eventId)
+    .maybeSingle();
   if (!event || event.status !== "completed") {
     return NextResponse.json({ error: "event_not_completed" }, { status: 422 });
+  }
+
+  // Бизнес-событие: гость оценивает только организатора, один раз.
+  if (event.is_business && input.revieweeId !== event.organizer_id) {
+    return NextResponse.json({ error: "business_review_organizer_only" }, { status: 422 });
   }
 
   const { data: members } = await admin
