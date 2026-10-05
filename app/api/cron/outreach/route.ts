@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
-import { escapeHtml, runOutreach } from "@/lib/outreach/assistant";
+import { escapeHtml } from "@/lib/outreach/assistant";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -9,8 +9,8 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/cron/outreach
  *
- * Каждое утро (см. vercel.json, ~10:00 по Тюмени): помощник по охвату
- * присылает владельцу в бот пачку — кому сегодня написать и напомнить.
+ * Каждое утро (см. vercel.json, ~10:00 по Тюмени): присылает владельцу
+ * разовые напоминания (admin_reminders). Ежедневная пачка охвата отключена.
  * Если что-то сломалось — присылает уведомление об ошибке.
  * Логика — lib/outreach/assistant.ts.
  */
@@ -36,13 +36,15 @@ export async function GET(req: NextRequest) {
       await api.sendMessage(adminId, `⏰ Напоминание\n\n${r.text}`).catch((err) => console.error("admin reminder failed:", err));
       await admin.from("admin_reminders").update({ sent_at: new Date().toISOString() }).eq("id", r.id);
     }
-    const result = await runOutreach(admin, api, adminId);
-    return NextResponse.json(result);
+    // Ежедневная пачка «кому написать про рекламу» ОТКЛЮЧЕНА по просьбе
+    // владельца — с пабликами и блогерами он общается сам. Вручную её
+    // по-прежнему можно получить командой /outreach.
+    return NextResponse.json({ reminders: (due ?? []).length, outreach: "disabled" });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("outreach cron failed:", err);
     await api
-      .sendMessage(adminId, `⚠️ Помощник по охвату не смог подготовить пачку на сегодня.\n\n<code>${escapeHtml(message)}</code>\n\nПопробуй команду /outreach — если не поможет, напиши Claude.`, {
+      .sendMessage(adminId, `⚠️ Не получилось отправить утренние напоминания.\n\n<code>${escapeHtml(message)}</code>\n\nПопробуй команду /outreach — если не поможет, напиши Claude.`, {
         parse_mode: "HTML",
       })
       .catch(() => {});
