@@ -119,7 +119,7 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
             width={355}
             height={360}
             sizes="120px"
-            className="pointer-events-none absolute inset-y-0 right-0 h-full w-auto"
+            className="pointer-events-none absolute inset-y-0 -right-4 h-full w-auto"
             style={{
               maskImage: "linear-gradient(to right, transparent 0%, #000 35%)",
               WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 35%)",
