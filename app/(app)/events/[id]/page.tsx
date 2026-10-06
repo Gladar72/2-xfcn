@@ -44,10 +44,14 @@ interface EventDetails {
     id: string;
     name: string;
     avatarUrl: string | null;
-    age: number;
+    age: number | null;
     ratingAvg: number;
     completedMeetingsCount: number;
   } | null;
+  /** Анонимная встреча (🎭). */
+  isAnonymous?: boolean;
+  /** Организатор и точный адрес скрыты, пока заявку не одобрили. */
+  organizerHidden?: boolean;
   participants: { id: string; name: string; avatarUrl: string | null }[];
   viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none";
 }
@@ -343,7 +347,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           <figure className="m-hero">
             {/* Своё фото у встречи (бизнес-события) — показываем его; иначе
                 вместо картинки категории — карта с местом встречи. */}
-            {!heroIsRealPhoto && event.latitude != null && event.longitude != null ? (
+            {!heroIsRealPhoto && !event.organizerHidden && event.latitude != null && event.longitude != null ? (
               <EventPlaceMap
                 latitude={event.latitude}
                 longitude={event.longitude}
@@ -364,7 +368,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 priority
               />
               {/* Маршрут и поверх фото события — как на карте. */}
-              {event.latitude != null && event.longitude != null && (
+              {!event.organizerHidden && event.latitude != null && event.longitude != null && (
                 <RouteButton latitude={event.latitude} longitude={event.longitude} className="absolute right-3 top-3" />
               )}
               </div>
@@ -372,7 +376,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             {event.organizer && (
               <div className="m-organizer">
                 <span className="m-avatar" style={{ overflow: "hidden", display: "block" }}>
-                  {event.organizer.avatarUrl ? (
+                  {event.organizerHidden ? (
+                    <span className="flex h-full w-full items-center justify-center bg-lavender-100 text-lg" aria-hidden>
+                      🎭
+                    </span>
+                  ) : event.organizer.avatarUrl ? (
                     <AvatarViewer src={event.organizer.avatarUrl} alt={event.organizer.name}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={photoThumb(event.organizer.avatarUrl, 56)} alt="" className="h-full w-full object-cover" />
@@ -387,6 +395,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   <span className="m-organizer-name">
                     {event.organizer.name}
                     {event.organizer.age ? `, ${event.organizer.age}` : ""}
+                    {event.isAnonymous && !event.organizerHidden ? " · 🎭 анонимно" : ""}
                   </span>
                   <span className="m-rating">
                     {event.organizer.ratingAvg > 0 && (
@@ -409,6 +418,15 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               <img src="/brand/3d/icon-calendar.png" alt="" width={26} height={26} />
               <span>{dateLabel}</span>
             </p>
+            {event.organizerHidden && (
+              <p className="m-info m-address">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/3d/icon-location.png" alt="" width={26} height={26} />
+                <span className="flex-1">
+                  🎭 Анонимная встреча: организатор и точное место откроются, когда он одобрит твою заявку
+                </span>
+              </p>
+            )}
             {addressLine && (
               <p className="m-info m-address">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
