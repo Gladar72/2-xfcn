@@ -218,6 +218,9 @@ function MapPageContent() {
                   {event.placeName && event.placeName !== event.address && (
                     <p className="truncate text-xs font-medium text-ink-600">{event.placeName}</p>
                   )}
+                  {event.organizerHidden && (
+                    <p className="text-xs text-ink-400">🎭 Анонимно · место — после одобрения</p>
+                  )}
                   {event.address && (
                     <p className="flex items-center gap-1 text-xs text-ink-400">
                       <Image src="/brand/3d/icon-location.png" alt="" width={12} height={12} className="shrink-0" />
@@ -225,7 +228,9 @@ function MapPageContent() {
                     </p>
                   )}
                 </div>
-                <RouteButton latitude={event.latitude} longitude={event.longitude} className="shrink-0 self-center" />
+                {!event.organizerHidden && (
+                  <RouteButton latitude={event.latitude} longitude={event.longitude} className="shrink-0 self-center" />
+                )}
               </Link>
             ))}
           </div>

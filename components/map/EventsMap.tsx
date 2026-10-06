@@ -21,6 +21,8 @@ export interface MapEventItem {
   endsAt?: string;
   utcOffset?: number;
   organizer?: { name: string; avatarUrl: string | null } | null;
+  /** Анонимная встреча, организатор и точное место скрыты — точка показывает только район. */
+  organizerHidden?: boolean;
 }
 
 export interface EventsMapHandle {

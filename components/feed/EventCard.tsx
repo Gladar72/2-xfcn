@@ -24,12 +24,16 @@ export interface EventCardData {
     id: string;
     name: string;
     avatarUrl: string | null;
-    age: number;
+    age: number | null;
     ratingAvg: number;
     completedMeetingsCount: number;
   } | null;
   /** Лёгкое визуальное выделение — привилегия тарифов Медиум и Премьер. */
   isHighlighted?: boolean;
+  /** Анонимная встреча (🎭). */
+  isAnonymous?: boolean;
+  /** Организатор и адрес скрыты от текущего пользователя (заявку ещё не одобрили). */
+  organizerHidden?: boolean;
   isBusiness?: boolean;
   photoUrl?: string | null;
   /** Встреча создана текущим пользователем — кнопку «Я иду» не показываем. */
@@ -108,6 +112,7 @@ export function EventCard({
             <span>{formatDate(event.eventDate)}</span>
             <span>{formatTime(event.eventTime)}</span>
             {event.placeName && <span>{event.placeName}</span>}
+            {event.organizerHidden && <span>📍 Место — после одобрения</span>}
           </div>
 
           {event.description && (
@@ -117,7 +122,10 @@ export function EventCard({
           {event.organizer && (
             <div className="mb-3 flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
-                {event.organizer.avatarUrl ? (
+                {event.organizerHidden ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src="/brand/3d/icon-mask.png" alt="Анонимно" className="h-7 w-7 object-contain" />
+                ) : event.organizer.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoThumb(event.organizer.avatarUrl, 32)} alt={event.organizer.name} className="h-full w-full object-cover" />
                 ) : (
@@ -126,7 +134,10 @@ export function EventCard({
               </div>
               <div className="text-sm">
                 <span className="font-medium text-ink-900">{event.organizer.name}</span>
-                <span className="text-ink-400">, {event.organizer.age}</span>
+                {event.organizer.age !== null && <span className="text-ink-400">, {event.organizer.age}</span>}
+                {event.isAnonymous && !event.organizerHidden && (
+                  <span className="ml-1 text-ink-400">· 🎭 анонимно</span>
+                )}
                 {event.organizer.ratingAvg > 0 && (
                   <span className="ml-2 inline-flex items-center gap-1 text-ink-600">
                     <RatingStar /> {event.organizer.ratingAvg.toFixed(1)} · {event.organizer.completedMeetingsCount} встреч

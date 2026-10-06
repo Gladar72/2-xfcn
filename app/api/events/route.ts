@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ANONYMOUS_ORGANIZER_NAME, canSeeAnonymousDetails } from "@/lib/events/anonymity";
 import { runInBackground, sendInBatches } from "@/lib/server/background";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -106,7 +107,7 @@ export async function GET(req: NextRequest) {
         `
         id, title, description, city, latitude, longitude, place_name, address,
         event_date, event_time, event_end_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
-        is_business, has_chat, business_pricing_type, business_pricing_details, photo_url,
+        is_business, has_chat, business_pricing_type, business_pricing_details, photo_url, is_anonymous,
         category:categories(slug, name, emoji),
         training_type:training_types(slug, name, emoji),
         organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count, telegram_id)
@@ -327,6 +328,7 @@ export async function GET(req: NextRequest) {
       businessPricingType: _row.business_pricing_type,
       businessPricingDetails: _row.business_pricing_details,
       photoUrl: _row.photo_url,
+      isAnonymous: !!_row.is_anonymous,
       // Лёгкое визуальное выделение карточки — привилегия тарифов
       // Медиум и Премьер (см. FEATURES в components/paywall/Paywall.tsx).
       isHighlighted: organizerPlan === "medium" || organizerPlan === "premium",
@@ -395,8 +397,25 @@ export async function GET(req: NextRequest) {
     items: pageItems.map((item) => {
       // Только принятые организатором участники — сам организатор не считается.
       const participants = participantsByEventId.get(item.id) ?? [];
+      // Анонимная встреча: пока заявку не одобрили — без имени/фото организатора и без адреса.
+      const revealed = canSeeAnonymousDetails({
+        isAnonymous: item.isAnonymous,
+        isOrganizer: item.isMine,
+        applicationStatus: statusByEventId.get(item.id),
+      });
+      const visible = revealed
+        ? item
+        : {
+            ...item,
+            placeName: null,
+            address: null,
+            organizer: item.organizer
+              ? { ...item.organizer, id: "anonymous", name: ANONYMOUS_ORGANIZER_NAME, avatarUrl: null, age: null }
+              : null,
+          };
       return {
-        ...item,
+        ...visible,
+        organizerHidden: !revealed,
         myApplicationStatus: statusByEventId.get(item.id) ?? null,
         goingCount: participants.length,
         goingPreview: participants.slice(0, 3),
@@ -480,7 +499,7 @@ export async function POST(req: NextRequest) {
 
   const { data: organizerProfile } = await admin
     .from("users")
-    .select("city")
+    .select("city, avatar_url")
     .eq("id", currentUser.userId)
     .maybeSingle();
 
@@ -500,6 +519,19 @@ export async function POST(req: NextRequest) {
     );
   }
   const input = parsed.data;
+
+  // Анонимные встречи — только с фото в профиле: после одобрения участники
+  // должны увидеть настоящего человека, а не пустой профиль.
+  if (input.isAnonymous && !input.isBusiness && !organizerProfile?.avatar_url) {
+    return NextResponse.json(
+      {
+        error: "anonymous_requires_photo",
+        field: "isAnonymous",
+        message: "Чтобы создать анонимную встречу, добавь фото в профиль.",
+      },
+      { status: 422 }
+    );
+  }
 
   const plan = subscriptionInfo?.plan ?? "premium";
   const groupMax = maxGroupSize(plan, input.isBusiness);
@@ -610,6 +642,7 @@ export async function POST(req: NextRequest) {
       business_pricing_type: input.isBusiness ? input.businessPricingType ?? null : null,
       business_pricing_details: input.isBusiness ? input.businessPricingDetails ?? null : null,
       has_chat: hasChat,
+      is_anonymous: !input.isBusiness && !!input.isAnonymous,
     })
     .select("id")
     .single();

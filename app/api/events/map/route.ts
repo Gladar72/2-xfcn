@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ANONYMOUS_ORGANIZER_NAME, fuzzCoordinate } from "@/lib/events/anonymity";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { eventTiming, eventUtcOffsetHours } from "@/lib/events/timing";
@@ -50,6 +51,7 @@ export async function GET(req: NextRequest) {
     .select(
       `
       id, title, event_date, event_time, event_end_time, city, latitude, longitude, place_name, address, seats_total, seats_taken, cost_type, is_business,
+      is_anonymous, organizer_id,
       category:categories(slug, name, emoji),
       organizer:users(name, avatar_url, birth_date, gender)
       `
@@ -126,15 +128,34 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Анонимные встречи: зритель видит организатора и точку только если его
+  // заявку одобрили (или это его встреча). Остальным — район, без адреса.
+  const anonymousIds = visibleEvents
+    .filter((e) => e.is_anonymous && e.organizer_id !== currentUser?.userId)
+    .map((e) => e.id);
+  const acceptedIds = new Set<string>();
+  if (currentUser && anonymousIds.length > 0) {
+    const { data: accepted } = await admin
+      .from("applications")
+      .select("event_id")
+      .eq("user_id", currentUser.userId)
+      .eq("status", "accepted")
+      .in("event_id", anonymousIds);
+    for (const a of accepted ?? []) acceptedIds.add(a.event_id);
+  }
+  const hiddenIds = new Set(anonymousIds.filter((id) => !acceptedIds.has(id)));
+
   const items = visibleEvents.map((e) => ({
     id: e.id,
     title: e.title,
     eventDate: e.event_date,
     eventTime: e.event_time,
-    latitude: e.latitude,
-    longitude: e.longitude,
-    placeName: e.place_name,
-    address: e.address,
+    latitude: hiddenIds.has(e.id) ? fuzzCoordinate(e.latitude) : e.latitude,
+    longitude: hiddenIds.has(e.id) ? fuzzCoordinate(e.longitude) : e.longitude,
+    placeName: hiddenIds.has(e.id) ? null : e.place_name,
+    address: hiddenIds.has(e.id) ? null : e.address,
+    isAnonymous: !!e.is_anonymous,
+    organizerHidden: hiddenIds.has(e.id),
     seatsLeft: e.seats_total - e.seats_taken,
     category: e.category as unknown as { slug: string; name: string; emoji: string | null } | null,
     isBusiness: e.is_business,
@@ -156,7 +177,9 @@ export async function GET(req: NextRequest) {
     })(),
     organizer: (() => {
       const o = e.organizer as unknown as { name: string | null; avatar_url: string | null } | null;
-      return o ? { name: o.name ?? "", avatarUrl: o.avatar_url } : null;
+      if (!o) return null;
+      if (hiddenIds.has(e.id)) return { name: ANONYMOUS_ORGANIZER_NAME, avatarUrl: null };
+      return { name: o.name ?? "", avatarUrl: o.avatar_url };
     })(),
   }));
 

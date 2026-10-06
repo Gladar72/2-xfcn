@@ -40,6 +40,8 @@ export const createEventSchema = z
       .optional(),
     isBusiness: z.boolean().optional().default(false),
     hasChat: z.boolean().optional().default(true),
+    // Анонимная встреча: организатор и точный адрес скрыты до одобрения заявки.
+    isAnonymous: z.boolean().optional().default(false),
     businessPricingType: z
       .enum(["ticket", "free", "custom"], { errorMap: () => ({ message: "Выбери условия участия" }) })
       .optional(),
@@ -55,6 +57,9 @@ export const createEventSchema = z
   .superRefine((data, ctx) => {
     if (!data.isBusiness && !data.categorySlug) {
       ctx.addIssue({ code: "custom", path: ["categorySlug"], message: "Выбери категорию встречи" });
+    }
+    if (data.isBusiness && data.isAnonymous) {
+      ctx.addIssue({ code: "custom", path: ["isAnonymous"], message: "Событие для бизнеса не может быть анонимным" });
     }
     if (!data.isBusiness && data.seatsTotal > 30) {
       ctx.addIssue({ code: "custom", path: ["seatsTotal"], message: "В обычной встрече — максимум 30 участников" });

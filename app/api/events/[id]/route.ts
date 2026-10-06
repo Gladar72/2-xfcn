@@ -6,6 +6,7 @@ import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { eventTiming } from "@/lib/events/timing";
 import { finalizeCompletedEvents } from "@/lib/reviews/complete-due-events";
 import { clearFeedCache } from "@/lib/data/feed-cache";
+import { ANONYMOUS_ORGANIZER_NAME, canSeeAnonymousDetails, fuzzCoordinate } from "@/lib/events/anonymity";
 
 /**
  * GET /api/events/[id]
@@ -23,7 +24,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       `
       id, title, description, city, latitude, longitude, place_name, address,
       event_date, event_time, event_end_time, seats_total, seats_taken, status, organizer_id,
-      cost_type, is_business, business_pricing_type, business_pricing_details, has_chat, photo_url,
+      cost_type, is_business, business_pricing_type, business_pricing_details, has_chat, photo_url, is_anonymous,
       category:categories(slug, name, emoji),
       training_type:training_types(slug, name, emoji),
       organizer:users(id, name, avatar_url, birth_date, rating_avg, completed_meetings_count)
@@ -75,6 +76,13 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   // чтобы организатор видел «Завершить встречу» и время автозакрытия.
   const timing = eventTiming(event);
 
+  // Анонимная встреча: до одобрения заявки — без организатора и точного адреса.
+  const revealed = canSeeAnonymousDetails({
+    isAnonymous: event.is_anonymous,
+    isOrganizer: viewerStatus === "organizer",
+    applicationStatus: viewerStatus,
+  });
+
   return NextResponse.json({
     id: event.id,
     title: event.title,
@@ -85,10 +93,12 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     category: event.category,
     trainingType: event.training_type,
     city: event.city,
-    placeName: event.place_name,
-    address: event.address,
-    latitude: event.latitude,
-    longitude: event.longitude,
+    placeName: revealed ? event.place_name : null,
+    address: revealed ? event.address : null,
+    latitude: revealed ? event.latitude : fuzzCoordinate(event.latitude),
+    longitude: revealed ? event.longitude : fuzzCoordinate(event.longitude),
+    isAnonymous: !!event.is_anonymous,
+    organizerHidden: !revealed,
     eventDate: event.event_date,
     eventTime: event.event_time,
     eventEndTime: event.event_end_time,
@@ -103,10 +113,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     photoUrl: event.photo_url,
     organizer: organizerRow
       ? {
-          id: organizerRow.id,
-          name: organizerRow.name,
-          avatarUrl: organizerRow.avatar_url,
-          age: calculateAge(organizerRow.birth_date),
+          id: revealed ? organizerRow.id : "anonymous",
+          name: revealed ? organizerRow.name : ANONYMOUS_ORGANIZER_NAME,
+          avatarUrl: revealed ? organizerRow.avatar_url : null,
+          age: revealed ? calculateAge(organizerRow.birth_date) : null,
           ratingAvg: organizerRow.rating_avg,
           completedMeetingsCount: organizerRow.completed_meetings_count,
         }
@@ -302,6 +312,11 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       }
     } else if (typeof body.costType === "string") {
       updatePayload.cost_type = body.costType;
+    }
+
+    // Анонимность можно включить/выключить при редактировании (не для бизнеса).
+    if (!event.is_business && typeof body.isAnonymous === "boolean") {
+      updatePayload.is_anonymous = body.isAnonymous;
     }
 
     // Фото — только если реально прислали новое (пусто/не передано =
