@@ -28,6 +28,7 @@ interface TrainingType {
 }
 
 type Step =
+  | "anonymity"
   | "category"
   | "trainingType"
   | "businessTitle"
@@ -195,11 +196,12 @@ export function CreateEventWizard() {
         "details",
         "review",
       ]
-    : categorySlug === "training"
-      ? ["category", "trainingType", "where", "when", "time", "seats", "cost", "details", "review"]
+    : // Первый вопрос обычной встречи — открыто или анонимно.
+      categorySlug === "training"
+      ? ["anonymity", "category", "trainingType", "where", "when", "time", "seats", "cost", "details", "review"]
       : categorySlug === "custom"
-        ? ["category", "where", "when", "time", "seats", "cost", "businessPhoto", "details", "review"]
-        : ["category", "where", "when", "time", "seats", "cost", "details", "review"];
+        ? ["anonymity", "category", "where", "when", "time", "seats", "cost", "businessPhoto", "details", "review"]
+        : ["anonymity", "category", "where", "when", "time", "seats", "cost", "details", "review"];
 
   const step = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
@@ -280,7 +282,7 @@ export function CreateEventWizard() {
       businessCustomTerms: "businessCost",
       photoBase64: "businessPhoto",
       hasChat: "chat",
-      isAnonymous: "review",
+      isAnonymous: "anonymity",
     };
     const target = field ? map[field] : undefined;
     return target && steps.includes(target) ? target : null;
@@ -378,6 +380,7 @@ export function CreateEventWizard() {
       : null;
 
   const canGoNext =
+    step === "anonymity" ||
     (step === "category" && categorySlug !== null) ||
     (step === "trainingType" && trainingTypeSlug !== null) ||
     (step === "businessTitle" && title.trim().length >= 3) ||
@@ -417,6 +420,40 @@ export function CreateEventWizard() {
           error ? "pb-44" : "pb-24"
         )}
       >
+        {step === "anonymity" && (
+          <StepBlock title="Как публикуем встречу?">
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setIsAnonymous(false)}
+                className={`rounded-card p-4 text-left transition ${
+                  !isAnonymous ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                }`}
+              >
+                <span className="block text-sm font-semibold">👤 Открыто</span>
+                <span className={`block text-xs ${!isAnonymous ? "text-white/80" : "text-ink-600"}`}>
+                  Все видят твой профиль и место встречи
+                </span>
+              </button>
+              <button
+                onClick={() => setIsAnonymous(true)}
+                className={`rounded-card p-4 text-left transition ${
+                  isAnonymous ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                }`}
+              >
+                <span className="block text-sm font-semibold">🎭 Анонимно</span>
+                <span className={`block text-xs ${isAnonymous ? "text-white/80" : "text-ink-600"}`}>
+                  Твои имя, фото и точный адрес увидят только те, чью заявку ты одобришь
+                </span>
+              </button>
+            </div>
+            <p className="mt-3 rounded-card bg-lavender-50 px-4 py-3 text-xs leading-relaxed text-ink-600">
+              🎭 Как работает анонимность: пока ты не одобришь заявку, человек не увидит твоё фото, имя и точный
+              адрес — только описание встречи, район и твой рейтинг. Как только одобришь — он увидит твой профиль,
+              место встречи и попадёт в общий чат. Для безопасности «Место» всегда знает, кто создал встречу.
+            </p>
+          </StepBlock>
+        )}
+
         {step === "category" && (
           <StepBlock title="Что планируем?">
             <div className="grid grid-cols-2 gap-3">
@@ -848,39 +885,8 @@ export function CreateEventWizard() {
                 />
               )}
               {description && <ReviewRow label="Описание" value={description} />}
+              {!isBusiness && <ReviewRow label="Публикация" value={isAnonymous ? "🎭 Анонимно" : "Открыто"} />}
             </div>
-            {!isBusiness && (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isAnonymous}
-                onClick={() => setIsAnonymous((v) => !v)}
-                className="mt-3 flex w-full items-center gap-3 rounded-card bg-white p-4 text-left shadow-card"
-              >
-                <span className="text-2xl" aria-hidden>
-                  🎭
-                </span>
-                <span className="flex-1">
-                  <span className="block text-sm font-semibold text-ink-900">Анонимная встреча</span>
-                  <span className="block text-xs text-ink-600">
-                    Твои имя, фото и точный адрес увидят только те, чью заявку ты одобришь
-                  </span>
-                </span>
-                <span
-                  className={clsx(
-                    "relative h-7 w-12 shrink-0 rounded-full transition",
-                    isAnonymous ? "bg-accent" : "bg-lavender-200"
-                  )}
-                >
-                  <span
-                    className={clsx(
-                      "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all",
-                      isAnonymous ? "left-[22px]" : "left-0.5"
-                    )}
-                  />
-                </span>
-              </button>
-            )}
           </StepBlock>
         )}
 
