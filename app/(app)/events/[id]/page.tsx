@@ -377,8 +377,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               <div className="m-organizer">
                 <span className="m-avatar" style={{ overflow: "hidden", display: "block" }}>
                   {event.organizerHidden ? (
-                    <span className="flex h-full w-full items-center justify-center bg-lavender-100 text-lg" aria-hidden>
-                      🎭
+                    <span className="flex h-full w-full items-center justify-center bg-lavender-100">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/brand/3d/icon-mask.png" alt="Анонимно" className="h-3/4 w-3/4 object-contain" />
                     </span>
                   ) : event.organizer.avatarUrl ? (
                     <AvatarViewer src={event.organizer.avatarUrl} alt={event.organizer.name}>
@@ -421,9 +422,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             {event.organizerHidden && (
               <p className="m-info m-address">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/icon-location.png" alt="" width={26} height={26} />
+                <img src="/brand/3d/icon-mask.png" alt="" width={26} height={26} />
                 <span className="flex-1">
-                  🎭 Анонимная встреча: организатор и точное место откроются, когда он одобрит твою заявку
+                  Анонимная встреча: организатор и точное место откроются, когда он одобрит твою заявку
                 </span>
               </p>
             )}
