@@ -112,7 +112,15 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
           <div className="relative h-16 w-16 shrink-0">
             <Image src="/brand/3d/create-event-icon.png" alt="" fill className="object-contain" sizes="64px" />
           </div>
-          <span className="text-sm font-medium leading-tight text-white">Создай своё событие</span>
+          <span className="flex flex-col gap-1">
+            <span className="text-sm font-medium leading-tight text-white">Создай своё событие</span>
+            {/* Подпись про анонимность — чтобы сразу было понятно, что можно не светиться. */}
+            <span className="flex items-center gap-1 text-[11px] leading-tight text-white/85">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/3d/icon-mask.png" alt="" className="h-3.5 w-3.5 object-contain" />
+              можно анонимно
+            </span>
+          </span>
         </button>
 
         {/* "Другое" — не категория из базы, а прямой переход в раздел
