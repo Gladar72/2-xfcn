@@ -45,6 +45,7 @@ interface EventDetails {
   businessPricingType: "ticket" | "free" | "custom" | null;
   businessPricingDetails: string | null;
   photoUrl: string | null;
+  isAnonymous?: boolean;
   viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none";
 }
 
@@ -87,6 +88,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
   const [businessTicketPrice, setBusinessTicketPrice] = useState("");
   const [businessCustomTerms, setBusinessCustomTerms] = useState("");
   const [isBusiness, setIsBusiness] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [newPhotoBase64, setNewPhotoBase64] = useState<string | undefined>();
   const [cropSrc, setCropSrc] = useState<string | undefined>();
@@ -125,6 +127,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
         setSeatsTotal(e.seatsTotal);
         setSeatsTaken(e.seatsTaken);
         setIsBusiness(e.isBusiness);
+        setIsAnonymous(!!e.isAnonymous);
         setPhotoUrl(e.photoUrl);
         if (e.isBusiness) {
           setBusinessPricingType(e.businessPricingType);
@@ -233,6 +236,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
                 : undefined
             : undefined,
           photoBase64: newPhotoBase64,
+          isAnonymous: isBusiness ? undefined : isAnonymous,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -530,6 +534,31 @@ export default function EditEventPage({ params }: EditEventPageProps) {
             className={`resize-none text-base ${inputClass}`}
           />
         </Field>
+
+        {!isBusiness && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isAnonymous}
+            onClick={() => setIsAnonymous((v) => !v)}
+            className="flex w-full items-center gap-3 rounded-card bg-white p-4 text-left shadow-card"
+          >
+            <span className="text-2xl" aria-hidden>
+              🎭
+            </span>
+            <span className="flex-1">
+              <span className="block text-sm font-semibold text-ink-900">Анонимная встреча</span>
+              <span className="block text-xs text-ink-600">
+                Твои имя, фото и точный адрес увидят только те, чью заявку ты одобришь
+              </span>
+            </span>
+            <span className={`relative h-7 w-12 shrink-0 rounded-full transition ${isAnonymous ? "bg-accent" : "bg-lavender-200"}`}>
+              <span
+                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all ${isAnonymous ? "left-[22px]" : "left-0.5"}`}
+              />
+            </span>
+          </button>
+        )}
 
 
         <button
