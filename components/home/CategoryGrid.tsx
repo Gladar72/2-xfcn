@@ -104,22 +104,36 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
             белого. Ведёт прямо в мастер создания — без проверки "пусто
             ли" (та проверка осмысленна только для категорий, где смотрят
             готовые встречи ДРУГИХ людей). */}
-        {/* Баннер «Создать своё событие · Можно анонимно» — готовая картинка
-            от владельца (дизайн с телефоном, рупором и маской), во всю ширину. */}
+        {/* «Создать своё событие · Можно анонимно» — плитка по макету владельца:
+            текст слева, справа картинка (телефон, рупор, маска), левый край
+            картинки плавно растворяется в градиенте плитки. */}
         <button
           onClick={() => router.push("/create")}
           aria-label="Создать своё событие — можно анонимно"
-          className="col-span-2 overflow-hidden rounded-card shadow-card active:scale-[0.98]"
+          className="relative flex min-h-[104px] overflow-hidden rounded-card p-4 text-left shadow-card active:scale-[0.98]"
+          style={{ background: "linear-gradient(120deg, #4C19FB 0%, #5A3CF6 55%, #7073FC 100%)" }}
         >
           <Image
-            src="/brand/3d/create-event-banner.webp"
-            alt="Создать своё событие. Можно анонимно"
-            width={700}
-            height={283}
-            className="h-auto w-full"
-            sizes="(max-width: 480px) 100vw, 480px"
+            src="/brand/3d/create-event-art.webp"
+            alt=""
+            width={355}
+            height={360}
+            sizes="120px"
+            className="pointer-events-none absolute inset-y-0 right-0 h-full w-auto"
+            style={{
+              maskImage: "linear-gradient(to right, transparent 0%, #000 35%)",
+              WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 35%)",
+            }}
             priority
           />
+          <span className="relative z-10 flex flex-col justify-center gap-1.5 [text-shadow:0_1px_6px_rgba(40,0,140,0.45)]">
+            <span className="text-[15px] font-bold leading-tight text-white">
+              Создать своё
+              <br />
+              событие
+            </span>
+            <span className="text-xs leading-tight text-white/90">Можно анонимно</span>
+          </span>
         </button>
 
         {/* "Другое" — не категория из базы, а прямой переход в раздел
@@ -128,9 +142,9 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
             там можно выбрать любую встречу и применить любые фильтры. */}
         <button
           onClick={() => router.push("/search")}
-          className="col-span-2 flex items-center gap-3 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98]"
+          className="flex flex-col items-start gap-2 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98]"
         >
-          <div className="relative h-11 w-11 shrink-0">
+          <div className="relative h-11 w-11">
             <Image src="/brand/3d/other.png" alt="" fill className="object-contain" sizes="44px" />
           </div>
           <span className="text-sm font-medium leading-tight text-ink-900">Другое</span>
