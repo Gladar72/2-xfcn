@@ -116,9 +116,9 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
           <Image
             src="/brand/3d/create-event-art.webp"
             alt=""
-            width={355}
-            height={360}
-            sizes="120px"
+            width={533}
+            height={540}
+            unoptimized
             className="pointer-events-none absolute inset-y-0 -right-4 h-full w-auto"
             style={{
               maskImage: "linear-gradient(to right, transparent 0%, #000 35%)",
