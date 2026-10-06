@@ -59,7 +59,7 @@ export async function buildEventCard(admin: Admin, eventId: string): Promise<Eve
   const { data: e } = await admin
     .from("events")
     .select(
-      "id, title, description, city, place_name, address, event_date, event_time, event_end_time, seats_total, seats_taken, status, is_business, cost_type, business_pricing_type, business_pricing_details, photo_url"
+      "id, title, description, city, place_name, address, event_date, event_time, event_end_time, seats_total, seats_taken, status, is_business, cost_type, business_pricing_type, business_pricing_details, photo_url, is_anonymous"
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -70,7 +70,10 @@ export async function buildEventCard(admin: Admin, eventId: string): Promise<Eve
   }
 
   const free = Math.max(0, (e.seats_total ?? 0) - (e.seats_taken ?? 0));
-  const place = [e.place_name?.trim(), shortAddress(e.address, e.city)].filter(Boolean).join(" — ");
+  // Анонимная встреча — адрес открывается только после одобрения заявки.
+  const place = e.is_anonymous
+    ? "Место откроется после одобрения заявки"
+    : [e.place_name?.trim(), shortAddress(e.address, e.city)].filter(Boolean).join(" — ");
   const desc = (e.description ?? "").trim();
   const details = [
     `📅 ${formatWhen(e.event_date, e.event_time, e.event_end_time)}`,
