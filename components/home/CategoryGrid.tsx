@@ -104,23 +104,22 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
             белого. Ведёт прямо в мастер создания — без проверки "пусто
             ли" (та проверка осмысленна только для категорий, где смотрят
             готовые встречи ДРУГИХ людей). */}
+        {/* Баннер «Создать своё событие · Можно анонимно» — готовая картинка
+            от владельца (дизайн с телефоном, рупором и маской), во всю ширину. */}
         <button
           onClick={() => router.push("/create")}
-          className="flex items-center gap-2 rounded-card p-4 text-left shadow-card active:scale-[0.98]"
-          style={{ background: "linear-gradient(135deg, #6445FB, #7A9CFA)" }}
+          aria-label="Создать своё событие — можно анонимно"
+          className="col-span-2 overflow-hidden rounded-card shadow-card active:scale-[0.98]"
         >
-          <div className="relative h-16 w-16 shrink-0">
-            <Image src="/brand/3d/create-event-icon.png" alt="" fill className="object-contain" sizes="64px" />
-          </div>
-          <span className="flex flex-col gap-1">
-            <span className="text-sm font-medium leading-tight text-white">Создай своё событие</span>
-            {/* Подпись про анонимность — чтобы сразу было понятно, что можно не светиться. */}
-            <span className="flex items-center gap-1 text-[11px] leading-tight text-white/85">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/3d/icon-mask.png" alt="" className="h-3.5 w-3.5 object-contain" />
-              можно анонимно
-            </span>
-          </span>
+          <Image
+            src="/brand/3d/create-event-banner.webp"
+            alt="Создать своё событие. Можно анонимно"
+            width={700}
+            height={283}
+            className="h-auto w-full"
+            sizes="(max-width: 480px) 100vw, 480px"
+            priority
+          />
         </button>
 
         {/* "Другое" — не категория из базы, а прямой переход в раздел
@@ -129,9 +128,9 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
             там можно выбрать любую встречу и применить любые фильтры. */}
         <button
           onClick={() => router.push("/search")}
-          className="flex flex-col items-start gap-2 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98]"
+          className="col-span-2 flex items-center gap-3 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98]"
         >
-          <div className="relative h-11 w-11">
+          <div className="relative h-11 w-11 shrink-0">
             <Image src="/brand/3d/other.png" alt="" fill className="object-contain" sizes="44px" />
           </div>
           <span className="text-sm font-medium leading-tight text-ink-900">Другое</span>
