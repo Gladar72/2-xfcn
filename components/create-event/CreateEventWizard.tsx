@@ -440,7 +440,11 @@ export function CreateEventWizard() {
                   isAnonymous ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
                 }`}
               >
-                <span className="block text-sm font-semibold">🎭 Анонимно</span>
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/brand/3d/icon-mask.png" alt="" className="h-5 w-5 object-contain" />
+                  Анонимно
+                </span>
                 <span className={`block text-xs ${isAnonymous ? "text-white/80" : "text-ink-600"}`}>
                   Твои имя, фото и точный адрес увидят только те, чью заявку ты одобришь
                 </span>
