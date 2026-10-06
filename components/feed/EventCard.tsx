@@ -123,7 +123,8 @@ export function EventCard({
             <div className="mb-3 flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
                 {event.organizerHidden ? (
-                  <span aria-hidden>🎭</span>
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src="/brand/3d/icon-mask.png" alt="Анонимно" className="h-7 w-7 object-contain" />
                 ) : event.organizer.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoThumb(event.organizer.avatarUrl, 32)} alt={event.organizer.name} className="h-full w-full object-cover" />
