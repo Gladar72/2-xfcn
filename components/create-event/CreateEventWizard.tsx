@@ -166,6 +166,8 @@ export function CreateEventWizard() {
   // небольшой группе (см. ТЗ: "не больше 20 человек"). Для обычных встреч
   // чат создаётся всегда (это состояние тогда просто не используется).
   const [wantsChat, setWantsChat] = useState(true);
+  // Анонимная встреча: имя, фото и точный адрес скрыты до одобрения заявки.
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [businessPhotoBase64, setBusinessPhotoBase64] = useState<string | undefined>();
   const [cropSrc, setCropSrc] = useState<string | undefined>();
   const [title, setTitle] = useState("");
@@ -278,6 +280,7 @@ export function CreateEventWizard() {
       businessCustomTerms: "businessCost",
       photoBase64: "businessPhoto",
       hasChat: "chat",
+      isAnonymous: "review",
     };
     const target = field ? map[field] : undefined;
     return target && steps.includes(target) ? target : null;
@@ -338,6 +341,7 @@ export function CreateEventWizard() {
                 : undefined
             : undefined,
           hasChat: isBusiness ? wantsChat : undefined,
+          isAnonymous: isBusiness ? undefined : isAnonymous,
           photoBase64: businessPhotoBase64,
         }),
       });
@@ -845,6 +849,38 @@ export function CreateEventWizard() {
               )}
               {description && <ReviewRow label="Описание" value={description} />}
             </div>
+            {!isBusiness && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isAnonymous}
+                onClick={() => setIsAnonymous((v) => !v)}
+                className="mt-3 flex w-full items-center gap-3 rounded-card bg-white p-4 text-left shadow-card"
+              >
+                <span className="text-2xl" aria-hidden>
+                  🎭
+                </span>
+                <span className="flex-1">
+                  <span className="block text-sm font-semibold text-ink-900">Анонимная встреча</span>
+                  <span className="block text-xs text-ink-600">
+                    Твои имя, фото и точный адрес увидят только те, чью заявку ты одобришь
+                  </span>
+                </span>
+                <span
+                  className={clsx(
+                    "relative h-7 w-12 shrink-0 rounded-full transition",
+                    isAnonymous ? "bg-accent" : "bg-lavender-200"
+                  )}
+                >
+                  <span
+                    className={clsx(
+                      "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all",
+                      isAnonymous ? "left-[22px]" : "left-0.5"
+                    )}
+                  />
+                </span>
+              </button>
+            )}
           </StepBlock>
         )}
 
