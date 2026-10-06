@@ -29,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: application } = await admin
     .from("applications")
-    .select("id, event_id, user_id, status, events(organizer_id, title, has_chat)")
+    .select("id, event_id, user_id, status, events(organizer_id, title, has_chat, is_anonymous, place_name, address)")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -153,7 +153,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const ticketLine = ticketCode
       ? `\n\n🎟 Твой билет: ${ticketCode}\nНазови номер организатору на входе. Билет всегда под рукой в приложении: Уведомления → «Открыть билет».`
       : "";
-    notifyTelegram(participant.telegram_id, buildNotificationText("application_accepted", eventTitle) + ticketLine).catch(
+    // Анонимная встреча: после одобрения сразу присылаем точное место.
+    const anonEvent = application.events as unknown as {
+      is_anonymous: boolean | null;
+      place_name: string | null;
+      address: string | null;
+    } | null;
+    const placeText = [anonEvent?.place_name?.trim(), anonEvent?.address?.replace(/^Россия,\s*/, "")]
+      .filter(Boolean)
+      .join(", ");
+    const placeLine =
+      anonEvent?.is_anonymous && placeText
+        ? `\n\n🎭 Организатор открыл тебе встречу. Место: ${placeText}\nПрофиль организатора и чат — в приложении.`
+        : "";
+    notifyTelegram(participant.telegram_id, buildNotificationText("application_accepted", eventTitle) + ticketLine + placeLine).catch(
       () => {}
     );
   }
