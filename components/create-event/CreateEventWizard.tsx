@@ -450,11 +450,15 @@ export function CreateEventWizard() {
                 </span>
               </button>
             </div>
-            <p className="mt-3 rounded-card bg-lavender-50 px-4 py-3 text-xs leading-relaxed text-ink-600">
-              🎭 Как работает анонимность: пока ты не одобришь заявку, человек не увидит твоё фото, имя и точный
-              адрес — только описание встречи, район и твой рейтинг. Как только одобришь — он увидит твой профиль,
-              место встречи и попадёт в общий чат. Для безопасности «Место» всегда знает, кто создал встречу.
-            </p>
+            <div className="mt-3 flex items-start gap-2 rounded-card bg-lavender-50 px-4 py-3 text-xs leading-relaxed text-ink-600">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/3d/icon-mask.png" alt="" className="mt-0.5 h-5 w-5 shrink-0 object-contain" />
+              <p>
+                Как работает анонимность: пока ты не одобришь заявку, человек не увидит твоё фото, имя и точный
+                адрес — только описание встречи, район и твой рейтинг. Как только одобришь — он увидит твой профиль,
+                место встречи и попадёт в общий чат. Для безопасности «Место» всегда знает, кто создал встречу.
+              </p>
+            </div>
           </StepBlock>
         )}
 
@@ -889,7 +893,7 @@ export function CreateEventWizard() {
                 />
               )}
               {description && <ReviewRow label="Описание" value={description} />}
-              {!isBusiness && <ReviewRow label="Публикация" value={isAnonymous ? "🎭 Анонимно" : "Открыто"} />}
+              {!isBusiness && <ReviewRow label="Публикация" value={isAnonymous ? "Анонимно" : "Открыто"} />}
             </div>
           </StepBlock>
         )}
