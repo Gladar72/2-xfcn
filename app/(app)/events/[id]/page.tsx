@@ -15,6 +15,7 @@ import { ApplicationStatusView } from "@/components/applications/ApplicationStat
 import { ManageParticipants } from "@/components/events/ManageParticipants";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { photoThumb } from "@/lib/photos/thumb";
+import { LiveBadge } from "@/components/feed/EventCard";
 
 interface EventDetails {
   id: string;
@@ -31,6 +32,7 @@ interface EventDetails {
   eventEndTime: string | null;
   /** UTC-моменты с сервера (с учётом часового пояса города встречи). */
   startsAt?: string;
+  endsAt?: string;
   autoCompleteAt?: string;
   seatsTotal: number;
   seatsTaken: number;
@@ -294,6 +296,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   // Встреча уже началась — вместо «Отменить» организатор может её завершить.
   // Сама она закроется в autoCompleteAt (окончание + 30 минут).
   const hasStarted = !!event.startsAt && new Date(event.startsAt).getTime() <= Date.now();
+  const isLive =
+    hasStarted &&
+    (event.status === "published" || event.status === "closed") &&
+    (!event.endsAt || new Date(event.endsAt).getTime() > Date.now());
   const autoCompleteLabel = event.autoCompleteAt
     ? new Date(event.autoCompleteAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
     : null;
@@ -343,6 +349,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           </div>
 
           <h1 className="m-title">{event.title}</h1>
+          {isLive && <LiveBadge className="mt-1" />}
 
           <figure className="m-hero">
             {/* Своё фото у встречи (бизнес-события) — показываем его; иначе
