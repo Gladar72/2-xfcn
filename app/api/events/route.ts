@@ -14,6 +14,7 @@ import { notifyTelegram } from "@/lib/telegram/notify";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { moderateImage } from "@/lib/photos/moderate-image";
 import { cachedFeed, clearFeedCache } from "@/lib/data/feed-cache";
+import { eventTiming } from "@/lib/events/timing";
 
 // Рассылки после создания (бизнес-событие — всему городу) идут фоном после ответа — даём им время.
 export const maxDuration = 60;
@@ -255,6 +256,17 @@ export async function GET(req: NextRequest) {
 
 
   const now = new Date();
+
+  // Встреча уже началась — в ленте остаётся с пометкой «Встреча уже идёт».
+  // Уже закончившиеся (но ещё не закрытые кроном) — из ленты убираем.
+  const liveIds = new Set<string>();
+  visibleRows = visibleRows.filter((row) => {
+    const t = eventTiming(row);
+    if (t.end <= now) return false;
+    if (t.start <= now) liveIds.add(row.id);
+    return true;
+  });
+
   const scorable: (EventForScoring & { _row: (typeof visibleRows)[number] })[] = visibleRows.map((row) => {
     const category = row.category as unknown as { slug: string } | null;
     const trainingType = row.training_type as unknown as { slug: string } | null;
@@ -329,6 +341,7 @@ export async function GET(req: NextRequest) {
       businessPricingDetails: _row.business_pricing_details,
       photoUrl: _row.photo_url,
       isAnonymous: !!_row.is_anonymous,
+      isLive: liveIds.has(_row.id),
       // Лёгкое визуальное выделение карточки — привилегия тарифов
       // Медиум и Премьер (см. FEATURES в components/paywall/Paywall.tsx).
       isHighlighted: organizerPlan === "medium" || organizerPlan === "premium",
