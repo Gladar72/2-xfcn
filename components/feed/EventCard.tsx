@@ -32,6 +32,8 @@ export interface EventCardData {
   isHighlighted?: boolean;
   /** Анонимная встреча (🎭). */
   isAnonymous?: boolean;
+  /** Встреча уже началась и ещё не закончилась. */
+  isLive?: boolean;
   /** Организатор и адрес скрыты от текущего пользователя (заявку ещё не одобрили). */
   organizerHidden?: boolean;
   isBusiness?: boolean;
@@ -102,6 +104,7 @@ export function EventCard({
           </div>
 
           <h3 className="text-title mb-1">{event.title}</h3>
+          {event.isLive && <LiveBadge />}
           {isFull && (
             <span className="mb-2 inline-flex items-center rounded-pill bg-ink-400/10 px-2.5 py-0.5 text-caption font-semibold text-ink-600">
               Заполнено
@@ -200,6 +203,24 @@ export function EventCard({
         </div>
       )}
     </Link>
+  );
+}
+
+/** Пометка «Встреча уже идёт» — с пульсирующей зелёной точкой. */
+export function LiveBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={clsx(
+        "mb-2 mr-1.5 inline-flex items-center gap-1.5 rounded-pill bg-[#E6F8EC] px-2.5 py-0.5 text-caption font-semibold text-[#1E8E4A]",
+        className
+      )}
+    >
+      <span className="relative flex h-2 w-2">
+        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2DBE60] opacity-75" />
+        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#2DBE60]" />
+      </span>
+      Встреча уже идёт
+    </span>
   );
 }
 
