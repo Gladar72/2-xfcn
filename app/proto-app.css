@@ -21,3 +21,12 @@
 .P .splash .lockup.fast p{animation-delay:.35s}
 .P .splash .load.fast{animation-delay:.3s}.P .splash .load.fast i{animation-delay:.35s;animation-duration:.6s}
 .P .splash .wm svg{height:auto;margin:0}
+.P .sum .gfx{width:64px;height:64px;border-radius:16px;flex:none}
+.P .ev>.ph.gfx{position:absolute;left:0;right:0;top:0;height:330px;width:100%}
+.P .ev>.ph.gfx img{width:46%}
+.P .mini>div{position:absolute;inset:0}
+.P .apl .sm[disabled]{opacity:.5}
+.P .evnote{border-radius:20px;padding:12px 14px;font-size:14px;line-height:1.45;text-align:center}
+.P .opt .ivth,.P .opt img.ivth{width:46px;height:46px;border-radius:12px;object-fit:cover;flex:none}
+.P .opt .ivth.gfx img{width:72%}
+.P .cta .rb{flex:none}

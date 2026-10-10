@@ -103,6 +103,16 @@ export async function POST(req: NextRequest) {
       photoError = uploadResult.error;
     }
   }
+  // Дополнительные фото (до двух) — в галерею профиля после главного.
+  let position = 1;
+  for (const extra of profile.extraPhotos ?? []) {
+    const up = await uploadAvatar(admin, userId, extra);
+    if (up.ok) {
+      await admin.from("user_photos").insert({ user_id: userId, url: up.publicUrl, position: position++ });
+    } else if (!photoError) {
+      photoError = up.error;
+    }
+  }
 
   if (profile.interestIds.length > 0) {
     const rows = profile.interestIds.map((interestId) => ({ user_id: userId, interest_id: interestId }));

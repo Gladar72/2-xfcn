@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getUserPhotos } from "@/lib/photos/user-photos";
 
 /**
  * GET /api/users/:id
@@ -33,10 +34,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .map((r) => (r.interests as unknown as { name: string } | null)?.name)
     .filter((n): n is string => !!n);
 
+  const photos = await getUserPhotos(admin, user.id as string, user.avatar_url as string | null);
+
   return NextResponse.json({
     id: user.id,
     name: user.name,
     avatarUrl: user.avatar_url,
+    photos,
     age: calculateAge(user.birth_date),
     gender: user.gender,
     bio: user.bio,

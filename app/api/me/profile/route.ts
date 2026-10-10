@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getUserPhotos } from "@/lib/photos/user-photos";
 import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 
 /**
@@ -45,10 +46,13 @@ export async function GET() {
       .eq("role", "participant"),
   ]);
 
+  const photos = await getUserPhotos(admin, user.id as string, user.avatar_url as string | null);
+
   return NextResponse.json({
     id: user.id,
     name: user.name,
     avatarUrl: user.avatar_url,
+    photos,
     age: calculateAge(user.birth_date),
     city: user.city,
     bio: user.bio,

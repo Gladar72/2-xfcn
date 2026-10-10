@@ -131,6 +131,7 @@ export async function GET() {
       unreadCount: m.unread_count,
       isBlocked: m.is_blocked,
       isFavorite: m.is_favorite,
+      eventId: (conversation as { event_id?: string | null } | null)?.event_id ?? null,
       eventTitle: conversation?.events?.title ?? null,
       eventStatus: conversation?.events?.status ?? null,
       eventPhotoUrl: conversation?.events?.photo_url ?? null,

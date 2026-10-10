@@ -205,6 +205,9 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [locating, setLocating] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
+  const [extraPhotos, setExtraPhotos] = useState<string[]>([]);
+  // В какое место сетки добавляем фото: 0 — главное, 1–2 — дополнительные.
+  const slotRef = useRef(0);
 
   useEffect(() => {
     try {
@@ -301,14 +304,25 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
     setSelectedInterestIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
+  function pickPhoto(slot: number) {
+    slotRef.current = slot;
+    photoInput.current?.click();
+  }
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file) return;
-    resizeImageFile(file, 1600, 0.82).then((dataUrl) => {
-      setPhotoBase64(dataUrl);
-      setPhotoFromTelegram(false);
-    });
+    if (!files.length) return;
+    const slot = slotRef.current;
+    if (slot === 0) {
+      const [first, ...rest] = files;
+      resizeImageFile(first!, 1600, 0.82).then((dataUrl) => {
+        setPhotoBase64(dataUrl);
+        setPhotoFromTelegram(false);
+      });
+      rest.slice(0, 2).forEach((f) => resizeImageFile(f, 1280, 0.8).then((d) => setExtraPhotos((x) => [...x, d].slice(0, 2))));
+      return;
+    }
+    files.slice(0, 2).forEach((f) => resizeImageFile(f, 1280, 0.8).then((d) => setExtraPhotos((x) => [...x, d].slice(0, 2))));
   }
 
   /** «Разрешить геолокацию»: город определяется сам, и сразу сохраняем профиль. */
@@ -363,7 +377,7 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           initData,
-          profile: { name, birthDate, gender, agreedToTerms, city: cityValue, bio, interestIds: selectedInterestIds, photoBase64 },
+          profile: { name, birthDate, gender, agreedToTerms, city: cityValue, bio, interestIds: selectedInterestIds, photoBase64, extraPhotos },
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -429,23 +443,49 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
           </h1>
           <p className="muted" style={{ margin: "8px 0 14px", fontSize: 15, lineHeight: 1.5 }}>
             {photoFromTelegram
-              ? "Имя и фото взяли из Telegram. Нажми на фото, чтобы выбрать другое."
-              : photoLoading
-                ? "Ищем твою аватарку в Telegram…"
-                : "Добавь фото — с ним чаще зовут на встречи."}
+              ? "Имя и фото взяли из Telegram. Добавь ещё 1–2 фото — с ними чаще зовут на встречи."
+              : "Добавь 1–3 фото — с ними чаще зовут на встречи."}
           </p>
           <div className="phgrid">
-            <button className="phs gl" onClick={() => photoInput.current?.click()} aria-label="Фото профиля">
-              {photoBase64 ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={photoBase64} alt="" />
-              ) : (
-                <div className="tgava">{(name.trim() || "?").charAt(0).toUpperCase()}</div>
-              )}
-              <span className="tag">{photoFromTelegram ? "из Telegram" : photoBase64 ? "главное" : "добавить"}</span>
-            </button>
+            {[0, 1, 2].map((i) => {
+              const src = i === 0 ? photoBase64 : extraPhotos[i - 1];
+              if (i === 0 && !src)
+                return (
+                  <button key={i} className="phs gl" onClick={() => pickPhoto(0)} aria-label="Главное фото">
+                    <div className="tgava">{(name.trim() || "?").charAt(0).toUpperCase()}</div>
+                    <span className="tag">{photoLoading ? "ищем в Telegram…" : "главное"}</span>
+                  </button>
+                );
+              if (src)
+                return (
+                  <div key={i} className="phs gl">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" onClick={() => i === 0 && pickPhoto(0)} />
+                    <button
+                      className="x"
+                      aria-label="Удалить фото"
+                      onClick={() => {
+                        if (i === 0) {
+                          setPhotoBase64(undefined);
+                          setPhotoFromTelegram(false);
+                        } else setExtraPhotos((x) => x.filter((_, k) => k !== i - 1));
+                      }}
+                    >
+                      <Ic n="close" c="xs" />
+                    </button>
+                    {i === 0 && <span className="tag">{photoFromTelegram ? "из Telegram" : "главное"}</span>}
+                  </div>
+                );
+              return (
+                <button key={i} className="phs gl" onClick={() => pickPhoto(i)} aria-label="Добавить фото">
+                  <span className="add">
+                    <Ic n="plus" c="s" />
+                  </span>
+                </button>
+              );
+            })}
           </div>
-          <input ref={photoInput} type="file" accept="image/*" hidden onChange={handlePhotoChange} />
+          <input ref={photoInput} type="file" accept="image/*" multiple hidden onChange={handlePhotoChange} />
 
           <span className="lbl">Имя</span>
           <label className="field gl">

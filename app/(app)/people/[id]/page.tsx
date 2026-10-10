@@ -2,11 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Icon } from "@/components/brand/Icon";
-import { Mosya } from "@/components/brand/Mosya";
-import { RatingStar } from "@/components/ui/RatingStar";
+import { mosyaSrc } from "@/components/brand/Mosya";
 import { interestIcon } from "@/lib/data/interests";
-import { CATEGORY_ICON } from "@/lib/data/category-icons";
+import { Cover, Ic, Sheet, Toast, dayLong, eventIcon } from "@/components/proto/ui";
 import { useGuide } from "@/lib/mosya/guide";
 import { peek, say } from "@/lib/mosya/peek";
 
@@ -14,6 +12,7 @@ interface Person {
   id: string;
   name: string;
   avatarUrl: string | null;
+  photos?: string[];
   age: number;
   bio: string | null;
   ratingAvg: number;
@@ -43,6 +42,10 @@ export default function PersonPage({ params }: { params: { id: string } }) {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [myEvents, setMyEvents] = useState<MyEvent[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [gi, setGi] = useState(0);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [pick, setPick] = useState<string | null>(null);
   useGuide("person", { when: person !== null });
 
   useEffect(() => {
@@ -68,6 +71,7 @@ export default function PersonPage({ params }: { params: { id: string } }) {
       }
       if (eventId) {
         setInviteOpen(false);
+        setPick(null);
         peek({ pose: "jump", text: `Позвал! ${person.name} получит приглашение в Telegram`, quick: true, low: true });
       } else router.push(`/chats/${d.conversationId}`);
     } finally {
@@ -80,141 +84,231 @@ export default function PersonPage({ params }: { params: { id: string } }) {
     if (myEvents === null)
       fetch("/api/me/events?scope=upcoming")
         .then((r) => r.json())
-        .then((d) => setMyEvents((d.items ?? []).filter((e: MyEvent) => e.role === "organizer")))
+        .then((d) => {
+          const list = (d.items ?? []) as MyEvent[];
+          setMyEvents(list);
+          setPick(list[0]?.id ?? null);
+        })
         .catch(() => setMyEvents([]));
   }
 
-  if (error)
-    return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-3 px-6 text-center">
-        <Mosya pose="think" size={110} />
-        <p className="text-sm text-ink-600">{error}</p>
-        <button onClick={() => router.back()} className="text-sm font-medium text-accent">
-          Назад
-        </button>
-      </div>
-    );
-  if (!person)
-    return (
-      <div className="space-y-3 px-5 pt-4">
-        <div className="m-sk aspect-[0.9] w-full" />
-        <div className="m-sk h-16" />
-      </div>
-    );
+  async function report(reason: string) {
+    if (!person) return;
+    setMoreOpen(false);
+    await fetch("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId: person.id, reason }),
+    }).catch(() => {});
+    setToast(reason === "block" ? "Заблокировали — больше не увидите друг друга" : "Спасибо, мы проверим");
+    setTimeout(() => setToast(null), 2600);
+  }
 
-  const common = person.commonInterests ?? [];
-  const others = person.interests.filter((i) => !common.includes(i));
-
-  return (
-    <div className="pb-36">
-      <div className="relative aspect-[0.86] w-full overflow-hidden rounded-b-[36px] bg-brand-gradient text-white">
-        {person.avatarUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={person.avatarUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-        ) : (
-          <span className="absolute inset-0 grid place-items-center text-[120px] font-medium opacity-90">{person.name.charAt(0).toUpperCase()}</span>
-        )}
-        <span className="absolute inset-0 bg-[linear-gradient(180deg,rgba(40,10,90,.25)_0%,transparent_30%,transparent_55%,rgba(30,8,60,.75)_100%)]" />
-        <button
-          onClick={() => router.back()}
-          aria-label="Назад"
-          className="m-press absolute left-4 top-[max(14px,env(safe-area-inset-top))] grid h-11 w-11 place-items-center rounded-full bg-white/25 backdrop-blur-md"
-        >
-          <Icon name="back" size={22} />
-        </button>
-        <div className="absolute inset-x-5 bottom-5">
-          <h1 className="text-[34px] font-medium leading-tight tracking-tight">
-            {person.name}, {person.age}
-          </h1>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {person.ratingAvg > 0 && (
-              <span className="m-chip m-chip-glass">
-                <RatingStar /> {Number(person.ratingAvg).toFixed(1).replace(".", ",")}
-              </span>
-            )}
-            <span className="m-chip m-chip-glass">{person.completedMeetingsCount} встреч</span>
-            {common.length > 0 && <span className="m-chip m-chip-glass">{common.length} общих интереса</span>}
-          </div>
+  if (error || !person)
+    return (
+      <section className="scr pr aurora fade" data-id="person">
+        <div className="gal">
+          <div className="sk" style={{ position: "absolute", inset: 0, borderRadius: 0 }} />
         </div>
-      </div>
-
-      <div className="m-stagger space-y-4 px-5 pt-5">
-        {person.bio && (
-          <div>
-            <h2 className="m-h2 mb-1.5 text-[17px]">О себе</h2>
-            <p className="text-[14.5px] leading-relaxed text-ink-700">{person.bio}</p>
-          </div>
-        )}
-        {person.interests.length > 0 && (
-          <div>
-            <h2 className="m-h2 mb-2 text-[17px]">{common.length ? "Общие интересы" : "Интересы"}</h2>
-            <div className="flex flex-wrap gap-2">
-              {[...common, ...others].map((i) => (
-                <span
-                  key={i}
-                  className={`flex items-center gap-1.5 rounded-pill py-1 pl-1 pr-3 text-[13px] font-medium ${
-                    common.includes(i) ? "bg-white/90 shadow-[inset_0_0_0_2px_#9B5CFF]" : "m-glass"
-                  }`}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={interestIcon(i)} alt="" className="h-7 w-7 object-contain" />
-                  {i}
-                </span>
-              ))}
+        <div className="hb">
+          <button className="rb glass" onClick={() => router.back()} aria-label="Назад">
+            <Ic n="back" />
+          </button>
+          <span />
+        </div>
+        {error && (
+          <div className="body" style={{ pointerEvents: "auto" }}>
+            <div className="sheet2" style={{ marginTop: 440 }}>
+              <div className="empty">
+                <b>{error}</b>
+                <button className="btn o" style={{ width: "100%" }} onClick={() => router.back()}>
+                  Назад
+                </button>
+              </div>
             </div>
           </div>
         )}
-      </div>
+      </section>
+    );
 
-      <div className="fixed inset-x-0 bottom-[92px] z-30 flex gap-2 px-5">
-        <button onClick={() => openDirect()} disabled={busy} className="m-btn m-btn-o" style={{ width: 56, flex: "none", padding: 0 }} aria-label="Написать">
-          <Icon name="chat" size={20} />
+  const photos = person.photos?.length ? person.photos : person.avatarUrl ? [person.avatarUrl] : [];
+  const common = person.commonInterests ?? [];
+  const others = person.interests.filter((i) => !common.includes(i));
+  const meets = person.completedMeetingsCount;
+
+  return (
+    <section className="scr pr aurora in" data-id="person">
+      <div className="gal">
+        {photos.length ? (
+          photos.map((src, i) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={src} src={src} className={i === gi ? "on" : ""} alt="" />
+          ))
+        ) : (
+          <div style={{ position: "absolute", inset: 0, background: "var(--g)", display: "grid", placeItems: "center" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={mosyaSrc("wave")} alt="" style={{ width: 220, position: "static", opacity: 1, transform: "none" }} />
+          </div>
+        )}
+        {photos.length > 1 && (
+          <>
+            <div className="gb">
+              {photos.map((_, i) => (
+                <i key={i} className={i <= gi ? "on" : ""} />
+              ))}
+            </div>
+            <button className="tapL" onClick={() => setGi((gi - 1 + photos.length) % photos.length)} aria-label="Предыдущее фото" />
+            <button className="tapR" onClick={() => setGi((gi + 1) % photos.length)} aria-label="Следующее фото" />
+          </>
+        )}
+        <div className="nm">
+          <h1>
+            {person.name}
+            {person.age ? `, ${person.age}` : ""}
+          </h1>
+          <p>
+            {person.ratingAvg > 0 && <span className="pill glass">★ {person.ratingAvg.toFixed(1).replace(".", ",")}</span>}
+            <span className="pill glass">
+              {meets} {plural(meets, "встреча", "встречи", "встреч")}
+            </span>
+            {common.length > 0 && (
+              <span className="pill glass">
+                {common.length} {plural(common.length, "общий интерес", "общих интереса", "общих интересов")}
+              </span>
+            )}
+          </p>
+        </div>
+      </div>
+      <div className="hb">
+        <button className="rb glass" onClick={() => router.back()} aria-label="Назад">
+          <Ic n="back" />
         </button>
-        <button onClick={openInvite} className="m-btn m-btn-v" style={{ flex: 1, width: "auto" }}>
-          <Icon name="cal" size={20} />
+        <button className="rb glass" onClick={() => setMoreOpen(true)} aria-label="Пожаловаться">
+          <Ic n="flag" />
+        </button>
+      </div>
+      <div className="body">
+        <div className="sheet2" style={{ marginTop: 440 }}>
+          <div className="blk">
+            <div className="blk-h">
+              <b>О себе</b>
+            </div>
+            <p className="about">{person.bio || "Пока без описания"}</p>
+          </div>
+          {common.length > 0 && (
+            <div className="blk">
+              <div className="blk-h">
+                <b>Общие интересы</b>
+                <span>
+                  {common.length} из {person.interests.length}
+                </span>
+              </div>
+              <div className="itags">
+                {common.map((i) => (
+                  <span key={i} className="itag common">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={interestIcon(i)} alt="" />
+                    {i}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {others.length > 0 && (
+            <div className="blk">
+              <div className="blk-h">
+                <b>{common.length ? "Ещё интересы" : "Интересы"}</b>
+              </div>
+              <div className="itags">
+                {others.map((i) => (
+                  <span key={i} className="itag gl">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={interestIcon(i)} alt="" />
+                    {i}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <button className="report" onClick={() => setMoreOpen(true)}>
+            Пожаловаться или заблокировать
+          </button>
+        </div>
+      </div>
+      <div className="cta">
+        <button className="rb gl" style={{ width: 56, height: 56 }} onClick={() => openDirect()} disabled={busy} aria-label="Написать">
+          <Ic n="chat" />
+        </button>
+        <button className="btn v" onClick={openInvite}>
+          <Ic n="cal" />
           Позвать на встречу
         </button>
       </div>
 
-      {inviteOpen && (
-        <div className="m-fade-in fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)]" onClick={() => setInviteOpen(false)}>
-          <div className="m-sheet-in m-glass-2 rounded-t-[30px] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <h2 className="m-title mb-1 text-[24px]">
-              Позвать <span className="m-em">{person.name}</span>
-            </h2>
-            <p className="mb-4 text-[13.5px] text-ink-600">Выбери свою встречу — приглашение придёт в личный чат и в Telegram.</p>
-            {myEvents === null && <div className="m-sk h-16" />}
-            {myEvents?.length === 0 && (
-              <div className="text-center">
-                <p className="mb-3 text-sm text-ink-600">У тебя пока нет своих встреч.</p>
-                <button onClick={() => router.push("/create")} className="m-btn m-btn-v">
-                  Создать встречу
-                </button>
+      <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)}>
+        <h2 className="t">
+          Позвать <em>{person.name}</em>
+        </h2>
+        <p className="muted" style={{ margin: "-6px 0 0", fontSize: 14 }}>
+          {myEvents?.length ? "Твои ближайшие встречи" : "У тебя пока нет ближайших встреч"}
+        </p>
+        <div style={{ display: "grid", gap: 8 }}>
+          {myEvents === null && <div className="sk" style={{ height: 70 }} />}
+          {myEvents?.map((e) => (
+            <button key={e.id} className={`opt gl ${pick === e.id ? "on" : ""}`} onClick={() => setPick(e.id)}>
+              <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} cls="ivth" thumb={100} />
+              <div className="d">
+                <b>{e.title}</b>
+                <span>
+                  {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}
+                </span>
               </div>
-            )}
-            <div className="space-y-2">
-              {myEvents?.map((e) => (
-                <button key={e.id} onClick={() => openDirect(e.id)} disabled={busy} className="m-press flex w-full items-center gap-3 rounded-[20px] bg-white/80 p-2.5 text-left shadow-card">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={e.photoUrl ?? (e.category ? CATEGORY_ICON[e.category.slug] : undefined) ?? "/brand/cat3d/i_world.webp"}
-                    alt=""
-                    className="h-12 w-12 rounded-[14px] object-cover"
-                  />
-                  <span className="min-w-0 flex-1">
-                    <b className="block truncate text-[14.5px] font-medium">{e.title}</b>
-                    <span className="text-xs text-ink-400">
-                      {new Date(e.eventDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}, {e.eventTime.slice(0, 5)}
-                    </span>
-                  </span>
-                  <Icon name="send" size={18} className="text-accent" />
-                </button>
-              ))}
+              <span className="radio" />
+            </button>
+          ))}
+          <button className="opt gl" onClick={() => router.push("/create")}>
+            <span style={{ width: 46, height: 46, borderRadius: 12, background: "var(--g)", color: "#fff", display: "grid", placeItems: "center", flex: "none" }}>
+              <Ic n="plus" />
+            </span>
+            <div className="d">
+              <b>Новая встреча</b>
+              <span>создать и позвать</span>
             </div>
-          </div>
+          </button>
         </div>
-      )}
-    </div>
+        <button className="btn v" disabled={!pick || busy} onClick={() => pick && openDirect(pick)}>
+          {busy ? "Отправляем…" : `Позвать ${person.name}`}
+        </button>
+      </Sheet>
+
+      <Sheet open={moreOpen} onClose={() => setMoreOpen(false)}>
+        <h2 className="t">Что случилось?</h2>
+        <div style={{ display: "grid", gap: 8 }}>
+          {(
+            [
+              ["no_show", "Не пришёл на встречу"],
+              ["bad_behavior", "Неприятное поведение"],
+              ["fake_profile", "Фейковый профиль"],
+              ["block", "Заблокировать"],
+            ] as const
+          ).map(([k, t]) => (
+            <button key={k} className="opt gl" onClick={() => report(k)}>
+              <b>{t}</b>
+              <Ic n="chev" c="s" />
+            </button>
+          ))}
+        </div>
+        <button className="btn o" onClick={() => setMoreOpen(false)}>
+          Отмена
+        </button>
+      </Sheet>
+      <Toast text={toast} />
+    </section>
   );
+}
+
+function plural(n: number, a: string, b: string, c: string) {
+  const m = n % 10;
+  const h = n % 100;
+  return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 10 || h >= 20) ? b : c;
 }
