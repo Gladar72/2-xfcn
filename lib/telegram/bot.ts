@@ -889,6 +889,23 @@ export function getBot(): Bot {
     const { reply, needsHuman } = await getSupportAiReply(userMessage);
     await ctx.reply(reply);
 
+    // Сохраняем обращение — его разбирает дежурный (плановая задача Claude).
+    // Ошибка записи не должна мешать ответу пользователю.
+    try {
+      const { error: ticketError } = await createAdminClient()
+        .from("support_tickets")
+        .insert({
+          telegram_id: ctx.from.id,
+          username: ctx.from.username ?? null,
+          first_name: ctx.from.first_name ?? null,
+          message: userMessage,
+          bot_reply: reply,
+        });
+      if (ticketError) console.error("Не удалось сохранить обращение в поддержку:", ticketError);
+    } catch (err) {
+      console.error("Не удалось сохранить обращение в поддержку:", err);
+    }
+
     const adminId = getAdminId();
     if (needsHuman && adminId) {
       const from = ctx.from;
