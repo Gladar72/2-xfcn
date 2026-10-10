@@ -5,7 +5,7 @@ type SupabaseClient = ReturnType<typeof createAdminClient>;
 /**
  * Писать человеку лично можно, только если вы уже пересеклись на встрече:
  * оба в участниках одной встречи (организатор или одобренный участник).
- * Уже начатый личный чат (например, после приглашения) продолжается.
+ * Чат, начатый приглашением на встречу, открывается из списка чатов.
  */
 export async function haveSharedEvent(admin: SupabaseClient, a: string, b: string): Promise<boolean> {
   const { data: mine } = await admin.from("event_members").select("event_id").eq("user_id", a).limit(500);
@@ -27,7 +27,7 @@ export async function findDirectConversation(admin: SupabaseClient, a: string, b
   return (shared?.[0]?.conversation_id as string | undefined) ?? null;
 }
 
+/** «Написать» из профиля — только если вы уже встречались (одна встреча на двоих). */
 export async function canDirectMessage(admin: SupabaseClient, a: string, b: string): Promise<boolean> {
-  if (await findDirectConversation(admin, a, b)) return true;
   return haveSharedEvent(admin, a, b);
 }

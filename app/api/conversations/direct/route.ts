@@ -38,16 +38,14 @@ export async function POST(req: NextRequest) {
   // Ищем существующий личный чат между нами.
   let conversationId: string | null = await findDirectConversation(admin, currentUser.userId, otherId);
 
-  // Новый личный чат — только после общей встречи (оба одобрены в одной встрече).
+  // «Написать» — только после общей встречи (оба одобрены в одной встрече).
   // Исключение — приглашение на свою встречу («Позвать на встречу»).
-  if (!conversationId) {
-    let allowed = await haveSharedEvent(admin, currentUser.userId, otherId);
-    if (!allowed && eventId) {
-      const { data: own } = await admin.from("events").select("organizer_id").eq("id", eventId).maybeSingle();
-      allowed = own?.organizer_id === currentUser.userId;
-    }
-    if (!allowed) return NextResponse.json({ error: "no_shared_event" }, { status: 403 });
+  let allowed = await haveSharedEvent(admin, currentUser.userId, otherId);
+  if (!allowed && eventId) {
+    const { data: own } = await admin.from("events").select("organizer_id").eq("id", eventId).maybeSingle();
+    allowed = own?.organizer_id === currentUser.userId;
   }
+  if (!allowed) return NextResponse.json({ error: "no_shared_event" }, { status: 403 });
 
   if (!conversationId) {
     const { data: conv, error } = await admin.from("conversations").insert({ event_id: null }).select("id").single();
