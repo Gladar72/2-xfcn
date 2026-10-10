@@ -187,7 +187,18 @@ export default function PersonPage({ params }: { params: { id: string } }) {
           <Ic n="flag" />
         </button>
       </div>
-      <div className="body">
+      {/* Прокрутка ловит касания сама (в Telegram на iOS прокрутка с pointer-events:none
+          не листается), а нажатие по фото над карточкой листает галерею. */}
+      <div
+        className="body"
+        style={{ pointerEvents: "auto" }}
+        onClick={(e) => {
+          if (e.target !== e.currentTarget || photos.length < 2) return;
+          const r = e.currentTarget.getBoundingClientRect();
+          const left = e.clientX - r.left < r.width / 2;
+          setGi((g) => (left ? (g - 1 + photos.length) % photos.length : (g + 1) % photos.length));
+        }}
+      >
         <div className="sheet2" style={{ marginTop: 440 }}>
           <div className="blk">
             <div className="blk-h">
