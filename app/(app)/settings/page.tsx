@@ -6,11 +6,12 @@ import { useRouter } from "next/navigation";
 import { Wordmark } from "@/components/brand/Logo";
 import { useGuide } from "@/lib/mosya/guide";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
-import { CityPicker } from "@/components/ui/CityPicker";
 import { Ic, Screen, Sheet, Toast } from "@/components/proto/ui";
 import { SupportSheet } from "@/components/proto/SupportSheet";
 import type { IconName } from "@/components/brand/Icon";
 import { goBack } from "@/lib/nav/back";
+import { CityWheel } from "@/components/proto/pickers";
+import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 
 interface ProfileSummary {
   name: string;
@@ -149,9 +150,7 @@ export default function SettingsPage() {
         <h2 className="t">
           Выбери <em>город</em>
         </h2>
-        <div className="field gl">
-          <CityPicker value={p?.city ?? ""} onChange={saveCity} autoFocus dropdownDirection="up" placeholder="Начни вводить город" className="w-full border-0 bg-transparent text-base outline-none" />
-        </div>
+        {cityOpen && <CityWheel value={p?.city ?? ""} cities={RUSSIAN_CITIES} onPick={saveCity} />}
       </Sheet>
       <SupportSheet open={supOpen} onClose={() => setSupOpen(false)} />
       <Toast text={toast} />

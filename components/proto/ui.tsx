@@ -169,13 +169,14 @@ export function HeroCard({ e, full }: { e: HeroEvent; full?: boolean }) {
           </span>
         )}
       </div>
-      <div className="bar">
+      <div className="bar hb2">
+        {/* Название целиком (до двух строк) на тёмной подложке — читается на любом фото */}
+        <b className="ttl">{e.title}</b>
         <div className="dt">
           <b>{e.eventTime.slice(0, 5)}</b>
           <small>{dayShort(e.eventDate)}</small>
         </div>
         <div className="i">
-          <b>{e.title}</b>
           <span>
             <Ic n="pin" c="xs" />
             {e.organizerHidden ? "место — после одобрения" : e.placeName ?? "место уточняется"}

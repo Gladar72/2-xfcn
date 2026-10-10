@@ -8,11 +8,12 @@ import { peek, say } from "@/lib/mosya/peek";
 import { confetti } from "@/lib/mosya/confetti";
 import { groupInterests, interestIcon } from "@/lib/data/interests";
 import { startGuideTour } from "@/lib/mosya/guide";
-import { CityPicker } from "@/components/ui/CityPicker";
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { resizeImageFile } from "@/lib/photos/resize-image-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { isCompleteBirthDate } from "./BirthDatePicker";
+import { CityWheel } from "@/components/proto/pickers";
+import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 
 interface Interest {
   id: string;
@@ -653,19 +654,16 @@ function CitySheet({ open, onClose, city, onPick }: { open: boolean; onClose: ()
       <h2 className="t">
         Выбери <em>город</em>
       </h2>
-      <div className="field gl">
-        <CityPicker
-          autoFocus
+      {open && (
+        <CityWheel
           value={city}
-          onChange={(c) => {
+          cities={RUSSIAN_CITIES}
+          onPick={(c) => {
             onPick(c);
             onClose();
           }}
-          placeholder="Начни вводить город"
-          dropdownDirection="up"
-          className="w-full border-0 bg-transparent text-base outline-none"
         />
-      </div>
+      )}
     </Sheet>
   );
 }

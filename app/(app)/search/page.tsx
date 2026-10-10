@@ -7,10 +7,11 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { EventCardData } from "@/components/feed/EventCard";
 import { EmptyIll, Ic, RowCard, Screen, Sheet, Toast } from "@/components/proto/ui";
-import { CityPicker } from "@/components/ui/CityPicker";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CATEGORY_ICON } from "@/lib/data/category-icons";
 import { goBack } from "@/lib/nav/back";
+import { CityWheel } from "@/components/proto/pickers";
+import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 
 interface Category {
   id: string;
@@ -325,18 +326,17 @@ function SearchPageContent() {
         <span className="lbl" style={{ margin: 0 }}>
           Город
         </span>
-        <div className="field gl">
-          <CityPicker
-            value={cityInput}
-            onChange={(selected) => {
+        {sheetOpen && (
+          <CityWheel
+            value={city || cityInput}
+            cities={RUSSIAN_CITIES}
+            cta="Город"
+            onPick={(selected) => {
               setCityInput(selected);
               setCity(selected);
             }}
-            placeholder="Город"
-            dropdownDirection="down"
-            className="w-full border-0 bg-transparent text-base outline-none"
           />
-        </div>
+        )}
         {row(
           "Дата встречи",
           [

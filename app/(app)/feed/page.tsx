@@ -8,12 +8,13 @@ import { say } from "@/lib/mosya/peek";
 import { JoinFlow } from "@/components/events/JoinFlow";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { apiErrorText } from "@/lib/validation/api-error-text";
-import { CityPicker } from "@/components/ui/CityPicker";
 import { photoThumb } from "@/lib/photos/thumb";
 import { interestIcon } from "@/lib/data/interests";
 import { Chr, Cover, EmptyIll, HeroCard, Ic, MiniMap, RowCard, Screen, Sheet, Toast, eventIcon, type HeroEvent } from "@/components/proto/ui";
 import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
 import { goBack } from "@/lib/nav/back";
+import { CityWheel } from "@/components/proto/pickers";
+import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 
 interface Category {
   id: string;
@@ -324,7 +325,7 @@ function HomeScreen() {
               ) : e.seatsTaken >= e.seatsTotal ? (
                 <span className="ast full">Мест нет</span>
               ) : null}
-              <div>
+              <div className="acb">
                 <b>{e.title}</b>
                 <p>
                   <span className="ach">
@@ -397,11 +398,11 @@ function HomeScreen() {
         <h2 className="t">
           Выбери <em>город</em>
         </h2>
-        <div className="field gl">
-          <CityPicker
-            autoFocus
+        {cityOpen && (
+          <CityWheel
             value={city ?? ""}
-            onChange={(selected) => {
+            cities={RUSSIAN_CITIES}
+            onPick={(selected) => {
               setCity(selected);
               setCityOpen(false);
               fetch("/api/me/profile", {
@@ -410,11 +411,8 @@ function HomeScreen() {
                 body: JSON.stringify({ city: selected }),
               }).catch(() => {});
             }}
-            placeholder="Начни вводить город"
-            dropdownDirection="up"
-            className="w-full border-0 bg-transparent text-base outline-none"
           />
-        </div>
+        )}
       </Sheet>
     </Screen>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Ic, Sheet } from "./ui";
 
 /**
@@ -21,21 +21,31 @@ export function Wheel({
   const ref = useRef<HTMLDivElement>(null);
   const cur = useRef(index);
 
+  // Рисуем только строки рядом с центром: в длинных списках (города — сотни
+  // строк) пересчёт всех строк на каждый кадр прокрутки давал подтормаживание.
+  const painted = useRef<Set<number>>(new Set());
   function paint() {
     const w = ref.current;
     if (!w) return;
     const st = w.scrollTop;
-    [...w.children].forEach((node, i) => {
-      const el = node as HTMLElement;
+    const kids = w.children;
+    const c = Math.round(st / 40);
+    const next = new Set<number>();
+    for (let i = Math.max(0, c - 6); i <= Math.min(kids.length - 1, c + 6); i++) {
+      const el = kids[i] as HTMLElement;
       const d = (i * 40 - st) / 40;
-      if (Math.abs(d) > 5) {
-        el.style.opacity = "0";
-        return;
-      }
+      next.add(i);
       el.style.transform = `rotateX(${-d * 21}deg)`;
-      el.style.opacity = String(Math.max(0.12, 1 - Math.abs(d) * 0.3));
+      el.style.opacity = Math.abs(d) > 5 ? "0" : String(Math.max(0.12, 1 - Math.abs(d) * 0.3));
       el.classList.toggle("cur", Math.abs(d) < 0.5);
+    }
+    painted.current.forEach((i) => {
+      if (!next.has(i) && kids[i]) {
+        (kids[i] as HTMLElement).style.opacity = "0";
+        kids[i]!.classList.remove("cur");
+      }
     });
+    painted.current = next;
   }
 
   // внешняя смена (быстрые чипсы «Завтра», календарь) — докручиваем колесо
@@ -141,5 +151,47 @@ export function CalendarSheet({
         Готово
       </button>
     </Sheet>
+  );
+}
+
+
+/**
+ * Выбор города колесом, как на iPhone: крутишь — город в рамке выбран.
+ * Сверху поиск: начни вводить — колесо сузится до подходящих городов.
+ * Клавиатура сама не открывается (раньше из‑за неё шторка прыгала и тормозила).
+ */
+export function CityWheel({ value, cities, onPick, cta = "Выбрать" }: { value: string; cities: string[]; onPick: (c: string) => void; cta?: string }) {
+  const [q, setQ] = useState("");
+  const list = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return cities;
+    const starts = cities.filter((c) => c.toLowerCase().startsWith(t));
+    const has = cities.filter((c) => !c.toLowerCase().startsWith(t) && c.toLowerCase().includes(t));
+    return [...starts, ...has];
+  }, [q, cities]);
+  const [ix, setIx] = useState(() => Math.max(0, cities.indexOf(value)));
+  useEffect(() => {
+    if (q) setIx(0);
+  }, [q]);
+  const safeIx = Math.min(ix, Math.max(0, list.length - 1));
+  return (
+    <>
+      <label className="field gl" style={{ marginTop: 6 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Найти город" enterKeyHint="search" />
+      </label>
+      {list.length ? (
+        <div className="wheels gl">
+          <Wheel key={q} items={list} index={safeIx} onChange={setIx} cls="d city" />
+        </div>
+      ) : (
+        <p className="muted" style={{ textAlign: "center", margin: "28px 0" }}>
+          Такого города пока нет в списке
+        </p>
+      )}
+      <button className="btn v" disabled={!list.length} onClick={() => list[safeIx] && onPick(list[safeIx]!)} style={{ marginTop: 12 }}>
+        {cta}
+        {list[safeIx] ? ` · ${list[safeIx]}` : ""}
+      </button>
+    </>
   );
 }
