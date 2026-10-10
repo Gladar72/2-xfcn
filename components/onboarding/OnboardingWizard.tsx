@@ -3,18 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { AliveStage, type StageProp } from "@/components/brand/AliveStage";
 import { Wordmark } from "@/components/brand/Logo";
-import { Icon } from "@/components/brand/Icon";
+import { Chr, Ic, Sheet } from "@/components/proto/ui";
 import { peek, say } from "@/lib/mosya/peek";
 import { confetti } from "@/lib/mosya/confetti";
 import { groupInterests, interestIcon } from "@/lib/data/interests";
 import { startGuideTour } from "@/lib/mosya/guide";
-import { Button } from "@/components/ui/Button";
-import { StepProgress } from "@/components/ui/StepProgress";
 import { CityPicker } from "@/components/ui/CityPicker";
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { resizeImageFile } from "@/lib/photos/resize-image-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
-import { BirthDatePicker, isCompleteBirthDate } from "./BirthDatePicker";
+import { isCompleteBirthDate } from "./BirthDatePicker";
 
 interface Interest {
   id: string;
@@ -32,7 +30,7 @@ const INTRO: { title: React.ReactNode; text: string; props: StageProp[] }[] = [
       <>
         Есть куда пойти.
         <br />
-        Найдём, <span className="m-em">с кем</span>
+        Найдём, <em>с кем</em>
       </>
     ),
     text: "Встречи с людьми рядом: кофе, спорт, кино, прогулки. Нажми «Я иду» — организатор примет заявку.",
@@ -46,7 +44,7 @@ const INTRO: { title: React.ReactNode; text: string; props: StageProp[] }[] = [
   {
     title: (
       <>
-        Смотри, <span className="m-em">кто идёт</span>,
+        Смотри, <em>кто идёт</em>,
         <br />
         ещё до заявки
       </>
@@ -64,7 +62,7 @@ const INTRO: { title: React.ReactNode; text: string; props: StageProp[] }[] = [
       <>
         Своя встреча
         <br />
-        <span className="m-em">за одну минуту</span>
+        <em>за одну минуту</em>
       </>
     ),
     text: "Можно анонимно. Выбери место и время — компания соберётся сама.",
@@ -91,52 +89,56 @@ function afterOnboardingPath(): string {
 
 export function OnboardingWizard() {
   const [intro, setIntro] = useState(0);
-  if (intro < INTRO.length) {
-    return <IntroSlides index={intro} onNext={() => setIntro((i) => i + 1)} onSkip={() => setIntro(INTRO.length)} />;
-  }
-  if (intro === INTRO.length) return <AuthScreen onContinue={() => setIntro(INTRO.length + 1)} />;
-  return <RegistrationSteps />;
+  return (
+    <div className="P">
+      {intro < INTRO.length ? (
+        <IntroSlides index={intro} onNext={() => setIntro((i) => i + 1)} onSkip={() => setIntro(INTRO.length)} />
+      ) : intro === INTRO.length ? (
+        <AuthScreen onContinue={() => setIntro(INTRO.length + 1)} />
+      ) : (
+        <RegistrationSteps onBackToAuth={() => setIntro(INTRO.length)} />
+      )}
+    </div>
+  );
 }
 
-/** «Войти в Место»: в мини-приложении Telegram уже узнал человека — кнопка просто ведёт к анкете. */
+/** «Войти в Место» (SCR.auth): в мини-приложении Telegram уже узнал человека. */
 function AuthScreen({ onContinue }: { onContinue: () => void }) {
   const props: StageProp[] = [
     ["Искра", 300, 140, 96, "star", "peach", "sly"],
     ["Пузырь", 70, 262, 100, "ball", "lilac", "wow"],
   ];
   return (
-    <div className="m-aurora fixed inset-0 overflow-hidden">
+    <section className="scr auth aurora fade" data-id="auth">
       <AliveStage props={props} floor={318} height={330} style={{ top: 44 }} />
-      <div className="m-glass-2 m-sheet-in absolute inset-x-0 bottom-0 z-10 rounded-t-[32px] px-5 pb-[max(22px,env(safe-area-inset-bottom))] pt-6">
-        <div className="m-stagger">
-          <h1 className="m-title">
-            Войти в <span className="m-em">Место</span>
-          </h1>
-          <p className="mt-2 text-[14.5px] leading-relaxed text-ink-600">
-            Через Telegram быстрее всего: имя и фото подтянутся сами, а встречи из мини-приложения сохранятся.
-          </p>
+      <div className="sheet">
+        <h1 className="t">
+          Войти в <em>Место</em>
+        </h1>
+        <p>Через Telegram быстрее всего: имя и фото подтянутся сами, а встречи из мини-приложения сохранятся.</p>
+        <div style={{ display: "grid", gap: 10, marginTop: 6 }}>
+          <button className="btn tg" onClick={onContinue}>
+            <Ic n="tg" />
+            Войти через Telegram
+          </button>
         </div>
-        <button type="button" onClick={onContinue} className="m-btn m-btn-tg mt-5">
-          <Icon name="tg" size={21} />
-          Войти через Telegram
-        </button>
-        <p className="mt-4 text-center text-[11.5px] leading-snug text-ink-400">
+        <p className="legal">
           Продолжая, вы принимаете{" "}
-          <a href="/legal/offer" target="_blank" className="underline">
-            публичную оферту
+          <a href="/legal/offer" target="_blank">
+            <u>публичную оферту</u>
           </a>{" "}
           и{" "}
-          <a href="/legal/privacy" target="_blank" className="underline">
-            политику конфиденциальности
+          <a href="/legal/privacy" target="_blank">
+            <u>политику конфиденциальности</u>
           </a>
         </p>
       </div>
-    </div>
+    </section>
   );
 }
 
+/** Вводные слайды (SCR.onb): живой Мося среди персонажей, слайды листаются сами каждые 4,2 с. */
 function IntroSlides({ index, onNext, onSkip }: { index: number; onNext: () => void; onSkip: () => void }) {
-  // Слайды листаются сами каждые 4,2 с, как в прототипе; «Далее» — вручную.
   useEffect(() => {
     if (index >= INTRO.length - 1) return;
     const t = setTimeout(onNext, 4200);
@@ -144,58 +146,66 @@ function IntroSlides({ index, onNext, onSkip }: { index: number; onNext: () => v
   }, [index, onNext]);
   const slide = INTRO[index]!;
   return (
-    <div className="m-aurora fixed inset-0 overflow-hidden">
-      <div className="absolute inset-x-5 top-[max(14px,env(safe-area-inset-top))] z-10 grid gap-4">
-        <div className="m-bars">
-          {INTRO.map((_, i) => (
-            <i key={i} className={i < index ? "dn" : i === index ? "run" : ""}>
-              <b key={index} />
-            </i>
-          ))}
-        </div>
-        <Wordmark height={26} color="#16121F" />
+    <section className="scr onb aurora fade" data-id="onb">
+      <AliveStage key={index} props={slide.props} floor={372} height={390} style={{ top: 112 }} />
+      <div className="bars">
+        {INTRO.map((_, i) => (
+          <i key={i} className={i < index ? "dn" : i === index ? "run" : ""}>
+            <b key={index} />
+          </i>
+        ))}
       </div>
-
-      <AliveStage key={index} props={slide.props} floor={372} height={390} style={{ top: 92 }} />
-
-      <div className="m-glass-2 m-sheet-in absolute inset-x-0 bottom-0 z-10 rounded-t-[32px] px-5 pb-[max(22px,env(safe-area-inset-bottom))] pt-6">
-        <div key={index} className="m-stagger">
-          <h1 className="m-title">{slide.title}</h1>
-          <p className="mt-2 text-[15px] leading-relaxed text-ink-600">{slide.text}</p>
+      <div className="owm">
+        <Wordmark height={27} color="#16121F" />
+      </div>
+      <div className="card">
+        <div className="txt" key={index}>
+          <h1 className="t">{slide.title}</h1>
+          <p>{slide.text}</p>
         </div>
-        <div className="mt-5 flex items-center gap-3">
-          <button type="button" onClick={onSkip} className="h-14 px-4 text-[15px] text-ink-400">
+        <div className="act">
+          <button className="skip" onClick={onSkip}>
             Пропустить
           </button>
-          <button type="button" onClick={onNext} className="m-btn m-btn-k flex-1">
+          <button className="btn k" style={{ flex: 1 }} onClick={onNext}>
             {index < INTRO.length - 1 ? "Далее" : "Начать"}
           </button>
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-function RegistrationSteps() {
+/** ДД.ММ.ГГГГ → ГГГГ-ММ-ДД (или "" пока не введено целиком). */
+function birthIso(v: string) {
+  const m = v.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : "";
+}
+function maskBirth(raw: string) {
+  const d = raw.replace(/\D/g, "").slice(0, 8);
+  return [d.slice(0, 2), d.slice(2, 4), d.slice(4, 8)].filter(Boolean).join(".");
+}
+
+function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
   const [stepIndex, setStepIndex] = useState(0);
   const [interests, setInterests] = useState<Interest[]>([]);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const [photoBase64, setPhotoBase64] = useState<string | undefined>();
-  // Фото подставлено из Telegram автоматически (а не выбрано вручную).
   const [photoFromTelegram, setPhotoFromTelegram] = useState(false);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [name, setName] = useState("");
-  const [birthDate, setBirthDate] = useState("");
+  const [birthText, setBirthText] = useState("");
+  const birthDate = birthIso(birthText);
   const [gender, setGender] = useState<"male" | "female" | null>(null);
   const [city, setCity] = useState("");
+  const [cityOpen, setCityOpen] = useState(false);
   const [bio, setBio] = useState("");
   const [selectedInterestIds, setSelectedInterestIds] = useState<string[]>([]);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [locating, setLocating] = useState(false);
+  const photoInput = useRef<HTMLInputElement>(null);
 
-  // Имя сразу из Telegram — человеку остаётся только проверить.
   useEffect(() => {
     try {
       const u = (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { first_name?: string } } } } })
@@ -206,7 +216,6 @@ function RegistrationSteps() {
     }
   }, []);
 
-  // Аватарка из Telegram: если она есть — сразу показываем, человек может заменить её своей.
   useEffect(() => {
     const initData = getInitData();
     if (!initData) return;
@@ -240,11 +249,10 @@ function RegistrationSteps() {
       .catch(() => setInterests([]));
   }, []);
 
+  // Город по умолчанию — из геолокации позже; пока пусто.
   const step: Step = STEPS[stepIndex] ?? "setup";
-  const isLastStep = stepIndex === STEPS.length - 1;
   const minInterests = Math.min(3, interests.length);
 
-  // Мося объясняет сбоку, не закрывая форму (только при первом показе шага).
   const said = useRef(new Set<Step>());
   useEffect(() => {
     if (said.current.has(step)) return;
@@ -263,33 +271,30 @@ function RegistrationSteps() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
-  /** Что не так на текущем шаге (null — всё в порядке). */
   function stepHint(): string | null {
     if (step === "setup") {
       if (name.trim().length < 2) return "Напиши имя — минимум 2 буквы.";
-      if (!isCompleteBirthDate(birthDate)) return "Выбери день, месяц и год рождения.";
+      if (!isCompleteBirthDate(birthDate)) return "Напиши дату рождения: ДД.ММ.ГГГГ.";
       if (!isAtLeast18(birthDate)) return "Сервис доступен только с 18 лет.";
       if (gender === null) return "Выбери пол.";
+      if (!agreedToTerms) return "Отметь галочку — нужно согласие с условиями оферты и политикой конфиденциальности.";
     }
     if (step === "interests" && selectedInterestIds.length < minInterests) return `Выбери хотя бы ${minInterests} интереса.`;
-    if (step === "geo" && city.trim().length < 2) return "Выбери город — или разреши геолокацию.";
     return null;
   }
 
   function goNext() {
     const hint = stepHint();
     if (hint) {
-      setError(hint);
       say(hint, "think");
       return;
     }
-    setError(null);
     if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
   }
 
   function goBack() {
-    setError(null);
     if (stepIndex > 0) setStepIndex(stepIndex - 1);
+    else onBackToAuth();
   }
 
   function toggleInterest(id: string) {
@@ -298,6 +303,7 @@ function RegistrationSteps() {
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    e.target.value = "";
     if (!file) return;
     resizeImageFile(file, 1600, 0.82).then((dataUrl) => {
       setPhotoBase64(dataUrl);
@@ -305,10 +311,11 @@ function RegistrationSteps() {
     });
   }
 
-  /** Геолокация → город (обратным геокодированием). Точка никуда не сохраняется. */
-  function detectCity() {
+  /** «Разрешить геолокацию»: город определяется сам, и сразу сохраняем профиль. */
+  function detectCityAndFinish() {
     if (!navigator.geolocation) {
-      setError("Геолокация недоступна — выбери город вручную.");
+      say("Геолокация недоступна — выбери город вручную", "think");
+      setCityOpen(true);
       return;
     }
     setLocating(true);
@@ -320,57 +327,52 @@ function RegistrationSteps() {
           const found = typeof data.address === "string" ? cityFromAddress(data.address) : null;
           if (found) {
             setCity(found);
-            setError(null);
-          } else setError("Не получилось определить город — выбери его вручную.");
+            handleSubmit(found);
+          } else {
+            say("Не получилось определить город — выбери его вручную", "think");
+            setCityOpen(true);
+          }
         } finally {
           setLocating(false);
         }
       },
       () => {
         setLocating(false);
-        setError("Без доступа к геолокации — просто выбери город ниже.");
+        say("Без доступа к геолокации — просто выбери город", "think");
+        setCityOpen(true);
       },
       { timeout: 8000, maximumAge: 600000 }
     );
   }
 
-  async function handleSubmit() {
-    const hint = stepHint();
-    if (hint) {
-      setError(hint);
-      return;
-    }
-    if (!agreedToTerms) {
-      setError("Отметь галочку — нужно согласие с условиями оферты и политикой конфиденциальности.");
+  async function handleSubmit(cityValue = city) {
+    if (cityValue.trim().length < 2) {
+      setCityOpen(true);
       return;
     }
     setSubmitting(true);
-    setError(null);
-
     const initData = getInitData();
     if (!initData) {
-      setError("Открой приложение через Telegram, чтобы продолжить.");
+      say("Открой приложение через Telegram, чтобы продолжить.", "think");
       setSubmitting(false);
       return;
     }
-
     try {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           initData,
-          profile: { name, birthDate, gender, agreedToTerms, city, bio, interestIds: selectedInterestIds, photoBase64 },
+          profile: { name, birthDate, gender, agreedToTerms, city: cityValue, bio, interestIds: selectedInterestIds, photoBase64 },
         }),
       });
-
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (data.error === "already_registered") {
           window.location.href = "/";
           return;
         }
-        setError(apiErrorText(data, "Не получилось сохранить профиль. Попробуй ещё раз.", res.status));
+        say(apiErrorText(data, "Не получилось сохранить профиль. Попробуй ещё раз.", res.status), "think");
         const fieldStep: Partial<Record<string, Step>> = {
           name: "setup",
           birthDate: "setup",
@@ -378,19 +380,15 @@ function RegistrationSteps() {
           bio: "setup",
           photoBase64: "setup",
           interestIds: "interests",
-          city: "geo",
         };
         const target = typeof data.field === "string" ? fieldStep[data.field] : undefined;
         if (target) setStepIndex(STEPS.indexOf(target));
         setSubmitting(false);
         return;
       }
-
       startGuideTour();
       if (data.photoError) {
-        setError(
-          `Профиль создан! ${apiErrorText({ error: data.photoError }, "Фото загрузить не получилось.")} Добавить фото можно в профиле.`
-        );
+        say(`Профиль создан! ${apiErrorText({ error: data.photoError }, "Фото загрузить не получилось.")} Добавить фото можно в профиле.`);
         setTimeout(() => {
           window.location.href = afterOnboardingPath();
         }, 3500);
@@ -401,230 +399,234 @@ function RegistrationSteps() {
         window.location.href = afterOnboardingPath();
       }, 700);
     } catch {
-      setError("Проблема с соединением. Попробуй ещё раз.");
+      say("Проблема с соединением. Попробуй ещё раз.", "think");
       setSubmitting(false);
     }
   }
 
   const grouped = groupInterests(interests);
+  const prog = (
+    <span className="prog">
+      {STEPS.map((s, i) => (
+        <i key={s} className={i <= stepIndex ? "on" : ""} />
+      ))}
+    </span>
+  );
 
-  return (
-    <div className="m-aurora flex min-h-[100dvh] flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
-      <div className="flex items-center gap-3">
-        {stepIndex > 0 && (
-          <button onClick={goBack} aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-            <Icon name="back" size={22} />
-          </button>
-        )}
-        <div className="flex-1">
-          <StepProgress currentStep={stepIndex + 1} totalSteps={STEPS.length} />
-        </div>
-      </div>
-
-      <div key={step} className="m-fade-in flex flex-1 flex-col gap-4 pb-4 pt-5">
-        {step === "setup" && (
-          <>
-            <div className="m-stagger">
-              <h1 className="m-title">
-                Почти готово{name.trim() ? ", " : ""}
-                <span className="m-em">{name.trim()}</span>
-              </h1>
-              <p className="mt-1.5 text-[13.5px] leading-snug text-ink-600">
-                {photoFromTelegram
-                  ? "Имя и фото взяли из Telegram. Нажми на фото, чтобы выбрать другое."
-                  : photoLoading
-                    ? "Ищем твою аватарку в Telegram…"
-                    : "Добавь фото — с ним чаще зовут на встречи."}
-              </p>
-            </div>
-
-            <label className="m-press relative flex h-[104px] w-[104px] cursor-pointer items-center justify-center overflow-hidden rounded-[28px] bg-brand-gradient text-white shadow-cta">
+  if (step === "setup") {
+    return (
+      <section className="scr aurora in" data-id="setup">
+        <div className="scroll" style={{ paddingBottom: 160 }}>
+          <div className="bar-top">
+            <button className="rb gl" onClick={goBack} aria-label="Назад">
+              <Ic n="back" />
+            </button>
+            {prog}
+          </div>
+          <h1 className="t" style={{ marginTop: 20 }}>
+            Почти готово{name.trim() ? ", " : ""}
+            <em>{name.trim()}</em>
+          </h1>
+          <p className="muted" style={{ margin: "8px 0 14px", fontSize: 15, lineHeight: 1.5 }}>
+            {photoFromTelegram
+              ? "Имя и фото взяли из Telegram. Нажми на фото, чтобы выбрать другое."
+              : photoLoading
+                ? "Ищем твою аватарку в Telegram…"
+                : "Добавь фото — с ним чаще зовут на встречи."}
+          </p>
+          <div className="phgrid">
+            <button className="phs gl" onClick={() => photoInput.current?.click()} aria-label="Фото профиля">
               {photoBase64 ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={photoBase64} alt="Фото профиля" className="h-full w-full object-cover" />
-              ) : photoLoading ? (
-                <div className="h-9 w-9 animate-spin rounded-full border-4 border-white/40 border-t-white" />
+                <img src={photoBase64} alt="" />
               ) : (
-                <span className="grid justify-items-center gap-1">
-                  <Icon name="camera" size={30} />
-                  <span className="text-[11px] font-medium">Фото</span>
-                </span>
+                <div className="tgava">{(name.trim() || "?").charAt(0).toUpperCase()}</div>
               )}
-              {photoFromTelegram && (
-                <span className="absolute bottom-1.5 left-1.5 rounded-pill bg-white/85 px-2 py-0.5 text-[10px] font-medium text-ink-900">
-                  из Telegram
-                </span>
-              )}
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-            </label>
-
-            <Field label="Имя">
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Имя" maxLength={50} className={fieldClass} />
-            </Field>
-            <Field label="Дата рождения" hint="18+">
-              <BirthDatePicker value={birthDate} onChange={setBirthDate} />
-            </Field>
-            <Field label="Пол">
-              <div className="flex gap-2">
-                {(
-                  [
-                    ["male", "Мужчина"],
-                    ["female", "Женщина"],
-                  ] as const
-                ).map(([value, label]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => setGender(value)}
-                    className={`m-press h-12 flex-1 rounded-pill text-[15px] font-medium transition ${
-                      gender === value ? "bg-ink-900 text-white" : "m-glass text-ink-900"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </Field>
-            <Field label="О себе" hint="необязательно">
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                maxLength={300}
-                rows={2}
-                placeholder="Пару слов о себе — до 300 символов"
-                className={`${fieldClass} resize-none`}
-              />
-            </Field>
-          </>
-        )}
-
-        {step === "interests" && (
-          <>
-            <div className="m-stagger">
-              <h1 className="m-title">
-                Что тебе <span className="m-em">по душе?</span>
-              </h1>
-              <p className="mt-1.5 text-[13.5px] leading-snug text-ink-600">
-                Выбери хотя бы три. По ним подберём встречи и людей с похожими интересами.
-              </p>
-            </div>
-            {grouped.map((g) => {
-              const n = g.items.filter((x) => selectedInterestIds.includes(x.id)).length;
-              return (
-                <div key={g.title}>
-                  <h3 className="mb-2 flex items-center justify-between text-[13px] font-medium text-ink-600">
-                    {g.title}
-                    {n > 0 && <span className="text-accent">{n}</span>}
-                  </h3>
-                  <div className="m-stagger grid grid-cols-3 gap-2">
-                    {g.items.map((interest) => {
-                      const selected = selectedInterestIds.includes(interest.id);
-                      return (
-                        <button
-                          key={interest.id}
-                          type="button"
-                          onClick={() => toggleInterest(interest.id)}
-                          className={`m-cat relative ${
-                            selected
-                              ? "m-sel"
-                              : "m-glass"
-                          }`}
-                        >
-                          {selected && (
-                            <span className="m-pop absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-brand-gradient text-white">
-                              <Icon name="check" size={12} strokeWidth={2.6} />
-                            </span>
-                          )}
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={interestIcon(interest.name)} alt="" />
-                          <span>{interest.name}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-          </>
-        )}
-
-        {step === "geo" && (
-          <div className="flex flex-1 flex-col items-center justify-center text-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/mosya/mosya_phone.webp" alt="" className="m-pop mb-3 h-36 w-36 object-contain" />
-            <h1 className="m-title">
-              Где ищем <span className="m-em">компанию?</span>
-            </h1>
-            <p className="mt-2 max-w-[300px] text-[14px] leading-snug text-ink-600">
-              Мося покажет встречи рядом. Геолокация нужна только чтобы определить город.
-            </p>
-            <button onClick={detectCity} disabled={locating} className="m-btn m-btn-v mt-6">
-              <Icon name="nav" size={20} />
-              {locating ? "Определяем…" : "Разрешить геолокацию"}
+              <span className="tag">{photoFromTelegram ? "из Telegram" : photoBase64 ? "главное" : "добавить"}</span>
             </button>
-            <div className="mt-3 w-full text-left">
-              <CityPicker value={city} onChange={setCity} placeholder="Или выбери город" dropdownDirection="up" className={fieldClass} />
-            </div>
-            <label className="mt-5 flex items-start gap-2 text-left text-xs text-ink-600">
-              <input
-                type="checkbox"
-                checked={agreedToTerms}
-                onChange={(e) => setAgreedToTerms(e.target.checked)}
-                className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
-              />
-              <span>
-                Я принимаю условия{" "}
-                <a href="/legal/offer" target="_blank" className="text-accent underline">
-                  публичной оферты
-                </a>{" "}
-                и{" "}
-                <a href="/legal/privacy" target="_blank" className="text-accent underline">
-                  политики конфиденциальности
-                </a>
-              </span>
-            </label>
           </div>
-        )}
-      </div>
+          <input ref={photoInput} type="file" accept="image/*" hidden onChange={handlePhotoChange} />
 
-      {error && (
-        <div role="alert" className="m-pop mb-3 rounded-[18px] bg-white/85 px-4 py-3 text-center text-sm font-medium text-[#D6336C] shadow-card">
-          {error}
+          <span className="lbl">Имя</span>
+          <label className="field gl">
+            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={50} placeholder="Имя" />
+          </label>
+          <span className="lbl">Дата рождения</span>
+          <label className="field gl">
+            <input value={birthText} onChange={(e) => setBirthText(maskBirth(e.target.value))} placeholder="ДД.ММ.ГГГГ" inputMode="numeric" maxLength={10} />
+          </label>
+          <span className="lbl">Пол</span>
+          <div className="chs">
+            {(
+              [
+                ["male", "Мужчина"],
+                ["female", "Женщина"],
+              ] as const
+            ).map(([v, l]) => (
+              <button key={v} className={gender === v ? "on" : "gl"} onClick={() => setGender(v)}>
+                {l}
+              </button>
+            ))}
+          </div>
+          <span className="lbl">Город</span>
+          <button className="field gl" onClick={() => setCityOpen(true)}>
+            <b>{city || "Определим на следующем шаге"}</b>
+            <Ic n="chev" c="s" />
+          </button>
+          <span className="lbl">
+            Пару слов о себе <small className="muted">до 300 символов</small>
+          </span>
+          <label className="field gl ta">
+            <textarea rows={3} maxLength={300} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Например: люблю кофе и утренние пробежки" />
+          </label>
+          <label className="agree">
+            <input type="checkbox" checked={agreedToTerms} onChange={(e) => setAgreedToTerms(e.target.checked)} />
+            <span className="cb">
+              <Ic n="check" />
+            </span>
+            <span>
+              Я принимаю условия{" "}
+              <a href="/legal/offer" target="_blank">
+                публичной оферты
+              </a>{" "}
+              и{" "}
+              <a href="/legal/privacy" target="_blank">
+                политики конфиденциальности
+              </a>
+              . Мне есть 18 лет.
+            </span>
+          </label>
         </div>
-      )}
+        <div className="foot">
+          <button className="btn v" onClick={goNext}>
+            Дальше
+          </button>
+        </div>
+        <CitySheet open={cityOpen} onClose={() => setCityOpen(false)} city={city} onPick={setCity} />
+      </section>
+    );
+  }
 
-      {step === "interests" && (
-        <p className="mb-2 text-center text-xs text-ink-400">
-          {selectedInterestIds.length < minInterests
-            ? `Выбрано ${selectedInterestIds.length} из ${minInterests}`
-            : `Выбрано: ${selectedInterestIds.length}`}
-        </p>
-      )}
-      {!isLastStep ? (
-        <Button onClick={goNext} className={stepHint() ? "opacity-60" : undefined}>
-          Дальше
-        </Button>
-      ) : (
-        <Button onClick={handleSubmit} disabled={submitting} className={agreedToTerms && city ? undefined : "opacity-60"}>
-          {submitting ? "Сохраняем..." : "Готово"}
-        </Button>
-      )}
-    </div>
+  if (step === "interests") {
+    const n = selectedInterestIds.length;
+    return (
+      <section className="scr aurora in" data-id="interests">
+        <div className="scroll" style={{ paddingBottom: 160 }}>
+          <div className="bar-top">
+            <button className="rb gl" onClick={goBack} aria-label="Назад">
+              <Ic n="back" />
+            </button>
+            {prog}
+          </div>
+          <h1 className="t" style={{ marginTop: 20 }}>
+            Что тебе <em>по душе</em>?
+          </h1>
+          <p className="muted" style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.5 }}>
+            Выбери хотя бы три. По ним подберём встречи и людей с похожими интересами.
+          </p>
+          {grouped.map((g) => {
+            const k = g.items.filter((x) => selectedInterestIds.includes(x.id)).length;
+            return (
+              <div key={g.title} className="igroup">
+                <h3>
+                  {g.title}
+                  <span>{k || ""}</span>
+                </h3>
+                <div className="igrid">
+                  {g.items.map((it) => (
+                    <button key={it.id} className={`it ${selectedInterestIds.includes(it.id) ? "sel" : ""}`} onClick={() => toggleInterest(it.id)}>
+                      <span className="ck">
+                        <Ic n="check" />
+                      </span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={interestIcon(it.name)} alt="" />
+                      {it.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="foot">
+          <small>{n < minInterests ? `Выбрано ${n} из ${minInterests}` : `Выбрано: ${n}`}</small>
+          <button className="btn v" disabled={n < minInterests} onClick={goNext}>
+            Продолжить
+          </button>
+        </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="scr aurora in" data-id="geo">
+      <div className="scroll">
+        <div className="bar-top">
+          <button className="rb gl" onClick={goBack} aria-label="Назад">
+            <Ic n="back" />
+          </button>
+          {prog}
+        </div>
+        <div className="geo">
+          <div className="halo">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/mosya/mosya_phone.webp" alt="" />
+            <span className="orb" style={{ left: -10, top: 30 }}>
+              <Chr shape="flower" pal="sky" face="smile" />
+            </span>
+            <span className="orb" style={{ right: -6, top: 150 }}>
+              <Chr shape="squ" pal="pink" face="calm" />
+            </span>
+          </div>
+          <h1 className="t">
+            Где ищем <em>компанию</em>?
+          </h1>
+          <p>Мося покажет встречи рядом. Геолокацию используем только чтобы определить город.</p>
+        </div>
+      </div>
+      <div className="foot">
+        <button className="btn v" onClick={detectCityAndFinish} disabled={locating || submitting}>
+          <Ic n="nav" />
+          {locating ? "Определяем…" : submitting ? "Сохраняем…" : "Разрешить геолокацию"}
+        </button>
+        <button className="btn o" onClick={() => (city ? handleSubmit() : setCityOpen(true))} disabled={submitting}>
+          {city ? `Выбрать город: ${city}` : "Выбрать город"}
+        </button>
+      </div>
+      <CitySheet
+        open={cityOpen}
+        onClose={() => setCityOpen(false)}
+        city={city}
+        onPick={(c) => {
+          setCity(c);
+          setCityOpen(false);
+          handleSubmit(c);
+        }}
+      />
+    </section>
   );
 }
 
-const fieldClass =
-  "m-glass w-full min-w-0 box-border rounded-[20px] border-0 px-4 py-3.5 text-base outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]";
-
-function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function CitySheet({ open, onClose, city, onPick }: { open: boolean; onClose: () => void; city: string; onPick: (c: string) => void }) {
   return (
-    <div>
-      <label className="mb-1.5 flex justify-between px-1 text-[12.5px] font-medium text-ink-600">
-        {label}
-        {hint && <span className="font-normal text-ink-400">{hint}</span>}
-      </label>
-      {children}
-    </div>
+    <Sheet open={open} onClose={onClose}>
+      <h2 className="t">
+        Выбери <em>город</em>
+      </h2>
+      <div className="field gl">
+        <CityPicker
+          autoFocus
+          value={city}
+          onChange={(c) => {
+            onPick(c);
+            onClose();
+          }}
+          placeholder="Начни вводить город"
+          dropdownDirection="up"
+          className="w-full border-0 bg-transparent text-base outline-none"
+        />
+      </div>
+    </Sheet>
   );
 }
 

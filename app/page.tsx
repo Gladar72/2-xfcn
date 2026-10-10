@@ -161,59 +161,45 @@ function SplashScreen({ status, full = false }: { status: "loading" | "no_telegr
   }, [full]);
 
   return (
-    <div className={`m-splash m-aurora ${full ? "" : "fast"}`}>
-      {full && (
-        <div ref={runner} className="runner" aria-hidden style={{ transform: "translate(-200px,0)" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/mosya/mosya_run.webp" alt="" />
+    <div className="P">
+      <section className="scr splash aurora" data-id="splash">
+        {full && (
+          <div ref={runner} className="runner" aria-hidden style={{ transform: "translate(-200px,0)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/mosya/mosya_run.webp" alt="" />
+          </div>
+        )}
+        <div aria-hidden className="pops" style={{ position: "absolute", inset: 0 }}>
+          {POPS.map(([x, y, s], i) => (
+            <span
+              key={i}
+              className="pp2"
+              style={{ left: `${x}%`, top: `${(y / 844) * 100}%`, width: s, height: s, animationDelay: `${(full ? 2.95 : 0.1) + i * 0.07}s` }}
+            >
+              <Character shape={CAST[i]![0]} pal={CAST[i]![1]} face={CAST[i]![2]} size={s} seed={i + 3} />
+            </span>
+          ))}
         </div>
-      )}
-      <div aria-hidden className="absolute inset-0">
-        {POPS.map(([x, y, s], i) => (
-          <span
-            key={i}
-            className="pp2"
-            style={{
-              left: `${x}%`,
-              top: `calc(${(y / 844) * 100}% )`,
-              width: s,
-              height: s,
-              animationDelay: `${(full ? 2.95 : 0.1) + i * 0.07}s`,
-            }}
-          >
-            <Character shape={CAST[i]![0]} pal={CAST[i]![1]} face={CAST[i]![2]} size={s} seed={i + 3} />
+        <div className={`lockup ${full ? "" : "fast"}`}>
+          <div className="hero-m">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/mosya/mosya_wave.webp" alt="" />
+          </div>
+          <span className="wm">
+            <Wordmark height={66} color="#16121F" />
           </span>
-        ))}
-      </div>
-
-      <div className="lockup">
-        <div className="hero-m">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/mosya/mosya_wave.webp" alt="" />
+          <p>Есть куда пойти. Найдём, с кем</p>
+          {status === "no_telegram" && (
+            <p style={{ marginTop: 12, maxWidth: 280, fontSize: 14 }}>Это приложение открывается только внутри Telegram. Открой его через кнопку в боте.</p>
+          )}
+          {status === "error" && <p style={{ marginTop: 12, maxWidth: 280, fontSize: 14 }}>Что-то пошло не так. Попробуй закрыть и открыть приложение снова.</p>}
         </div>
-        <div className="wm">
-          <Wordmark height={52} color="#16121F" />
-        </div>
-        <p className="tag">Есть куда пойти. Найдём, с кем</p>
-
-        {status === "no_telegram" && (
-          <p className="mt-4 max-w-[280px] text-sm text-ink-600">
-            Это приложение открывается только внутри Telegram. Открой его через кнопку в боте.
-          </p>
+        {status === "loading" && (
+          <div className={`load ${full ? "" : "fast"}`} role="status" aria-label="Загрузка">
+            <i />
+          </div>
         )}
-
-        {status === "error" && (
-          <p className="mt-4 max-w-[280px] text-sm text-ink-600">
-            Что-то пошло не так. Попробуй закрыть и открыть приложение снова.
-          </p>
-        )}
-      </div>
-
-      {status === "loading" && (
-        <div className="load" role="status" aria-label="Загрузка">
-          <i />
-        </div>
-      )}
+      </section>
     </div>
   );
 }

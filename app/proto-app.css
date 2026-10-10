@@ -15,3 +15,9 @@
 .P a.hero,.P a.acard,.P a.pcard{display:block}
 .P a.ttl,.P a.nearb,.P a.plan,.P a.row,.P a.ci,.P a.sfield,.P a.cat{display:flex}
 .P a.rb{display:grid}
+/* заставка: короткий вариант (повторный запуск) — без пробежки Моси */
+.P .splash .lockup.fast .hero-m{animation-delay:.05s}
+.P .splash .lockup.fast .wm{animation-delay:.25s}
+.P .splash .lockup.fast p{animation-delay:.35s}
+.P .splash .load.fast{animation-delay:.3s}.P .splash .load.fast i{animation-delay:.35s;animation-duration:.6s}
+.P .splash .wm svg{height:auto;margin:0}
