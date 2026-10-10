@@ -189,7 +189,7 @@ export default function SearchPage() {
       <h1 className="m-title mb-4">Поиск встреч</h1>
 
       <div className="mb-4 flex gap-2">
-        <span className="flex-1 rounded-pill bg-accent px-4 py-2 text-center text-sm font-medium text-white shadow-card">
+        <span className="flex-1 rounded-pill bg-ink-900 px-4 py-2 text-center text-sm font-medium text-white">
           Все встречи
         </span>
         <Link

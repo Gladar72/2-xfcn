@@ -12,8 +12,6 @@ import { RatingStar } from "@/components/ui/RatingStar";
 import { photoThumb } from "@/lib/photos/thumb";
 import { useGuide } from "@/lib/mosya/guide";
 
-/** Поддержка — в боте: на вопросы сразу отвечает ИИ. */
-const SUPPORT_URL = "https://t.me/Mesto_people_bot";
 
 interface Profile {
   name: string;
@@ -285,16 +283,14 @@ export default function ProfilePage() {
       </div>
 
       {/* Мося-помощник: вопрос в поддержку (ИИ отвечает сразу в боте) */}
-      <a
-        href={SUPPORT_URL}
-        target="_blank"
-        rel="noreferrer"
+      <Link
+        href="/support"
         className="m-press fixed bottom-[96px] right-4 z-30 flex items-center gap-2 rounded-pill bg-white/85 py-1.5 pl-1.5 pr-4 text-[13.5px] font-medium shadow-card-lg backdrop-blur-xl"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/brand/mosya/mosya_glasses.webp" alt="" className="h-10 w-10 object-contain" />
         Задать вопрос
-      </a>
+      </Link>
 
       {/* Редактирование — модальное окно поверх, чтобы не раздувать экран */}
       {editing && (

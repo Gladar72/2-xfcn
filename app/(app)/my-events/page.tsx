@@ -39,6 +39,8 @@ export default function MyEventsPage() {
   const [items, setItems] = useState<MyEvent[]>([]);
   const [loading, setLoading] = useState(true);
   useGuide("myEvents");
+  // Полоса календаря на 2 недели: точки — дни со встречами, тап — фильтр по дню.
+  const [day, setDay] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,13 +70,13 @@ export default function MyEventsPage() {
         >
           Все встречи
         </Link>
-        <span className="flex-1 rounded-pill bg-accent px-4 py-2 text-center text-sm font-medium text-white shadow-card">
+        <span className="flex-1 rounded-pill bg-ink-900 px-4 py-2 text-center text-sm font-medium text-white">
           Мои встречи
         </span>
       </div>
 
       {/* Предстоящие / Архив */}
-      <div className="mb-4 flex rounded-pill bg-white/60 p-1 shadow-card backdrop-blur">
+      <div className="m-glass mb-4 flex rounded-pill p-1">
         {(
           [
             ["upcoming", "Предстоящие"],
@@ -85,13 +87,40 @@ export default function MyEventsPage() {
             key={value}
             onClick={() => setScope(value)}
             className={`flex-1 rounded-pill py-1.5 text-sm font-medium transition-colors ${
-              scope === value ? "m-glass text-ink-900" : "text-ink-600"
+              scope === value ? "bg-ink-900 text-white" : "text-ink-600"
             }`}
           >
             {label}
           </button>
         ))}
       </div>
+
+      {scope === "upcoming" && (
+        <div className="-mx-5 mb-4 flex gap-1.5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {Array.from({ length: 14 }, (_, i) => {
+            const d = new Date();
+            d.setDate(d.getDate() + i);
+            const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            const has = items.some((e) => e.eventDate.slice(0, 10) === iso);
+            const on = day === iso;
+            return (
+              <button
+                key={iso}
+                onClick={() => setDay(on ? null : iso)}
+                className={`m-press relative flex h-[62px] w-[46px] shrink-0 flex-col items-center justify-center rounded-[18px] ${
+                  on ? "bg-ink-900 text-white" : i === 0 ? "bg-white/90 shadow-[inset_0_0_0_2px_#9B5CFF]" : "m-glass"
+                }`}
+              >
+                <span className={`text-[11px] ${on ? "text-white/70" : "text-ink-400"}`}>
+                  {d.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "")}
+                </span>
+                <b className="text-[17px] font-medium leading-tight">{d.getDate()}</b>
+                {has && <span className={`absolute bottom-1.5 h-1.5 w-1.5 rounded-full ${on ? "bg-white" : "bg-accent"}`} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-24" />)}</div>}
 
@@ -109,16 +138,18 @@ export default function MyEventsPage() {
       )}
 
       <div className="space-y-2">
-        {items.map((event) => {
+        {items
+          .filter((e) => scope !== "upcoming" || !day || e.eventDate.slice(0, 10) === day)
+          .map((event) => {
           const icon = event.isBusiness
-            ? "/brand/markers/marker-business.png"
+            ? CATEGORY_ICON.business ?? DEFAULT_ICON
             : (event.category && CATEGORY_ICON[event.category.slug]) || DEFAULT_ICON;
           const isPast = scope === "archive";
           return (
             <Link
               key={event.id}
               href={`/events/${event.id}`}
-              className={`flex items-center gap-3 rounded-card bg-white p-3.5 shadow-card ${isPast ? "opacity-75" : ""}`}
+              className={`m-glass m-press flex items-center gap-3 rounded-[22px] p-3 ${isPast ? "opacity-75" : ""}`}
             >
               <div className="relative h-12 w-12 shrink-0">
                 {event.photoUrl ? (

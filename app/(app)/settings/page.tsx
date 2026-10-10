@@ -114,7 +114,8 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="Помощь">
-        <Row external href={SUPPORT_BOT_URL} label="Написать в поддержку" icon="help" />
+        <Row href="/support" label="Задать вопрос Мосе" icon="help" />
+        <Row external href={SUPPORT_BOT_URL} label="Написать в поддержку" icon="chat" />
       </Section>
 
       <Section title="О приложении">
