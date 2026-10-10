@@ -81,7 +81,7 @@ export function buildOverpassQuery(bbox: BBox, category: string, trainingType: s
   if (!tags) return null;
   const b = bbox.join(",");
   const parts = tags.map((t) => `nwr${t}${nameFilter}(${b});`).join("");
-  return `[out:json][timeout:6];(${parts});out center tags 60;`;
+  return `[out:json][timeout:25];(${parts});out center tags 60;`;
 }
 
 interface OverpassEl {
@@ -110,7 +110,25 @@ export function parseOverpass(data: { elements?: OverpassEl[] }): OsmPlace[] {
 
 const UA = { "User-Agent": "MestoApp/1.0 (t.me/Mesto_people_bot)" };
 
-export async function searchOsm(city: string, category: string, trainingType: string, q: string): Promise<OsmPlace[]> {
+/** Ключ кеша для категории/вида тренировки (null — нечего кешировать). */
+export function placeCacheKey(category: string, trainingType: string): string | null {
+  if (TAGS_BY_TRAINING[trainingType]) return `training:${trainingType}`;
+  return TAGS_BY_CATEGORY[category] ? category : null;
+}
+
+/** Все ключи, которые ночной cron прогревает для каждого города. */
+export const WARM_KEYS: { category: string; trainingType: string }[] = [
+  ...Object.keys(TAGS_BY_CATEGORY).map((category) => ({ category, trainingType: "" })),
+  ...Object.keys(TAGS_BY_TRAINING).map((trainingType) => ({ category: "training", trainingType })),
+];
+
+export async function searchOsm(
+  city: string,
+  category: string,
+  trainingType: string,
+  q: string,
+  timeoutMs = 7000
+): Promise<OsmPlace[]> {
   if (!(q.length >= 2 || TAGS_BY_TRAINING[trainingType] || TAGS_BY_CATEGORY[category])) return [];
   const bbox = await cityBBox(city);
   if (!bbox) return [];
@@ -119,8 +137,8 @@ export async function searchOsm(city: string, category: string, trainingType: st
   try {
     const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`, {
       headers: UA,
-      next: { revalidate: 86400 },
-      signal: AbortSignal.timeout(7000),
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) return [];
     return parseOverpass((await res.json()) as { elements?: OverpassEl[] });

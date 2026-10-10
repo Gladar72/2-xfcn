@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { searchOsm } from "@/lib/places/osm";
+import { searchOsm, placeCacheKey, type OsmPlace } from "@/lib/places/osm";
 
 /**
  * GET /api/places?category=cinema&q=пр&city=Тюмень
@@ -15,6 +15,8 @@ import { searchOsm } from "@/lib/places/osm";
  *    работает всегда, без ключа. Чем чаще место выбирали, тем выше.
  * Ответ: { items: [{ name, address, latitude, longitude, source }] }.
  */
+export const maxDuration = 20;
+
 const QUERY_BY_CATEGORY: Record<string, string> = {
   cinema: "кинотеатр",
   coffee: "кофейня",
@@ -63,7 +65,7 @@ export async function GET(req: NextRequest) {
   const [yandex, history] = await Promise.all([
     hasYandex
       ? searchYandex(q || QUERY_BY_TRAINING[trainingType] || QUERY_BY_CATEGORY[category] || "", city)
-      : searchOsm(city, category, trainingType, q),
+      : osmCached(admin, city, category, trainingType, q),
     searchHistory(admin, category, city, q),
   ]);
 
@@ -140,4 +142,39 @@ async function searchHistory(admin: ReturnType<typeof createAdminClient>, catego
       });
   }
   return [...counts.values()].sort((a, b) => b.n - a.n).map((x) => x.p);
+}
+
+/**
+ * OpenStreetMap через кеш в базе (place_cache, греется ночным cron).
+ * Нет записи — спрашиваем сервер сами и сохраняем удачный ответ.
+ * Поиск по набранному тексту — всегда живой, с коротким таймаутом.
+ */
+async function osmCached(
+  admin: ReturnType<typeof createAdminClient>,
+  city: string,
+  category: string,
+  trainingType: string,
+  q: string
+): Promise<OsmPlace[]> {
+  if (q.length >= 2) return searchOsm(city, category, trainingType, q, 5000);
+  const key = placeCacheKey(category, trainingType);
+  if (!key) return [];
+  const { data } = await admin.from("place_cache").select("items").eq("city", city).eq("key", key).maybeSingle();
+  const cached = (data?.items as OsmPlace[] | undefined) ?? null;
+  if (cached?.length) return shuffleTop(cached);
+  const fresh = await searchOsm(city, category, trainingType, "", 8000);
+  if (fresh.length) {
+    await admin.from("place_cache").upsert({ city, key, items: fresh, updated_at: new Date().toISOString() });
+  }
+  return shuffleTop(fresh);
+}
+
+/** Чтобы Мося советовал не одни и те же 3 места — перемешиваем первые 20. */
+function shuffleTop<T>(list: T[]): T[] {
+  const top = list.slice(0, 20);
+  for (let i = top.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [top[i], top[j]] = [top[j]!, top[i]!];
+  }
+  return top;
 }
