@@ -69,7 +69,7 @@ const optionClass = (selected: boolean) =>
   clsx(
     "m-press relative rounded-[22px] p-4 text-left text-sm font-medium transition",
     selected
-      ? "bg-white/90 text-ink-900 shadow-[inset_0_0_0_2px_#9B5CFF,0_12px_24px_-16px_rgba(130,60,255,.8)]"
+      ? "m-sel text-ink-900"
       : "m-glass text-ink-900"
   );
 
@@ -495,7 +495,7 @@ export function CreateEventWizard() {
                       }}
                       className={clsx(
                         "m-cat",
-                        selected ? "bg-white/90 shadow-[inset_0_0_0_2px_#9B5CFF,0_12px_24px_-16px_rgba(130,60,255,.8)]" : "m-glass"
+                        selected ? "m-sel" : "m-glass"
                       )}
                     >
                       {icon ? (
@@ -517,7 +517,7 @@ export function CreateEventWizard() {
                 }}
                 className={clsx(
                   "m-own relative mt-2",
-                  categorySlug === "custom" ? "bg-white/90 shadow-[inset_0_0_0_2px_#9B5CFF,0_12px_24px_-16px_rgba(130,60,255,.8)]" : "m-glass"
+                  categorySlug === "custom" ? "m-sel" : "m-glass"
                 )}
               >
                 <Check on={categorySlug === "custom"} />
@@ -542,7 +542,7 @@ export function CreateEventWizard() {
                   onClick={() => setTrainingTypeSlug(t.slug)}
                   className={clsx(
                     "m-cat",
-                    trainingTypeSlug === t.slug ? "bg-white/90 shadow-[inset_0_0_0_2px_#9B5CFF,0_12px_24px_-16px_rgba(130,60,255,.8)]" : "m-glass"
+                    trainingTypeSlug === t.slug ? "m-sel" : "m-glass"
                   )}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}

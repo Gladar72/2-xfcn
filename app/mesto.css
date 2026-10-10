@@ -372,6 +372,13 @@ body {
   transition: transform 0.35s var(--m-spring), box-shadow 0.25s;
 }
 .m-cat:active { transform: scale(0.93); }
+/* выбранный вариант (категория, стоимость, место…) */
+.m-sel {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: inset 0 0 0 2px #9b5cff, 0 12px 24px -16px rgba(130, 60, 255, 0.8);
+}
+.m-cat.m-sel img { transform: scale(1.08) rotate(-6deg); }
+.m-sel-cover { box-shadow: 0 0 0 3px #fff, 0 0 0 5px #9b5cff; transform: scale(0.97); }
 .m-cat img { width: 52px; height: 52px; object-fit: contain; transition: transform 0.45s var(--m-spring); }
 .m-cat:hover img { transform: rotate(-8deg) scale(1.08); }
 .m-own {

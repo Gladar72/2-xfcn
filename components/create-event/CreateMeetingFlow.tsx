@@ -90,7 +90,7 @@ const nextRoundTime = () => {
   return `${String(d.getHours()).padStart(2, "0")}:${d.getMinutes() < 30 ? "30" : "00"}`;
 };
 
-const selCls = "bg-white/90 shadow-[inset_0_0_0_2px_#9B5CFF,0_12px_24px_-16px_rgba(130,60,255,.8)]";
+const selCls = "m-sel";
 const inputCls =
   "m-glass block w-full min-w-0 box-border rounded-[20px] border-0 px-4 py-3.5 text-base text-ink-900 outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]";
 
@@ -471,7 +471,7 @@ export function CreateMeetingFlow() {
                     setPhoto(c);
                     setPhotoKind("mosya");
                   }}
-                  className={clsx("m-press relative aspect-[1.4] overflow-hidden rounded-[18px]", photoKind === "mosya" && coverIndex === i && "shadow-[0_0_0_3px_#fff,0_0_0_5px_#9B5CFF]")}
+                  className={clsx("m-press relative aspect-[1.4] overflow-hidden rounded-[18px]", photoKind === "mosya" && coverIndex === i && "m-sel-cover")}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={c} alt={`Обложка ${i + 1}`} className="h-full w-full object-cover" />

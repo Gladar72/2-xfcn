@@ -526,7 +526,7 @@ function RegistrationSteps() {
                           onClick={() => toggleInterest(interest.id)}
                           className={`m-cat relative ${
                             selected
-                              ? "bg-white/90 shadow-[inset_0_0_0_2px_#9B5CFF,0_12px_24px_-16px_rgba(130,60,255,.8)]"
+                              ? "m-sel"
                               : "m-glass"
                           }`}
                         >

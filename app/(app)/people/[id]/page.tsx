@@ -167,10 +167,10 @@ export default function PersonPage({ params }: { params: { id: string } }) {
       </div>
 
       <div className="fixed inset-x-0 bottom-[92px] z-30 flex gap-2 px-5">
-        <button onClick={() => openDirect()} disabled={busy} className="m-btn m-btn-o w-auto px-5" aria-label="Написать">
+        <button onClick={() => openDirect()} disabled={busy} className="m-btn m-btn-o" style={{ width: 56, flex: "none", padding: 0 }} aria-label="Написать">
           <Icon name="chat" size={20} />
         </button>
-        <button onClick={openInvite} className="m-btn m-btn-v flex-1">
+        <button onClick={openInvite} className="m-btn m-btn-v" style={{ flex: 1, width: "auto" }}>
           <Icon name="cal" size={20} />
           Позвать на встречу
         </button>
