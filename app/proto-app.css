@@ -118,3 +118,22 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* «Поднято» в строке встречи — как плашка на большой карточке */
 .P .row .upb{display:inline-flex;align-items:center;gap:3px;height:20px;padding:0 8px;border-radius:999px;background:var(--g);color:#fff;font-size:11px;font-weight:600;flex:none}
 .P .row .upb .ic{width:11px;height:11px;stroke-width:2.6}
+
+/* Статус бизнес-события на карточке афиши: «Идёт сейчас» / «Поднято» / «Мест нет» */
+.P .acard .ast{position:absolute;top:50px;left:12px;z-index:3;display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 10px;border-radius:999px;background:var(--g);color:#fff;font-size:12px;font-weight:600}
+.P .acard .ast .ic{width:12px;height:12px;stroke-width:2.6}
+.P .acard .ast.lv{background:#fff;color:var(--ink);padding:0 10px}
+.P .acard .ast.full{background:rgba(20,10,40,.6)}
+
+/* ===== Плавность на телефоне =====
+   Нажатие без задержки двойного тапа; без «залипшего» наведения на сенсоре
+   (из‑за него иногда приходилось нажимать дважды); стекло внутри
+   прокрутки — без размытия фона: на фоне‑«авроре» разницы не видно, а
+   прокрутка не тормозит. Размытие остаётся на фото и плавающих панелях. */
+.P a,.P button,.P [role=button],.P label{touch-action:manipulation}
+@media (hover:none){
+  .P .hero:hover img.ph,.P .cat:hover img,.P .tab.plus:hover,.P .hc:hover img{transform:none}
+  .P .scroll .gl,.P section.scr .body .gl{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.6)}
+  .P .scroll .btn.o{-webkit-backdrop-filter:none;backdrop-filter:none}
+}
+.P .af-h a{display:inline-flex;align-items:center;gap:2px;white-space:nowrap;flex:none}

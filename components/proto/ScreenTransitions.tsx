@@ -66,7 +66,7 @@ export function ScreenTransitions() {
       const s = t.closest("section.scr") as Sec | null;
       if (s) s._st = t.scrollTop;
     };
-    document.addEventListener("scroll", onScroll, true);
+    document.addEventListener("scroll", onScroll, { capture: true, passive: true });
 
     document.querySelectorAll<Sec>("section.scr").forEach((s) => (s._href = hrefNow()));
 

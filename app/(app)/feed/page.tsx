@@ -309,6 +309,21 @@ function HomeScreen() {
                 <span className="bzl">{(e.organizer?.name ?? "Б").charAt(0).toUpperCase()}</span>
                 {e.organizer?.name ?? "Заведение"}
               </span>
+              {e.isLive ? (
+                <span className="ast lv">
+                  <span className="live">
+                    <i />
+                    Идёт сейчас
+                  </span>
+                </span>
+              ) : e.isBoosted ? (
+                <span className="ast">
+                  <Ic n="up" c="xs" />
+                  Поднято
+                </span>
+              ) : e.seatsTaken >= e.seatsTotal ? (
+                <span className="ast full">Мест нет</span>
+              ) : null}
               <div>
                 <b>{e.title}</b>
                 <p>
