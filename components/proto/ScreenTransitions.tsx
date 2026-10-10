@@ -22,7 +22,7 @@ type Sec = HTMLElement & { _href?: string; _st?: number };
 
 const hrefNow = () => location.pathname + location.search;
 const isTabHref = (h: string) => {
-  const [p, q = ""] = h.split("?");
+  const [p = "", q = ""] = h.split("?");
   return TAB_PATHS.has(p) && !(p === "/feed" && /(^|&)category=/.test(q));
 };
 const setAnim = (el: HTMLElement, a: string | null) => {
@@ -107,6 +107,7 @@ export function ScreenTransitions() {
       }
 
       const nu = fresh[fresh.length - 1];
+      if (!nu) return;
       const old = gone.find((g) => g._href !== now);
 
       if (!old) {
