@@ -19,6 +19,8 @@ interface TelegramWebApp {
   initDataUnsafe: Record<string, unknown>;
   ready: () => void;
   expand: () => void;
+  /** Bot API 7.7+: отключает сворачивание приложения свайпом вниз (иначе Telegram перехватывает вертикальные свайпы). */
+  disableVerticalSwipes?: () => void;
   colorScheme: "light" | "dark";
   themeParams: Record<string, string>;
   openInvoice: (url: string, callback: (status: "paid" | "cancelled" | "failed" | "pending") => void) => void;

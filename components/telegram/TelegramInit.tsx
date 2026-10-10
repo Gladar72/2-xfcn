@@ -19,6 +19,14 @@ export function TelegramInit() {
     if (!webApp) return;
     webApp.ready();
     webApp.expand();
+    // Экраны редизайна прокручиваются внутри себя (.scroll), а не всей
+    // страницей. Без этого Telegram принимает свайп вниз/вверх за жест
+    // «свернуть приложение», и прокрутка на телефоне не работает.
+    try {
+      webApp.disableVerticalSwipes?.();
+    } catch {
+      /* старый клиент Telegram — метода нет */
+    }
   }, []);
 
   return null;

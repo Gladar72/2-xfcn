@@ -109,3 +109,9 @@
 .P .list>.row:nth-child(2){animation-delay:.04s}.P .list>.row:nth-child(3){animation-delay:.08s}
 .P .list>.row:nth-child(4){animation-delay:.12s}.P .list>.row:nth-child(5){animation-delay:.16s}
 .P .list>.row:nth-child(n+6){animation-delay:.2s}
+
+/* Прокрутка на телефоне (Telegram iOS/Android): страница целиком не
+   прокручивается — прокручивается только экран внутри. Иначе жест
+   уходит в «резинку» страницы или в сворачивание Mini App. */
+html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
+.P .scroll,.P section.scr .body,.P .sheetx{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
