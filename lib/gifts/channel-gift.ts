@@ -160,6 +160,28 @@ export async function applyPendingGifts(admin: Admin, telegramId: number, userId
   return applied;
 }
 
+/** Приветственный подарок — каждому новому пользователю. */
+export const WELCOME_GIFT_CAMPAIGN = "welcome";
+
+/**
+ * Каждому, кто зарегистрировался, — «Старт» на 30 дней (кампания welcome).
+ * Если подписка уже есть (подарок по ссылке, партнёрский Премиум) — второй
+ * подарок не даём. Возвращает true, если подписка включена сейчас.
+ */
+export async function grantWelcomeGift(admin: Admin, telegramId: number, userId: string): Promise<boolean> {
+  const { data: active } = await admin
+    .from("subscriptions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (active) return false;
+  const campaign = await getGiftCampaign(admin, WELCOME_GIFT_CAMPAIGN);
+  if (!campaign?.is_active) return false;
+  const result = await claimGift(admin, campaign, telegramId);
+  return result.kind === "granted";
+}
+
 export function formatUntil(date: Date): string {
   return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" });
 }
