@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { interestIcon } from "@/lib/data/interests";
@@ -20,6 +20,8 @@ interface Person {
   completedMeetingsCount: number;
   interests: string[];
   commonInterests?: string[];
+  /** Можно ли написать лично: только после общей встречи. */
+  canMessage?: boolean;
 }
 interface MyEvent {
   id: string;
@@ -44,6 +46,7 @@ export default function PersonPage({ params }: { params: { id: string } }) {
   const [myEvents, setMyEvents] = useState<MyEvent[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [gi, setGi] = useState(0);
+  const swipe = useRef<{ x: number; y: number; top: boolean } | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
@@ -67,7 +70,13 @@ export default function PersonPage({ params }: { params: { id: string } }) {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok || !d.conversationId) {
-        say(d.error === "event_unavailable" ? "Эта встреча уже закрыта — выбери другую" : "Не получилось — попробуй ещё раз");
+        say(
+          d.error === "event_unavailable"
+            ? "Эта встреча уже закрыта — выбери другую"
+            : d.error === "no_shared_event"
+              ? NO_MEET_TEXT
+              : "Не получилось — попробуй ещё раз"
+        );
         return;
       }
       if (eventId) {
@@ -193,6 +202,22 @@ export default function PersonPage({ params }: { params: { id: string } }) {
       <div
         className="body"
         style={{ pointerEvents: "auto" }}
+        onTouchStart={(e) => {
+          const t = e.touches[0];
+          if (t) swipe.current = { x: t.clientX, y: t.clientY, top: e.target === e.currentTarget };
+        }}
+        onTouchEnd={(e) => {
+          const st = swipe.current;
+          swipe.current = null;
+          const t = e.changedTouches[0];
+          if (!st || !t || !st.top || photos.length < 2) return;
+          const dx = t.clientX - st.x;
+          const dy = t.clientY - st.y;
+          // Свайп влево/вправо по фото — следующее/предыдущее фото.
+          if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+            setGi((g) => (dx < 0 ? (g + 1) % photos.length : (g - 1 + photos.length) % photos.length));
+          }
+        }}
         onClick={(e) => {
           if (e.target !== e.currentTarget || photos.length < 2) return;
           const r = e.currentTarget.getBoundingClientRect();
@@ -248,7 +273,15 @@ export default function PersonPage({ params }: { params: { id: string } }) {
         </div>
       </div>
       <div className="cta">
-        <button className="rb gl" style={{ width: 56, height: 56 }} onClick={() => openDirect()} disabled={busy} aria-label="Написать">
+        <button className="rb gl" onClick={() =>
+            person.canMessage === false
+              ? say(NO_MEET_TEXT)
+              : openDirect()
+          }
+          disabled={busy}
+          aria-label="Написать"
+          style={{ width: 56, height: 56, opacity: person.canMessage === false ? 0.45 : 1 }}
+        >
           <Ic n="chat" />
         </button>
         <button className="btn v" onClick={openInvite}>
@@ -318,6 +351,8 @@ export default function PersonPage({ params }: { params: { id: string } }) {
     </section>
   );
 }
+
+const NO_MEET_TEXT = "Пока написать нельзя — у вас ещё не было общей встречи. Позови на свою встречу или создай новую 😉";
 
 function plural(n: number, a: string, b: string, c: string) {
   const m = n % 10;

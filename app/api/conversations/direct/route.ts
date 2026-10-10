@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { inviteContent } from "@/lib/chat/invite";
 import { InlineKeyboard } from "grammy";
 import { getBot } from "@/lib/telegram/bot";
+import { findDirectConversation, haveSharedEvent } from "@/lib/chat/can-direct";
 
 /**
  * POST /api/conversations/direct
@@ -34,23 +35,18 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   if (!other || other.moderation_status !== "active") return NextResponse.json({ error: "not_found" }, { status: 404 });
 
-  // Ищем существующий личный чат: мои чаты без встречи, где есть второй человек.
-  const { data: mine } = await admin
-    .from("conversation_members")
-    .select("conversation_id, conversations!inner(event_id)")
-    .eq("user_id", currentUser.userId)
-    .is("conversations.event_id", null);
-  const myDirectIds = (mine ?? []).map((m) => m.conversation_id as string);
+  // Ищем существующий личный чат между нами.
+  let conversationId: string | null = await findDirectConversation(admin, currentUser.userId, otherId);
 
-  let conversationId: string | null = null;
-  if (myDirectIds.length > 0) {
-    const { data: shared } = await admin
-      .from("conversation_members")
-      .select("conversation_id")
-      .in("conversation_id", myDirectIds)
-      .eq("user_id", otherId)
-      .limit(1);
-    conversationId = (shared?.[0]?.conversation_id as string | undefined) ?? null;
+  // Новый личный чат — только после общей встречи (оба одобрены в одной встрече).
+  // Исключение — приглашение на свою встречу («Позвать на встречу»).
+  if (!conversationId) {
+    let allowed = await haveSharedEvent(admin, currentUser.userId, otherId);
+    if (!allowed && eventId) {
+      const { data: own } = await admin.from("events").select("organizer_id").eq("id", eventId).maybeSingle();
+      allowed = own?.organizer_id === currentUser.userId;
+    }
+    if (!allowed) return NextResponse.json({ error: "no_shared_event" }, { status: 403 });
   }
 
   if (!conversationId) {
