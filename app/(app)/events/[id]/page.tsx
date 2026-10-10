@@ -14,6 +14,7 @@ import { openRoute } from "@/lib/maps/route";
 import { JoinFlow } from "@/components/events/JoinFlow";
 import { Chr, Cover, Ic, MiniMap, Sheet, Toast, costShort, dayLong, eventIcon } from "@/components/proto/ui";
 import { ShareSheet } from "@/components/proto/ShareSheet";
+import { goBack } from "@/lib/nav/back";
 
 interface EventDetails {
   id: string;
@@ -306,7 +307,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
       <section className="scr aurora fade" data-id="event">
         <div className="scroll">
           <div className="bar-top">
-            <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+            <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад">
               <Ic n="back" />
             </button>
             <span />
@@ -416,7 +417,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
       <Cover photoUrl={event.photoUrl} icon={icon} thumb={900} />
       <div className="ph-sh" />
       <div className="hb">
-        <button className="rb glass" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb glass" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <div className="r">

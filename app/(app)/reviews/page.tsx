@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ReviewSheet } from "@/components/proto/ReviewSheet";
 import { EmptyIll, Ic, Screen, Toast } from "@/components/proto/ui";
 import { photoThumb } from "@/lib/photos/thumb";
+import { goBack } from "@/lib/nav/back";
 
 interface ReviewableMember {
   id: string;
@@ -93,7 +94,7 @@ export default function ReviewsPage() {
   return (
     <Screen id="reviews" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/profile")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />

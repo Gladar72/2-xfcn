@@ -5,6 +5,7 @@ import { useGuide } from "@/lib/mosya/guide";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Screen } from "@/components/proto/ui";
 import { useRouter } from "next/navigation";
+import { goBack } from "@/lib/nav/back";
 
 interface NotificationItem {
   id: string;
@@ -111,7 +112,7 @@ export default function NotificationsPage() {
   return (
     <Screen id="notif" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />

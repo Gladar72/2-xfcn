@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { installNavDepth } from "@/lib/nav/back";
 
 /**
  * Переходы между экранами как в прототипе (go / back / root / modal / closeTop):
@@ -41,6 +42,7 @@ function sectionsIn(n: Node): Sec[] {
 
 export function ScreenTransitions() {
   useEffect(() => {
+    installNavDepth();
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     let backAt = 0;
     const onPop = () => (backAt = Date.now());

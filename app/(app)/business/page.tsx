@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useGuide } from "@/lib/mosya/guide";
 import { EmptyIll, HeroCard, Ic, Screen, type HeroEvent } from "@/components/proto/ui";
+import { goBack } from "@/lib/nav/back";
 
 /** «Для бизнеса» (SCR.business прототипа): как это работает + ближайшие события. */
 export default function BusinessPage() {
@@ -22,7 +23,7 @@ export default function BusinessPage() {
   return (
     <Screen id="business" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />

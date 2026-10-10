@@ -8,6 +8,7 @@ import { Cover, Ic, Screen, Sheet } from "@/components/proto/ui";
 import { useRouter } from "next/navigation";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
+import { goBack } from "@/lib/nav/back";
 
 interface TicketData {
   ticketCode: string;
@@ -114,7 +115,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
     <>
       <Screen id="ticket" anim="in" scrollClass="pb180">
         <div className="bar-top">
-          <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <button className="rb gl" onClick={() => goBack(router, "/my-events")} aria-label="Назад">
             <Ic n="back" />
           </button>
           <span />

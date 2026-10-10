@@ -8,6 +8,7 @@ import { photoThumb } from "@/lib/photos/thumb";
 import { interestIcon } from "@/lib/data/interests";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { Ic, Screen, Toast } from "@/components/proto/ui";
+import { goBack } from "@/lib/nav/back";
 
 interface Profile {
   name: string;
@@ -85,7 +86,7 @@ export default function EditProfilePage() {
       const res = await fetch("/api/me/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bio }) });
       if (res.ok) {
         flash("Сохранено");
-        setTimeout(() => router.back(), 600);
+        setTimeout(() => goBack(router, "/profile"), 600);
       } else flash("Не получилось сохранить");
     } finally {
       setSaving(false);
@@ -98,7 +99,7 @@ export default function EditProfilePage() {
     <>
       <Screen id="edit" anim="in" scrollClass="pb150">
         <div className="bar-top">
-          <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <button className="rb gl" onClick={() => goBack(router, "/profile")} aria-label="Назад">
             <Ic n="back" />
           </button>
           <button className="sm" onClick={save} disabled={saving}>

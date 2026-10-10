@@ -15,6 +15,7 @@ import { CalendarSheet, Wheel } from "@/components/proto/pickers";
 import { ShareSheet } from "@/components/proto/ShareSheet";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { PhotoCropModal } from "./PhotoCropModal";
+import { goBack } from "@/lib/nav/back";
 
 /**
  * Создание встречи в 4 шага — разметка и анимации из прототипа (SCR.create):
@@ -368,7 +369,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     if (step > 1) {
       setDir(-1);
       setStep(step - 1);
-    } else router.back();
+    } else goBack(router, "/feed");
   }
 
   async function publish() {

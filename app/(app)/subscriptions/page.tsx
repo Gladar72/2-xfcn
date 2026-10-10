@@ -6,6 +6,7 @@ import { Ic, Screen } from "@/components/proto/ui";
 import { useRouter } from "next/navigation";
 import { Paywall } from "@/components/paywall/Paywall";
 import { type Plan } from "@/lib/subscriptions/limits";
+import { goBack } from "@/lib/nav/back";
 
 interface SubscriptionStatus {
   active: boolean;
@@ -77,7 +78,7 @@ export default function SubscriptionsPage() {
   return (
     <Screen id="tariff" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => (window.history.length > 1 ? router.back() : router.push("/profile"))} aria-label="Назад">
+        <button className="rb gl" onClick={() => (window.history.length > 1 ? goBack(router, "/profile") : router.push("/profile"))} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />

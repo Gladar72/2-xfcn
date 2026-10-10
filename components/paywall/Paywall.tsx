@@ -5,6 +5,7 @@ import { PLAN_LIMITS, FREE_APPLICATIONS_LIMIT, type Plan } from "@/lib/subscript
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 import { useRouter } from "next/navigation";
 import { Ic, Screen, Sheet } from "@/components/proto/ui";
+import { goBack } from "@/lib/nav/back";
 
 const FEATURES: Record<Plan, string[]> = {
   start: [
@@ -131,7 +132,7 @@ export function Paywall({ onActivated }: PaywallProps) {
     <>
       <Screen id="paywall" anim="in" scrollClass="pb160">
         <div className="bar-top">
-          <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <button className="rb gl" onClick={() => goBack(router, "/profile")} aria-label="Назад">
             <Ic n="back" />
           </button>
           <span className="pill lav">

@@ -5,6 +5,7 @@ import { Ic, Screen } from "@/components/proto/ui";
 import { useRouter } from "next/navigation";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { photoThumb } from "@/lib/photos/thumb";
+import { goBack } from "@/lib/nav/back";
 
 interface Ticket {
   userId: string;
@@ -109,7 +110,7 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
   return (
     <Screen id="tickets" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/my-events")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <button className="sm" onClick={copyList} disabled={!tickets.length}>

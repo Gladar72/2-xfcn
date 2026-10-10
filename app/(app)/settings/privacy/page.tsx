@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Chr, Ic, Screen } from "@/components/proto/ui";
+import { goBack } from "@/lib/nav/back";
 
 const ANON_DEFAULT_KEY = "mesto_anon_default";
 
@@ -30,7 +31,7 @@ export default function PrivacyPage() {
   return (
     <Screen id="privacy" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/settings")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />

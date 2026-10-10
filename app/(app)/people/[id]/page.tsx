@@ -7,6 +7,7 @@ import { interestIcon } from "@/lib/data/interests";
 import { Cover, Ic, Sheet, Toast, dayLong, eventIcon } from "@/components/proto/ui";
 import { useGuide } from "@/lib/mosya/guide";
 import { peek, say } from "@/lib/mosya/peek";
+import { goBack } from "@/lib/nav/back";
 
 interface Person {
   id: string;
@@ -111,7 +112,7 @@ export default function PersonPage({ params }: { params: { id: string } }) {
           <div className="sk" style={{ position: "absolute", inset: 0, borderRadius: 0 }} />
         </div>
         <div className="hb">
-          <button className="rb glass" onClick={() => router.back()} aria-label="Назад">
+          <button className="rb glass" onClick={() => goBack(router, "/feed")} aria-label="Назад">
             <Ic n="back" />
           </button>
           <span />
@@ -121,7 +122,7 @@ export default function PersonPage({ params }: { params: { id: string } }) {
             <div className="sheet2" style={{ marginTop: 440 }}>
               <div className="empty">
                 <b>{error}</b>
-                <button className="btn o" style={{ width: "100%" }} onClick={() => router.back()}>
+                <button className="btn o" style={{ width: "100%" }} onClick={() => goBack(router, "/feed")}>
                   Назад
                 </button>
               </div>
@@ -180,7 +181,7 @@ export default function PersonPage({ params }: { params: { id: string } }) {
         </div>
       </div>
       <div className="hb">
-        <button className="rb glass" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb glass" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <button className="rb glass" onClick={() => setMoreOpen(true)} aria-label="Пожаловаться">

@@ -10,6 +10,7 @@ import { EmptyIll, Ic, RowCard, Screen, Sheet, Toast } from "@/components/proto/
 import { CityPicker } from "@/components/ui/CityPicker";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CATEGORY_ICON } from "@/lib/data/category-icons";
+import { goBack } from "@/lib/nav/back";
 
 interface Category {
   id: string;
@@ -227,7 +228,7 @@ function SearchPageContent() {
   return (
     <Screen id="search" anim="in">
       <div className="search" style={{ marginTop: 0 }}>
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <label className="sfield gl" style={{ cursor: "text" }}>

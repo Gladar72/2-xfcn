@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { type ApplicantCardData } from "@/components/applications/ApplicantCard";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Screen } from "@/components/proto/ui";
+import { goBack } from "@/lib/nav/back";
 
 interface EventApplicationsPageProps {
   // См. пояснение в app/chats/[id]/page.tsx — params здесь плоский объект
@@ -121,7 +122,7 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
   return (
     <Screen id="applications" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/my-events")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />

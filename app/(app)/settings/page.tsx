@@ -10,6 +10,7 @@ import { CityPicker } from "@/components/ui/CityPicker";
 import { Ic, Screen, Sheet, Toast } from "@/components/proto/ui";
 import { SupportSheet } from "@/components/proto/SupportSheet";
 import type { IconName } from "@/components/brand/Icon";
+import { goBack } from "@/lib/nav/back";
 
 interface ProfileSummary {
   name: string;
@@ -92,7 +93,7 @@ export default function SettingsPage() {
   return (
     <Screen id="settings" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/profile")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />

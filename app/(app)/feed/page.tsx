@@ -13,6 +13,7 @@ import { photoThumb } from "@/lib/photos/thumb";
 import { interestIcon } from "@/lib/data/interests";
 import { Chr, Cover, EmptyIll, HeroCard, Ic, MiniMap, RowCard, Screen, Sheet, Toast, eventIcon, type HeroEvent } from "@/components/proto/ui";
 import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
+import { goBack } from "@/lib/nav/back";
 
 interface Category {
   id: string;
@@ -477,7 +478,7 @@ function CategoryScreen({ slug, type }: { slug: string; type: string | null }) {
   return (
     <Screen id="cat" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />

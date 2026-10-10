@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useGuide } from "@/lib/mosya/guide";
 import { Ic, Screen } from "@/components/proto/ui";
 import { SupportChat } from "@/components/proto/SupportSheet";
+import { goBack } from "@/lib/nav/back";
 
 /** Мося-помощник отдельной страницей (из бота и по ссылке). В приложении — шторка из профиля. */
 export default function SupportPage() {
@@ -12,7 +13,7 @@ export default function SupportPage() {
   return (
     <Screen id="support" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/profile")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />

@@ -12,6 +12,7 @@ import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height"
 import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Sheet } from "@/components/proto/ui";
+import { goBack } from "@/lib/nav/back";
 
 interface ChatPageProps {
   // Next.js 14 (в этом проекте) передаёт params клиентским компонентам
@@ -332,7 +333,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         <section className="scr aurora fade" data-id="chat">
           <div className="scroll">
             <div className="bar-top">
-              <button className="rb gl" onClick={() => router.push("/chats")} aria-label="Назад">
+              <button className="rb gl" onClick={() => goBack(router, "/chats")} aria-label="Назад">
                 <Ic n="back" />
               </button>
               <span />
@@ -361,7 +362,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     <div className="P" style={{ height: liveHeight ? `${liveHeight}px` : undefined }}>
       <section className="scr chat aurora in" data-id="chat">
         <div className="hd">
-          <button className="rb gl" onClick={() => router.push("/chats")} aria-label="Назад" style={{ width: 40, height: 40 }}>
+          <button className="rb gl" onClick={() => goBack(router, "/chats")} aria-label="Назад" style={{ width: 40, height: 40 }}>
             <Ic n="back" />
           </button>
           {headImg ? (

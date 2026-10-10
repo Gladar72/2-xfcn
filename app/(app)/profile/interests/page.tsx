@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { groupInterests, interestIcon } from "@/lib/data/interests";
 import { Ic, Screen, Toast } from "@/components/proto/ui";
+import { goBack } from "@/lib/nav/back";
 
 interface Interest {
   id: string;
@@ -34,7 +35,7 @@ export default function EditInterestsPage() {
     setSaving(true);
     const res = await fetch("/api/me/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ interestIds: sel }) }).catch(() => null);
     setSaving(false);
-    if (res?.ok) router.back();
+    if (res?.ok) goBack(router, "/profile");
     else {
       setToast("Не получилось сохранить");
       setTimeout(() => setToast(null), 2400);
@@ -46,7 +47,7 @@ export default function EditInterestsPage() {
     <>
       <Screen id="interests" anim="in" scrollClass="pb160">
         <div className="bar-top">
-          <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <button className="rb gl" onClick={() => goBack(router, "/profile")} aria-label="Назад">
             <Ic n="back" />
           </button>
           <span />

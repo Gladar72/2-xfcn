@@ -19,6 +19,7 @@ import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height"
 import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 import { PhotoCropModal } from "./PhotoCropModal";
 import { apiErrorText } from "@/lib/validation/api-error-text";
+import { goBack } from "@/lib/nav/back";
 
 interface Category {
   id: string;
@@ -963,7 +964,7 @@ export function CreateEventWizard() {
         <div className="flex gap-3">
         <Button
           variant="secondary"
-          onClick={stepIndex > 0 ? goBack : () => router.back()}
+          onClick={stepIndex > 0 ? goBack : () => goBack(router, "/feed")}
           className="w-auto px-6"
         >
           Назад

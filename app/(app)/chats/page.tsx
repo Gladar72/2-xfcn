@@ -8,6 +8,7 @@ import type { ChatListItemData } from "@/components/chat/ChatListItem";
 import { parseInvite } from "@/lib/chat/invite";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Screen, eventIcon } from "@/components/proto/ui";
+import { goBack } from "@/lib/nav/back";
 
 type Tab = "ev" | "pm" | "ar";
 const isClosed = (c: ChatListItemData) => c.eventStatus === "completed" || c.eventStatus === "cancelled";
@@ -38,7 +39,7 @@ export default function ChatsPage() {
   return (
     <Screen id="chats" anim="in">
       <div className="bar-top">
-        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+        <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
         </button>
         <span />
