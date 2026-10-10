@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { Icon } from "@/components/brand/Icon";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
@@ -276,7 +277,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
     <div className="pb-28">
       <div className="sticky top-0 z-30 flex items-center justify-between border-b border-lavender-100 bg-background/95 px-5 py-3 backdrop-blur">
         <button onClick={() => router.back()} className="flex items-center gap-1 text-sm font-medium text-accent">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
+          <Icon name="back" size={22} className="" />
           Назад
         </button>
         <h1 className="text-base font-semibold text-ink-900">Редактировать событие</h1>
@@ -320,7 +321,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
                     if (c.slug !== "training") setTrainingTypeSlug(null);
                   }}
                   className={`flex items-center gap-2 rounded-card p-3 text-left text-sm font-medium transition ${
-                    categorySlug === c.slug ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                    categorySlug === c.slug ? "bg-brand-gradient text-white shadow-cta" : "m-glass text-ink-900"
                   }`}
                 >
                   {CATEGORY_ICON[c.slug] ? (
@@ -340,7 +341,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
                     type="button"
                     onClick={() => setTrainingTypeSlug(t.slug)}
                     className={`flex items-center gap-2 rounded-card p-2.5 text-left text-sm font-medium transition ${
-                      trainingTypeSlug === t.slug ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                      trainingTypeSlug === t.slug ? "bg-brand-gradient text-white shadow-cta" : "m-glass text-ink-900"
                     }`}
                   >
                     <span className="text-xl leading-none">{t.emoji}</span>
@@ -394,7 +395,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
               className={`text-base ${inputClass}`}
             />
             {addressSuggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-card bg-white shadow-card-lg">
+              <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-card m-glass">
                 {addressSuggestions.map((s) => (
                   <button
                     key={s.address}
@@ -440,15 +441,15 @@ export default function EditEventPage({ params }: EditEventPageProps) {
                 setSaveError(null);
                 setSeatsTotal((n) => n - 1);
               }}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
+              className="flex h-12 w-12 items-center justify-center rounded-full m-glass text-xl text-accent active:scale-95"
             >
               −
             </button>
-            <span className="text-display w-12 text-center">{seatsTotal}</span>
+            <span className="m-title w-12 text-center">{seatsTotal}</span>
             <button
               type="button"
               onClick={() => setSeatsTotal((n) => Math.min(isBusiness ? 500 : 30, n + 1))}
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
+              className="flex h-12 w-12 items-center justify-center rounded-full m-glass text-xl text-accent active:scale-95"
             >
               +
             </button>
@@ -474,7 +475,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
                     type="button"
                     onClick={() => setBusinessPricingType(value)}
                     className={`rounded-card p-3 text-left text-sm font-medium transition ${
-                      businessPricingType === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                      businessPricingType === value ? "bg-brand-gradient text-white shadow-cta" : "m-glass text-ink-900"
                     }`}
                   >
                     {label}
@@ -515,7 +516,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
                   type="button"
                   onClick={() => setCostType(value)}
                   className={`rounded-card p-3 text-left text-sm font-medium transition ${
-                    costType === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
+                    costType === value ? "bg-brand-gradient text-white shadow-cta" : "m-glass text-ink-900"
                   }`}
                 >
                   {label}
@@ -541,7 +542,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
             role="switch"
             aria-checked={isAnonymous}
             onClick={() => setIsAnonymous((v) => !v)}
-            className="flex w-full items-center gap-3 rounded-card bg-white p-4 text-left shadow-card"
+            className="flex w-full items-center gap-3 rounded-card m-glass p-4 text-left"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/brand/3d/icon-mask.png" alt="" className="h-8 w-8 object-contain" />
@@ -606,7 +607,7 @@ export default function EditEventPage({ params }: EditEventPageProps) {
 
 function Field({ label, counter, children }: { label: string; counter?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-card-lg bg-white p-4 shadow-card">
+    <div className="rounded-card-lg m-glass p-4">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-xs font-medium text-ink-600">{label}</span>
         {counter && <span className="text-xs text-ink-400">{counter}</span>}

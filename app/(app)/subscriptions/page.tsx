@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/brand/Icon";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { Paywall } from "@/components/paywall/Paywall";
@@ -74,11 +75,11 @@ export default function SubscriptionsPage() {
             <path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <h1 className="text-display text-ink-900">Мой тариф</h1>
+        <h1 className="m-title text-ink-900">Мой тариф</h1>
       </div>
 
       {/* Карточка текущего тарифа */}
-      <div className="relative mb-7 overflow-hidden rounded-card-lg bg-white p-5 shadow-card">
+      <div className="relative mb-7 overflow-hidden rounded-card-lg m-glass p-5">
         <div className="pointer-events-none absolute -right-2 top-2 h-[140px] w-[140px]" aria-hidden>
           <div className="absolute inset-6 rounded-full bg-accent/20 blur-2xl" />
           <Image src={PLAN_ICON[plan]} alt="" fill className="object-contain" sizes="140px" priority />
@@ -102,7 +103,7 @@ export default function SubscriptionsPage() {
 
       <div className="mb-5 space-y-3">
         <UsageCard
-          icon={<Image src="/brand/3d/icon-calendar.png" alt="" width={44} height={44} unoptimized className="h-11 w-11 object-contain" />}
+          icon={<Icon name="cal" size={28} className="text-accent" />}
           label="Встречи"
           used={status.events!.used}
           limit={status.events!.limit}
@@ -149,7 +150,7 @@ function UsageCard({
   const ratio = isUnlimited ? 0 : Math.min(1, used / Math.max(1, limit));
 
   return (
-    <div className="rounded-card-lg bg-white px-5 py-4 shadow-card">
+    <div className="rounded-card-lg m-glass px-5 py-4">
       <div className="flex items-center gap-4">
         <span className="shrink-0">{icon}</span>
         <span className="flex-1 text-base text-ink-900">{label}</span>

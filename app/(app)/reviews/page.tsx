@@ -89,18 +89,18 @@ export default function ReviewsPage() {
 
   return (
     <div className="px-5 py-6">
-      <h1 className="text-display mb-4">Отзывы</h1>
+      <h1 className="m-title mb-4">Отзывы</h1>
 
       {loading && <p className="text-center text-ink-600">Загрузка...</p>}
 
       {focusDone && (
-        <div className="mb-4 rounded-card bg-white p-4 text-center text-sm text-ink-600 shadow-card">
+        <div className="mb-4 rounded-card m-glass p-4 text-center text-sm text-ink-600">
           Эта встреча уже оценена — спасибо! 🙌
         </div>
       )}
 
       {!loading && events.length === 0 && !focusDone && (
-        <div className="rounded-card bg-white p-6 text-center text-sm text-ink-600 shadow-card">
+        <div className="rounded-card m-glass p-6 text-center text-sm text-ink-600">
           Пока нет завершённых встреч, которые можно оценить.
         </div>
       )}
@@ -122,7 +122,7 @@ export default function ReviewsPage() {
                   <button
                     key={member.id}
                     onClick={() => setActiveTarget({ eventId: event.eventId, member })}
-                    className="flex w-full items-center gap-3 rounded-card bg-white p-3 text-left shadow-card"
+                    className="flex w-full items-center gap-3 rounded-card m-glass p-3 text-left"
                   >
                     <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
                       {member.avatar_url ? (

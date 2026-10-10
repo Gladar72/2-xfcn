@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { Icon } from "@/components/brand/Icon";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -115,8 +116,8 @@ function MapPageContent() {
   return (
     <div className="relative h-[calc(100vh-5rem)]">
       {resolvedCity && (
-        <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-pill bg-white px-4 py-1.5 text-sm font-medium text-ink-900 shadow-card">
-          <Image src="/brand/3d/icon-location.png" alt="" width={16} height={16} className="mr-1 inline-block align-[-3px]" />{resolvedCity}
+        <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-pill m-glass px-4 py-1.5 text-sm font-medium text-ink-900">
+          <Icon name="pin" size={16} className="mr-1 inline-block align-[-3px] text-accent" />{resolvedCity}
         </div>
       )}
       {error ? (
@@ -125,7 +126,7 @@ function MapPageContent() {
           {error !== "Сначала заверши регистрацию." && (
             <button
               onClick={() => load()}
-              className="rounded-pill bg-brand-gradient px-6 py-2.5 text-sm font-semibold text-white shadow-cta active:scale-95"
+              className="rounded-pill bg-brand-gradient px-6 py-2.5 text-sm font-semibold text-white shadow-cta active:scale-95 m-btn-v relative overflow-hidden"
             >
               Попробовать снова
             </button>
@@ -144,7 +145,7 @@ function MapPageContent() {
             <button
               onClick={handleLocate}
               aria-label="Показать, где я"
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink-900 shadow-card active:scale-95"
+              className="flex h-12 w-12 items-center justify-center rounded-full m-glass text-ink-900 active:scale-95"
             >
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className={locating ? "animate-pulse" : ""}>
                 <path d="M21 3 3 10.5l7.5 3L13.5 21 21 3Z" stroke="#2f80ff" strokeWidth="2" strokeLinejoin="round" fill={locating ? "#2f80ff" : "none"} />
@@ -159,7 +160,7 @@ function MapPageContent() {
             </Link>
           </div>
           {locateFailed && (
-            <div className="absolute bottom-6 left-4 right-24 z-40 rounded-card bg-white px-3 py-2 text-xs text-ink-600 shadow-card">
+            <div className="absolute bottom-6 left-4 right-24 z-40 rounded-card m-glass px-3 py-2 text-xs text-ink-600">
               Не удалось определить, где ты. Разреши доступ к геопозиции для Telegram.
             </div>
           )}
@@ -223,7 +224,7 @@ function MapPageContent() {
                   )}
                   {event.address && (
                     <p className="flex items-center gap-1 text-xs text-ink-400">
-                      <Image src="/brand/3d/icon-location.png" alt="" width={12} height={12} className="shrink-0" />
+                      <Icon name="pin" size={16} className="shrink-0 text-accent" />
                       <span className="line-clamp-2">{event.address.replace(/^Россия,\s*/, "")}</span>
                     </p>
                   )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Icon } from "@/components/brand/Icon";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -50,7 +51,7 @@ const TYPE_ICON: Record<string, string> = {
   subscription_expired: "/brand/3d/subscription-coins.png",
   review_request: "/brand/3d/icon-badge.png",
   boost_suggestion: "/brand/3d/boost-icon.png",
-  new_message: "/brand/3d/empty-chats.png",
+  new_message: "/brand/mosya/mosya_phone.webp",
 };
 
 export default function NotificationsPage() {
@@ -109,8 +110,8 @@ export default function NotificationsPage() {
   return (
     <div className="px-5 py-4">
       <div className="mb-4 flex items-center gap-3">
-        <Link href="/feed" aria-label="Назад">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
+        <Link href="/feed" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+          <Icon name="back" size={22} className="" />
         </Link>
         <h1 className="text-title">Уведомления</h1>
       </div>
@@ -127,7 +128,7 @@ export default function NotificationsPage() {
             key={value}
             onClick={() => setTab(value)}
             className={`rounded-pill px-4 py-1.5 text-sm font-medium ${
-              tab === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-600 shadow-card"
+              tab === value ? "bg-brand-gradient text-white shadow-cta" : "m-glass text-ink-600"
             }`}
           >
             {label}
@@ -140,7 +141,7 @@ export default function NotificationsPage() {
       {!loading && filtered.length === 0 && (
         <div className="flex flex-col items-center px-6 py-16 text-center">
           <div className="relative mb-4 h-28 w-28">
-            <Image src="/brand/3d/empty-quiet.png" alt="" fill className="object-contain" sizes="112px" />
+            <Image src="/brand/mosya/mosya_think.webp" alt="" fill className="object-contain" sizes="112px" />
           </div>
           <p className="text-sm text-ink-600">Здесь появятся новые уведомления.</p>
         </div>
@@ -157,7 +158,7 @@ export default function NotificationsPage() {
           <button
             key={item.id}
             onClick={() => handlePress(item)}
-            className="flex w-full items-start gap-3 rounded-card bg-white p-4 text-left shadow-card"
+            className="flex w-full items-start gap-3 rounded-card m-glass p-4 text-left"
           >
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-lavender-100">
               <Image src={TYPE_ICON[item.type] ?? "/brand/3d/icon-bell.png"} alt="" width={24} height={24} className="object-contain" />
@@ -206,7 +207,7 @@ function RichCard({ item, onOpen }: { item: NotificationItem; onOpen: () => void
   const time = event.eventTime.slice(0, 5);
 
   return (
-    <div className="rounded-card-lg bg-white p-4 shadow-card-lg">
+    <div className="rounded-card-lg m-glass p-4">
       <button onClick={onOpen} className="mb-3 flex w-full items-center gap-3 text-left">
         <div className="relative h-12 w-12 shrink-0">
           <Image
@@ -236,12 +237,12 @@ function RichCard({ item, onOpen }: { item: NotificationItem; onOpen: () => void
         <div className="min-w-0 flex-1">
           <p className="mb-1.5 line-clamp-2 text-sm font-semibold text-ink-900">{event.title}</p>
           <p className="mb-1 flex items-center gap-1.5 text-sm text-ink-900">
-            <Image src="/brand/3d/icon-calendar.png" alt="" width={18} height={18} className="shrink-0 object-contain" />
+            <Icon name="cal" size={18} className="shrink-0 text-accent" />
             {formatDay(event.eventDate)} · {time}
           </p>
           {(event.placeName || event.address) && (
             <div className="flex items-start gap-1.5 text-sm">
-              <Image src="/brand/3d/icon-location.png" alt="" width={18} height={18} className="mt-px shrink-0 object-contain" />
+              <Icon name="pin" size={18} className="mt-px shrink-0 text-accent" />
               <div className="min-w-0">
                 <p className="truncate text-ink-900">{event.placeName ?? event.address}</p>
                 {event.placeName && event.address && <p className="truncate text-xs text-ink-600">{event.address}</p>}
@@ -265,14 +266,14 @@ function RichCard({ item, onOpen }: { item: NotificationItem; onOpen: () => void
         {item.ticketCode ? (
           <button
             onClick={() => router.push(`/events/${event.id}/ticket`)}
-            className="w-full rounded-pill bg-brand-gradient py-3.5 text-base font-semibold text-white shadow-cta"
+            className="w-full rounded-pill bg-brand-gradient py-3.5 text-base font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
           >
             Открыть билет
           </button>
         ) : (
           <button
             onClick={() => router.push(`/events/${event.id}`)}
-            className="w-full rounded-pill bg-brand-gradient py-3.5 text-base font-semibold text-white shadow-cta"
+            className="w-full rounded-pill bg-brand-gradient py-3.5 text-base font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
           >
             Открыть встречу
           </button>

@@ -1,19 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { Icon } from "@/components/brand/Icon";
 import Image from "next/image";
 
 export default function OfferPage() {
   return (
     <div className="min-h-screen bg-background px-5 py-4">
       <div className="mb-4 flex items-center gap-3">
-        <Link href="/settings" aria-label="Назад">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
+        <Link href="/settings" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+          <Icon name="back" size={22} className="" />
         </Link>
         <h1 className="text-title">Публичная оферта</h1>
       </div>
 
-      <div className="space-y-4 rounded-card bg-white p-5 text-sm leading-relaxed text-ink-900 shadow-card">
+      <div className="space-y-4 rounded-card m-glass p-5 text-sm leading-relaxed text-ink-900">
         <p className="text-xs text-ink-400">Редакция от 15 сентября 2026 г.</p>
 
         <p>

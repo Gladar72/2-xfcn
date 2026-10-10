@@ -53,10 +53,10 @@ export default function ChatsPage() {
 
   return (
     <div className="px-4 py-6">
-      <h1 className="text-display mb-4 text-ink-900">Чаты</h1>
+      <h1 className="m-title mb-4 text-ink-900">Чаты</h1>
 
       {/* Поиск по названию встречи, участникам и сообщениям */}
-      <label className="mb-3 flex items-center gap-3 rounded-card-sm bg-white px-4 py-3.5 shadow-card">
+      <label className="mb-3 flex items-center gap-3 rounded-card-sm m-glass px-4 py-3.5">
         <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden className="shrink-0 text-ink-400">
           <circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" strokeWidth="2" />
           <path d="M20 20l-3.5-3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -104,7 +104,7 @@ export default function ChatsPage() {
       {!loading && filtered.length === 0 && (
         <div className="flex flex-col items-center px-6 py-10 text-center">
           <div className="relative mb-4 h-32 w-32">
-            <Image src="/brand/3d/empty-chats.png" alt="" fill className="object-contain" sizes="128px" />
+            <Image src="/brand/mosya/mosya_phone.webp" alt="" fill className="object-contain" sizes="128px" />
           </div>
           <p className="text-sm text-ink-600">
             {query

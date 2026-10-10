@@ -2,7 +2,11 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import Image from "next/image";
+import Link from "next/link";
+import { Mosya } from "@/components/brand/Mosya";
+import { Icon } from "@/components/brand/Icon";
+import { useGuide } from "@/lib/mosya/guide";
+import { say } from "@/lib/mosya/peek";
 import { TopBar } from "@/components/layout/TopBar";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
@@ -35,6 +39,8 @@ export default function FeedPage() {
   );
 }
 
+const POPULAR = 5;
+
 function FeedPageContent() {
   const searchParams = useSearchParams();
   const categoryFilter = searchParams.get("category");
@@ -62,6 +68,7 @@ function FeedPageContent() {
   const [city, setCity] = useState<string | null>(null);
   const [citySheetOpen, setCitySheetOpen] = useState(false);
   const [cityInput, setCityInput] = useState("");
+  useGuide("feed", { when: !loading });
 
   useEffect(() => {
     fetch("/api/me/profile")
@@ -142,6 +149,7 @@ function FeedPageContent() {
         setToast("Ты уже откликался на эту встречу.");
       } else if (data.error === "event_full") {
         setToast("Мест уже не осталось.");
+        say("Упс, мест уже нет. Посмотри другие встречи — их много 👇");
       } else if (data.error === "cannot_apply_to_own_event") {
         setToast("Это твоя встреча — не нужно откликаться на неё самому.");
       } else {
@@ -159,24 +167,52 @@ function FeedPageContent() {
     <div>
       <TopBar city={city ?? "..."} avatarUrl={avatarUrl} onCityPress={() => setCitySheetOpen(true)} />
 
-      <div className="flex items-center justify-between gap-3 px-5 pb-2 pt-6">
-        <h1 className="text-display">
-          Что ищешь <span className="text-accent">сегодня?</span>
+      <div className="flex items-end justify-between gap-3 px-5 pb-1 pt-5">
+        <h1 className="m-title">
+          Что ищешь <span className="m-em">сегодня?</span>
         </h1>
-        <div className="relative h-16 w-16 shrink-0">
-          <Image src="/brand/logo/mesto-mascot.png" alt="" fill className="object-contain" />
-        </div>
+        <Mosya pose="wave" size={64} className="-mb-1 shrink-0" />
       </div>
+
+      <Link href="/search" className="m-glass m-press mx-5 mb-4 mt-3 flex h-[50px] items-center gap-2.5 rounded-pill px-4 text-[15px] text-ink-400">
+        <Icon name="search" size={20} />
+        Кофе, пробежка, кино…
+      </Link>
 
       <CategoryGrid categories={categories} onTrainingPress={() => setSheetOpen(true)} />
 
-      <div className="mt-8 space-y-3 px-5">
-        <h2 className="text-title">Интересные встречи рядом</h2>
+      {/* Популярное сегодня — первые встречи ленты (она уже отсортирована
+          по рейтингу) крупными карточками в горизонтальной ленте. */}
+      {events.length > 0 && (
+        <div className="mt-7">
+          <div className="mb-3 flex items-baseline justify-between px-5">
+            <h2 className="m-h2">Популярное сегодня</h2>
+            <Link href="/search" className="text-[13.5px] text-ink-400">
+              Все
+            </Link>
+          </div>
+          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {events.slice(0, POPULAR).map((event) => (
+              <div key={event.id} className="w-[86%] max-w-[340px] shrink-0 snap-start">
+                <EventCard
+                  event={event}
+                  applicationStatus={localStatuses[event.id]}
+                  applying={applyingEventId === event.id}
+                  onApplyPress={handleApply}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 space-y-3 px-5">
+        <h2 className="m-h2">Интересные встречи рядом</h2>
 
         {loading && events.length === 0 && (
           <div className="space-y-3">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="h-32 animate-pulse rounded-card bg-white shadow-card" />
+              <div key={i} className="m-sk h-[300px]" />
             ))}
           </div>
         )}
@@ -184,23 +220,30 @@ function FeedPageContent() {
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
         {!loading && !error && events.length === 0 && (
-          <div className="flex flex-col items-center px-6 py-10 text-center">
-            <div className="relative mb-4 h-32 w-32">
-              <Image src="/brand/3d/empty-quiet.png" alt="" fill className="object-contain" sizes="128px" />
-            </div>
-            <p className="text-sm text-ink-600">Сегодня пока тихо. Создайте первый план в своём городе.</p>
+          <div className="m-glass flex flex-col items-center rounded-card px-6 py-8 text-center">
+            <Mosya pose="think" size={110} className="mb-3" />
+            <p className="text-sm text-ink-600">Сегодня пока тихо. Создай первый план в своём городе.</p>
+            <Link href="/create" className="m-btn m-btn-v mt-4 h-12 text-[15px]">
+              Создать встречу
+            </Link>
           </div>
         )}
 
-        {events.map((event) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            applicationStatus={localStatuses[event.id]}
-            applying={applyingEventId === event.id}
-            onApplyPress={handleApply}
-          />
-        ))}
+        {events.length > 0 && events.length <= POPULAR && !loading && (
+          <p className="text-sm text-ink-600">Это все встречи на сегодня — смотри выше или создай свою.</p>
+        )}
+
+        <div className="m-stagger space-y-3">
+          {events.slice(POPULAR).map((event) => (
+            <EventCard
+              key={event.id}
+              event={event}
+              applicationStatus={localStatuses[event.id]}
+              applying={applyingEventId === event.id}
+              onApplyPress={handleApply}
+            />
+          ))}
+        </div>
 
         {hasMore && (
           <Button variant="secondary" onClick={() => loadPage(page + 1, false)} disabled={loading}>
@@ -215,19 +258,15 @@ function FeedPageContent() {
         onClose={() => setSheetOpen(false)}
       />
 
-      {toast && (
-        <div className="fixed inset-x-5 bottom-24 z-50 rounded-card bg-ink-900 px-4 py-3 text-center text-sm text-white shadow-card">
-          {toast}
-        </div>
-      )}
+      {toast && <div className="m-toast">{toast}</div>}
 
       {citySheetOpen && (
         <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30"
+          className="m-fade-in fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)]"
           onClick={() => setCitySheetOpen(false)}
         >
           <div
-            className="rounded-t-sheet bg-white p-5 pb-8"
+            className="m-sheet-in rounded-t-sheet bg-white p-5 pb-8"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />

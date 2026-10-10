@@ -159,7 +159,7 @@ export default function SearchPage() {
 
   return (
     <div className="px-5 py-4">
-      <h1 className="text-display mb-4">Поиск встреч</h1>
+      <h1 className="m-title mb-4">Поиск встреч</h1>
 
       <div className="mb-4 flex gap-2">
         <span className="flex-1 rounded-pill bg-accent px-4 py-2 text-center text-sm font-medium text-white shadow-card">
@@ -167,7 +167,7 @@ export default function SearchPage() {
         </span>
         <Link
           href="/my-events"
-          className="flex-1 rounded-pill bg-white px-4 py-2 text-center text-sm font-medium text-ink-900 shadow-card"
+          className="flex-1 rounded-pill m-glass px-4 py-2 text-center text-sm font-medium text-ink-900"
         >
           Мои встречи
         </Link>
@@ -187,7 +187,7 @@ export default function SearchPage() {
         </div>
         <button
           onClick={() => setSheetOpen(true)}
-          className="relative flex items-center gap-1.5 rounded-pill bg-white px-4 py-2.5 text-sm font-medium shadow-card"
+          className="relative flex items-center gap-1.5 rounded-pill m-glass px-4 py-2.5 text-sm font-medium"
         >
           <Image src="/brand/icons/filter.svg" alt="" width={16} height={16} />
           Фильтры
@@ -201,7 +201,7 @@ export default function SearchPage() {
 
       <Link
         href={`/map?${buildFilterParams().toString()}`}
-        className="mb-4 flex items-center justify-center gap-2 rounded-pill bg-white py-2.5 text-sm font-medium text-accent shadow-card"
+        className="mb-4 flex items-center justify-center gap-2 rounded-pill m-glass py-2.5 text-sm font-medium text-accent"
       >
         <Image src="/brand/icons/map.svg" alt="" width={16} height={16} />
         Показать на карте
@@ -213,7 +213,7 @@ export default function SearchPage() {
       {!loading && !error && events.length === 0 && (
         <div className="flex flex-col items-center px-6 py-12 text-center">
           <div className="relative mb-4 h-28 w-28">
-            <Image src="/brand/3d/empty-quiet.png" alt="" fill className="object-contain" sizes="112px" />
+            <Image src="/brand/mosya/mosya_think.webp" alt="" fill className="object-contain" sizes="112px" />
           </div>
           <p className="text-sm text-ink-600">Ничего не нашлось. Попробуй изменить фильтры.</p>
         </div>
@@ -353,7 +353,7 @@ export default function SearchPage() {
               </button>
               <button
                 onClick={applyFilters}
-                className="flex-[2] rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta"
+                className="flex-[2] rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
               >
                 Показать встречи
               </button>

@@ -34,7 +34,7 @@ export function ReviewForm({ personName, onSubmit, onCancel }: ReviewFormProps) 
   }
 
   return (
-    <div className="space-y-4 rounded-card bg-white p-5 shadow-card">
+    <div className="space-y-4 rounded-card m-glass p-5">
       <h3 className="text-title">Как прошла встреча с {personName}?</h3>
 
       <div className="flex justify-center gap-2">

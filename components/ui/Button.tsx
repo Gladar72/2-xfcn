@@ -9,9 +9,9 @@ export function Button({ variant = "primary", className, ...props }: ButtonProps
   return (
     <button
       className={clsx(
-        "w-full rounded-pill py-4 text-base font-semibold transition active:scale-[0.98] disabled:opacity-40 disabled:active:scale-100",
-        variant === "primary" && "bg-brand-gradient text-white shadow-cta",
-        variant === "secondary" && "bg-white text-ink-900 border border-lavender-200",
+        "m-btn",
+        variant === "primary" && "m-btn-v",
+        variant === "secondary" && "m-btn-o",
         className
       )}
       {...props}

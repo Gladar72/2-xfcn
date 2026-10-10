@@ -85,7 +85,7 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
 
   return (
     <div className="-mb-24 min-h-screen bg-background px-5 py-6">
-      <h1 className="text-display mb-1">{eventTitle || "Заявки"}</h1>
+      <h1 className="m-title mb-1">{eventTitle || "Заявки"}</h1>
       {seats && (
         <p className="mb-6 text-sm text-ink-600">
           Занято {seats.taken} из {seats.total} мест
@@ -96,7 +96,7 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
       {!loading && !error && applications.length === 0 && (
-        <div className="rounded-card bg-white p-6 text-center text-sm text-ink-600 shadow-card">
+        <div className="rounded-card m-glass p-6 text-center text-sm text-ink-600">
           Пока никто не откликнулся.
         </div>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/brand/Icon";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -97,8 +98,8 @@ export default function TicketPage({ params }: { params: { id: string } }) {
   return (
     <div className="px-5 pb-28 pt-4">
       <div className="mb-4 flex items-center gap-3">
-        <button onClick={() => router.back()} aria-label="Назад">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
+        <button onClick={() => router.back()} aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+          <Icon name="back" size={22} className="" />
         </button>
         <h1 className="text-title">Мой билет</h1>
       </div>
@@ -106,7 +107,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
       {!data && !error && <p className="py-10 text-center text-sm text-ink-600">Загрузка...</p>}
 
       {!data && error && (
-        <div className="rounded-card bg-white p-6 text-center shadow-card">
+        <div className="rounded-card m-glass p-6 text-center">
           <p className="mb-4 text-sm text-ink-900">{error}</p>
           <Link href={`/events/${params.id}`} className="text-sm font-semibold text-accent">
             К событию
@@ -116,7 +117,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
 
       {data && (
         <>
-          <div className="overflow-hidden rounded-card-lg bg-white shadow-card-lg">
+          <div className="overflow-hidden rounded-card-lg m-glass">
             <div className="p-4">
               <span className="mb-3 inline-flex items-center gap-1.5 rounded-pill bg-lavender-100 px-3 py-1.5 text-sm font-medium text-accent">
                 <Image src="/mesto/assets/icons/png/ticket.png" alt="" width={20} height={20} className="object-contain" />
@@ -148,7 +149,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
 
               {data.event.organizerName && (
                 <div className="mt-3 flex items-center gap-2 border-t border-ink-400/15 pt-3 text-sm text-ink-900">
-                  <Image src="/brand/3d/icon-users.png" alt="" width={20} height={20} className="object-contain" />
+                  <Icon name="people" size={20} className="text-accent" />
                   <span>
                     <span className="text-ink-600">Организатор: </span>
                     {data.event.organizerName}
@@ -193,16 +194,16 @@ export default function TicketPage({ params }: { params: { id: string } }) {
             {data.conversationId && (
               <Link
                 href={`/chats/${data.conversationId}`}
-                className="block w-full rounded-pill bg-brand-gradient py-4 text-center text-base font-semibold text-white shadow-cta"
+                className="block w-full rounded-pill bg-brand-gradient py-4 text-center text-base font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
               >
                 Чат события
               </Link>
             )}
             <button
               onClick={openRoute}
-              className="flex w-full items-center justify-center gap-2 rounded-pill bg-white py-4 text-base font-semibold text-accent shadow-card"
+              className="flex w-full items-center justify-center gap-2 rounded-pill m-glass py-4 text-base font-semibold text-accent"
             >
-              <Image src="/brand/3d/icon-navigation.png" alt="" width={22} height={22} className="object-contain" />
+              <Icon name="nav" size={22} className="text-accent" />
               Как добраться
             </button>
 
@@ -219,7 +220,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
                 <div className="flex gap-2">
                   <button
                     onClick={() => setConfirmingCancel(false)}
-                    className="flex-1 rounded-pill bg-white py-2.5 text-sm font-medium text-ink-600 shadow-card"
+                    className="flex-1 rounded-pill m-glass py-2.5 text-sm font-medium text-ink-600"
                   >
                     Не отменять
                   </button>

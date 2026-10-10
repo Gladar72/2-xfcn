@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/brand/Icon";
 import Link from "next/link";
 import Image from "next/image";
 import { type Plan } from "@/lib/subscriptions/limits";
@@ -172,7 +173,7 @@ export default function ProfilePage() {
     >
       {/* Заголовок экрана и настройки */}
       <div className="flex shrink-0 items-center justify-between pt-1">
-        <h1 className="text-display text-ink-900">Профиль</h1>
+        <h1 className="m-title text-ink-900">Профиль</h1>
         <Link
           href="/settings"
           aria-label="Настройки"
@@ -183,9 +184,9 @@ export default function ProfilePage() {
       </div>
 
       {/* Карточка профиля: фото слева, имя/город/рейтинг/о себе, маскот справа */}
-      <div className="relative shrink-0 overflow-hidden rounded-[28px] bg-white px-4 py-5 shadow-card [@media(max-height:680px)]:py-3.5">
+      <div className="relative shrink-0 overflow-hidden rounded-[28px] m-glass px-4 py-5 [@media(max-height:680px)]:py-3.5">
         <Image
-          src="/brand/logo/mesto-mascot.png"
+          src="/brand/mosya/mosya_wave.webp"
           alt=""
           width={120}
           height={115}
@@ -219,7 +220,7 @@ export default function ProfilePage() {
               {profile.name}, {profile.age}
             </h2>
             <p className="mt-1.5 flex items-center gap-1.5 text-sm text-ink-600">
-              <Image src="/brand/3d/icon-location.png" alt="" width={18} height={18} className="shrink-0" />
+              <Icon name="pin" size={18} className="shrink-0 text-accent" />
               <span className="truncate">{profile.city}</span>
             </p>
             {profile.ratingCount > 0 && (
@@ -253,7 +254,7 @@ export default function ProfilePage() {
         <StatCard
           value={profile.eventsAttendedCount}
           label="посещено"
-          icon={<Image src="/brand/3d/icon-users.png" alt="" width={22} height={22} />}
+          icon={<Icon name="people" size={22} className="text-accent" />}
         />
         <StatCard
           value={profile.completedMeetingsCount}
@@ -264,7 +265,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Мои разделы */}
-      <div className="shrink-0 rounded-[28px] bg-white px-4 py-1 shadow-card">
+      <div className="shrink-0 rounded-[28px] m-glass px-4 py-1">
         <MenuRow href="/my-events" icon="/brand/3d/icon-calendar.png" label="Мои встречи" />
         <MenuRow href="/notifications" icon="/brand/3d/icon-bell.png" label="Уведомления" />
         <MenuRow
@@ -284,7 +285,7 @@ export default function ProfilePage() {
           onClick={() => !savingEdit && setEditing(false)}
         >
           <div
-            className="w-full max-w-sm space-y-2.5 rounded-card-lg bg-white p-4 shadow-card-lg"
+            className="w-full max-w-sm space-y-2.5 rounded-card-lg m-glass p-4"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="pb-1 text-center text-title text-ink-900">Редактировать профиль</h2>
@@ -293,7 +294,7 @@ export default function ProfilePage() {
               disabled={uploadingPhoto}
               className="flex w-full items-center justify-center gap-2 rounded-card bg-lavender-50 py-2.5 text-sm font-medium text-accent disabled:opacity-60"
             >
-              <Image src="/brand/3d/icon-camera.png" alt="" width={20} height={20} />
+              <Icon name="camera" size={20} className="text-accent" />
               {uploadingPhoto ? "Загружаем фото…" : "Изменить фото"}
             </button>
             <input
@@ -325,7 +326,7 @@ export default function ProfilePage() {
               <button
                 onClick={saveEdit}
                 disabled={savingEdit || editName.trim().length < 2}
-                className="flex-1 rounded-pill bg-brand-gradient py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                className="flex-1 rounded-pill bg-brand-gradient py-2.5 text-sm font-semibold text-white disabled:opacity-50 m-btn-v relative overflow-hidden"
               >
                 {savingEdit ? "Сохраняем..." : "Сохранить"}
               </button>
@@ -349,7 +350,7 @@ function StatCard({
   tileClass?: string;
 }) {
   return (
-    <div className="relative min-w-0 rounded-[22px] bg-white px-3 py-3 shadow-card [@media(max-height:680px)]:py-2">
+    <div className="relative min-w-0 rounded-[22px] m-glass px-3 py-3 [@media(max-height:680px)]:py-2">
       <div
         className={`absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-[10px] ${tileClass}`}
         aria-hidden

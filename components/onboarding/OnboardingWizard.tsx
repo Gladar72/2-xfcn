@@ -1,7 +1,11 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { AliveStage, type StageProp } from "@/components/brand/AliveStage";
+import { Wordmark } from "@/components/brand/Logo";
+import { Icon } from "@/components/brand/Icon";
+import { peek } from "@/lib/mosya/peek";
+import { startGuideTour } from "@/lib/mosya/guide";
 import { Button } from "@/components/ui/Button";
 import { StepProgress } from "@/components/ui/StepProgress";
 import { CityPicker } from "@/components/ui/CityPicker";
@@ -19,6 +23,58 @@ interface Interest {
 type Step = "photo" | "name" | "birthDate" | "gender" | "city" | "bio" | "interests" | "review";
 const STEPS: Step[] = ["photo", "name", "birthDate", "gender", "city", "bio", "interests", "review"];
 
+/** Вводные слайды: живой Мося гуляет среди эмодзи-персонажей и трогает их. */
+const INTRO: { title: React.ReactNode; text: string; props: StageProp[] }[] = [
+  {
+    title: (
+      <>
+        Есть куда пойти.
+        <br />
+        Найдём, <span className="m-em">с кем</span>
+      </>
+    ),
+    text: "Встречи с людьми рядом: кофе, спорт, кино, прогулки. Нажми «Я иду» — организатор примет заявку.",
+    props: [
+      ["Облачко", 62, 316, 112, "flower", "sky", "smile"],
+      ["Подушка", 328, 318, 108, "squ", "pink", "calm"],
+      ["Искра", 150, 150, 92, "star", "peach", "sly"],
+      ["Пузырь", 262, 140, 86, "ball", "lilac", "wow"],
+    ],
+  },
+  {
+    title: (
+      <>
+        Смотри, <span className="m-em">кто идёт</span>,
+        <br />
+        ещё до заявки
+      </>
+    ),
+    text: "У каждого профиль с фото, интересами и отзывами. Сразу видно, с кем будет интересно.",
+    props: [
+      ["Клевер", 62, 318, 108, "clover", "violet", "wow"],
+      ["Туча", 328, 316, 112, "cloud", "mint", "smile"],
+      ["Капля", 148, 146, 90, "blob", "pink", "wow"],
+      ["Цветок", 262, 150, 88, "flower", "peach", "calm"],
+    ],
+  },
+  {
+    title: (
+      <>
+        Своя встреча
+        <br />
+        <span className="m-em">за одну минуту</span>
+      </>
+    ),
+    text: "Можно анонимно. Выбери место и время — компания соберётся сама.",
+    props: [
+      ["Цветок", 62, 316, 110, "flower", "peach", "smile"],
+      ["Пузырь", 328, 318, 104, "ball", "lilac", "calm"],
+      ["Искра", 150, 146, 94, "star", "peach", "sly"],
+      ["Подушка", 264, 150, 84, "squ", "pink", "smile"],
+    ],
+  },
+];
+
 /** Куда вести после анкеты: на встречу, если человек пришёл по ссылке на неё (см. app/page.tsx), иначе в ленту. */
 function afterOnboardingPath(): string {
   try {
@@ -32,6 +88,55 @@ function afterOnboardingPath(): string {
 }
 
 export function OnboardingWizard() {
+  const [intro, setIntro] = useState(0);
+  if (intro < INTRO.length) {
+    return <IntroSlides index={intro} onNext={() => setIntro((i) => i + 1)} onSkip={() => setIntro(INTRO.length)} />;
+  }
+  return <RegistrationSteps />;
+}
+
+function IntroSlides({ index, onNext, onSkip }: { index: number; onNext: () => void; onSkip: () => void }) {
+  // Слайды листаются сами каждые 4,2 с, как в прототипе; «Далее» — вручную.
+  useEffect(() => {
+    if (index >= INTRO.length - 1) return;
+    const t = setTimeout(onNext, 4200);
+    return () => clearTimeout(t);
+  }, [index, onNext]);
+  const slide = INTRO[index];
+  return (
+    <div className="m-aurora fixed inset-0 overflow-hidden">
+      <div className="absolute inset-x-5 top-[max(14px,env(safe-area-inset-top))] z-10 grid gap-4">
+        <div className="m-bars">
+          {INTRO.map((_, i) => (
+            <i key={i} className={i < index ? "dn" : i === index ? "run" : ""}>
+              <b key={index} />
+            </i>
+          ))}
+        </div>
+        <Wordmark height={26} color="#16121F" />
+      </div>
+
+      <AliveStage key={index} props={slide.props} floor={372} height={390} style={{ top: 92 }} />
+
+      <div className="m-glass-2 m-sheet-in absolute inset-x-0 bottom-0 z-10 rounded-t-[32px] px-5 pb-[max(22px,env(safe-area-inset-bottom))] pt-6">
+        <div key={index} className="m-stagger">
+          <h1 className="m-title">{slide.title}</h1>
+          <p className="mt-2 text-[15px] leading-relaxed text-ink-600">{slide.text}</p>
+        </div>
+        <div className="mt-5 flex items-center gap-3">
+          <button type="button" onClick={onSkip} className="h-14 px-4 text-[15px] text-ink-400">
+            Пропустить
+          </button>
+          <button type="button" onClick={onNext} className="m-btn m-btn-k flex-1">
+            {index < INTRO.length - 1 ? "Далее" : "Начать"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RegistrationSteps() {
   const [stepIndex, setStepIndex] = useState(0);
   const [interests, setInterests] = useState<Interest[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -87,6 +192,22 @@ export function OnboardingWizard() {
 
   const step = STEPS[stepIndex];
   const isLastStep = stepIndex === STEPS.length - 1;
+
+  // Мося объясняет сбоку, не закрывая форму (только при первом показе шага).
+  const said = useRef(new Set<Step>());
+  useEffect(() => {
+    if (said.current.has(step)) return;
+    said.current.add(step);
+    const lines: Partial<Record<Step, [Parameters<typeof peek>[0]["pose"], string]>> = {
+      photo: ["wave", "Привет! Знаю, регистрация — скучно, она есть во всех сервисах. Но без неё я не смогу найти тебе компанию или собрать встречу. Тут пара секунд 🙌"],
+      interests: ["think", "Отметь, что нравится, — по этому я подберу встречи и людей, с которыми тебе будет интересно"],
+      review: ["glasses", "Проверь, всё ли верно. Поменять можно потом в профиле"],
+    };
+    const l = lines[step];
+    if (!l) return;
+    const t = setTimeout(() => peek({ pose: l[0], text: l[1], low: true, ms: step === "photo" ? 7000 : 5500 }), 450);
+    return () => clearTimeout(t);
+  }, [step]);
 
   function goNext() {
     // Если на шаге чего-то не хватает — говорим, чего именно, а не просто
@@ -190,6 +311,7 @@ export function OnboardingWizard() {
 
       // Профиль создан, но фото не подошло — говорим об этом, а не молчим.
       if (data.photoError) {
+        startGuideTour();
         setError(
           `Профиль создан! ${apiErrorText({ error: data.photoError }, "Фото загрузить не получилось.")} Добавить фото можно в профиле.`
         );
@@ -199,6 +321,7 @@ export function OnboardingWizard() {
         return;
       }
 
+      startGuideTour();
       window.location.href = afterOnboardingPath();
     } catch {
       setError("Проблема с соединением. Попробуй ещё раз.");
@@ -216,7 +339,7 @@ export function OnboardingWizard() {
     (step === "interests");
 
   return (
-    <div className="flex min-h-screen flex-col px-5 pb-8 pt-6">
+    <div className="m-aurora flex min-h-[100dvh] flex-col px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6">
       <StepProgress currentStep={stepIndex + 1} totalSteps={STEPS.length} />
 
       <div className="flex flex-1 flex-col justify-center gap-6 py-10">
@@ -231,14 +354,17 @@ export function OnboardingWizard() {
                   : "Можно пропустить и добавить позже, в профиле."
             }
           >
-            <label className="flex aspect-square w-40 mx-auto items-center justify-center overflow-hidden rounded-full bg-white shadow-card">
+            <label className="m-glass m-press relative mx-auto flex aspect-square w-40 cursor-pointer items-center justify-center overflow-hidden rounded-[36px]">
               {photoBase64 ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={photoBase64} alt="Фото профиля" className="h-full w-full object-cover" />
               ) : photoLoading ? (
                 <div className="h-10 w-10 animate-spin rounded-full border-4 border-lavender-100 border-t-accent" />
               ) : (
-                <Image src="/brand/3d/icon-camera.png" alt="" width={44} height={44} />
+                <span className="grid justify-items-center gap-1 text-accent">
+                  <Icon name="camera" size={34} />
+                  <span className="text-xs font-medium">Добавить фото</span>
+                </span>
               )}
               <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </label>
@@ -252,7 +378,7 @@ export function OnboardingWizard() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Имя"
-              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
+              className="m-glass w-full rounded-[22px] border-0 px-5 py-4 text-base outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]"
             />
           </StepBlock>
         )}
@@ -276,10 +402,8 @@ export function OnboardingWizard() {
                   key={value}
                   type="button"
                   onClick={() => setGender(value)}
-                  className={`flex-1 rounded-card border p-5 text-center text-base font-medium transition ${
-                    gender === value
-                      ? "border-accent bg-brand-gradient text-white shadow-cta"
-                      : "border-ink-400/20 bg-white text-ink-900"
+                  className={`m-press flex-1 rounded-[22px] p-5 text-center text-base font-medium transition ${
+                    gender === value ? "bg-ink-900 text-white" : "m-glass text-ink-900"
                   }`}
                 >
                   {label}
@@ -296,7 +420,7 @@ export function OnboardingWizard() {
               value={city}
               onChange={setCity}
               placeholder="Начни вводить город"
-              className="w-full rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
+              className="m-glass w-full rounded-[22px] border-0 px-5 py-4 text-base outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]"
             />
           </StepBlock>
         )}
@@ -309,7 +433,7 @@ export function OnboardingWizard() {
               maxLength={300}
               rows={4}
               placeholder="Расскажи немного о себе..."
-              className="w-full resize-none rounded-card border border-ink-400/20 bg-white px-5 py-4 text-base outline-none focus:border-accent"
+              className="m-glass w-full resize-none rounded-[22px] border-0 px-5 py-4 text-base outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]"
             />
           </StepBlock>
         )}
@@ -324,10 +448,8 @@ export function OnboardingWizard() {
                     key={interest.id}
                     type="button"
                     onClick={() => toggleInterest(interest.id)}
-                    className={`rounded-pill border px-4 py-2 text-sm font-medium transition ${
-                      selected
-                        ? "border-accent bg-accent text-white"
-                        : "border-ink-400/20 bg-white text-ink-900"
+                    className={`m-press rounded-pill px-4 py-2.5 text-sm font-medium transition ${
+                      selected ? "bg-brand-gradient text-white shadow-cta" : "m-glass text-ink-900"
                     }`}
                   >
                     {interest.emoji} {interest.name}
@@ -340,7 +462,7 @@ export function OnboardingWizard() {
 
         {step === "review" && (
           <StepBlock title="Всё верно?">
-            <div className="space-y-2 rounded-card bg-white p-5 shadow-card">
+            <div className="m-glass space-y-2 rounded-[24px] p-5">
               <ReviewRow label="Имя" value={name} />
               <ReviewRow label="Дата рождения" value={isCompleteBirthDate(birthDate) ? birthDate.split("-").reverse().join(".") : birthDate} />
               <ReviewRow label="Пол" value={gender === "male" ? "Мужчина" : "Женщина"} />
@@ -372,7 +494,7 @@ export function OnboardingWizard() {
       </div>
 
       {error && (
-        <div role="alert" className="mb-3 rounded-card bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-700">
+        <div role="alert" className="m-pop mb-3 rounded-[18px] bg-white/85 px-4 py-3 text-center text-sm font-medium text-[#D6336C] shadow-card">
           {error}
         </div>
       )}
@@ -407,10 +529,10 @@ function StepBlock({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-4">
-      <div className="text-center">
-        <h1 className="text-display">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-ink-600">{subtitle}</p>}
+    <div className="m-fade-in space-y-4">
+      <div key={title} className="m-stagger text-center">
+        <h1 className="m-title">{title}</h1>
+        {subtitle && <p className="mt-2 text-sm text-ink-600">{subtitle}</p>}
       </div>
       {children}
     </div>

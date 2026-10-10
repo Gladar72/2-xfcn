@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Icon } from "@/components/brand/Icon";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
@@ -327,7 +328,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         <p className="text-sm text-ink-600">Событие уже прошло или было отменено.</p>
         <button
           onClick={() => router.push("/chats")}
-          className="mt-2 rounded-pill bg-brand-gradient px-6 py-3 text-sm font-semibold text-white shadow-cta"
+          className="mt-2 rounded-pill bg-brand-gradient px-6 py-3 text-sm font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
         >
           Назад к чатам
         </button>
@@ -341,8 +342,8 @@ export default function ChatPage({ params }: ChatPageProps) {
       style={{ height: liveHeight ? `${liveHeight}px` : "100dvh" }}
     >
       <div className={`flex shrink-0 items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3 ${isEventClosed ? "opacity-60" : ""}`}>
-        <button onClick={() => router.push("/chats")} aria-label="Назад">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
+        <button onClick={() => router.push("/chats")} aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+          <Icon name="back" size={22} className="" />
         </button>
         <button
           onClick={() => (soleMember ? setShowMiniProfileFor(soleMember.id) : openParticipants())}
@@ -365,7 +366,7 @@ export default function ChatPage({ params }: ChatPageProps) {
                 soleMember.name.charAt(0).toUpperCase()
               )
             ) : (
-              <Image src="/brand/3d/icon-users.png" alt="" width={20} height={20} className="object-contain" />
+              <Icon name="people" size={20} className="text-accent" />
             )}
           </div>
           <span className="truncate font-medium">{headerTitle}</span>
@@ -382,7 +383,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       {members.length > 0 && !isEventClosed && (
         <button
           onClick={openParticipants}
-          className="mx-4 mt-3 flex shrink-0 items-center gap-3 rounded-card bg-white p-3 text-left shadow-card"
+          className="mx-4 mt-3 flex shrink-0 items-center gap-3 rounded-card m-glass p-3 text-left"
         >
           <div className="flex shrink-0 -space-x-2">
             {members.slice(0, 3).map((m) => (

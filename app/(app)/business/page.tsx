@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/brand/Icon";
 import Image from "next/image";
 import Link from "next/link";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
@@ -27,10 +28,10 @@ export default function BusinessPage() {
   return (
     <div className="px-5 py-4">
       <div className="mb-4 flex items-center gap-3">
-        <Link href="/feed" aria-label="Назад">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
+        <Link href="/feed" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+          <Icon name="back" size={22} className="" />
         </Link>
-        <h1 className="text-display flex-1">Для бизнеса</h1>
+        <h1 className="m-title flex-1">Для бизнеса</h1>
       </div>
 
       <p className="mb-4 text-sm text-ink-600">
@@ -39,7 +40,7 @@ export default function BusinessPage() {
 
       <Link
         href="/create?business=true"
-        className="mb-5 flex items-center justify-center gap-2 rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta active:scale-[0.98]"
+        className="mb-5 flex items-center justify-center gap-2 rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta active:scale-[0.98] m-btn-v relative overflow-hidden"
       >
         <span className="text-lg">+</span>
         Создать событие
@@ -49,7 +50,7 @@ export default function BusinessPage() {
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
       {!loading && !error && events.length === 0 && (
-        <div className="rounded-card bg-white p-6 text-center shadow-card">
+        <div className="rounded-card m-glass p-6 text-center">
           <div className="relative mx-auto mb-3 h-14 w-14">
             <Image src="/brand/markers/marker-business.png" alt="" fill className="object-contain" />
           </div>

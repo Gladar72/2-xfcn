@@ -67,12 +67,12 @@ export default function MyEventsPage() {
 
   return (
     <div className="px-5 py-4">
-      <h1 className="text-display mb-4">Мои встречи</h1>
+      <h1 className="m-title mb-4">Мои встречи</h1>
 
       <div className="mb-4 flex gap-2">
         <Link
           href="/search"
-          className="flex-1 rounded-pill bg-white px-4 py-2 text-center text-sm font-medium text-ink-900 shadow-card"
+          className="flex-1 rounded-pill m-glass px-4 py-2 text-center text-sm font-medium text-ink-900"
         >
           Все встречи
         </Link>
@@ -93,7 +93,7 @@ export default function MyEventsPage() {
             key={value}
             onClick={() => setScope(value)}
             className={`flex-1 rounded-pill py-1.5 text-sm font-medium transition-colors ${
-              scope === value ? "bg-white text-ink-900 shadow-card" : "text-ink-600"
+              scope === value ? "m-glass text-ink-900" : "text-ink-600"
             }`}
           >
             {label}
@@ -106,7 +106,7 @@ export default function MyEventsPage() {
       {!loading && items.length === 0 && (
         <div className="flex flex-col items-center px-6 py-16 text-center">
           <div className="relative mb-4 h-28 w-28">
-            <Image src="/brand/3d/empty-quiet.png" alt="" fill className="object-contain" sizes="112px" />
+            <Image src="/brand/mosya/mosya_think.webp" alt="" fill className="object-contain" sizes="112px" />
           </div>
           <p className="text-sm text-ink-600">
             {scope === "archive"

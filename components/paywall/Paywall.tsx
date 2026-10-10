@@ -124,7 +124,7 @@ export function Paywall({ onActivated }: PaywallProps) {
   return (
     <div className="space-y-4 px-5 py-6">
       <div className="text-center">
-        <h1 className="text-display">Выбери тариф</h1>
+        <h1 className="m-title">Выбери тариф</h1>
         <p className="mt-1 text-sm text-ink-600">Чтобы создавать встречи, нужна подписка.</p>
         <p className="mt-1 text-xs text-ink-400">
           Без подписки можно откликаться на встречи — до {FREE_APPLICATIONS_LIMIT} за период.
@@ -182,7 +182,7 @@ export function Paywall({ onActivated }: PaywallProps) {
             <button
               onClick={() => contactPromptPlan && startPayment(contactPromptPlan, contactDraft.trim())}
               disabled={!contactDraft.trim() || loadingCardPlan !== null}
-              className="mt-4 w-full rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta disabled:opacity-60"
+              className="mt-4 w-full rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta disabled:opacity-60 m-btn-v relative overflow-hidden"
             >
               {loadingCardPlan ? "Открываем оплату..." : "Продолжить"}
             </button>

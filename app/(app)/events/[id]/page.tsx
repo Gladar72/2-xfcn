@@ -15,7 +15,9 @@ import { ApplicationStatusView } from "@/components/applications/ApplicationStat
 import { ManageParticipants } from "@/components/events/ManageParticipants";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { photoThumb } from "@/lib/photos/thumb";
-import { LiveBadge } from "@/components/feed/EventCard";
+import { LiveBadge, coverGradient } from "@/components/feed/EventCard";
+import { Icon } from "@/components/brand/Icon";
+import { useGuide } from "@/lib/mosya/guide";
 
 interface EventDetails {
   id: string;
@@ -91,6 +93,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const [boostMessage, setBoostMessage] = useState<string | null>(null);
   const [pendingApplicants, setPendingApplicants] = useState<ApplicantCardData[]>([]);
   const [processingApplicantId, setProcessingApplicantId] = useState<string | null>(null);
+  useGuide("event", { when: !loading });
 
   useEffect(() => {
     fetch(`/api/events/${eventId}`)
@@ -242,8 +245,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
 
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-ink-600">Загрузка...</p>
+      <div className="space-y-3 px-5 pt-16">
+        <div className="m-sk h-8 w-2/3" />
+        <div className="m-sk aspect-[1.4] w-full" />
+        <div className="m-sk h-14 w-full" />
+        <div className="m-sk h-14 w-full" />
       </div>
     );
   }
@@ -261,7 +267,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   if (!event) return null;
 
   const categoryLabel = event.isBusiness ? "Бизнес событие" : event.trainingType?.name ?? event.category?.name;
-  const categoryIcon = event.isBusiness ? "/brand/markers/marker-business.png" : event.category ? CATEGORY_ICON[event.category.slug] : undefined;
+  const categoryIcon = event.isBusiness ? CATEGORY_ICON.business : event.category ? CATEGORY_ICON[event.category.slug] : undefined;
   const seatsLeft = event.seatsTotal - event.seatsTaken;
   const isFull = seatsLeft <= 0;
 
@@ -307,17 +313,18 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   return (
     <div className="-mb-24">
       <div className="mesto">
-        <main className="m-page">
+        <main className="me-page">
           <div className="mb-3 flex items-center gap-3">
-            <button onClick={() => router.back()} aria-label="Назад">
-              <Image src="/brand/3d/icon-back.png" alt="" width={28} height={28} />
+            <button onClick={() => router.back()} aria-label="Назад" className="m-glass m-press flex h-11 w-11 items-center justify-center rounded-full">
+              <Icon name="back" size={22} />
             </button>
           </div>
 
           {canManage && (
-            <div className="mb-3 flex items-start gap-2 rounded-card-lg bg-[#F1EAFF] p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/3d/icon-badge.png" alt="" width={24} height={24} className="shrink-0" />
+            <div className="m-glass mb-3 flex items-start gap-3 rounded-[22px] p-4">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-gradient text-white">
+                <Icon name="star" size={18} />
+              </span>
               <div>
                 <p className="text-sm font-semibold text-[color:var(--m-purple)]">Вы организатор этого события</p>
                 <p className="mt-0.5 text-xs text-ink-600">Вы можете изменить информацию о событии в любой момент.</p>
@@ -335,10 +342,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               {canManage && (
                 <Link
                   href={`/events/${event.id}/edit`}
-                  className="flex shrink-0 items-center gap-1.5 rounded-pill bg-[#F1EAFF] px-4 py-2 text-sm font-medium text-[color:var(--m-purple)]"
+                  className="m-glass m-press flex shrink-0 items-center gap-1.5 rounded-pill px-4 py-2 text-sm font-medium text-[color:var(--m-purple)]"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/brand/3d/icon-edit.png" alt="" width={18} height={18} />
+                  <Icon name="edit" size={17} />
                   Редактировать
                 </Link>
               )}
@@ -348,10 +354,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             </div>
           </div>
 
-          <h1 className="m-title">{event.title}</h1>
+          <h1 className="me-title">{event.title}</h1>
           {isLive && <LiveBadge className="mt-1" />}
 
-          <figure className="m-hero">
+          <figure className="me-hero">
             {/* Своё фото у встречи (бизнес-события) — показываем его; иначе
                 вместо картинки категории — карта с местом встречи. */}
             {!heroIsRealPhoto && !event.organizerHidden && event.latitude != null && event.longitude != null ? (
@@ -370,7 +376,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 alt=""
                 width={480}
                 height={343}
-                style={heroIsRealPhoto ? undefined : { objectFit: "contain", padding: 40, background: "#F1EAFF" }}
+                style={heroIsRealPhoto ? undefined : { objectFit: "contain", padding: 40, background: coverGradient(event.category?.slug, event.isBusiness) }}
                 sizes="100vw"
                 priority
               />
@@ -384,9 +390,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               <div className="m-organizer">
                 <span className="m-avatar" style={{ overflow: "hidden", display: "block" }}>
                   {event.organizerHidden ? (
-                    <span className="flex h-full w-full items-center justify-center bg-lavender-100">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/brand/3d/icon-mask.png" alt="Анонимно" className="h-3/4 w-3/4 object-contain" />
+                    <span className="flex h-full w-full items-center justify-center bg-brand-gradient text-sm font-semibold text-white" aria-label="Анонимно">
+                      ?
                     </span>
                   ) : event.organizer.avatarUrl ? (
                     <AvatarViewer src={event.organizer.avatarUrl} alt={event.organizer.name}>
@@ -403,7 +408,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   <span className="m-organizer-name">
                     {event.organizer.name}
                     {event.organizer.age ? `, ${event.organizer.age}` : ""}
-                    {event.isAnonymous && !event.organizerHidden ? " · 🎭 анонимно" : ""}
+                    {event.isAnonymous && !event.organizerHidden ? " · анонимно" : ""}
                   </span>
                   <span className="m-rating">
                     {event.organizer.ratingAvg > 0 && (
@@ -422,8 +427,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
 
           <section className="m-details" aria-label="Информация о встрече">
             <p className="m-info m-date">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/3d/icon-calendar.png" alt="" width={26} height={26} />
+              <Icon name="cal" size={26} className="text-accent" />
               <span>{dateLabel}</span>
             </p>
             {event.organizerHidden && (
@@ -437,8 +441,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             )}
             {addressLine && (
               <p className="m-info m-address">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/icon-location.png" alt="" width={26} height={26} />
+                <Icon name="pin" size={26} className="text-accent" />
                 <span className="flex-1">{addressLine}</span>
                 <button
                   type="button"
@@ -470,8 +473,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             )}
             <div className="m-chips">
               <p className="m-info m-capacity">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/icon-users.png" alt="" width={26} height={26} />
+                <Icon name="people" size={26} className="text-accent" />
                 <span>{capacityLabel}</span>
               </p>
               <p className="m-info m-price">
@@ -523,7 +525,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           {error && <p className="mb-3 text-center text-sm text-red-600">{error}</p>}
 
           {event.status === "completed" && (
-            <div className="mb-3 rounded-card bg-white p-4 text-center text-sm text-ink-600 shadow-card">
+            <div className="mb-3 rounded-card m-glass p-4 text-center text-sm text-ink-600">
               Встреча завершена. Спасибо, что были вместе!
             </div>
           )}
@@ -552,7 +554,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               )}
 
               {event.status === "published" && pendingApplicants.length > 0 && (
-                <div className="mb-3 rounded-card bg-white p-4 shadow-card">
+                <div className="mb-3 rounded-card m-glass p-4">
                   <h3 className="mb-3 text-sm font-semibold text-ink-900">
                     Новые заявки ({pendingApplicants.length})
                   </h3>
@@ -572,8 +574,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
 
               <div className="m-actions" aria-label="Управление встречей">
                 <Link href={`/events/${event.id}/applications`} className="m-action m-requests">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/brand/3d/icon-users.png" alt="" width={52} height={52} />
+                  <Icon name="people" size={28} className="text-accent" />
                   <span className="m-action-label">Заявки</span>
                 </Link>
                 {event.status === "published" && (
@@ -597,7 +598,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               {event.isBusiness && (
                 <Link
                   href={`/events/${event.id}/tickets`}
-                  className="mt-3 flex w-full items-center gap-3 rounded-card bg-white p-4 shadow-card"
+                  className="mt-3 flex w-full items-center gap-3 rounded-card m-glass p-4"
                 >
                   <Image src="/mesto/assets/icons/png/ticket.png" alt="" width={32} height={32} className="object-contain" />
                   <span className="flex-1 text-base font-semibold text-ink-900">Билеты участников</span>
@@ -611,7 +612,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                     <button
                       type="button"
                       onClick={() => setConfirmingComplete(true)}
-                      className="w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta"
+                      className="w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
                     >
                       Завершить встречу
                     </button>
@@ -622,21 +623,21 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                     )}
                   </div>
                 ) : (
-                  <div className="mt-3 rounded-card bg-white p-4 text-center shadow-card-lg">
+                  <div className="mt-3 rounded-card m-glass p-4 text-center">
                     <p className="mb-3 text-sm text-ink-900">
                       Завершить встречу? Чат закроется, участники смогут оставить отзывы.
                     </p>
                     <div className="flex gap-2">
                       <button
                         onClick={() => setConfirmingComplete(false)}
-                        className="flex-1 rounded-pill bg-white py-2.5 text-sm font-medium text-ink-600 shadow-card"
+                        className="flex-1 rounded-pill m-glass py-2.5 text-sm font-medium text-ink-600"
                       >
                         Не сейчас
                       </button>
                       <button
                         onClick={handleComplete}
                         disabled={completing}
-                        className="flex-1 rounded-pill bg-brand-gradient py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                        className="flex-1 rounded-pill bg-brand-gradient py-2.5 text-sm font-semibold text-white disabled:opacity-50 m-btn-v relative overflow-hidden"
                       >
                         {completing ? "Завершаем..." : "Да, завершить"}
                       </button>
@@ -655,7 +656,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   <div className="flex gap-2">
                     <button
                       onClick={() => setConfirmingCancel(false)}
-                      className="flex-1 rounded-pill bg-white py-2.5 text-sm font-medium text-ink-600 shadow-card"
+                      className="flex-1 rounded-pill m-glass py-2.5 text-sm font-medium text-ink-600"
                     >
                       Не отменять
                     </button>
@@ -696,7 +697,7 @@ function BottomAction({
     return (
       <Link
         href={`/events/${eventId}/applications`}
-        className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-4 text-center text-base font-semibold text-white shadow-cta"
+        className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-4 text-center text-base font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
       >
         <span className="relative h-7 w-7 shrink-0">
           <Image src="/brand/3d/applications-icon.png" alt="" fill className="object-contain" sizes="28px" />
@@ -711,7 +712,7 @@ function BottomAction({
         <ApplicationStatusView status="accepted" layout="wide" />
         <Link
           href={`/events/${eventId}/ticket`}
-          className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta"
+          className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
         >
           <Image src="/mesto/assets/icons/png/ticket.png" alt="" width={26} height={26} className="object-contain" />
           Открыть билет
@@ -727,7 +728,7 @@ function BottomAction({
     <button
       onClick={onApply}
       disabled={isFull || applying}
-      className="w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta disabled:opacity-40"
+      className="w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta disabled:opacity-40 m-btn-v relative overflow-hidden"
     >
       {isFull ? "Мест нет" : applying ? "Отправляем..." : "Я иду"}
     </button>

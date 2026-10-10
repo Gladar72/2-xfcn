@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Icon } from "@/components/brand/Icon";
 import Link from "next/link";
 import Image from "next/image";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
@@ -82,8 +83,8 @@ export default function SettingsPage() {
   return (
     <div className="px-5 py-4">
       <div className="mb-5 flex items-center gap-3">
-        <Link href="/profile" aria-label="Назад">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
+        <Link href="/profile" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+          <Icon name="back" size={22} className="" />
         </Link>
         <h1 className="text-title">Настройки</h1>
       </div>
@@ -101,7 +102,7 @@ export default function SettingsPage() {
           />
         )}
         <button onClick={openCityEditor} className="block w-full text-left">
-          <div className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
+          <div className="flex items-center gap-3 rounded-card m-glass p-4">
             <IconTile src="/brand/3d/icon-location.png" />
             <span className="flex-1 text-base text-ink-900">Город</span>
             {profile?.city && <span className="text-sm text-ink-400">{profile.city}</span>}
@@ -111,11 +112,11 @@ export default function SettingsPage() {
       </Section>
 
       <Section title="Помощь">
-        <Row external href={SUPPORT_BOT_URL} label="Написать в поддержку" icon="/brand/3d/empty-chats.png" />
+        <Row external href={SUPPORT_BOT_URL} label="Написать в поддержку" icon="/brand/mosya/mosya_phone.webp" />
       </Section>
 
       <Section title="О приложении">
-        <div className="rounded-card bg-white p-4 shadow-card">
+        <div className="rounded-card m-glass p-4">
           {/* У логотипа в SVG есть отступ слева — сдвигаем, чтобы буква «М» стояла ровно по тексту. */}
           <div className="relative -ml-[3px] mb-4 h-6 w-24">
             <Image src="/brand/logo/wordmark-purple.svg" alt="МЕСТО" fill className="object-contain object-left" />
@@ -163,7 +164,7 @@ export default function SettingsPage() {
             <button
               onClick={saveCity}
               disabled={savingCity || !cityDraft.trim()}
-              className="mt-4 w-full rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta disabled:opacity-60"
+              className="mt-4 w-full rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta disabled:opacity-60 m-btn-v relative overflow-hidden"
             >
               {savingCity ? "Сохраняем..." : "Сохранить"}
             </button>
@@ -180,7 +181,7 @@ export default function SettingsPage() {
  * поэтому некоторым задан свой масштаб, чтобы визуально все были одного размера.
  */
 const ICON_SCALE: Record<string, number> = {
-  "/brand/3d/empty-chats.png": 0.82,
+  "/brand/mosya/mosya_phone.webp": 0.82,
 };
 
 function IconTile({ src }: { src: string }) {
@@ -223,7 +224,7 @@ function Row({
   external?: boolean;
 }) {
   const content = (
-    <div className="flex items-center gap-3 rounded-card bg-white p-4 shadow-card">
+    <div className="flex items-center gap-3 rounded-card m-glass p-4">
       <IconTile src={icon} />
       <span className="flex-1 text-base text-ink-900">{label}</span>
       {value && <span className="text-sm text-ink-400">{value}</span>}
@@ -256,7 +257,7 @@ function ToggleRow({
   return (
     <button
       onClick={onChange}
-      className="flex w-full items-center gap-3 rounded-card bg-white p-4 text-left shadow-card"
+      className="flex w-full items-center gap-3 rounded-card m-glass p-4 text-left"
     >
       <div className="flex-1">
         <span className="block text-sm text-ink-900">{label}</span>

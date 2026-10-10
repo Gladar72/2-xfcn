@@ -35,7 +35,7 @@ export function ApplicantCard({ application, onAccept, onReject, onRemove, proce
   if (!applicant) return null;
 
   return (
-    <div className="rounded-card bg-white p-4 shadow-card">
+    <div className="rounded-card m-glass p-4">
       <div className="mb-3 flex items-center gap-3">
         <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background text-base font-semibold text-ink-600">
           {applicant.avatarUrl ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Icon } from "@/components/brand/Icon";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { apiErrorText } from "@/lib/validation/api-error-text";
@@ -109,8 +110,8 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
   return (
     <div className="px-5 pb-28 pt-4">
       <div className="mb-1 flex items-center gap-3">
-        <button onClick={() => router.back()} aria-label="Назад">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
+        <button onClick={() => router.back()} aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+          <Icon name="back" size={22} className="" />
         </button>
         <h1 className="text-title">Билеты</h1>
       </div>
@@ -142,7 +143,7 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
                 key={value}
                 onClick={() => setShow(value)}
                 className={`rounded-pill px-4 py-1.5 text-sm font-medium ${
-                  show === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-600 shadow-card"
+                  show === value ? "bg-brand-gradient text-white shadow-cta" : "m-glass text-ink-600"
                 }`}
               >
                 {label}
@@ -172,7 +173,7 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
 
       <div className="space-y-2">
         {filtered.map((t) => (
-          <div key={t.userId} className="flex items-center gap-3 rounded-card bg-white p-3 shadow-card">
+          <div key={t.userId} className="flex items-center gap-3 rounded-card m-glass p-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-sm font-semibold text-ink-600">
               {t.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -201,7 +202,7 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
       {!loading && tickets.length > 0 && (
         <button
           onClick={copyList}
-          className="mt-4 w-full rounded-pill bg-white py-3.5 text-base font-semibold text-accent shadow-card"
+          className="mt-4 w-full rounded-pill m-glass py-3.5 text-base font-semibold text-accent"
         >
           {copied ? "Список скопирован ✓" : "Скопировать список для учёта"}
         </button>
@@ -218,7 +219,7 @@ function ticketNumber(code: string | null): number {
 
 function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
-    <div className="rounded-card bg-white p-3 text-center shadow-card">
+    <div className="rounded-card m-glass p-3 text-center">
       <p className={`text-title ${accent ? "text-[#1E8E4E]" : "text-ink-900"}`}>{value}</p>
       <p className="text-xs text-ink-600">{label}</p>
     </div>

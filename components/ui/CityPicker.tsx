@@ -71,7 +71,7 @@ export function CityPicker({
       />
       {open && (
         <div
-          className={`absolute inset-x-0 z-50 max-h-64 overflow-y-auto rounded-card bg-white shadow-card-lg ${
+          className={`m-fade-in absolute inset-x-0 z-50 max-h-64 overflow-y-auto rounded-[20px] bg-white/95 shadow-card-lg backdrop-blur-xl ${
             dropdownDirection === "up" ? "bottom-full mb-1" : "top-full mt-1"
           }`}
         >
