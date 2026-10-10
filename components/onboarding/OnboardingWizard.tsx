@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { AliveStage, type StageProp } from "@/components/brand/AliveStage";
 import { Wordmark } from "@/components/brand/Logo";
 import { Icon } from "@/components/brand/Icon";
-import { peek } from "@/lib/mosya/peek";
+import { peek, say } from "@/lib/mosya/peek";
+import { confetti } from "@/lib/mosya/confetti";
+import { groupInterests, interestIcon } from "@/lib/data/interests";
 import { startGuideTour } from "@/lib/mosya/guide";
 import { Button } from "@/components/ui/Button";
 import { StepProgress } from "@/components/ui/StepProgress";
@@ -20,8 +22,8 @@ interface Interest {
   emoji: string | null;
 }
 
-type Step = "photo" | "name" | "birthDate" | "gender" | "city" | "bio" | "interests" | "review";
-const STEPS: Step[] = ["photo", "name", "birthDate", "gender", "city", "bio", "interests", "review"];
+type Step = "setup" | "interests" | "geo";
+const STEPS: Step[] = ["setup", "interests", "geo"];
 
 /** Вводные слайды: живой Мося гуляет среди эмодзи-персонажей и трогает их. */
 const INTRO: { title: React.ReactNode; text: string; props: StageProp[] }[] = [
@@ -92,7 +94,45 @@ export function OnboardingWizard() {
   if (intro < INTRO.length) {
     return <IntroSlides index={intro} onNext={() => setIntro((i) => i + 1)} onSkip={() => setIntro(INTRO.length)} />;
   }
+  if (intro === INTRO.length) return <AuthScreen onContinue={() => setIntro(INTRO.length + 1)} />;
   return <RegistrationSteps />;
+}
+
+/** «Войти в Место»: в мини-приложении Telegram уже узнал человека — кнопка просто ведёт к анкете. */
+function AuthScreen({ onContinue }: { onContinue: () => void }) {
+  const props: StageProp[] = [
+    ["Искра", 300, 140, 96, "star", "peach", "sly"],
+    ["Пузырь", 70, 262, 100, "ball", "lilac", "wow"],
+  ];
+  return (
+    <div className="m-aurora fixed inset-0 overflow-hidden">
+      <AliveStage props={props} floor={318} height={330} style={{ top: 44 }} />
+      <div className="m-glass-2 m-sheet-in absolute inset-x-0 bottom-0 z-10 rounded-t-[32px] px-5 pb-[max(22px,env(safe-area-inset-bottom))] pt-6">
+        <div className="m-stagger">
+          <h1 className="m-title">
+            Войти в <span className="m-em">Место</span>
+          </h1>
+          <p className="mt-2 text-[14.5px] leading-relaxed text-ink-600">
+            Через Telegram быстрее всего: имя и фото подтянутся сами, а встречи из мини-приложения сохранятся.
+          </p>
+        </div>
+        <button type="button" onClick={onContinue} className="m-btn m-btn-tg mt-5">
+          <Icon name="tg" size={21} />
+          Войти через Telegram
+        </button>
+        <p className="mt-4 text-center text-[11.5px] leading-snug text-ink-400">
+          Продолжая, вы принимаете{" "}
+          <a href="/legal/offer" target="_blank" className="underline">
+            публичную оферту
+          </a>{" "}
+          и{" "}
+          <a href="/legal/privacy" target="_blank" className="underline">
+            политику конфиденциальности
+          </a>
+        </p>
+      </div>
+    </div>
+  );
 }
 
 function IntroSlides({ index, onNext, onSkip }: { index: number; onNext: () => void; onSkip: () => void }) {
@@ -153,10 +193,20 @@ function RegistrationSteps() {
   const [bio, setBio] = useState("");
   const [selectedInterestIds, setSelectedInterestIds] = useState<string[]>([]);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [locating, setLocating] = useState(false);
 
-  // Аватарка из Telegram: если она есть — сразу показываем на шаге «Фото»,
-  // человек может заменить её своей. Если нет (или скрыта приватностью) —
-  // как раньше, загружает сам.
+  // Имя сразу из Telegram — человеку остаётся только проверить.
+  useEffect(() => {
+    try {
+      const u = (window as unknown as { Telegram?: { WebApp?: { initDataUnsafe?: { user?: { first_name?: string } } } } })
+        .Telegram?.WebApp?.initDataUnsafe?.user;
+      if (u?.first_name) setName((n) => n || u.first_name || "");
+    } catch {
+      /* нет Telegram — введёт сам */
+    }
+  }, []);
+
+  // Аватарка из Telegram: если она есть — сразу показываем, человек может заменить её своей.
   useEffect(() => {
     const initData = getInitData();
     if (!initData) return;
@@ -171,7 +221,7 @@ function RegistrationSteps() {
       .then((data: { photo?: string | null }) => {
         if (cancelled || !data.photo) return;
         setPhotoBase64((current) => {
-          if (current) return current; // уже выбрал своё — не перетираем
+          if (current) return current;
           setPhotoFromTelegram(true);
           return data.photo ?? undefined;
         });
@@ -190,57 +240,60 @@ function RegistrationSteps() {
       .catch(() => setInterests([]));
   }, []);
 
-  const step = STEPS[stepIndex];
+  const step: Step = STEPS[stepIndex] ?? "setup";
   const isLastStep = stepIndex === STEPS.length - 1;
+  const minInterests = Math.min(3, interests.length);
 
   // Мося объясняет сбоку, не закрывая форму (только при первом показе шага).
   const said = useRef(new Set<Step>());
   useEffect(() => {
-    if (!step || said.current.has(step)) return;
+    if (said.current.has(step)) return;
     said.current.add(step);
-    const lines: Partial<Record<Step, [Parameters<typeof peek>[0]["pose"], string]>> = {
-      photo: ["wave", "Привет! Знаю, регистрация — скучно, она есть во всех сервисах. Но без неё я не смогу найти тебе компанию или собрать встречу. Тут пара секунд 🙌"],
-      interests: ["think", "Отметь, что нравится, — по этому я подберу встречи и людей, с которыми тебе будет интересно"],
-      review: ["glasses", "Проверь, всё ли верно. Поменять можно потом в профиле"],
+    const lines: Record<Step, [Parameters<typeof peek>[0]["pose"], string]> = {
+      setup: [
+        "wave",
+        `Привет${name ? ", " + name : ""}! Знаю, регистрация — скучно, она есть во всех сервисах. Но без неё я не смогу найти тебе компанию или собрать встречу. Тут пара секунд 🙌`,
+      ],
+      interests: ["think", "Отметь хотя бы 3 — по ним я подберу встречи и людей, с которыми тебе будет интересно"],
+      geo: ["phone", "Геолокация нужна, чтобы показать, что рядом. Где ты — никому не видно"],
     };
     const l = lines[step];
-    if (!l) return;
-    const t = setTimeout(() => peek({ pose: l[0], text: l[1], low: true, ms: step === "photo" ? 7000 : 5500 }), 450);
+    const t = setTimeout(() => peek({ pose: l[0], text: l[1], low: true, ms: step === "setup" ? 7000 : 5500 }), 450);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step]);
 
+  /** Что не так на текущем шаге (null — всё в порядке). */
+  function stepHint(): string | null {
+    if (step === "setup") {
+      if (name.trim().length < 2) return "Напиши имя — минимум 2 буквы.";
+      if (!isCompleteBirthDate(birthDate)) return "Выбери день, месяц и год рождения.";
+      if (!isAtLeast18(birthDate)) return "Сервис доступен только с 18 лет.";
+      if (gender === null) return "Выбери пол.";
+    }
+    if (step === "interests" && selectedInterestIds.length < minInterests) return `Выбери хотя бы ${minInterests} интереса.`;
+    if (step === "geo" && city.trim().length < 2) return "Выбери город — или разреши геолокацию.";
+    return null;
+  }
+
   function goNext() {
-    // Если на шаге чего-то не хватает — говорим, чего именно, а не просто
-    // держим кнопку серой.
     const hint = stepHint();
     if (hint) {
       setError(hint);
+      say(hint, "think");
       return;
     }
     setError(null);
     if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
   }
 
-  /** Что не так на текущем шаге (null — всё в порядке). */
-  function stepHint(): string | null {
-    if (step === "name" && name.trim().length < 2) return "Напиши имя — минимум 2 буквы.";
-    if (step === "birthDate") {
-      if (!isCompleteBirthDate(birthDate)) return "Выбери день, месяц и год рождения.";
-      if (!isAtLeast18(birthDate)) return "Сервис доступен только с 18 лет.";
-    }
-    if (step === "gender" && gender === null) return "Выбери пол.";
-    if (step === "city" && city.trim().length < 2) return "Выбери город из списка.";
-    return null;
-  }
   function goBack() {
     setError(null);
     if (stepIndex > 0) setStepIndex(stepIndex - 1);
   }
 
   function toggleInterest(id: string) {
-    setSelectedInterestIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setSelectedInterestIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -252,7 +305,41 @@ function RegistrationSteps() {
     });
   }
 
+  /** Геолокация → город (обратным геокодированием). Точка никуда не сохраняется. */
+  function detectCity() {
+    if (!navigator.geolocation) {
+      setError("Геолокация недоступна — выбери город вручную.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await fetch(`/api/geocode?lat=${pos.coords.latitude}&lng=${pos.coords.longitude}`);
+          const data = await res.json().catch(() => ({}));
+          const found = typeof data.address === "string" ? cityFromAddress(data.address) : null;
+          if (found) {
+            setCity(found);
+            setError(null);
+          } else setError("Не получилось определить город — выбери его вручную.");
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocating(false);
+        setError("Без доступа к геолокации — просто выбери город ниже.");
+      },
+      { timeout: 8000, maximumAge: 600000 }
+    );
+  }
+
   async function handleSubmit() {
+    const hint = stepHint();
+    if (hint) {
+      setError(hint);
+      return;
+    }
     if (!agreedToTerms) {
       setError("Отметь галочку — нужно согласие с условиями оферты и политикой конфиденциальности.");
       return;
@@ -273,16 +360,7 @@ function RegistrationSteps() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           initData,
-          profile: {
-            name,
-            birthDate,
-            gender,
-            agreedToTerms,
-            city,
-            bio,
-            interestIds: selectedInterestIds,
-            photoBase64,
-          },
+          profile: { name, birthDate, gender, agreedToTerms, city, bio, interestIds: selectedInterestIds, photoBase64 },
         }),
       });
 
@@ -292,16 +370,15 @@ function RegistrationSteps() {
           window.location.href = "/";
           return;
         }
-        // Сервер говорит, что именно не так — показываем и открываем нужный шаг.
         setError(apiErrorText(data, "Не получилось сохранить профиль. Попробуй ещё раз.", res.status));
         const fieldStep: Partial<Record<string, Step>> = {
-          name: "name",
-          birthDate: "birthDate",
-          gender: "gender",
-          city: "city",
-          bio: "bio",
+          name: "setup",
+          birthDate: "setup",
+          gender: "setup",
+          bio: "setup",
+          photoBase64: "setup",
           interestIds: "interests",
-          photoBase64: "photo",
+          city: "geo",
         };
         const target = typeof data.field === "string" ? fieldStep[data.field] : undefined;
         if (target) setStepIndex(STEPS.indexOf(target));
@@ -309,9 +386,8 @@ function RegistrationSteps() {
         return;
       }
 
-      // Профиль создан, но фото не подошло — говорим об этом, а не молчим.
+      startGuideTour();
       if (data.photoError) {
-        startGuideTour();
         setError(
           `Профиль создан! ${apiErrorText({ error: data.photoError }, "Фото загрузить не получилось.")} Добавить фото можно в профиле.`
         );
@@ -320,157 +396,176 @@ function RegistrationSteps() {
         }, 3500);
         return;
       }
-
-      startGuideTour();
-      window.location.href = afterOnboardingPath();
+      confetti();
+      setTimeout(() => {
+        window.location.href = afterOnboardingPath();
+      }, 700);
     } catch {
       setError("Проблема с соединением. Попробуй ещё раз.");
       setSubmitting(false);
     }
   }
 
-  const canGoNext =
-    (step === "photo") ||
-    (step === "name" && name.trim().length >= 2) ||
-    (step === "birthDate" && isCompleteBirthDate(birthDate)) ||
-    (step === "gender" && gender !== null) ||
-    (step === "city" && city.trim().length >= 2) ||
-    (step === "bio") ||
-    (step === "interests");
+  const grouped = groupInterests(interests);
 
   return (
-    <div className="m-aurora flex min-h-[100dvh] flex-col px-5 pb-[max(2rem,env(safe-area-inset-bottom))] pt-6">
-      <StepProgress currentStep={stepIndex + 1} totalSteps={STEPS.length} />
+    <div className="m-aurora flex min-h-[100dvh] flex-col px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-4">
+      <div className="flex items-center gap-3">
+        {stepIndex > 0 && (
+          <button onClick={goBack} aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
+            <Icon name="back" size={22} />
+          </button>
+        )}
+        <div className="flex-1">
+          <StepProgress currentStep={stepIndex + 1} totalSteps={STEPS.length} />
+        </div>
+      </div>
 
-      <div className="flex flex-1 flex-col justify-center gap-6 py-10">
-        {step === "photo" && (
-          <StepBlock
-            title={photoFromTelegram ? "Твоё фото" : "Добавь фото"}
-            subtitle={
-              photoFromTelegram
-                ? "Взяли аватарку из Telegram. Нажми на фото, чтобы выбрать другое."
-                : photoLoading
-                  ? "Ищем твою аватарку в Telegram…"
-                  : "Можно пропустить и добавить позже, в профиле."
-            }
-          >
-            <label className="m-glass m-press relative mx-auto flex aspect-square w-40 cursor-pointer items-center justify-center overflow-hidden rounded-[36px]">
+      <div key={step} className="m-fade-in flex flex-1 flex-col gap-4 pb-4 pt-5">
+        {step === "setup" && (
+          <>
+            <div className="m-stagger">
+              <h1 className="m-title">
+                Почти готово{name.trim() ? ", " : ""}
+                <span className="m-em">{name.trim()}</span>
+              </h1>
+              <p className="mt-1.5 text-[13.5px] leading-snug text-ink-600">
+                {photoFromTelegram
+                  ? "Имя и фото взяли из Telegram. Нажми на фото, чтобы выбрать другое."
+                  : photoLoading
+                    ? "Ищем твою аватарку в Telegram…"
+                    : "Добавь фото — с ним чаще зовут на встречи."}
+              </p>
+            </div>
+
+            <label className="m-press relative flex h-[104px] w-[104px] cursor-pointer items-center justify-center overflow-hidden rounded-[28px] bg-brand-gradient text-white shadow-cta">
               {photoBase64 ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={photoBase64} alt="Фото профиля" className="h-full w-full object-cover" />
               ) : photoLoading ? (
-                <div className="h-10 w-10 animate-spin rounded-full border-4 border-lavender-100 border-t-accent" />
+                <div className="h-9 w-9 animate-spin rounded-full border-4 border-white/40 border-t-white" />
               ) : (
-                <span className="grid justify-items-center gap-1 text-accent">
-                  <Icon name="camera" size={34} />
-                  <span className="text-xs font-medium">Добавить фото</span>
+                <span className="grid justify-items-center gap-1">
+                  <Icon name="camera" size={30} />
+                  <span className="text-[11px] font-medium">Фото</span>
+                </span>
+              )}
+              {photoFromTelegram && (
+                <span className="absolute bottom-1.5 left-1.5 rounded-pill bg-white/85 px-2 py-0.5 text-[10px] font-medium text-ink-900">
+                  из Telegram
                 </span>
               )}
               <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </label>
-          </StepBlock>
-        )}
 
-        {step === "name" && (
-          <StepBlock title="Как тебя зовут?">
-            <input
-              autoFocus
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Имя"
-              className="m-glass w-full rounded-[22px] border-0 px-5 py-4 text-base outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]"
-            />
-          </StepBlock>
-        )}
-
-        {step === "birthDate" && (
-          <StepBlock title="Дата рождения" subtitle="Сервис доступен пользователям 18+.">
-            <BirthDatePicker value={birthDate} onChange={setBirthDate} />
-          </StepBlock>
-        )}
-
-        {step === "gender" && (
-          <StepBlock title="Твой пол">
-            <div className="flex gap-3">
-              {(
-                [
-                  ["male", "Мужчина"],
-                  ["female", "Женщина"],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setGender(value)}
-                  className={`m-press flex-1 rounded-[22px] p-5 text-center text-base font-medium transition ${
-                    gender === value ? "bg-ink-900 text-white" : "m-glass text-ink-900"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </StepBlock>
-        )}
-
-        {step === "city" && (
-          <StepBlock title="Твой город">
-            <CityPicker
-              autoFocus
-              value={city}
-              onChange={setCity}
-              placeholder="Начни вводить город"
-              className="m-glass w-full rounded-[22px] border-0 px-5 py-4 text-base outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]"
-            />
-          </StepBlock>
-        )}
-
-        {step === "bio" && (
-          <StepBlock title="Пару слов о себе" subtitle="Необязательно, но помогает другим тебя узнать.">
-            <textarea
-              value={bio}
-              onChange={(e) => setBio(e.target.value)}
-              maxLength={300}
-              rows={4}
-              placeholder="Расскажи немного о себе..."
-              className="m-glass w-full resize-none rounded-[22px] border-0 px-5 py-4 text-base outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]"
-            />
-          </StepBlock>
+            <Field label="Имя">
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Имя" maxLength={50} className={fieldClass} />
+            </Field>
+            <Field label="Дата рождения" hint="18+">
+              <BirthDatePicker value={birthDate} onChange={setBirthDate} />
+            </Field>
+            <Field label="Пол">
+              <div className="flex gap-2">
+                {(
+                  [
+                    ["male", "Мужчина"],
+                    ["female", "Женщина"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setGender(value)}
+                    className={`m-press h-12 flex-1 rounded-pill text-[15px] font-medium transition ${
+                      gender === value ? "bg-ink-900 text-white" : "m-glass text-ink-900"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="О себе" hint="необязательно">
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                maxLength={300}
+                rows={2}
+                placeholder="Пару слов о себе — до 300 символов"
+                className={`${fieldClass} resize-none`}
+              />
+            </Field>
+          </>
         )}
 
         {step === "interests" && (
-          <StepBlock title="Что тебе интересно?" subtitle="Выбери несколько — необязательно.">
-            <div className="flex flex-wrap gap-2">
-              {interests.map((interest) => {
-                const selected = selectedInterestIds.includes(interest.id);
-                return (
-                  <button
-                    key={interest.id}
-                    type="button"
-                    onClick={() => toggleInterest(interest.id)}
-                    className={`m-press rounded-pill px-4 py-2.5 text-sm font-medium transition ${
-                      selected ? "bg-brand-gradient text-white shadow-cta" : "m-glass text-ink-900"
-                    }`}
-                  >
-                    {interest.emoji} {interest.name}
-                  </button>
-                );
-              })}
+          <>
+            <div className="m-stagger">
+              <h1 className="m-title">
+                Что тебе <span className="m-em">по душе?</span>
+              </h1>
+              <p className="mt-1.5 text-[13.5px] leading-snug text-ink-600">
+                Выбери хотя бы три. По ним подберём встречи и людей с похожими интересами.
+              </p>
             </div>
-          </StepBlock>
+            {grouped.map((g) => {
+              const n = g.items.filter((x) => selectedInterestIds.includes(x.id)).length;
+              return (
+                <div key={g.title}>
+                  <h3 className="mb-2 flex items-center justify-between text-[13px] font-medium text-ink-600">
+                    {g.title}
+                    {n > 0 && <span className="text-accent">{n}</span>}
+                  </h3>
+                  <div className="m-stagger grid grid-cols-3 gap-2">
+                    {g.items.map((interest) => {
+                      const selected = selectedInterestIds.includes(interest.id);
+                      return (
+                        <button
+                          key={interest.id}
+                          type="button"
+                          onClick={() => toggleInterest(interest.id)}
+                          className={`m-cat relative ${
+                            selected
+                              ? "bg-white/90 shadow-[inset_0_0_0_2px_#9B5CFF,0_12px_24px_-16px_rgba(130,60,255,.8)]"
+                              : "m-glass"
+                          }`}
+                        >
+                          {selected && (
+                            <span className="m-pop absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-brand-gradient text-white">
+                              <Icon name="check" size={12} strokeWidth={2.6} />
+                            </span>
+                          )}
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={interestIcon(interest.name)} alt="" />
+                          <span>{interest.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </>
         )}
 
-        {step === "review" && (
-          <StepBlock title="Всё верно?">
-            <div className="m-glass space-y-2 rounded-[24px] p-5">
-              <ReviewRow label="Имя" value={name} />
-              <ReviewRow label="Дата рождения" value={isCompleteBirthDate(birthDate) ? birthDate.split("-").reverse().join(".") : birthDate} />
-              <ReviewRow label="Пол" value={gender === "male" ? "Мужчина" : "Женщина"} />
-              <ReviewRow label="Город" value={city} />
-              {bio && <ReviewRow label="О себе" value={bio} />}
+        {step === "geo" && (
+          <div className="flex flex-1 flex-col items-center justify-center text-center">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/mosya/mosya_phone.webp" alt="" className="m-pop mb-3 h-36 w-36 object-contain" />
+            <h1 className="m-title">
+              Где ищем <span className="m-em">компанию?</span>
+            </h1>
+            <p className="mt-2 max-w-[300px] text-[14px] leading-snug text-ink-600">
+              Мося покажет встречи рядом. Геолокация нужна только чтобы определить город.
+            </p>
+            <button onClick={detectCity} disabled={locating} className="m-btn m-btn-v mt-6">
+              <Icon name="nav" size={20} />
+              {locating ? "Определяем…" : "Разрешить геолокацию"}
+            </button>
+            <div className="mt-3 w-full text-left">
+              <CityPicker value={city} onChange={setCity} placeholder="Или выбери город" dropdownDirection="up" className={fieldClass} />
             </div>
-
-            <label className="mt-4 flex items-start gap-2 text-xs text-ink-600">
+            <label className="mt-5 flex items-start gap-2 text-left text-xs text-ink-600">
               <input
                 type="checkbox"
                 checked={agreedToTerms}
@@ -488,9 +583,8 @@ function RegistrationSteps() {
                 </a>
               </span>
             </label>
-          </StepBlock>
+          </div>
         )}
-
       </div>
 
       {error && (
@@ -499,53 +593,46 @@ function RegistrationSteps() {
         </div>
       )}
 
-      <div className="flex gap-3">
-        {stepIndex > 0 && (
-          <Button variant="secondary" onClick={goBack} className="w-auto px-6">
-            Назад
-          </Button>
-        )}
-        {!isLastStep ? (
-          <Button onClick={goNext} className={canGoNext ? undefined : "opacity-40"}>
-            Далее
-          </Button>
-        ) : (
-          <Button onClick={handleSubmit} disabled={submitting} className={agreedToTerms ? undefined : "opacity-40"}>
-            {submitting ? "Сохраняем..." : "Готово"}
-          </Button>
-        )}
-      </div>
+      {step === "interests" && (
+        <p className="mb-2 text-center text-xs text-ink-400">
+          {selectedInterestIds.length < minInterests
+            ? `Выбрано ${selectedInterestIds.length} из ${minInterests}`
+            : `Выбрано: ${selectedInterestIds.length}`}
+        </p>
+      )}
+      {!isLastStep ? (
+        <Button onClick={goNext} className={stepHint() ? "opacity-60" : undefined}>
+          Дальше
+        </Button>
+      ) : (
+        <Button onClick={handleSubmit} disabled={submitting} className={agreedToTerms && city ? undefined : "opacity-60"}>
+          {submitting ? "Сохраняем..." : "Готово"}
+        </Button>
+      )}
     </div>
   );
 }
 
-function StepBlock({
-  title,
-  subtitle,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  children: React.ReactNode;
-}) {
+const fieldClass =
+  "m-glass w-full min-w-0 box-border rounded-[20px] border-0 px-4 py-3.5 text-base outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]";
+
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="m-fade-in space-y-4">
-      <div key={title} className="m-stagger text-center">
-        <h1 className="m-title">{title}</h1>
-        {subtitle && <p className="mt-2 text-sm text-ink-600">{subtitle}</p>}
-      </div>
+    <div>
+      <label className="mb-1.5 flex justify-between px-1 text-[12.5px] font-medium text-ink-600">
+        {label}
+        {hint && <span className="font-normal text-ink-400">{hint}</span>}
+      </label>
       {children}
     </div>
   );
 }
 
-function ReviewRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between gap-4 text-sm">
-      <span className="text-ink-600">{label}</span>
-      <span className="text-right font-medium text-ink-900">{value}</span>
-    </div>
-  );
+/** «Россия, Тюмень, улица Республики, 59» → «Тюмень». */
+function cityFromAddress(address: string): string | null {
+  const parts = address.split(",").map((p) => p.trim());
+  const c = parts[0] === "Россия" ? parts[1] : parts[0];
+  return c && c.length >= 2 ? c.replace(/^г\.?\s*/, "") : null;
 }
 
 function isAtLeast18(birthDateIso: string): boolean {
