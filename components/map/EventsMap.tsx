@@ -117,7 +117,7 @@ function createClusterButton(count: number, onClick: () => void): HTMLButtonElem
     color:#fff;font:600 ${isThreeChars ? 16 : 17}px/1 var(--font-golos),var(--font-onest),Arial,sans-serif;
     display:flex;align-items:center;justify-content:center;
     box-shadow:0 10px 22px -8px rgba(108,59,255,0.75);cursor:pointer;padding:0;
-    animation:m-pop .45s cubic-bezier(.34,1.56,.64,1) both;
+    
   `.replace(/\s+/g, " ");
   button.addEventListener("click", (event) => {
     event.stopPropagation();
@@ -220,7 +220,7 @@ function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el
   const el = document.createElement("div");
   el.setAttribute("role", "button");
   el.setAttribute("aria-label", `${event.title}, ${pillText}`);
-  el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer;animation:m-pop .45s cubic-bezier(.34,1.56,.64,1) both;${isFull ? "opacity:0.6;filter:grayscale(0.7);" : ""}`;
+  el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer;${isFull ? "opacity:0.6;filter:grayscale(0.7);" : ""}`;
   el.innerHTML = `
     <div style="margin-bottom:4px;padding:3px 8px;border-radius:999px;background:${pillBg};color:${pillColor};
       font:600 11px/1.2 var(--font-golos),var(--font-onest),Arial,sans-serif;white-space:nowrap;
