@@ -1,6 +1,7 @@
 "use client";
 
 import { EventPlaceMap } from "@/components/events/EventPlaceMap";
+import { CATEGORY_ICON } from "@/lib/data/category-icons";
 import { RouteButton } from "@/components/events/RouteButton";
 import { ShareEventButton } from "@/components/events/ShareEventButton";
 import { markerIconFor } from "@/components/map/EventsMap";
@@ -66,15 +67,6 @@ interface EventDetailsPageProps {
   params: { id: string };
 }
 
-const CATEGORY_ICON: Record<string, string> = {
-  training: "/brand/3d/workout.png",
-  cinema: "/brand/3d/movie.png",
-  coffee: "/brand/3d/coffee.png",
-  breakfast: "/brand/3d/breakfast.png",
-  dinner: "/brand/3d/dinner.png",
-  walk: "/brand/3d/walk.png",
-  custom: "/brand/markers/marker-custom-proposal.png",
-};
 
 export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const { id: eventId } = params;
@@ -296,7 +288,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   // Фото есть только у "Для бизнеса" — у остальных категорий вместо
   // фотографии показываем крупную иконку категории на том же месте
   // (см. п.10 ТЗ — предусмотренный текущим проектом fallback).
-  const heroPhotoSrc = event.photoUrl ?? categoryIcon ?? "/brand/markers/marker-custom-proposal.png";
+  const heroPhotoSrc = event.photoUrl ?? categoryIcon ?? "/brand/cat3d/i_art.webp";
   const heroIsRealPhoto = !!event.photoUrl;
   const canManage = event.viewerStatus === "organizer" && (event.status === "published" || event.status === "closed");
   // Встреча уже началась — вместо «Отменить» организатор может её завершить.
@@ -335,7 +327,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           <div className="mb-3 flex items-center justify-between gap-2">
             <div className="m-badge">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={categoryIcon ?? "/brand/3d/icon-calendar.png"} alt="" width={20} height={20} />
+              <img src={categoryIcon ?? "/brand/cat3d/i_world.webp"} alt="" width={20} height={20} />
               <span>{categoryLabel}</span>
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -432,8 +424,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             </p>
             {event.organizerHidden && (
               <p className="m-info m-address">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/icon-mask.png" alt="" width={26} height={26} />
+                <Icon name="eye" size={24} className="text-accent" />
                 <span className="flex-1">
                   Анонимная встреча: организатор и точное место откроются, когда он одобрит твою заявку
                 </span>
@@ -477,8 +468,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 <span>{capacityLabel}</span>
               </p>
               <p className="m-info m-price">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/subscription-coins.png" alt="" width={26} height={26} />
+                <Icon name="wallet" size={24} className="text-accent" />
                 <span>{priceLabel}</span>
               </p>
             </div>
@@ -580,7 +570,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 {event.status === "published" && (
                   <button type="button" className="m-action m-boost" onClick={handleBoost} disabled={boosting} aria-busy={boosting}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/brand/3d/boost-icon.png" alt="" width={52} height={52} />
+                    <img src="/brand/mosya/mosya_jump.webp" alt="" width={52} height={52} />
                     <span className="m-action-label">
                       {boosting ? "Поднимаем…" : (
                         <>
@@ -700,7 +690,7 @@ function BottomAction({
         className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-4 text-center text-base font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
       >
         <span className="relative h-7 w-7 shrink-0">
-          <Image src="/brand/3d/applications-icon.png" alt="" fill className="object-contain" sizes="28px" />
+          <Icon name="people" size={24} />
         </span>
         Управлять заявками
       </Link>

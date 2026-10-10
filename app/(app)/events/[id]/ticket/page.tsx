@@ -134,12 +134,12 @@ export default function TicketPage({ params }: { params: { id: string } }) {
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="mb-2 text-base font-bold leading-snug text-ink-900">{data.event.title}</p>
-                  <InfoLine icon="/brand/3d/icon-calendar.png">
+                  <InfoLine icon="cal">
                     {formatDay(data.event.eventDate)} · {data.event.eventTime.slice(0, 5)}
                     {data.event.eventEndTime ? `–${data.event.eventEndTime.slice(0, 5)}` : ""}
                   </InfoLine>
                   {(data.event.placeName || data.event.address) && (
-                    <InfoLine icon="/brand/3d/icon-location.png">
+                    <InfoLine icon="pin">
                       <span className="block text-ink-900">{data.event.placeName ?? data.event.address}</span>
                       {data.event.placeName && data.event.address && (
                         <span className="block text-xs text-ink-600">{data.event.address}</span>
@@ -243,10 +243,10 @@ export default function TicketPage({ params }: { params: { id: string } }) {
   );
 }
 
-function InfoLine({ icon, children }: { icon: string; children: React.ReactNode }) {
+function InfoLine({ icon, children }: { icon: "cal" | "pin"; children: React.ReactNode }) {
   return (
     <div className="mb-1.5 flex items-start gap-2 text-sm text-ink-900">
-      <Image src={icon} alt="" width={20} height={20} className="mt-px shrink-0 object-contain" />
+      <Icon name={icon} size={20} className="mt-px shrink-0 text-accent" />
       <div className="min-w-0">{children}</div>
     </div>
   );

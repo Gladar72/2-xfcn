@@ -43,15 +43,15 @@ const MEETING_TYPES = new Set([
 ]);
 
 const TYPE_ICON: Record<string, string> = {
-  new_application: "/brand/3d/applications-icon.png",
-  application_accepted: "/brand/3d/icon-calendar.png",
-  event_reminder: "/brand/3d/icon-clock.png",
-  event_soon: "/brand/3d/icon-clock.png",
-  application_rejected: "/brand/3d/icon-document.png",
-  subscription_expiring: "/brand/3d/subscription-coins.png",
-  subscription_expired: "/brand/3d/subscription-coins.png",
-  review_request: "/brand/3d/icon-badge.png",
-  boost_suggestion: "/brand/3d/boost-icon.png",
+  new_application: "/brand/mosya/mosya_phone.webp",
+  application_accepted: "/brand/mosya/mosya_jump.webp",
+  event_reminder: "/brand/mosya/mosya_think.webp",
+  event_soon: "/brand/mosya/mosya_run.webp",
+  application_rejected: "/brand/mosya/mosya_sit.webp",
+  subscription_expiring: "/brand/mosya/mosya_glasses.webp",
+  subscription_expired: "/brand/mosya/mosya_glasses.webp",
+  review_request: "/brand/mosya/mosya_wave.webp",
+  boost_suggestion: "/brand/mosya/mosya_jump.webp",
   new_message: "/brand/mosya/mosya_phone.webp",
 };
 
@@ -162,8 +162,8 @@ export default function NotificationsPage() {
             onClick={() => handlePress(item)}
             className="flex w-full items-start gap-3 rounded-card m-glass p-4 text-left"
           >
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-lavender-100">
-              <Image src={TYPE_ICON[item.type] ?? "/brand/3d/icon-bell.png"} alt="" width={24} height={24} className="object-contain" />
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[rgba(108,59,255,.1)]">
+              <Image src={TYPE_ICON[item.type] ?? "/brand/mosya/mosya_wave.webp"} alt="" width={32} height={32} className="object-contain" />
             </div>
             <div className="min-w-0 flex-1">
               <p className={`text-sm ${item.isRead ? "text-ink-600" : "font-medium text-ink-900"}`}>{item.text}</p>
@@ -213,7 +213,7 @@ function RichCard({ item, onOpen }: { item: NotificationItem; onOpen: () => void
       <button onClick={onOpen} className="mb-3 flex w-full items-center gap-3 text-left">
         <div className="relative h-12 w-12 shrink-0">
           <Image
-            src={soon ? "/brand/3d/icon-clock.png" : "/mesto/assets/icons/png/ticket.png"}
+            src={soon ? "/brand/mosya/mosya_run.webp" : "/brand/cat3d/i_concert.webp"}
             alt=""
             fill
             className="object-contain"

@@ -207,27 +207,27 @@ function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el
   const initial = (event.organizer?.name || event.title || "М").trim().charAt(0).toUpperCase();
 
   const ring = event.isBusiness
-    ? "background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#6c3bff,#ff8a2a) border-box;border:3px solid transparent;"
+    ? "background:linear-gradient(#fff,#fff) padding-box,linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0) border-box;border:3px solid transparent;"
     : "background:#fff;border:0;";
   const photoInner = avatar
     ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.replaceWith(Object.assign(document.createElement('img'),{src:'${markerIconFor(event)}',style:'width:100%;height:100%;object-fit:contain;background:#f3efff'}))" />`
-    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6c3bff,#8a5cff 55%,#ff8a2a);color:#fff;font:800 19px/1 var(--font-onest),Onest,Arial,sans-serif;">${escapeHtml(initial)}</div>`;
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0);color:#fff;font:600 19px/1 var(--font-golos),var(--font-onest),Arial,sans-serif;">${escapeHtml(initial)}</div>`;
 
-  const pillBg = label.live ? "#6c3bff" : "#fff";
-  const pillColor = label.live ? "#fff" : "#1d1a2b";
+  const pillBg = label.live ? "#ff3b5c" : "#fff";
+  const pillColor = label.live ? "#fff" : "#16121f";
   const pillText = isFull ? "мест нет" : label.text;
 
   const el = document.createElement("div");
   el.setAttribute("role", "button");
   el.setAttribute("aria-label", `${event.title}, ${pillText}`);
-  el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer;${isFull ? "opacity:0.6;filter:grayscale(0.7);" : ""}`;
+  el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer;animation:m-pop .45s cubic-bezier(.34,1.56,.64,1) both;${isFull ? "opacity:0.6;filter:grayscale(0.7);" : ""}`;
   el.innerHTML = `
     <div style="margin-bottom:4px;padding:3px 8px;border-radius:999px;background:${pillBg};color:${pillColor};
-      font:700 11px/1.2 var(--font-onest),Onest,Arial,sans-serif;white-space:nowrap;
-      box-shadow:0 2px 8px rgba(29,26,43,0.18);">${label.live && !isFull ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#7CFFB2;margin-right:4px;vertical-align:1px"></span>' : ""}${escapeHtml(pillText)}</div>
+      font:600 11px/1.2 var(--font-golos),var(--font-onest),Arial,sans-serif;white-space:nowrap;
+      box-shadow:0 6px 14px -6px rgba(60,30,140,0.5);">${label.live && !isFull ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#fff;margin-right:4px;vertical-align:1px"></span>' : ""}${escapeHtml(pillText)}</div>
     <div style="position:relative;width:${PIN}px;height:${PIN}px;">
       <div style="position:absolute;inset:0;box-sizing:border-box;${ring}border-radius:50% 50% 50% 0;transform:rotate(-45deg);
-        box-shadow:0 6px 14px rgba(29,26,43,0.22);"></div>
+        box-shadow:0 10px 18px -8px rgba(60,30,140,0.55);"></div>
       <div style="position:absolute;left:${(PIN - PHOTO) / 2}px;top:${(PIN - PHOTO) / 2}px;width:${PHOTO}px;height:${PHOTO}px;border-radius:50%;overflow:hidden;background:#f3efff;">
         ${photoInner}
       </div>

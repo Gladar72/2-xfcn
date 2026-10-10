@@ -19,9 +19,9 @@ interface SubscriptionStatus {
 
 const PLAN_TITLES: Record<Plan, string> = { start: "Старт", medium: "Медиум", premium: "Премьер" };
 const PLAN_ICON: Record<Plan, string> = {
-  start: "/brand/3d/plan-start.png",
-  medium: "/brand/3d/plan-medium.png",
-  premium: "/brand/3d/plan-premier.png",
+  start: "/brand/mosya/mosya_wave.webp",
+  medium: "/brand/mosya/mosya_glasses.webp",
+  premium: "/brand/mosya/mosya_jump.webp",
 };
 
 /**

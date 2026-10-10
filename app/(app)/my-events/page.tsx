@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CATEGORY_ICON } from "@/lib/data/category-icons";
 import { useGuide } from "@/lib/mosya/guide";
 import Link from "next/link";
 import Image from "next/image";
@@ -21,19 +22,8 @@ interface MyEvent {
   pendingApplicantPreview: { id: string; name: string; avatarUrl: string | null } | null;
 }
 
-const CATEGORY_ICON: Record<string, string> = {
-  training: "/brand/3d/workout.png",
-  cinema: "/brand/3d/movie.png",
-  coffee: "/brand/3d/coffee.png",
-  breakfast: "/brand/3d/breakfast.png",
-  dinner: "/brand/3d/dinner.png",
-  walk: "/brand/3d/walk.png",
-  // "Своё предложение" — телефон с громкоговорителем (как маркер на карте),
-  // а не плюсик: плюсик на карточке читался как кнопка "создать".
-  custom: "/brand/markers/marker-custom-proposal.png",
-};
 
-const DEFAULT_ICON = "/brand/3d/icon-calendar.png";
+const DEFAULT_ICON = "/brand/cat3d/i_world.webp";
 
 type Scope = "upcoming" | "archive";
 

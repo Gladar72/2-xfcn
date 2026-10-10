@@ -25,21 +25,21 @@ const PLAN_VISUALS: Record<
   { icon: string; cardClass: string; titleClass: string; textClass: string; buttonVariant: "primary" | "secondary" }
 > = {
   start: {
-    icon: "/brand/3d/plan-start.png",
+    icon: "/brand/mosya/mosya_wave.webp",
     cardClass: "bg-white border border-lavender-200",
     titleClass: "text-ink-900",
     textClass: "text-ink-600",
     buttonVariant: "secondary",
   },
   medium: {
-    icon: "/brand/3d/plan-medium.png",
+    icon: "/brand/mosya/mosya_glasses.webp",
     cardClass: "bg-brand-gradient",
     titleClass: "text-white",
     textClass: "text-white/80",
     buttonVariant: "primary",
   },
   premium: {
-    icon: "/brand/3d/plan-premier.png",
+    icon: "/brand/mosya/mosya_jump.webp",
     cardClass: "bg-ink-900",
     titleClass: "text-white",
     textClass: "text-white/70",

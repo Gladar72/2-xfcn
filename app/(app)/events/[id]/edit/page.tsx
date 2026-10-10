@@ -544,8 +544,9 @@ export default function EditEventPage({ params }: EditEventPageProps) {
             onClick={() => setIsAnonymous((v) => !v)}
             className="flex w-full items-center gap-3 rounded-card m-glass p-4 text-left"
           >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/3d/icon-mask.png" alt="" className="h-8 w-8 object-contain" />
+            <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[rgba(108,59,255,.1)] text-accent">
+              <Icon name="eye" size={20} />
+            </span>
             <span className="flex-1">
               <span className="block text-sm font-semibold text-ink-900">Анонимная встреча</span>
               <span className="block text-xs text-ink-600">
