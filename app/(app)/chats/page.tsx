@@ -5,7 +5,7 @@ import { useGuide } from "@/lib/mosya/guide";
 import { useEffect, useMemo, useState } from "react";
 import { ChatListItem, type ChatListItemData } from "@/components/chat/ChatListItem";
 
-type Tab = "all" | "favorites" | "archive";
+type Tab = "all" | "personal" | "favorites" | "archive";
 
 const isClosed = (c: ChatListItemData) => c.eventStatus === "completed" || c.eventStatus === "cancelled";
 
@@ -42,6 +42,8 @@ export default function ChatsPage() {
     let list =
       tab === "archive" ? chats.filter(isClosed) : chats.filter((c) => !isClosed(c));
     if (tab === "favorites") list = list.filter((c) => c.isFavorite);
+    if (tab === "all") list = list.filter((c) => c.eventTitle !== null);
+    if (tab === "personal") list = list.filter((c) => c.eventTitle === null);
     const q = query.trim().toLowerCase();
     if (q) {
       list = list.filter((c) =>
@@ -77,10 +79,11 @@ export default function ChatsPage() {
       </label>
 
       {/* Вкладки — три равные кнопки */}
-      <div className="mb-4 grid grid-cols-3 gap-2">
+      <div className="m-glass mb-4 grid grid-cols-4 gap-1 rounded-pill p-1">
         {(
           [
-            ["all", "Все"],
+            ["all", "Встречи"],
+            ["personal", "Личные"],
             ["favorites", "Избранное"],
             ["archive", "Архив"],
           ] as [Tab, string][]
@@ -88,8 +91,8 @@ export default function ChatsPage() {
           <button
             key={value}
             onClick={() => setTab(value)}
-            className={`rounded-card-sm py-2.5 text-base outline-none transition focus:outline-none ${
-              tab === value ? "bg-lavender-200 font-bold text-accent" : "bg-ink-900/[0.04] font-medium text-ink-900"
+            className={`rounded-pill py-2 text-[13.5px] font-medium outline-none transition-colors duration-300 focus:outline-none ${
+              tab === value ? "bg-ink-900 text-white" : "text-ink-700"
             }`}
           >
             {label}
@@ -97,7 +100,7 @@ export default function ChatsPage() {
         ))}
       </div>
 
-      {loading && <p className="text-center text-ink-600">Загрузка...</p>}
+      {loading && <div className="space-y-2">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-[72px]" />)}</div>}
 
       {!loading && tab === "archive" && filtered.length > 0 && (
         <p className="mb-2 px-1 text-sm font-semibold text-ink-400">Закрытые события · {filtered.length}</p>
@@ -111,7 +114,9 @@ export default function ChatsPage() {
           <p className="text-sm text-ink-600">
             {query
               ? "Ничего не нашлось."
-              : tab === "favorites"
+              : tab === "personal"
+                ? "Личные чаты появятся, когда ты напишешь кому-то из профиля — или напишут тебе."
+                : tab === "favorites"
                 ? "Пока нет избранных чатов — нажми на звёздочку рядом с чатом, чтобы не потерять его."
                 : tab === "archive"
                   ? "Здесь будут чаты завершённых встреч."

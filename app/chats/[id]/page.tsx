@@ -380,7 +380,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       {/* Раньше показывалась только для групп (>1 участника кроме себя) —
           по явному уточнению пользователя, теперь всегда, если в чате
           вообще есть хоть один участник кроме себя. */}
-      {members.length > 0 && !isEventClosed && (
+      {members.length > 0 && !isEventClosed && eventTitle !== null && (
         <button
           onClick={openParticipants}
           className="mx-4 mt-3 flex shrink-0 items-center gap-3 rounded-card m-glass p-3 text-left"

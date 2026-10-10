@@ -40,7 +40,7 @@ export function MiniProfileSheet({ userId, onClose }: { userId: string; onClose:
       <div className="rounded-t-sheet bg-white p-5 pb-8 m-sheet-in" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
 
-        {loading && <p className="py-8 text-center text-ink-600">Загрузка...</p>}
+        {loading && <div className="m-sk mx-auto my-6 h-24 w-24 rounded-full" />}
 
         {!loading && !profile && <p className="py-8 text-center text-ink-600">Не удалось загрузить профиль.</p>}
 
@@ -73,12 +73,15 @@ export function MiniProfileSheet({ userId, onClose }: { userId: string; onClose:
             {profile.interests.length > 0 && (
               <div className="mt-4 flex flex-wrap justify-center gap-2">
                 {profile.interests.map((interest) => (
-                  <span key={interest} className="rounded-pill bg-lavender-100 px-3 py-1 text-xs text-ink-600">
+                  <span key={interest} className="rounded-pill bg-[rgba(108,59,255,.1)] px-3 py-1 text-xs text-accent">
                     {interest}
                   </span>
                 ))}
               </div>
             )}
+            <a href={`/people/${profile.id}`} className="m-btn m-btn-v mt-5 h-12 text-[15px]">
+              Открыть профиль
+            </a>
           </div>
         )}
       </div>

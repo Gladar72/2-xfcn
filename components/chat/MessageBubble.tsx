@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { parseInvite } from "@/lib/chat/invite";
 import clsx from "clsx";
 import { ReadTicks } from "./ReadTicks";
 import { photoThumb } from "@/lib/photos/thumb";
@@ -29,6 +30,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message, isOwn, readStatus, readCaption, onOwnPress }: MessageBubbleProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
+  const inviteId = parseInvite(message.content);
   const hasImage = !!message.imageUrl;
 
   return (
@@ -71,7 +73,25 @@ export function MessageBubble({ message, isOwn, readStatus, readCaption, onOwnPr
           </button>
         )}
         <div className={clsx(hasImage && "px-3 pb-1.5 pt-1")}>
-          {message.content && <p className="whitespace-pre-wrap break-words">{message.content}</p>}
+          {inviteId ? (
+            <a href={`/events/${inviteId}`} className="block min-w-[200px]">
+              <span className="flex items-center gap-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/mosya/mosya_wave.webp" alt="" className="h-10 w-10 object-contain" />
+                <span>
+                  <b className="block text-[14px] font-semibold">Приглашение на встречу</b>
+                  <span className={clsx("text-xs", isOwn ? "text-white/80" : "text-ink-600")}>
+                    {isOwn ? "Ты позвал на свою встречу" : "Тебя зовут на встречу"}
+                  </span>
+                </span>
+              </span>
+              <span className={clsx("mt-2 block rounded-pill py-2 text-center text-[13px] font-semibold", isOwn ? "bg-white/20" : "bg-brand-gradient text-white")}>
+                Открыть встречу
+              </span>
+            </a>
+          ) : (
+            message.content && <p className="whitespace-pre-wrap break-words">{message.content}</p>
+          )}
           <span
             className={clsx(
               "mt-1 flex items-center justify-end gap-1 text-caption",
