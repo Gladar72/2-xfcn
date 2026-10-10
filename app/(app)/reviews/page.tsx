@@ -143,7 +143,7 @@ export default function ReviewsPage() {
       </div>
 
       {toast && (
-        <div className="fixed inset-x-5 bottom-24 z-50 rounded-card bg-ink-900 px-4 py-3 text-center text-sm text-white shadow-card">
+        <div className="m-toast">
           {toast}
         </div>
       )}

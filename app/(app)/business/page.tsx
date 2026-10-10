@@ -46,7 +46,7 @@ export default function BusinessPage() {
         Создать событие
       </Link>
 
-      {loading && <p className="text-center text-sm text-ink-600">Загрузка...</p>}
+      {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-24" />)}</div>}
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
       {!loading && !error && events.length === 0 && (

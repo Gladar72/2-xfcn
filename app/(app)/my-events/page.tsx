@@ -101,7 +101,7 @@ export default function MyEventsPage() {
         ))}
       </div>
 
-      {loading && <p className="text-center text-sm text-ink-600">Загрузка...</p>}
+      {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-24" />)}</div>}
 
       {!loading && items.length === 0 && (
         <div className="flex flex-col items-center px-6 py-16 text-center">

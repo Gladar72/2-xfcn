@@ -42,7 +42,7 @@ export default function TelegramMobileLoginPage() {
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/brand/mosya/mosya_wave.webp" alt="" className="h-24 w-24" />
       <div>
-        <h1 className="text-title font-bold text-ink-900">Вход через Telegram</h1>
+        <h1 className="m-title text-[28px] font-bold text-ink-900">Вход через Telegram</h1>
         <p className="mt-2 text-sm text-ink-600">Нажми кнопку и подтверди вход в Telegram — потом вернёшься в приложение «Место».</p>
       </div>
       <div ref={box} />

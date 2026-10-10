@@ -68,7 +68,7 @@ export function PendingReviewModal() {
   }
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 px-4 pb-4">
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[rgba(22,18,31,0.35)] px-4 pb-4 m-fade-in">
       <div className="w-full max-w-md">
         <ReviewForm personName={currentMember.name} onSubmit={handleSubmit} onCancel={handleSkip} />
       </div>

@@ -161,10 +161,10 @@ export function Paywall({ onActivated }: PaywallProps) {
 
       {contactPromptPlan && (
         <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30"
+          className="fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)] m-fade-in"
           onClick={() => setContactPromptPlan(null)}
         >
-          <div className="rounded-t-sheet bg-white p-5 pb-8" onClick={(e) => e.stopPropagation()}>
+          <div className="rounded-t-sheet bg-white p-5 pb-8 m-sheet-in" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
             <h2 className="text-title mb-2">Куда прислать чек?</h2>
             <p className="mb-4 text-sm text-ink-600">

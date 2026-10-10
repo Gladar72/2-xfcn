@@ -136,7 +136,7 @@ export function startAlive(layer: HTMLElement, o: AliveOptions): AliveHandle {
 
   const pick = () => {
     const r = Math.random();
-    if (r < 0.48 && P.length) L.goal = { type: "touch", p: P[Math.floor(Math.random() * P.length)], tm: 0 };
+    if (r < 0.48 && P.length) L.goal = { type: "touch", p: P[Math.floor(Math.random() * P.length)]!, tm: 0 };
     else if (r < 0.78) L.goal = { type: "walk", x: W() * (0.32 + Math.random() * 0.36) };
     else L.goal = { type: Math.random() < 0.5 ? "wave" : "think", tm: 0, dur: 2 + Math.random() * 1.5 };
   };
@@ -170,7 +170,7 @@ export function startAlive(layer: HTMLElement, o: AliveOptions): AliveHandle {
         if (!g.done && g.tm > 0.45) {
           g.done = true;
           dent(p, up ? "bot" : side > 0 ? "rt" : "lf");
-          if (p.cool <= 0) react(p, ["push", "hop", "spin", "nudge", "nudge"][Math.floor(Math.random() * 5)]);
+          if (p.cool <= 0) react(p, ["push", "hop", "spin", "nudge", "nudge"][Math.floor(Math.random() * 5)] ?? "nudge");
         }
         if (g.tm > 1.9) {
           L.goal = null;

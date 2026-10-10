@@ -21,7 +21,7 @@ interface LogoProps {
 
 /** Полный логотип «место». */
 export function Wordmark({ height = 28, color = "currentColor", gradientM = false, className }: LogoProps) {
-  const [, , w, h] = LOGO_VIEWBOX.split(" ").map(Number);
+  const [, , w = 1, h = 1] = LOGO_VIEWBOX.split(" ").map(Number);
   const id = "mwg" + useId().replace(/:/g, "");
   return (
     <svg
@@ -54,7 +54,7 @@ export function Wordmark({ height = 28, color = "currentColor", gradientM = fals
 
 /** Сокращённый знак — одна «м» с петлёй. */
 export function MarkM({ height = 28, color = "currentColor", gradientM = false, className }: LogoProps) {
-  const [, , w, h] = MARK_VIEWBOX.split(" ").map(Number);
+  const [, , w = 1, h = 1] = MARK_VIEWBOX.split(" ").map(Number);
   const id = "mmg" + useId().replace(/:/g, "");
   return (
     <svg

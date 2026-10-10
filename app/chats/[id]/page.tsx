@@ -418,9 +418,9 @@ export default function ChatPage({ params }: ChatPageProps) {
       )}
 
       {readersFor && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={() => setReadersFor(null)}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)] m-fade-in" onClick={() => setReadersFor(null)}>
           <div
-            className="max-h-[70vh] overflow-y-auto rounded-t-sheet bg-white p-5 pb-8"
+            className="max-h-[70vh] overflow-y-auto rounded-t-sheet bg-white p-5 pb-8 m-sheet-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
@@ -469,9 +469,9 @@ export default function ChatPage({ params }: ChatPageProps) {
       )}
 
       {showParticipants && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={() => setShowParticipants(false)}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)] m-fade-in" onClick={() => setShowParticipants(false)}>
           <div
-            className="max-h-[80vh] overflow-y-auto rounded-t-sheet bg-white p-5 pb-8"
+            className="max-h-[80vh] overflow-y-auto rounded-t-sheet bg-white p-5 pb-8 m-sheet-in"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
@@ -642,7 +642,7 @@ export default function ChatPage({ params }: ChatPageProps) {
               {preparingImage ? (
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
               ) : (
-                <Image src="/brand/icons/plus.svg" alt="" width={22} height={22} />
+                <Icon name="plus" size={22} />
               )}
             </button>
             <input
@@ -660,13 +660,7 @@ export default function ChatPage({ params }: ChatPageProps) {
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-gradient disabled:opacity-40"
               aria-label="Отправить"
             >
-              <Image
-                src="/brand/icons/send.svg"
-                alt=""
-                width={18}
-                height={18}
-                style={{ filter: "brightness(0) invert(1)" }}
-              />
+              <Icon name="send" size={18} />
             </button>
           </>
         )}

@@ -113,7 +113,7 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
         <button onClick={() => router.back()} aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
           <Icon name="back" size={22} className="" />
         </button>
-        <h1 className="text-title">Билеты</h1>
+        <h1 className="m-title text-[28px]">Билеты</h1>
       </div>
       {title && <p className="mb-4 pl-9 text-sm text-ink-600">{title}</p>}
 

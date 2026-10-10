@@ -35,7 +35,9 @@ export function AliveStage({
     const k = (layer.clientWidth || 390) / 390;
     const els = Array.from(layer.querySelectorAll<HTMLElement>(".m-prop"));
     els.forEach((el, i) => {
-      const [, x, y, s] = props[i];
+      const pr = props[i];
+      if (!pr) return;
+      const [, x, y, s] = pr;
       el.dataset.x = String(x * k);
       el.dataset.y = String(y);
       el.dataset.s = String(s);

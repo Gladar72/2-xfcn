@@ -39,7 +39,7 @@ export const TRAINING_ICON: Record<string, string> = {
   hiking: "/brand/cat3d/i_hike.webp",
 };
 
-export function trainingIcon(slug?: string | null) {
-  if (!slug) return CATEGORY_ICON.training;
-  return TRAINING_ICON[slug] ?? TRAINING_ICON[slug.split(/[-_]/)[0]] ?? CATEGORY_ICON.training;
+export function trainingIcon(slug?: string | null): string {
+  if (!slug) return CATEGORY_ICON.training ?? "";
+  return TRAINING_ICON[slug] ?? TRAINING_ICON[slug.split(/[-_]/)[0] ?? ""] ?? CATEGORY_ICON.training ?? "";
 }

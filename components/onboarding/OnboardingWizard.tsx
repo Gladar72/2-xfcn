@@ -102,7 +102,7 @@ function IntroSlides({ index, onNext, onSkip }: { index: number; onNext: () => v
     const t = setTimeout(onNext, 4200);
     return () => clearTimeout(t);
   }, [index, onNext]);
-  const slide = INTRO[index];
+  const slide = INTRO[index]!;
   return (
     <div className="m-aurora fixed inset-0 overflow-hidden">
       <div className="absolute inset-x-5 top-[max(14px,env(safe-area-inset-top))] z-10 grid gap-4">

@@ -146,14 +146,16 @@ function SplashScreen({ status, full = false }: { status: "loading" | "no_telegr
     ];
     const L = [0];
     for (let i = 1; i < P2.length; i++) {
-      const d = Math.hypot(P2[i][0] - P2[i - 1][0], P2[i][1] - P2[i - 1][1]) + Math.abs(P2[i][2] - P2[i - 1][2]) * 0.9;
-      L.push(L[i - 1] + d);
+      const a = P2[i - 1]!;
+      const b = P2[i]!;
+      const d = Math.hypot(b[0] - a[0], b[1] - a[1]) + Math.abs(b[2] - a[2]) * 0.9;
+      L.push(L[i - 1]! + d);
     }
-    const T = L[L.length - 1];
+    const T = L[L.length - 1]!;
     const kf: Keyframe[] = P2.map((p, i) => ({
       transform: `translate(${p[0] - h}px,${p[1] - h}px) rotate(${p[2]}deg) scale(${i === P2.length - 1 ? 2.2 : 1})`,
       opacity: i === P2.length - 1 ? 0 : 1,
-      offset: L[i] / T,
+      offset: L[i]! / T,
     }));
     r.animate(kf, { duration: 2900, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
   }, [full]);
@@ -179,7 +181,7 @@ function SplashScreen({ status, full = false }: { status: "loading" | "no_telegr
               animationDelay: `${(full ? 2.95 : 0.1) + i * 0.07}s`,
             }}
           >
-            <Character shape={CAST[i][0]} pal={CAST[i][1]} face={CAST[i][2]} size={s} seed={i + 3} />
+            <Character shape={CAST[i]![0]} pal={CAST[i]![1]} face={CAST[i]![2]} size={s} seed={i + 3} />
           </span>
         ))}
       </div>

@@ -101,7 +101,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
         <button onClick={() => router.back()} aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
           <Icon name="back" size={22} className="" />
         </button>
-        <h1 className="text-title">Мой билет</h1>
+        <h1 className="m-title text-[28px]">Мой билет</h1>
       </div>
 
       {!data && !error && <p className="py-10 text-center text-sm text-ink-600">Загрузка...</p>}

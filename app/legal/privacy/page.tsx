@@ -11,7 +11,7 @@ export default function PrivacyPage() {
         <Link href="/settings" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
           <Icon name="back" size={22} className="" />
         </Link>
-        <h1 className="text-title">Политика конфиденциальности</h1>
+        <h1 className="m-title text-[28px]">Политика конфиденциальности</h1>
       </div>
 
       <div className="space-y-4 rounded-card m-glass p-5 text-sm leading-relaxed text-ink-900">

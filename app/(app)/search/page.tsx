@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Icon } from "@/components/brand/Icon";
 import Image from "next/image";
 import Link from "next/link";
 import { EventCard, type EventCardData } from "@/components/feed/EventCard";
@@ -189,7 +190,7 @@ export default function SearchPage() {
           onClick={() => setSheetOpen(true)}
           className="relative flex items-center gap-1.5 rounded-pill m-glass px-4 py-2.5 text-sm font-medium"
         >
-          <Image src="/brand/icons/filter.svg" alt="" width={16} height={16} />
+          <Icon name="filter" size={16} />
           Фильтры
           {activeFilterCount > 0 && (
             <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-caption font-semibold text-white">
@@ -203,11 +204,11 @@ export default function SearchPage() {
         href={`/map?${buildFilterParams().toString()}`}
         className="mb-4 flex items-center justify-center gap-2 rounded-pill m-glass py-2.5 text-sm font-medium text-accent"
       >
-        <Image src="/brand/icons/map.svg" alt="" width={16} height={16} />
+        <Icon name="map" size={16} />
         Показать на карте
       </Link>
 
-      {loading && <p className="text-center text-sm text-ink-600">Загрузка...</p>}
+      {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-24" />)}</div>}
       {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
       {!loading && !error && events.length === 0 && (
@@ -232,9 +233,9 @@ export default function SearchPage() {
       </div>
 
       {sheetOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={() => setSheetOpen(false)}>
+        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)] m-fade-in" onClick={() => setSheetOpen(false)}>
           <div
-            className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-sheet bg-white p-5"
+            className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-sheet bg-white p-5 m-sheet-in"
             style={{ touchAction: "pan-y" }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -363,7 +364,7 @@ export default function SearchPage() {
       )}
 
       {toast && (
-        <div className="fixed inset-x-5 bottom-24 z-50 rounded-card bg-ink-900 px-4 py-3 text-center text-sm text-white shadow-card">
+        <div className="m-toast">
           {toast}
         </div>
       )}

@@ -113,7 +113,7 @@ export default function NotificationsPage() {
         <Link href="/feed" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
           <Icon name="back" size={22} className="" />
         </Link>
-        <h1 className="text-title">Уведомления</h1>
+        <h1 className="m-title text-[28px]">Уведомления</h1>
       </div>
 
       <div className="mb-4 flex gap-2">
@@ -136,7 +136,7 @@ export default function NotificationsPage() {
         ))}
       </div>
 
-      {loading && <p className="text-center text-sm text-ink-600">Загрузка...</p>}
+      {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-24" />)}</div>}
 
       {!loading && filtered.length === 0 && (
         <div className="flex flex-col items-center px-6 py-16 text-center">
