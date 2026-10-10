@@ -1,73 +1,72 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useGuide } from "@/lib/mosya/guide";
-import { Icon } from "@/components/brand/Icon";
-import Image from "next/image";
 import Link from "next/link";
-import { EventCard, type EventCardData } from "@/components/feed/EventCard";
+import { useRouter } from "next/navigation";
+import { useGuide } from "@/lib/mosya/guide";
+import { EmptyIll, HeroCard, Ic, Screen, type HeroEvent } from "@/components/proto/ui";
 
+/** «Для бизнеса» (SCR.business прототипа): как это работает + ближайшие события. */
 export default function BusinessPage() {
-  const [events, setEvents] = useState<EventCardData[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const [events, setEvents] = useState<HeroEvent[] | null>(null);
   useGuide("business");
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/events?business=true&page=0")
       .then((r) => r.json())
-      .then((data) => {
-        if (data.error) {
-          setError(data.error === "city_required" ? "Сначала заверши регистрацию." : "Не удалось загрузить события.");
-          return;
-        }
-        setEvents(data.items ?? []);
-      })
-      .catch(() => setError("Проблема с соединением."))
-      .finally(() => setLoading(false));
+      .then((d) => setEvents((d.items ?? []).filter((e: HeroEvent) => e.isBusiness)))
+      .catch(() => setEvents([]));
   }, []);
 
   return (
-    <div className="px-5 py-4">
-      <div className="mb-4 flex items-center gap-3">
-        <Link href="/feed" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-          <Icon name="back" size={22} className="" />
-        </Link>
-        <h1 className="m-title flex-1">Для бизнеса</h1>
+    <Screen id="business" anim="in">
+      <div className="bar-top">
+        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <Ic n="back" />
+        </button>
+        <span />
       </div>
-
-      <p className="mb-4 text-sm text-ink-600">
-        Посетить либо создать события — концерты, дегустации, мастер-классы и другие форматы для бизнеса.
+      <h1 className="t" style={{ marginTop: 18 }}>
+        Для <em>бизнеса</em>
+      </h1>
+      <p className="muted" style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.5 }}>
+        Посетить или создать событие — концерты, дегустации, мастер-классы. Все события на общей карте города.
       </p>
-
-      <Link
-        href="/create?business=true"
-        className="mb-5 flex items-center justify-center gap-2 rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta active:scale-[0.98] m-btn-v relative overflow-hidden"
-      >
-        <span className="text-lg">+</span>
+      <Link className="btn v" style={{ marginTop: 16 }} href="/create?business=true">
+        <Ic n="plus" />
         Создать событие
       </Link>
-
-      {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-24" />)}</div>}
-      {error && <p className="text-center text-sm text-red-600">{error}</p>}
-
-      {!loading && !error && events.length === 0 && (
-        <div className="rounded-card m-glass p-6 text-center">
-          <div className="relative mx-auto mb-3 h-14 w-14">
-            <Image src="/brand/markers/marker-business.png" alt="" fill className="object-contain" />
+      <div className="how">
+        {(
+          [
+            ["1", "Создаёте событие", "с фото, временем и ценой билета"],
+            ["2", "Принимаете заявки", "гость получает номер билета"],
+            ["3", "Отмечаете на входе", "оплата — вам лично, на месте"],
+          ] as const
+        ).map(([n, b, s]) => (
+          <div key={n} className="gl">
+            <span className="k">{n}</span>
+            <b>{b}</b>
+            <span>{s}</span>
           </div>
-          <h2 className="text-title mb-2">Никто ещё не создал это событие</h2>
-          <p className="text-sm text-ink-600">Ты будешь первым.</p>
-        </div>
-      )}
-
-      {!loading && events.length > 0 && (
-        <div className="space-y-3">
-          {events.map((event) => (
-            <EventCard key={event.id} event={event} />
-          ))}
-        </div>
-      )}
-    </div>
+        ))}
+      </div>
+      <div className="sec">
+        <b>Ближайшие события</b>
+        <span>{events?.length ?? ""}</span>
+      </div>
+      <div style={{ display: "grid", gap: 12 }}>
+        {events === null && [0, 1].map((i) => <div key={i} className="sk" style={{ height: 290, borderRadius: 32 }} />)}
+        {events?.map((e) => <HeroCard key={e.id} e={e} full />)}
+        {events?.length === 0 && (
+          <div className="empty">
+            <EmptyIll />
+            <b>Пока нет событий</b>
+            <span>Стань первым — создай концерт, дегустацию или мастер-класс.</span>
+          </div>
+        )}
+      </div>
+    </Screen>
   );
 }

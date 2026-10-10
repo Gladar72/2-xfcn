@@ -30,6 +30,8 @@ export interface EventsMapHandle {
   fitBounds: (points: [number, number][]) => void;
   /** Показывает «я здесь» (геолокация Telegram/браузера) и переезжает туда. */
   locate: () => Promise<boolean>;
+  zoomIn: () => void;
+  zoomOut: () => void;
 }
 
 interface EventsMapProps {
@@ -252,6 +254,12 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
   const meMarkerRef = useRef<MapLibreMarker | null>(null);
 
   useImperativeHandle(ref, () => ({
+    zoomIn() {
+      mapRef.current?.zoomIn();
+    },
+    zoomOut() {
+      mapRef.current?.zoomOut();
+    },
     fitBounds(points) {
       const map = mapRef.current;
       if (!map || points.length === 0) return;

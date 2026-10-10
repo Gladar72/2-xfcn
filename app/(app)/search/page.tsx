@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { JoinFlow } from "@/components/events/JoinFlow";
 import { useGuide } from "@/lib/mosya/guide";
-import { Icon } from "@/components/brand/Icon";
-import Image from "next/image";
 import Link from "next/link";
-import { EventCard, type EventCardData } from "@/components/feed/EventCard";
+import { useRouter, useSearchParams } from "next/navigation";
+import type { EventCardData } from "@/components/feed/EventCard";
+import { EmptyIll, Ic, RowCard, Screen, Sheet, Toast } from "@/components/proto/ui";
 import { CityPicker } from "@/components/ui/CityPicker";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CATEGORY_ICON } from "@/lib/data/category-icons";
-import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 
 interface Category {
   id: string;
@@ -31,6 +30,14 @@ const COST_LABELS: Record<Exclude<CostFilter, "any">, string> = {
 };
 
 export default function SearchPage() {
+  return (
+    <Suspense>
+      <SearchPageContent />
+    </Suspense>
+  );
+}
+
+function SearchPageContent() {
   const [city, setCity] = useState("Тюмень");
   const [cityInput, setCityInput] = useState("");
   const [categories, setCategories] = useState<Category[]>([]);
@@ -43,7 +50,6 @@ export default function SearchPage() {
   // есть текстовые поля (возраст, дата), фокус на них без этой блокировки
   // заставляет WebView Telegram сдвигать экран, чтобы подвести поле под
   // клавиатуру (та же причина, что чинили в чате и мастере создания).
-  useLockBodyScroll(sheetOpen);
 
   const [selectedCategorySlugs, setSelectedCategorySlugs] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState<DateFilter>("any");
@@ -56,6 +62,14 @@ export default function SearchPage() {
   const [appliedEventIds, setAppliedEventIds] = useState<Set<string>>(new Set());
   const [applyingEventId, setApplyingEventId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const router = useRouter();
+  const sp = useSearchParams();
+  const openFilters = sp.get("filters") === "1";
+  const [query, setQuery] = useState("");
+  const [reloadKey, setReloadKey] = useState(0);
+  useEffect(() => {
+    if (openFilters) setSheetOpen(true);
+  }, [openFilters]);
 
   useEffect(() => {
     fetch("/api/me/profile")
@@ -114,7 +128,7 @@ export default function SearchPage() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [city]);
+  useEffect(load, [city, reloadKey]);
 
   function toggleCategory(slug: string) {
     setSelectedCategorySlugs((prev) =>
@@ -184,24 +198,133 @@ export default function SearchPage() {
     return ok;
   }
 
-  return (
-    <div className="px-5 py-4">
-      <h1 className="m-title mb-4">Поиск встреч</h1>
+  const q = query.trim().toLowerCase();
+  const list = q
+    ? events.filter((e) => [e.title, e.placeName, e.description, e.category?.name, e.trainingType?.name].filter(Boolean).some((t) => (t as string).toLowerCase().includes(q)))
+    : events;
 
-      <div className="mb-4 flex gap-2">
-        <span className="flex-1 rounded-pill bg-ink-900 px-4 py-2 text-center text-sm font-medium text-white">
-          Все встречи
-        </span>
-        <Link
-          href="/my-events"
-          className="flex-1 rounded-pill m-glass px-4 py-2 text-center text-sm font-medium text-ink-900"
-        >
-          Мои встречи
+  function quick(k: "today" | "tomorrow" | "weekend" | "free") {
+    if (k === "free") setCostFilter((c) => (c === "free" ? "any" : "free"));
+    else setDateFilter((d) => (d === k ? "any" : k));
+    setReloadKey((n) => n + 1);
+  }
+
+  const row = (label: string, opts: [string, string][], value: string, set: (v: string) => void) => (
+    <>
+      <span className="lbl" style={{ margin: 0 }}>
+        {label}
+      </span>
+      <div className="chs">
+        {opts.map(([v, t]) => (
+          <button key={v} className={value === v ? "on" : "gl"} onClick={() => set(v)}>
+            {t}
+          </button>
+        ))}
+      </div>
+    </>
+  );
+
+  return (
+    <Screen id="search" anim="in">
+      <div className="search" style={{ marginTop: 0 }}>
+        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <Ic n="back" />
+        </button>
+        <label className="sfield gl" style={{ cursor: "text" }}>
+          <Ic n="search" c="s" />
+          <input
+            autoFocus={!openFilters}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Что ищем?"
+            style={{ flex: 1, border: 0, background: "none", font: "inherit", fontSize: 15, outline: "none", color: "var(--ink)", minWidth: 0 }}
+          />
+        </label>
+        <button className="rb k" onClick={() => setSheetOpen(true)} aria-label="Фильтры" style={{ width: 50, height: 50 }}>
+          <Ic n="filter" />
+          {activeFilterCount > 0 && <span className="cnt">{activeFilterCount}</span>}
+        </button>
+      </div>
+      <div className="chipsrow" style={{ marginTop: 14 }}>
+        {(
+          [
+            ["today", "Сегодня"],
+            ["tomorrow", "Завтра"],
+            ["weekend", "На выходных"],
+            ["free", "Бесплатно"],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} className={`chip ${(k === "free" ? costFilter === "free" : dateFilter === k) ? "on" : "gl"}`} onClick={() => quick(k)}>
+            {l}
+          </button>
+        ))}
+        <Link className="chip gl" href={`/map?${buildFilterParams().toString()}`} style={{ display: "inline-grid", placeItems: "center" }}>
+          На карте
         </Link>
       </div>
+      <div className="sec">
+        <b>Категории</b>
+        <span>{city}</span>
+      </div>
+      <div className="igrid">
+        {categories
+          .filter((c) => c.slug !== "custom")
+          .map((c) => (
+            <button
+              key={c.id}
+              className={`it ${selectedCategorySlugs.includes(c.slug) ? "sel" : "gl"}`}
+              onClick={() => {
+                toggleCategory(c.slug);
+                setReloadKey((n) => n + 1);
+              }}
+            >
+              <span className="ck">
+                <Ic n="check" />
+              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" />
+              {SHORT[c.slug] ?? c.name}
+            </button>
+          ))}
+      </div>
+      <div className="sec">
+        <b>{q ? `Нашлось: ${list.length}` : "Все встречи"}</b>
+        {activeFilterCount > 0 && (
+          <button
+            onClick={() => {
+              resetFilters();
+              setReloadKey((n) => n + 1);
+            }}
+          >
+            Сбросить
+          </button>
+        )}
+      </div>
+      <div className="list">
+        {loading && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
+        {error && <div className="note gl">{error}</div>}
+        {!loading &&
+          list.map((e) => (
+            <RowCard key={e.id} e={e} status={appliedEventIds.has(e.id) ? "pending" : e.myApplicationStatus ?? null} onJoin={openJoin} />
+          ))}
+        {!loading && !error && list.length === 0 && (
+          <div className="empty">
+            <EmptyIll />
+            <b>Ничего не нашлось</b>
+            <span>Попробуй другие фильтры — или создай свою встречу, люди подтянутся.</span>
+            <Link className="btn v" href="/create" style={{ width: "100%", marginTop: 8 }}>
+              Создать встречу
+            </Link>
+          </div>
+        )}
+      </div>
 
-      <div className="mb-4 flex gap-2">
-        <div className="flex-1">
+      <Sheet open={sheetOpen} onClose={() => setSheetOpen(false)}>
+        <h2 className="t">Фильтры</h2>
+        <span className="lbl" style={{ margin: 0 }}>
+          Город
+        </span>
+        <div className="field gl">
           <CityPicker
             value={cityInput}
             onChange={(selected) => {
@@ -209,191 +332,69 @@ export default function SearchPage() {
               setCity(selected);
             }}
             placeholder="Город"
-            className="w-full min-w-0 box-border rounded-pill border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
+            dropdownDirection="down"
+            className="w-full border-0 bg-transparent text-base outline-none"
           />
         </div>
-        <button
-          onClick={() => setSheetOpen(true)}
-          className="relative flex items-center gap-1.5 rounded-pill m-glass px-4 py-2.5 text-sm font-medium"
-        >
-          <Icon name="filter" size={16} />
-          Фильтры
-          {activeFilterCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-caption font-semibold text-white">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
-      </div>
-
-      <Link
-        href={`/map?${buildFilterParams().toString()}`}
-        className="mb-4 flex items-center justify-center gap-2 rounded-pill m-glass py-2.5 text-sm font-medium text-accent"
-      >
-        <Icon name="map" size={16} />
-        Показать на карте
-      </Link>
-
-      {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-24" />)}</div>}
-      {error && <p className="text-center text-sm text-red-600">{error}</p>}
-
-      {!loading && !error && events.length === 0 && (
-        <div className="flex flex-col items-center px-6 py-12 text-center">
-          <div className="relative mb-4 h-28 w-28">
-            <Image src="/brand/mosya/mosya_think.webp" alt="" fill className="object-contain" sizes="112px" />
-          </div>
-          <p className="text-sm text-ink-600">Ничего не нашлось. Попробуй изменить фильтры.</p>
+        {row(
+          "Дата встречи",
+          [
+            ["any", "Любой день"],
+            ["today", "Сегодня"],
+            ["tomorrow", "Завтра"],
+            ["weekend", "В выходные"],
+          ],
+          ["any", "today", "tomorrow", "weekend"].includes(dateFilter) ? dateFilter : "date",
+          (v) => setDateFilter(v)
+        )}
+        <label className="field gl" style={{ minHeight: 44 }}>
+          <Ic n="cal" c="s" />
+          <input type="date" value={/^\d{4}-/.test(dateFilter) ? dateFilter : ""} onChange={(e) => setDateFilter(e.target.value || "any")} />
+        </label>
+        {row(
+          "Время",
+          [
+            ["any", "Любое"],
+            ["morning", "Утро"],
+            ["day", "День"],
+            ["evening", "Вечер"],
+          ],
+          timeFilter,
+          (v) => setTimeFilter(v as TimeFilter)
+        )}
+        {row("Расходы", [["any", "Неважно"], ...(Object.entries(COST_LABELS) as [string, string][])], costFilter, (v) => setCostFilter(v as CostFilter))}
+        {row(
+          "Кто создал",
+          [
+            ["any", "Неважно"],
+            ["male", "Мужчина"],
+            ["female", "Женщина"],
+          ],
+          genderFilter,
+          (v) => setGenderFilter(v as "any" | "male" | "female")
+        )}
+        <span className="lbl" style={{ margin: 0 }}>
+          Возраст автора
+        </span>
+        <div className="chs">
+          <label className="field gl" style={{ minHeight: 44, width: 110 }}>
+            <input placeholder="от 18" inputMode="numeric" value={ageMin} onChange={(e) => setAgeMin(e.target.value.replace(/\D/g, "").slice(0, 2))} />
+          </label>
+          <label className="field gl" style={{ minHeight: 44, width: 110 }}>
+            <input placeholder="до 45" inputMode="numeric" value={ageMax} onChange={(e) => setAgeMax(e.target.value.replace(/\D/g, "").slice(0, 2))} />
+          </label>
         </div>
-      )}
-
-      <div className="space-y-3">
-        {events.map((event) => (
-          <EventCard
-            key={event.id}
-            event={event}
-            onApplyPress={openJoin}
-            applied={appliedEventIds.has(event.id)}
-            applying={applyingEventId === event.id}
-          />
-        ))}
-      </div>
-
-      {sheetOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)] m-fade-in" onClick={() => setSheetOpen(false)}>
-          <div
-            className="max-h-[85vh] overflow-y-auto overscroll-contain rounded-t-sheet bg-white p-5 m-sheet-in"
-            style={{ touchAction: "pan-y" }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <h2 className="text-title mb-4">Фильтры</h2>
-
-            <FilterSection title="Категория (можно несколько)">
-              <div className="flex flex-wrap gap-2">
-                {categories.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => toggleCategory(c.slug)}
-                    className={`flex items-center gap-1.5 rounded-pill px-3.5 py-2 text-sm font-medium ${
-                      selectedCategorySlugs.includes(c.slug)
-                        ? "bg-brand-gradient text-white"
-                        : "bg-lavender-50 text-ink-900"
-                    }`}
-                  >
-                    {CATEGORY_ICON[c.slug] ? (
-                      <Image src={CATEGORY_ICON[c.slug] as string} alt="" width={20} height={20} className="object-contain" />
-                    ) : (
-                      <span className="text-base leading-none">{c.emoji}</span>
-                    )}
-                    {c.name}
-                  </button>
-                ))}
-              </div>
-            </FilterSection>
-
-            <FilterSection title="Дата встречи">
-              <ChoiceRow
-                options={[
-                  ["any", "Любой день"],
-                  ["today", "Сегодня"],
-                  ["tomorrow", "Завтра"],
-                  ["weekend", "В выходные"],
-                ]}
-                value={["any", "today", "tomorrow", "weekend"].includes(dateFilter) ? dateFilter : "custom"}
-                onChange={(v) => v !== "custom" && setDateFilter(v as DateFilter)}
-              />
-              <input
-                type="date"
-                value={!["any", "today", "tomorrow", "weekend"].includes(dateFilter) ? dateFilter : ""}
-                onChange={(e) => setDateFilter(e.target.value || "any")}
-                min={new Date().toISOString().slice(0, 10)}
-                className="mt-2 w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
-              />
-            </FilterSection>
-
-            <FilterSection title="Время встречи">
-              <ChoiceRow
-                options={[
-                  ["any", "Любое"],
-                  ["morning", "Утро"],
-                  ["day", "День"],
-                  ["evening", "Вечер"],
-                ]}
-                value={timeFilter}
-                onChange={(v) => setTimeFilter(v as TimeFilter)}
-              />
-            </FilterSection>
-
-            <FilterSection title="Расходы на встречу">
-              <ChoiceRow
-                options={[
-                  ["any", "Неважно"],
-                  ["each_pays", COST_LABELS.each_pays],
-                  ["organizer_treats", COST_LABELS.organizer_treats],
-                  ["free", COST_LABELS.free],
-                  ["negotiable", COST_LABELS.negotiable],
-                ]}
-                value={costFilter}
-                onChange={(v) => setCostFilter(v as CostFilter)}
-              />
-            </FilterSection>
-
-            <FilterSection title="Возраст автора встречи">
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  value={ageMin}
-                  onChange={(e) => setAgeMin(e.target.value)}
-                  placeholder="От"
-                  className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
-                />
-                <span className="text-ink-400">—</span>
-                <input
-                  type="number"
-                  value={ageMax}
-                  onChange={(e) => setAgeMax(e.target.value)}
-                  placeholder="До"
-                  className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-2.5 text-base outline-none focus:border-accent"
-                />
-              </div>
-              <p className="mt-1 text-xs text-ink-400">По умолчанию без ограничений</p>
-            </FilterSection>
-
-            <FilterSection title="Кто создал встречу">
-              <ChoiceRow
-                options={[
-                  ["any", "Неважно"],
-                  ["male", "Мужчина"],
-                  ["female", "Женщина"],
-                ]}
-                value={genderFilter}
-                onChange={(v) => setGenderFilter(v as "any" | "male" | "female")}
-              />
-            </FilterSection>
-
-            <div className="flex gap-3">
-              <button
-                onClick={resetFilters}
-                className="w-auto flex-1 rounded-pill border border-lavender-200 bg-white py-3.5 text-sm font-medium text-ink-600"
-              >
-                Сбросить
-              </button>
-              <button
-                onClick={applyFilters}
-                className="flex-[2] rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
-              >
-                Показать встречи
-              </button>
-            </div>
-          </div>
+        <div className="twob" style={{ margin: 0 }}>
+          <button className="btn o" onClick={resetFilters}>
+            Сбросить
+          </button>
+          <button className="btn k" onClick={applyFilters}>
+            Показать встречи
+          </button>
         </div>
-      )}
+      </Sheet>
 
-      {toast && (
-        <div className="m-toast">
-          {toast}
-        </div>
-      )}
+      <Toast text={toast} />
       <JoinFlow
         event={joinEvent}
         phase={joinPhase}
@@ -403,41 +404,17 @@ export default function SearchPage() {
           setJoinEvent(null);
         }}
       />
-    </div>
+    </Screen>
   );
 }
 
-function FilterSection({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-5">
-      <h3 className="mb-2 text-sm font-medium text-ink-900">{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function ChoiceRow({
-  options,
-  value,
-  onChange,
-}: {
-  options: [string, string][];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map(([val, label]) => (
-        <button
-          key={val}
-          onClick={() => onChange(val)}
-          className={`rounded-pill px-3.5 py-2 text-sm font-medium ${
-            value === val ? "bg-brand-gradient text-white" : "bg-lavender-50 text-ink-900"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
-    </div>
-  );
-}
+const SHORT: Record<string, string> = {
+  training: "Тренировка",
+  cinema: "Кино",
+  coffee: "Кофе",
+  breakfast: "Завтрак",
+  dinner: "Ужин",
+  walk: "Прогулка",
+  active: "Активный отдых",
+  party: "Вечеринка",
+};

@@ -46,6 +46,8 @@ export interface MapLibreMap {
   easeTo: (opts: { center: LngLat; zoom?: number }) => void;
   fitBounds: (bounds: [LngLat, LngLat], opts?: { padding?: number; maxZoom?: number }) => void;
   getZoom: () => number;
+  zoomIn: () => void;
+  zoomOut: () => void;
   remove: () => void;
   resize: () => void;
 }

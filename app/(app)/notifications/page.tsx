@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useGuide } from "@/lib/mosya/guide";
-import { Icon } from "@/components/brand/Icon";
-import Link from "next/link";
-import Image from "next/image";
+import { photoThumb } from "@/lib/photos/thumb";
+import { EmptyIll, Ic, Screen } from "@/components/proto/ui";
 import { useRouter } from "next/navigation";
 
 interface NotificationItem {
@@ -110,205 +109,122 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="px-5 py-4">
-      <div className="mb-4 flex items-center gap-3">
-        <Link href="/feed" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-          <Icon name="back" size={22} className="" />
-        </Link>
-        <h1 className="m-title text-[28px]">Уведомления</h1>
+    <Screen id="notif" anim="in">
+      <div className="bar-top">
+        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <Ic n="back" />
+        </button>
+        <span />
       </div>
-
-      <div className="mb-4 flex gap-2">
+      <h1 className="t" style={{ marginTop: 18 }}>
+        Уведомления
+      </h1>
+      <div className="chipsrow" style={{ marginTop: 14 }}>
         {(
           [
             ["all", "Все"],
             ["events", "Встречи"],
             ["chats", "Чаты"],
           ] as [Tab, string][]
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            onClick={() => setTab(value)}
-            className={`rounded-pill px-4 py-1.5 text-sm font-medium ${
-              tab === value ? "bg-brand-gradient text-white shadow-cta" : "m-glass text-ink-600"
-            }`}
-          >
-            {label}
+        ).map(([k, l]) => (
+          <button key={k} className={`chip ${tab === k ? "on" : "gl"}`} onClick={() => setTab(k)}>
+            {l}
           </button>
         ))}
       </div>
-
-      {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-24" />)}</div>}
-
+      {loading && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 66, marginTop: 8 }} />)}
       {!loading && filtered.length === 0 && (
-        <div className="flex flex-col items-center px-6 py-16 text-center">
-          <div className="relative mb-4 h-28 w-28">
-            <Image src="/brand/mosya/mosya_think.webp" alt="" fill className="object-contain" sizes="112px" />
-          </div>
-          <p className="text-sm text-ink-600">Здесь появятся новые уведомления.</p>
+        <div className="empty" style={{ marginTop: 24 }}>
+          <EmptyIll a={["cloud", "mint", "calm"]} b={["ball", "lilac", "smile"]} c={["star", "peach", "sly"]} />
+          <b>Пока тихо</b>
+          <span>Здесь появятся заявки, ответы организаторов и напоминания о встречах.</span>
         </div>
       )}
-
-      <div className="space-y-2">
-        {groups.map((group) => (
-          <div key={group.label} className="space-y-2">
-            <p className="pt-1 text-center text-xs text-ink-400">{group.label}</p>
-            {group.items.map((item) =>
-              isRichCard(item) ? (
-                <RichCard key={item.id} item={item} onOpen={() => handlePress(item)} />
-              ) : (
-          <button
-            key={item.id}
-            onClick={() => handlePress(item)}
-            className="flex w-full items-start gap-3 rounded-card m-glass p-4 text-left"
-          >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-[rgba(108,59,255,.1)]">
-              <Image src={TYPE_ICON[item.type] ?? "/brand/mosya/mosya_wave.webp"} alt="" width={32} height={32} className="object-contain" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className={`text-sm ${item.isRead ? "text-ink-600" : "font-medium text-ink-900"}`}>{item.text}</p>
-              <p className="mt-0.5 text-xs text-ink-400">{formatRelativeTime(item.createdAt)}</p>
-            </div>
-            {!item.isRead && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent" />}
-          </button>
-              )
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+      {groups.map((g) => (
+        <div key={g.label}>
+          <span className="lbl">{g.label}</span>
+          {g.items.map((item) => {
+            const rich = item.event && (item.type === "application_accepted" || item.type === "event_soon") && item.event.status !== "cancelled";
+            if (rich && item.event) {
+              const e = item.event;
+              return (
+                <div key={item.id} className="ntrich">
+                  <span className="pill glass">{item.type === "event_soon" ? "Скоро встреча" : "Ты в деле!"}</span>
+                  <b>{item.type === "event_soon" ? "Встречаемся через 2 часа" : "Участие подтверждено"}</b>
+                  <span>
+                    {e.title} · {dayLabel(e.eventDate).toLowerCase()}, {e.eventTime.slice(0, 5)}
+                  </span>
+                  <div className="twob" style={{ marginTop: 8 }}>
+                    <button className="btn o" onClick={() => router.push(`/events/${e.id}`)}>
+                      Открыть встречу
+                    </button>
+                    {e.isBusiness && item.ticketCode ? (
+                      <button className="btn o" onClick={() => router.push(`/events/${e.id}/ticket`)}>
+                        Билет
+                      </button>
+                    ) : (
+                      <button className="btn o" onClick={() => router.push(item.eventConversationId ? `/chats/${item.eventConversationId}` : "/chats")}>
+                        Чат
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+            const img = item.event?.photoUrl;
+            return (
+              <button key={item.id} className={`nt gl ${item.isRead ? "" : "unread"}`} style={{ width: "100%", textAlign: "left" }} onClick={() => handlePress(item)}>
+                {img ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoThumb(img, 92)} alt="" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={TYPE_ICON[item.type] ?? "/brand/mosya/mosya_wave.webp"} alt="" style={{ objectFit: "contain", background: "#EFE8FF" }} />
+                )}
+                <div>
+                  <NotifText text={item.text} />
+                  <small>{timeAgo(item.createdAt)}</small>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      ))}
+    </Screen>
   );
 }
 
-function formatRelativeTime(iso: string): string {
-  const date = new Date(iso);
-  const diffMs = Date.now() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "только что";
-  if (diffMin < 60) return `${diffMin} мин назад`;
-  const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 6) return `${diffHours} ч назад`;
-  // День уже виден в заголовке группы («Вчера», «27 сентября») — здесь только время.
-  return date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
-}
-
-/** Карточка с событием внутри: «Ты в деле!» и «Встречаемся через 2 часа». */
-function isRichCard(item: NotificationItem): item is NotificationItem & { event: NonNullable<NotificationItem["event"]> } {
+/** Первая часть до «—» или «:» — жирным, как в прототипе. */
+function NotifText({ text }: { text: string }) {
+  const m = text.match(/^(.+?)([:—].*)$/);
+  if (!m) return <b style={{ fontWeight: 500 }}>{text}</b>;
   return (
-    !!item.event &&
-    item.event.status !== "cancelled" &&
-    (item.type === "application_accepted" || item.type === "event_soon")
+    <>
+      <b style={{ fontWeight: 500 }}>{m[1]}</b>
+      {m[2]}
+    </>
   );
 }
 
-function RichCard({ item, onOpen }: { item: NotificationItem; onOpen: () => void }) {
-  const router = useRouter();
-  const event = item.event;
-  if (!event) return null;
-  const soon = item.type === "event_soon";
-  const time = event.eventTime.slice(0, 5);
-
-  return (
-    <div className="rounded-card-lg m-glass p-4">
-      <button onClick={onOpen} className="mb-3 flex w-full items-center gap-3 text-left">
-        <div className="relative h-12 w-12 shrink-0">
-          <Image
-            src={soon ? "/brand/mosya/mosya_run.webp" : "/brand/cat3d/i_concert.webp"}
-            alt=""
-            fill
-            className="object-contain"
-            sizes="48px"
-          />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-base font-bold text-ink-900">{soon ? "Встречаемся через 2 часа" : "Ты в деле!"}</p>
-          <p className="text-sm text-ink-600">
-            {soon ? `${formatDay(event.eventDate)} · ${time}` : "Участие подтверждено"}
-          </p>
-        </div>
-        {!item.isRead && <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />}
-        <span className="shrink-0 text-lg text-ink-400">›</span>
-      </button>
-
-      <button onClick={() => router.push(`/events/${event.id}`)} className="flex w-full gap-3 text-left">
-        {event.photoUrl && (
-          <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-card-sm">
-            <Image src={event.photoUrl} alt="" fill className="object-cover" sizes="96px" />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="mb-1.5 line-clamp-2 text-sm font-semibold text-ink-900">{event.title}</p>
-          <p className="mb-1 flex items-center gap-1.5 text-sm text-ink-900">
-            <Icon name="cal" size={18} className="shrink-0 text-accent" />
-            {formatDay(event.eventDate)} · {time}
-          </p>
-          {(event.placeName || event.address) && (
-            <div className="flex items-start gap-1.5 text-sm">
-              <Icon name="pin" size={18} className="mt-px shrink-0 text-accent" />
-              <div className="min-w-0">
-                <p className="truncate text-ink-900">{event.placeName ?? event.address}</p>
-                {event.placeName && event.address && <p className="truncate text-xs text-ink-600">{event.address}</p>}
-              </div>
-            </div>
-          )}
-        </div>
-      </button>
-
-      {soon && item.ticketCode && (
-        <button
-          onClick={() => router.push(`/events/${event.id}/ticket`)}
-          className="mt-3 flex w-full items-center gap-2 rounded-pill bg-lavender-100 px-4 py-2.5 text-sm font-medium text-accent"
-        >
-          <Image src="/mesto/assets/icons/png/ticket.png" alt="" width={22} height={22} className="object-contain" />
-          Твой билет · {item.ticketCode}
-        </button>
-      )}
-
-      <div className="mt-3 space-y-2">
-        {item.ticketCode ? (
-          <button
-            onClick={() => router.push(`/events/${event.id}/ticket`)}
-            className="w-full rounded-pill bg-brand-gradient py-3.5 text-base font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
-          >
-            Открыть билет
-          </button>
-        ) : (
-          <button
-            onClick={() => router.push(`/events/${event.id}`)}
-            className="w-full rounded-pill bg-brand-gradient py-3.5 text-base font-semibold text-white shadow-cta m-btn-v relative overflow-hidden"
-          >
-            Открыть встречу
-          </button>
-        )}
-        {soon && item.eventConversationId && (
-          <button
-            onClick={() => router.push(`/chats/${item.eventConversationId}`)}
-            className="w-full rounded-pill bg-lavender-100 py-3.5 text-base font-semibold text-accent"
-          >
-            Чат события
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function toIsoDay(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function formatDay(dateIso: string): string {
-  const today = new Date();
-  if (dateIso === toIsoDay(today)) return "Сегодня";
-  const tomorrow = new Date(today.getTime() + 86_400_000);
-  if (dateIso === toIsoDay(tomorrow)) return "Завтра";
-  return new Date(`${dateIso}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
-}
-
-function dayLabel(iso: string): string {
+function timeAgo(iso: string) {
   const d = new Date(iso);
-  const today = new Date();
-  if (toIsoDay(d) === toIsoDay(today)) return "Сегодня";
-  if (toIsoDay(d) === toIsoDay(new Date(today.getTime() - 86_400_000))) return "Вчера";
+  const mins = Math.round((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return "только что";
+  if (mins < 60) return `${mins} мин назад`;
+  const h = Math.round(mins / 60);
+  if (h < 24) return `${h} ч назад`;
+  return d.toLocaleString("ru-RU", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+}
+
+function dayLabel(iso: string) {
+  const d = new Date(iso);
+  const t = new Date();
+  const y = new Date();
+  y.setDate(t.getDate() - 1);
+  const tm = new Date();
+  tm.setDate(t.getDate() + 1);
+  if (d.toDateString() === t.toDateString()) return "Сегодня";
+  if (d.toDateString() === y.toDateString()) return "Вчера";
+  if (d.toDateString() === tm.toDateString()) return "Завтра";
   return d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
