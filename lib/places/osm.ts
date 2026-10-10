@@ -39,12 +39,49 @@ function esc(s: string) {
   return s.replace(/[\\"]/g, "\\$&").replace(/[.*+?^${}()|[\]]/g, "\\$&");
 }
 
-export function buildOverpassQuery(city: string, category: string, trainingType: string, q: string): string | null {
+/** Квадрат поиска вокруг центра города: [юг, запад, север, восток]. */
+export type BBox = [number, number, number, number];
+
+/** Известные центры — без лишнего запроса к геокодеру. */
+const CITY_CENTER: Record<string, [number, number]> = {
+  "Тюмень": [57.153, 65.534],
+  "Москва": [55.756, 37.617],
+  "Санкт-Петербург": [59.939, 30.316],
+  "Екатеринбург": [56.838, 60.597],
+};
+
+/** Центр города → квадрат примерно 25×25 км (поиск по квадрату в разы быстрее, чем по границе города). */
+export function bboxAround(lat: number, lon: number, km = 12): BBox {
+  const dLat = km / 111;
+  const dLon = km / (111 * Math.cos((lat * Math.PI) / 180));
+  return [lat - dLat, lon - dLon, lat + dLat, lon + dLon].map((n) => Math.round(n * 1000) / 1000) as BBox;
+}
+
+async function cityBBox(city: string): Promise<BBox | null> {
+  const known = CITY_CENTER[city];
+  if (known) return bboxAround(known[0], known[1]);
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&city=${encodeURIComponent(city)}&country=${encodeURIComponent("Россия")}`,
+      { headers: UA, next: { revalidate: 60 * 60 * 24 * 30 }, signal: AbortSignal.timeout(4000) }
+    );
+    if (!res.ok) return null;
+    const d = (await res.json()) as { lat?: string; lon?: string }[];
+    const f = d[0];
+    if (!f?.lat || !f.lon) return null;
+    return bboxAround(Number(f.lat), Number(f.lon));
+  } catch {
+    return null;
+  }
+}
+
+export function buildOverpassQuery(bbox: BBox, category: string, trainingType: string, q: string): string | null {
   const nameFilter = q.length >= 2 ? `["name"~"${esc(q)}",i]` : '["name"]';
   const tags = q.length >= 2 ? ANY_PLACE : TAGS_BY_TRAINING[trainingType] ?? TAGS_BY_CATEGORY[category];
   if (!tags) return null;
-  const parts = tags.map((t) => `nwr(area.a)${t}${nameFilter};`).join("");
-  return `[out:json][timeout:8];area["name"="${esc(city)}"]["place"~"^(city|town)$"]->.a;(${parts});out center tags 60;`;
+  const b = bbox.join(",");
+  const parts = tags.map((t) => `nwr${t}${nameFilter}(${b});`).join("");
+  return `[out:json][timeout:6];(${parts});out center tags 60;`;
 }
 
 interface OverpassEl {
@@ -71,12 +108,17 @@ export function parseOverpass(data: { elements?: OverpassEl[] }): OsmPlace[] {
   return out.sort((a, b) => score(b) - score(a));
 }
 
+const UA = { "User-Agent": "MestoApp/1.0 (t.me/Mesto_people_bot)" };
+
 export async function searchOsm(city: string, category: string, trainingType: string, q: string): Promise<OsmPlace[]> {
-  const query = buildOverpassQuery(city, category, trainingType, q);
+  if (!(q.length >= 2 || TAGS_BY_TRAINING[trainingType] || TAGS_BY_CATEGORY[category])) return [];
+  const bbox = await cityBBox(city);
+  if (!bbox) return [];
+  const query = buildOverpassQuery(bbox, category, trainingType, q);
   if (!query) return [];
   try {
     const res = await fetch(`https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`, {
-      headers: { "User-Agent": "MestoApp/1.0 (t.me/Mesto_people_bot)" },
+      headers: UA,
       next: { revalidate: 86400 },
       signal: AbortSignal.timeout(7000),
     });
