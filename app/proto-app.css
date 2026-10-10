@@ -136,4 +136,4 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
   .P .scroll .gl,.P section.scr .body .gl{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.6)}
   .P .scroll .btn.o{-webkit-backdrop-filter:none;backdrop-filter:none}
 }
-.P .af-h a{display:inline-flex;align-items:center;gap:2px;white-space:nowrap;flex:none}
+.P .af-h a{height:32px;padding:0 12px;border-radius:999px;background:rgba(255,255,255,.14);color:#fff;font-size:13px;display:inline-flex;align-items:center;gap:2px;white-space:nowrap;flex:none}
