@@ -1,0 +1,29 @@
+name: redesign-check
+on:
+  push:
+    branches: [fix-status]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - name: tsc
+        run: npx tsc --noEmit --pretty false > tsc.txt || true
+      - name: errors 1-10
+        run: grep "error TS" tsc.txt | sed -n '1,10p' | sed 's/^/::error::/' || true
+      - name: errors 11-20
+        run: grep "error TS" tsc.txt | sed -n '11,20p' | sed 's/^/::error::/' || true
+      - name: errors 21-30
+        run: grep "error TS" tsc.txt | sed -n '21,30p' | sed 's/^/::error::/' || true
+      - name: errors 31-40
+        run: grep "error TS" tsc.txt | sed -n '31,40p' | sed 's/^/::error::/' || true
+      - name: count
+        run: echo "::notice::tsc errors $(grep -c 'error TS' tsc.txt || true)"
+      - run: npx next lint
+      - name: fail on tsc
+        run: "! grep -q 'error TS' tsc.txt"

@@ -223,6 +223,12 @@ export function RowCard({
               Идёт сейчас
             </span>
           )}
+          {!e.isLive && e.isBoosted && (
+            <span className="upb">
+              <Ic n="up" c="xs" />
+              Поднято
+            </span>
+          )}
           {isFull ? (
             <i className="fulli">Заполнено</i>
           ) : (

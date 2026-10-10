@@ -433,7 +433,14 @@ export async function GET(req: NextRequest) {
         organizerHidden: !revealed,
         myApplicationStatus: statusByEventId.get(item.id) ?? null,
         goingCount: participants.length,
-        goingPreview: participants.slice(0, 3),
+        // Кружки «кто идёт»: сначала создатель встречи, потом одобренные участники
+        // (как в прототипе: «1 из 4» — это создатель).
+        goingPreview: [
+          ...(revealed && !item.isBusiness && item.organizer
+            ? [{ id: item.organizer.id, name: item.organizer.name, avatarUrl: item.organizer.avatarUrl }]
+            : []),
+          ...participants.filter((p) => p.id !== item.organizer?.id),
+        ].slice(0, 3),
       };
     }),
     page,
