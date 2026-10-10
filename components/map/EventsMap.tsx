@@ -111,12 +111,13 @@ function createClusterButton(count: number, onClick: () => void): HTMLButtonElem
   button.textContent = label;
   button.setAttribute("aria-label", `Показать встречи: ${count}`);
   button.style.cssText = `
-    box-sizing:border-box;width:${size}px;height:${size}px;border:3px solid transparent;
+    box-sizing:border-box;width:${size + 4}px;height:${size + 4}px;border:3px solid #fff;
     border-radius:50%;
-    background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#6c3bff,#8a5cff 45%,#ff8a2a) border-box;
-    color:#111;font:800 ${isThreeChars ? 16 : 17}px/1 var(--font-onest),Onest,Arial,sans-serif;
+    background:linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0);
+    color:#fff;font:600 ${isThreeChars ? 16 : 17}px/1 var(--font-golos),var(--font-onest),Arial,sans-serif;
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 4px 12px rgba(108,59,255,0.15);cursor:pointer;padding:0;
+    box-shadow:0 10px 22px -8px rgba(108,59,255,0.75);cursor:pointer;padding:0;
+    animation:m-pop .45s cubic-bezier(.34,1.56,.64,1) both;
   `.replace(/\s+/g, " ");
   button.addEventListener("click", (event) => {
     event.stopPropagation();

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useGuide } from "@/lib/mosya/guide";
 import { Icon } from "@/components/brand/Icon";
 import Link from "next/link";
 import Image from "next/image";
@@ -35,6 +36,7 @@ interface TicketData {
 export default function TicketPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [data, setData] = useState<TicketData | null>(null);
+  useGuide("ticket");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);

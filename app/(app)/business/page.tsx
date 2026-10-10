@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useGuide } from "@/lib/mosya/guide";
 import { Icon } from "@/components/brand/Icon";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,6 +10,7 @@ import { EventCard, type EventCardData } from "@/components/feed/EventCard";
 export default function BusinessPage() {
   const [events, setEvents] = useState<EventCardData[]>([]);
   const [loading, setLoading] = useState(true);
+  useGuide("business");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

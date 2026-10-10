@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useGuide } from "@/lib/mosya/guide";
 import Link from "next/link";
 import Image from "next/image";
 import { photoThumb } from "@/lib/photos/thumb";
@@ -47,6 +48,7 @@ export default function MyEventsPage() {
   const [scope, setScope] = useState<Scope>("upcoming");
   const [items, setItems] = useState<MyEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  useGuide("myEvents");
 
   useEffect(() => {
     let cancelled = false;

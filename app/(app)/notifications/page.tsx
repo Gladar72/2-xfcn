@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useGuide } from "@/lib/mosya/guide";
 import { Icon } from "@/components/brand/Icon";
 import Link from "next/link";
 import Image from "next/image";
@@ -58,6 +59,7 @@ export default function NotificationsPage() {
   const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  useGuide("notifications");
   const [tab, setTab] = useState<Tab>("all");
 
   useEffect(() => {

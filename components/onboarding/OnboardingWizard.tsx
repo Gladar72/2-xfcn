@@ -196,7 +196,7 @@ function RegistrationSteps() {
   // Мося объясняет сбоку, не закрывая форму (только при первом показе шага).
   const said = useRef(new Set<Step>());
   useEffect(() => {
-    if (said.current.has(step)) return;
+    if (!step || said.current.has(step)) return;
     said.current.add(step);
     const lines: Partial<Record<Step, [Parameters<typeof peek>[0]["pose"], string]>> = {
       photo: ["wave", "Привет! Знаю, регистрация — скучно, она есть во всех сервисах. Но без неё я не смогу найти тебе компанию или собрать встречу. Тут пара секунд 🙌"],

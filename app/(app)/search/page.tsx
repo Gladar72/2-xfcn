@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useGuide } from "@/lib/mosya/guide";
 import { Icon } from "@/components/brand/Icon";
 import Image from "next/image";
 import Link from "next/link";
@@ -34,6 +35,7 @@ export default function SearchPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [events, setEvents] = useState<EventCardData[]>([]);
   const [loading, setLoading] = useState(true);
+  useGuide("search");
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   // Блокируем прокрутку body, только пока открыта шторка фильтров — в ней

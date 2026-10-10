@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useGuide } from "@/lib/mosya/guide";
 import { useEffect, useMemo, useState } from "react";
 import { ChatListItem, type ChatListItemData } from "@/components/chat/ChatListItem";
 
@@ -11,6 +12,7 @@ const isClosed = (c: ChatListItemData) => c.eventStatus === "completed" || c.eve
 export default function ChatsPage() {
   const [chats, setChats] = useState<ChatListItemData[]>([]);
   const [loading, setLoading] = useState(true);
+  useGuide("chats");
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
 

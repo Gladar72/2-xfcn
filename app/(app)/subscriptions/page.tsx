@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useGuide } from "@/lib/mosya/guide";
 import { Icon } from "@/components/brand/Icon";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -32,6 +33,7 @@ const PLAN_ICON: Record<Plan, string> = {
 export default function SubscriptionsPage() {
   const [status, setStatus] = useState<SubscriptionStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  useGuide("subscriptions");
   const [changingPlan, setChangingPlan] = useState(false);
   const router = useRouter();
 

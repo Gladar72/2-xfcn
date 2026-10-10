@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useGuide } from "@/lib/mosya/guide";
 import { Icon } from "@/components/brand/Icon";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -31,6 +32,7 @@ function MapPageContent() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  useGuide("map");
   const [locating, setLocating] = useState(false);
   const [locateFailed, setLocateFailed] = useState(false);
   const mapRef = useRef<EventsMapHandle>(null);
@@ -133,7 +135,7 @@ function MapPageContent() {
           )}
         </div>
       ) : loading && events.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-sm text-ink-600">Загрузка карты...</div>
+        <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-ink-600">{/* eslint-disable-next-line @next/next/no-img-element */}<img src="/brand/mosya/mosya_phone.webp" alt="" className="h-24 w-24 animate-pulse object-contain" />Загружаем карту…</div>
       ) : (
         <EventsMap ref={mapRef} events={events} onSelect={handleSelect} city={resolvedCity} />
       )}
@@ -169,7 +171,7 @@ function MapPageContent() {
 
       {selected && (
         <div
-          className="fixed inset-x-0 bottom-20 z-50 max-h-[60vh] overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-card"
+          className="m-sheet-in m-glass-2 fixed inset-x-0 bottom-20 z-50 max-h-[60vh] overflow-y-auto rounded-t-[30px] p-5"
           role="dialog"
           aria-label={`Встречи: ${selected.length}`}
         >
@@ -194,7 +196,7 @@ function MapPageContent() {
               <Link
                 key={event.id}
                 href={`/events/${event.id}`}
-                className="flex items-center gap-3 rounded-card bg-background p-3"
+                className="m-press flex items-center gap-3 rounded-[20px] bg-white/70 p-3"
               >
                 {/* То же фото организатора, что и в булавке на карте */}
                 {event.organizer?.avatarUrl ? (
@@ -220,7 +222,7 @@ function MapPageContent() {
                     <p className="truncate text-xs font-medium text-ink-600">{event.placeName}</p>
                   )}
                   {event.organizerHidden && (
-                    <p className="text-xs text-ink-400">🎭 Анонимно · место — после одобрения</p>
+                    <p className="text-xs text-ink-400">Анонимно · место — после одобрения</p>
                   )}
                   {event.address && (
                     <p className="flex items-center gap-1 text-xs text-ink-400">
