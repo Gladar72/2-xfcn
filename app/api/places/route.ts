@@ -84,7 +84,7 @@ async function searchYandex(text: string, city: string): Promise<Place[]> {
       features?: { geometry?: { coordinates?: [number, number] }; properties?: { name?: string; CompanyMetaData?: { address?: string } } }[];
     };
     return (data.features ?? [])
-      .map((f) => {
+      .map((f): Place | null => {
         const c = f.geometry?.coordinates;
         const name = f.properties?.name;
         if (!c || !name) return null;
