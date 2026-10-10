@@ -352,6 +352,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     : COST_FULL[event.costType ?? ""] ?? "Каждый за себя";
   const shareWhen = `${dayLong(event.eventDate)}, ${event.eventTime.slice(0, 5)}`;
   const organizer = event.organizer;
+  const pendingWithUser = pendingApplicants.flatMap((a) => (a.applicant ? [{ ...a, applicant: a.applicant }] : []));
 
   let ctaBtn: React.ReactNode;
   if (mine) {
@@ -639,7 +640,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                     <b>Новые заявки</b>
                     <span className="redn">{pendingApplicants.length}</span>
                   </div>
-                  {pendingApplicants.map((a) => (
+                  {pendingWithUser.map((a) => (
                     <div key={a.id} className="apl gl">
                       <Link href={`/people/${a.applicant.id}`}>
                         {a.applicant.avatarUrl ? (
