@@ -84,7 +84,7 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
   const processed = applications.filter((a) => a.status !== "pending");
 
   return (
-    <div className="-mb-24 min-h-screen bg-background px-5 py-6">
+    <div className="-mb-24 min-h-screen px-5 py-6">
       <h1 className="m-title mb-1">{eventTitle || "Заявки"}</h1>
       {seats && (
         <p className="mb-6 text-sm text-ink-600">

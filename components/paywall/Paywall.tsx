@@ -124,7 +124,7 @@ export function Paywall({ onActivated }: PaywallProps) {
   return (
     <div className="space-y-4 px-5 py-6">
       <div className="text-center">
-        <h1 className="m-title">Выбери тариф</h1>
+        <h1 className="m-title">Выбери <span className="m-em">тариф</span></h1>
         <p className="mt-1 text-sm text-ink-600">Чтобы создавать встречи, нужна подписка.</p>
         <p className="mt-1 text-xs text-ink-400">
           Без подписки можно откликаться на встречи — до {FREE_APPLICATIONS_LIMIT} за период.
