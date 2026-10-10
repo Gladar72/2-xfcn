@@ -17,13 +17,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const admin = createAdminClient();
 
-  const [{ data: user }, { data: interestRows }] = await Promise.all([
+  const [{ data: user }, { data: interestRows }, { data: myInterestRows }] = await Promise.all([
     admin
       .from("users")
       .select("id, name, avatar_url, birth_date, gender, bio, rating_avg, completed_meetings_count")
       .eq("id", id)
       .maybeSingle(),
     admin.from("user_interests").select("interests(name)").eq("user_id", id),
+    admin.from("user_interests").select("interests(name)").eq("user_id", currentUser.userId),
   ]);
 
   if (!user) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -42,6 +43,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ratingAvg: user.rating_avg,
     completedMeetingsCount: user.completed_meetings_count,
     interests,
+    // Общие с текущим пользователем — для профиля человека («Общие интересы»).
+    commonInterests: interests.filter((n) =>
+      (myInterestRows ?? []).some((r) => (r.interests as unknown as { name: string } | null)?.name === n)
+    ),
   });
 }
 

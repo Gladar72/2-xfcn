@@ -427,6 +427,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                     </span>
                   </span>
                 </span>
+                {!event.organizerHidden && (
+                  <Link href={`/people/${event.organizer.id}`} aria-label="Профиль организатора" className="m-press ml-auto grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[rgba(108,59,255,.1)] text-accent">
+                    <Icon name="chev" size={18} />
+                  </Link>
+                )}
               </div>
             )}
           </figure>

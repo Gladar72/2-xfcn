@@ -8,6 +8,9 @@ import { Icon } from "@/components/brand/Icon";
 import { useGuide } from "@/lib/mosya/guide";
 import { say } from "@/lib/mosya/peek";
 import { JoinFlow } from "@/components/events/JoinFlow";
+import { PeopleRail } from "@/components/people/PeopleRail";
+import { AfishaRail } from "@/components/home/AfishaRail";
+import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/layout/TopBar";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
@@ -44,6 +47,7 @@ const POPULAR = 5;
 
 function FeedPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const categoryFilter = searchParams.get("category");
   const typeFilter = searchParams.get("type");
 
@@ -229,6 +233,9 @@ function FeedPageContent() {
           </div>
         </div>
       )}
+
+      {!categoryFilter && <PeopleRail />}
+      {!categoryFilter && <AfishaRail onApplyPress={(id) => router.push(`/events/${id}`)} />}
 
       <div className="mt-6 space-y-3 px-5">
         <h2 className="m-h2">Интересные встречи рядом</h2>
