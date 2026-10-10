@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { JoinFlow } from "@/components/events/JoinFlow";
 import { useGuide } from "@/lib/mosya/guide";
 import { Icon } from "@/components/brand/Icon";
 import Image from "next/image";
@@ -136,7 +137,28 @@ export default function SearchPage() {
     setGenderFilter("any");
   }
 
-  async function handleApply(eventId: string) {
+  const [joinEvent, setJoinEvent] = useState<EventCardData | null>(null);
+  const [joinPhase, setJoinPhase] = useState<"confirm" | "sending" | "done" | null>(null);
+
+  function openJoin(eventId: string) {
+    if (appliedEventIds.has(eventId) || applyingEventId) return;
+    setJoinEvent(events.find((e) => e.id === eventId) ?? null);
+    setJoinPhase("confirm");
+  }
+
+  async function confirmJoin() {
+    if (!joinEvent) return;
+    setJoinPhase("sending");
+    const ok = await handleApply(joinEvent.id);
+    if (ok) setJoinPhase("done");
+    else {
+      setJoinPhase(null);
+      setJoinEvent(null);
+    }
+  }
+
+  async function handleApply(eventId: string): Promise<boolean> {
+    let ok = false;
     setApplyingEventId(eventId);
     try {
       const res = await fetch("/api/applications", {
@@ -146,8 +168,9 @@ export default function SearchPage() {
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok || data.error === "already_applied") {
+        ok = res.ok;
         setAppliedEventIds((prev) => new Set(prev).add(eventId));
-        setToast(res.ok ? "Заявка отправлена! Ответ организатора придёт в Telegram." : apiErrorText(data, ""));
+        if (!res.ok) setToast(apiErrorText(data, ""));
       } else {
         // Раньше при ошибке ничего не происходило — человек не понимал почему.
         setToast(apiErrorText(data, "Не получилось отправить отклик.", res.status));
@@ -158,6 +181,7 @@ export default function SearchPage() {
       setApplyingEventId(null);
       setTimeout(() => setToast(null), 3500);
     }
+    return ok;
   }
 
   return (
@@ -227,7 +251,7 @@ export default function SearchPage() {
           <EventCard
             key={event.id}
             event={event}
-            onApplyPress={handleApply}
+            onApplyPress={openJoin}
             applied={appliedEventIds.has(event.id)}
             applying={applyingEventId === event.id}
           />
@@ -370,6 +394,15 @@ export default function SearchPage() {
           {toast}
         </div>
       )}
+      <JoinFlow
+        event={joinEvent}
+        phase={joinPhase}
+        onConfirm={confirmJoin}
+        onClose={() => {
+          setJoinPhase(null);
+          setJoinEvent(null);
+        }}
+      />
     </div>
   );
 }

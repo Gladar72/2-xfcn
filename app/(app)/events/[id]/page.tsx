@@ -19,7 +19,8 @@ import { photoThumb } from "@/lib/photos/thumb";
 import { LiveBadge, coverGradient } from "@/components/feed/EventCard";
 import { Icon } from "@/components/brand/Icon";
 import { useGuide } from "@/lib/mosya/guide";
-import { peek, say } from "@/lib/mosya/peek";
+import { say } from "@/lib/mosya/peek";
+import { JoinFlow } from "@/components/events/JoinFlow";
 
 interface EventDetails {
   id: string;
@@ -138,7 +139,15 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     }
   }
 
-  async function handleApply() {
+  const [joinPhase, setJoinPhase] = useState<"confirm" | "sending" | "done" | null>(null);
+
+  async function confirmJoin() {
+    setJoinPhase("sending");
+    const ok = await handleApply();
+    setJoinPhase(ok ? "done" : null);
+  }
+
+  async function handleApply(): Promise<boolean> {
     setApplying(true);
     try {
       const res = await fetch("/api/applications", {
@@ -156,10 +165,12 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               : apiErrorText(data, "Не получилось отправить отклик.", res.status)
         );
         if (data.error === "event_full") say("Упс, места закончились. Загляни в другие встречи — их много");
-        return;
+        return false;
       }
       setEvent((prev) => (prev ? { ...prev, viewerStatus: "pending" } : prev));
-      peek({ pose: "jump", text: "Заявка ушла организатору! Ответ придёт сюда и в Telegram", quick: true, low: true });
+      return true;
+    } catch {
+      return false;
     } finally {
       setApplying(false);
     }
@@ -485,7 +496,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 viewerStatus={event.viewerStatus}
                 isFull={isFull}
                 applying={applying}
-                onApply={handleApply}
+                onApply={() => setJoinPhase("confirm")}
                 eventId={event.id}
                 isBusiness={event.isBusiness}
               />
@@ -667,6 +678,15 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           )}
         </main>
       </div>
+      <JoinFlow
+        event={joinPhase ? event : null}
+        phase={joinPhase}
+        onConfirm={confirmJoin}
+        onClose={() => {
+          if (joinPhase === "done") router.push("/feed");
+          setJoinPhase(null);
+        }}
+      />
     </div>
   );
 }

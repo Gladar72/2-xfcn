@@ -7,6 +7,7 @@ import { Mosya } from "@/components/brand/Mosya";
 import { Icon } from "@/components/brand/Icon";
 import { useGuide } from "@/lib/mosya/guide";
 import { say } from "@/lib/mosya/peek";
+import { JoinFlow } from "@/components/events/JoinFlow";
 import { TopBar } from "@/components/layout/TopBar";
 import { CategoryGrid } from "@/components/home/CategoryGrid";
 import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
@@ -129,9 +130,31 @@ function FeedPageContent() {
     }
   }
 
-  async function handleApply(eventId: string) {
+  // «Я иду» → шторка подтверждения → экран «Заявка отправлена».
+  const [joinEvent, setJoinEvent] = useState<EventCardData | null>(null);
+  const [joinPhase, setJoinPhase] = useState<"confirm" | "sending" | "done" | null>(null);
+
+  function handleApply(eventId: string) {
     const knownStatus = localStatuses[eventId] ?? events.find((e) => e.id === eventId)?.myApplicationStatus;
     if (knownStatus || applyingEventId) return;
+    const ev = events.find((e) => e.id === eventId) ?? null;
+    setJoinEvent(ev);
+    setJoinPhase("confirm");
+  }
+
+  async function confirmJoin() {
+    if (!joinEvent) return;
+    setJoinPhase("sending");
+    const ok = await sendApplication(joinEvent.id);
+    if (ok) setJoinPhase("done");
+    else {
+      setJoinPhase(null);
+      setJoinEvent(null);
+    }
+  }
+
+  async function sendApplication(eventId: string): Promise<boolean> {
+    let ok = false;
     setApplyingEventId(eventId);
     try {
       const res = await fetch("/api/applications", {
@@ -142,8 +165,8 @@ function FeedPageContent() {
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
+        ok = true;
         setLocalStatuses((prev) => ({ ...prev, [eventId]: "pending" }));
-        setToast("Заявка отправлена! Ответ организатора придёт в Telegram.");
       } else if (data.error === "already_applied") {
         setLocalStatuses((prev) => ({ ...prev, [eventId]: "pending" }));
         setToast("Ты уже откликался на эту встречу.");
@@ -161,6 +184,7 @@ function FeedPageContent() {
       setApplyingEventId(null);
       setTimeout(() => setToast(null), 3000);
     }
+    return ok;
   }
 
   return (
@@ -259,6 +283,16 @@ function FeedPageContent() {
       />
 
       {toast && <div className="m-toast">{toast}</div>}
+
+      <JoinFlow
+        event={joinEvent}
+        phase={joinPhase}
+        onConfirm={confirmJoin}
+        onClose={() => {
+          setJoinPhase(null);
+          setJoinEvent(null);
+        }}
+      />
 
       {citySheetOpen && (
         <div
