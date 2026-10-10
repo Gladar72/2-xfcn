@@ -886,7 +886,21 @@ export function getBot(): Bot {
       return;
     }
 
-    const { reply, needsHuman } = await getSupportAiReply(userMessage);
+    // Последние сообщения этого пользователя за 2 часа — контекст для ИИ.
+    const { data: recentTickets } = await createAdminClient()
+      .from("support_tickets")
+      .select("message, bot_reply")
+      .eq("telegram_id", ctx.from.id)
+      .gte("created_at", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
+      .order("created_at", { ascending: false })
+      .limit(4)
+      .then(
+        (r) => r,
+        () => ({ data: null })
+      );
+    const history = ((recentTickets ?? []) as { message: string; bot_reply: string | null }[]).reverse();
+
+    const { reply, needsHuman } = await getSupportAiReply(userMessage, history);
     await ctx.reply(reply);
 
     // Сохраняем обращение — его разбирает дежурный (плановая задача Claude).
