@@ -65,3 +65,31 @@
 .P .docb h2{font-size:15px;font-weight:500;margin:14px 0 4px}
 .P .docb p{font-size:13.5px;line-height:1.5;color:var(--ink-2);margin:6px 0 0}
 .P .docb{padding:6px 16px 16px}
+/* пункты меню-ссылки — как кнопки меню прототипа */
+.P .menu a{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(140,110,200,.14);font-size:15px;transition:background .2s}
+.P .menu a:active{background:rgba(255,255,255,.5)}
+.P .menu a:last-child{border-bottom:0}
+.P .menu a span{flex:1}
+.P .menu a small{display:block;font-size:12.5px;color:var(--grey);margin-top:2px}
+.P .menu button{text-align:left}
+/* индикатор сегмента стартует от внутреннего отступа */
+.P .seg .si{left:4px}
+/* кнопки-строки в прототипе выровнены влево */
+.P .opt,.P .row,.P .ci,.P .host,.P .nt,.P .plan,.P .ownw,.P .plr,.P .sum,.P .apl,.P .chatprev,.P .mcard,.P .nearb,.P .plq,.P .subc,.P .plan-c,.P .tiles2 button,.P .pldrop button,.P .loc,.P .ttl,.P .sfield,.P .field{text-align:left}
+/* длинный текст в строках не раздвигает список (иначе на узких экранах обрезается время) */
+.P .clist,.P .list,.P .orgb,.P .blk{grid-template-columns:minmax(0,1fr)}
+.P .row .i span{flex-wrap:wrap;row-gap:2px;min-width:0}
+.P .row .i>*{min-width:0}
+/* без чёрной рамки фокуса после касания — только фирменная при управлении с клавиатуры */
+.P :focus{outline:none}
+.P :focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.P input,.P textarea,.P select{outline:none;-webkit-appearance:none;appearance:none;border-radius:0}
+.P .field input,.P .field textarea{border-radius:0;background:none}
+/* статусы в строке встречи — те же «таблетки», текст ровно по центру */
+.P .go-s{display:inline-grid;place-items:center;white-space:nowrap}
+/* .sm.done совпадает по имени с экраном успеха .done — возвращаем вид кнопки */
+.P .sm.done{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:0 13px;justify-items:initial}
+.P .cta .l{min-width:96px;flex:0 1 auto;overflow:hidden}
+.P .cta .l span{display:block}
+.P .cta .l b,.P .cta .l span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .cta .btn{flex:1 1 0;min-width:max-content;padding:0 18px;white-space:nowrap}

@@ -14,7 +14,7 @@
   --bot:max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px),10px);
 }
 .P *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-.P button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+.P button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
 .P button:focus-visible,.P input:focus-visible,.P textarea:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
 .P img{display:block;max-width:none}
 .P h1,.P h2,.P h3,.P p{margin:0}

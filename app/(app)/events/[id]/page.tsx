@@ -386,9 +386,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     );
   } else if (st === "pending") {
     ctaBtn = (
-      <button className="btn o" onClick={() => flash("Ждём ответа организатора")}>
+      <button className="btn o" onClick={() => flash("Заявка отправлена — ждём ответа организатора")}>
         <Ic n="clock" />
-        Заявка отправлена
+        Ждём ответа
       </button>
     );
   } else if (st === "rejected") {

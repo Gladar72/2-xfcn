@@ -109,7 +109,7 @@ export default function MyEventsPage() {
             const k = iso(d);
             const has = (items ?? []).some((e) => e.eventDate.slice(0, 10) === k);
             return (
-              <button key={k} className={`${day === k ? "on" : ""} ${has ? "has" : ""}`} onClick={() => setDay(day === k ? null : k)}>
+              <button key={k} className={`${day === k || (!day && k === iso(week[0]!)) ? "on" : ""} ${has ? "has" : ""}`} onClick={() => setDay(day === k ? null : k)}>
                 <span>{WD[d.getDay()]}</span>
                 <b>{d.getDate()}</b>
               </button>
