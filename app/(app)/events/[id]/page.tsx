@@ -19,6 +19,7 @@ import { photoThumb } from "@/lib/photos/thumb";
 import { LiveBadge, coverGradient } from "@/components/feed/EventCard";
 import { Icon } from "@/components/brand/Icon";
 import { useGuide } from "@/lib/mosya/guide";
+import { peek, say } from "@/lib/mosya/peek";
 
 interface EventDetails {
   id: string;
@@ -154,9 +155,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               ? "Это твоя собственная встреча."
               : apiErrorText(data, "Не получилось отправить отклик.", res.status)
         );
+        if (data.error === "event_full") say("Упс, места закончились. Загляни в другие встречи — их много");
         return;
       }
       setEvent((prev) => (prev ? { ...prev, viewerStatus: "pending" } : prev));
+      peek({ pose: "jump", text: "Заявка ушла организатору! Ответ придёт сюда и в Telegram", quick: true, low: true });
     } finally {
       setApplying(false);
     }

@@ -5,6 +5,8 @@ import { Character } from "@/components/brand/AliveStage";
 import { Icon } from "@/components/brand/Icon";
 import { EventCard, coverGradient } from "@/components/feed/EventCard";
 import { showGuide } from "@/lib/mosya/guide";
+import { confetti } from "@/lib/mosya/confetti";
+import { peek, say } from "@/lib/mosya/peek";
 import clsx from "clsx";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -379,13 +381,16 @@ export function CreateEventWizard() {
         // Сервер говорит, что именно не так (и в каком поле) — показываем
         // это человеку и сразу открываем нужный шаг, чтобы исправить.
         setError(apiErrorText(data, "Не получилось опубликовать встречу. Попробуй ещё раз.", res.status));
+        say("Тут что-то не так — я открыл нужный шаг, поправь и попробуем ещё раз");
         const targetStep = stepForField(data.field);
         if (targetStep) setStepIndex(steps.indexOf(targetStep));
         setSubmitting(false);
         return;
       }
 
-      router.push(`/events/${data.eventId}/applications`);
+      confetti();
+      peek({ pose: "jump", text: "Встреча опубликована! Заявки придут сюда и в Telegram 🎉", quick: true, low: true });
+      setTimeout(() => router.push(`/events/${data.eventId}/applications`), 900);
     } catch {
       setError("Проблема с соединением.");
       setSubmitting(false);
