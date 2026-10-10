@@ -257,7 +257,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         : content
       : "📷 Фото";
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const text = fromOrganizer
+    const text = !convEvent
+      ? // Личный чат: имя и текст, как в обычном мессенджере.
+        `💬 <b>${esc(senderName)}</b>\n\n${esc(preview)}`
+      : fromOrganizer
       ? `📣 <b>${esc(senderName)}</b> (организатор)` +
         (chatTitle ? ` · ${esc(chatTitle)}` : "") +
         `\n\n${esc(preview)}` +
