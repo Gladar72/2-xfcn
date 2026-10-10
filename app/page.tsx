@@ -168,7 +168,7 @@ function SplashScreen({ status, full = false }: { status: "loading" | "no_telegr
           <img src="/brand/mosya/mosya_run.webp" alt="" />
         </div>
       )}
-      <div aria-hidden>
+      <div aria-hidden className="absolute inset-0">
         {POPS.map(([x, y, s], i) => (
           <span
             key={i}
