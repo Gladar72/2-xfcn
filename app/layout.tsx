@@ -8,6 +8,7 @@ import "./globals.css";
 import "./proto.css";
 import "./proto-app.css";
 import { TelegramInit } from "@/components/telegram/TelegramInit";
+import { ScreenTransitions } from "@/components/proto/ScreenTransitions";
 
 // Golos Text — шрифт интерфейса редизайна 2026 (локальный вариативный файл,
 // без Google Fonts CDN, с кириллицей). Onest оставлен запасным.
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             z-index:-1 — не тормозит при скролле в WebView Telegram. */}
         <div className="m-aurora fixed inset-0 -z-10" aria-hidden />
         <TelegramInit />
+        <ScreenTransitions />
         {children}
       </body>
     </html>

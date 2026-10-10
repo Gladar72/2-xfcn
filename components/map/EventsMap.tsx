@@ -121,6 +121,7 @@ function createClusterButton(count: number, onClick: () => void): HTMLButtonElem
     box-shadow:0 10px 22px -8px rgba(108,59,255,0.75);cursor:pointer;padding:0;
     
   `.replace(/\s+/g, " ");
+  button.classList.add("mkpop");
   button.addEventListener("click", (event) => {
     event.stopPropagation();
     onClick();
@@ -234,6 +235,9 @@ function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el
         ${photoInner}
       </div>
     </div>`;
+  // Появление метки «пружинкой», как у пинов прототипа (анимируем содержимое —
+  // transform самого элемента занят позиционированием maplibre).
+  Array.from(el.children).forEach((c) => c.classList.add("mkpop"));
   el.addEventListener("click", (e) => {
     e.stopPropagation();
     onClick();
@@ -288,9 +292,10 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
             meMarkerRef.current?.remove();
             const lib = libRef.current;
             if (lib) {
+              // Точка «я здесь» как в прототипе (.me-dot): фиолетовая с расходящейся волной.
               const dot = document.createElement("div");
-              dot.style.cssText =
-                "width:18px;height:18px;border-radius:50%;background:#2f80ff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,128,255,0.2),0 2px 6px rgba(0,0,0,0.25);";
+              dot.className = "me-dot";
+              dot.style.position = "absolute";
               meMarkerRef.current = new lib.Marker({ element: dot, anchor: "center" }).setLngLat(point).addTo(map);
             }
             map.flyTo({ center: point, zoom: 15 });

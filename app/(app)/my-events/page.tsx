@@ -118,7 +118,7 @@ export default function MyEventsPage() {
         </div>
       )}
       <div style={{ marginTop: 16 }}>
-        <div className="list">
+        <div className="list rvu" key={`${scope}-${day ?? ""}`}>
           {items === null && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
           {shown.map((e) => {
             const past = scope === "archive";

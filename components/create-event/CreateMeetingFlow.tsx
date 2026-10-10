@@ -234,6 +234,18 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     if (step === 3) showGuide("when", { low: true });
   }, [step]);
 
+  // Как в прототипе: когда сетка категорий «доехала», звёздочка «Своё» делает оборот.
+  useEffect(() => {
+    if (step !== 1) return;
+    const t = setTimeout(() => {
+      document.querySelector(".scr.cr .spinstar")?.animate(
+        [{ transform: "rotate(0) scale(1)" }, { transform: "rotate(540deg) scale(1.25)" }, { transform: "rotate(720deg) scale(1)" }],
+        { duration: 1100, easing: "cubic-bezier(.34,1.3,.64,1)" }
+      );
+    }, 650);
+    return () => clearTimeout(t);
+  }, [step]);
+
   const isOwn = categorySlug === "custom";
   const iconSrc =
     categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/cat3d/i_games.webp" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
@@ -553,9 +565,13 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               {hasCustom && (
                 <button
                   className={`ownw gl ${isOwn ? "sel" : ""}`}
-                  onClick={() => {
+                  onClick={(e) => {
                     setCategorySlug("custom");
                     setTrainingTypeSlug(null);
+                    e.currentTarget.querySelector(".spinstar")?.animate(
+                      [{ transform: "rotate(0)" }, { transform: "rotate(360deg) scale(1.2)" }, { transform: "rotate(360deg)" }],
+                      { duration: 900, easing: "cubic-bezier(.34,1.3,.64,1)" }
+                    );
                   }}
                 >
                   <span className="ck">
@@ -571,7 +587,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 </button>
               )}
               {categorySlug === "training" && (
-                <div>
+                <div className="rv">
                   <span className="lbl">Какая тренировка?</span>
                   <div className="cats" style={{ flexWrap: "wrap", margin: 0, padding: 0 }}>
                     {trainingTypes.map((t) => (
@@ -585,7 +601,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 </div>
               )}
               {isOwn && (
-                <div className="ownbox">
+                <div className="ownbox rv">
                   <span className="lbl">Чем займёмся?</span>
                   <label className="field gl">
                     <input value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Например: сапы, вязание, бадминтон" maxLength={30} />
@@ -701,7 +717,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 </button>
               </div>
               {durOwn && (
-                <div>
+                <div className="rv">
                   <div className="durrow">
                     <label className="field gl">
                       <input
@@ -869,7 +885,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                     ))}
                   </div>
                   {bizPricing === "ticket" && (
-                    <div>
+                    <div className="rv">
                       <label className="field gl" style={{ marginTop: 8 }}>
                         <input value={ticketPrice} onChange={(e) => setTicketPrice(e.target.value.replace(/[^\d]/g, "").slice(0, 6))} placeholder="Цена билета, например 800" inputMode="numeric" />
                         <span>₽</span>
@@ -881,7 +897,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                     </div>
                   )}
                   {bizPricing === "custom" && (
-                    <label className="field gl ta" style={{ marginTop: 8 }}>
+                    <label className="field gl ta rv" style={{ marginTop: 8 }}>
                       <textarea rows={2} maxLength={300} value={bizTerms} onChange={(e) => setBizTerms(e.target.value)} placeholder="Например: депозит 1000 ₽ на баре" />
                     </label>
                   )}

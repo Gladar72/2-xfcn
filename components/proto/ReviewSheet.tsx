@@ -47,7 +47,23 @@ export function ReviewSheet({
       </h2>
       <div className="stars">
         {[1, 2, 3, 4, 5].map((i) => (
-          <button key={i} className={i <= rating ? "on" : ""} onClick={() => setRating(i)} aria-label={`${i} звёзд`}>
+          <button
+            key={i}
+            className={i <= rating ? "on" : ""}
+            onClick={(e) => {
+              setRating(i);
+              Array.from(e.currentTarget.parentElement?.children ?? [])
+                .slice(0, i)
+                .forEach((b, k) =>
+                  b.animate([{ transform: "scale(.6)" }, { transform: "scale(1.25)" }, { transform: "none" }], {
+                    duration: 380,
+                    delay: k * 50,
+                    easing: "cubic-bezier(.34,1.56,.64,1)",
+                  })
+                );
+            }}
+            aria-label={`${i} звёзд`}
+          >
             ★
           </button>
         ))}

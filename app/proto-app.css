@@ -93,3 +93,19 @@
 .P .cta .l span{display:block}
 .P .cta .l b,.P .cta .l span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .P .cta .btn{flex:1 1 0;min-width:max-content;padding:0 18px;white-space:nowrap}
+
+/* «Призрак» ушедшего экрана на время перехода (components/proto/ScreenTransitions) */
+.P .scr.ghost{pointer-events:none}
+.P .scr.ghost *{animation:none!important;transition:none!important}
+/* Плавное появление раскрывающихся блоков и смены списков (как el.animate в прототипе) */
+.P .rv{animation:rvIn .3s ease both}
+@keyframes rvIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.P .rvu{animation:rvUp .35s ease-out both}
+@keyframes rvUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.P .mkpop{animation:mkPop .32s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes mkPop{from{opacity:0;scale:.4}to{opacity:1;scale:1}}
+/* Строки списка встреч, пришедшие с сервера, — мягко «подъезжают» лесенкой */
+.P .list>.row{animation:rvUp .35s ease-out both}
+.P .list>.row:nth-child(2){animation-delay:.04s}.P .list>.row:nth-child(3){animation-delay:.08s}
+.P .list>.row:nth-child(4){animation-delay:.12s}.P .list>.row:nth-child(5){animation-delay:.16s}
+.P .list>.row:nth-child(n+6){animation-delay:.2s}
