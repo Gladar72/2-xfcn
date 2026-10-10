@@ -1,21 +1,19 @@
 "use client";
 
 import { EventPlaceMap } from "@/components/events/EventPlaceMap";
-import { RouteButton } from "@/components/events/RouteButton";
-import { ShareEventButton } from "@/components/events/ShareEventButton";
 import { markerIconFor } from "@/components/map/EventsMap";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
-import { ApplicantCard, type ApplicantCardData } from "@/components/applications/ApplicantCard";
-import { AvatarViewer } from "@/components/profile/AvatarViewer";
-import "./mesto-event.css";
-import { ApplicationStatusView } from "@/components/applications/ApplicationStatus";
-import { ManageParticipants } from "@/components/events/ManageParticipants";
+import { type ApplicantCardData } from "@/components/applications/ApplicantCard";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { photoThumb } from "@/lib/photos/thumb";
-import { LiveBadge } from "@/components/feed/EventCard";
+import { useGuide } from "@/lib/mosya/guide";
+import { say } from "@/lib/mosya/peek";
+import { openRoute } from "@/lib/maps/route";
+import { JoinFlow } from "@/components/events/JoinFlow";
+import { Chr, Cover, Ic, MiniMap, Sheet, Toast, costShort, dayLong, eventIcon } from "@/components/proto/ui";
+import { ShareSheet } from "@/components/proto/ShareSheet";
 
 interface EventDetails {
   id: string;
@@ -64,15 +62,6 @@ interface EventDetailsPageProps {
   params: { id: string };
 }
 
-const CATEGORY_ICON: Record<string, string> = {
-  training: "/brand/3d/workout.png",
-  cinema: "/brand/3d/movie.png",
-  coffee: "/brand/3d/coffee.png",
-  breakfast: "/brand/3d/breakfast.png",
-  dinner: "/brand/3d/dinner.png",
-  walk: "/brand/3d/walk.png",
-  custom: "/brand/markers/marker-custom-proposal.png",
-};
 
 export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const { id: eventId } = params;
@@ -86,11 +75,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [confirmingComplete, setConfirmingComplete] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [addressCopied, setAddressCopied] = useState(false);
   const [boosting, setBoosting] = useState(false);
   const [boostMessage, setBoostMessage] = useState<string | null>(null);
   const [pendingApplicants, setPendingApplicants] = useState<ApplicantCardData[]>([]);
   const [processingApplicantId, setProcessingApplicantId] = useState<string | null>(null);
+  useGuide("event", { when: !loading });
 
   useEffect(() => {
     fetch(`/api/events/${eventId}`)
@@ -142,7 +131,15 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     }
   }
 
-  async function handleApply() {
+  const [joinPhase, setJoinPhase] = useState<"confirm" | "sending" | "done" | null>(null);
+
+  async function confirmJoin() {
+    setJoinPhase("sending");
+    const ok = await handleApply();
+    setJoinPhase(ok ? "done" : null);
+  }
+
+  async function handleApply(): Promise<boolean> {
     setApplying(true);
     try {
       const res = await fetch("/api/applications", {
@@ -159,9 +156,13 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               ? "Это твоя собственная встреча."
               : apiErrorText(data, "Не получилось отправить отклик.", res.status)
         );
-        return;
+        if (data.error === "event_full") say("Упс, места закончились. Загляни в другие встречи — их много");
+        return false;
       }
       setEvent((prev) => (prev ? { ...prev, viewerStatus: "pending" } : prev));
+      return true;
+    } catch {
+      return false;
     } finally {
       setApplying(false);
     }
@@ -240,508 +241,630 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     }
   }
 
+  const [shareOpen, setShareOpen] = useState(false);
+  const [chatId, setChatId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [anonOpen, setAnonOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  function flash(t: string) {
+    setToast(t);
+    setTimeout(() => setToast(null), 2600);
+  }
+
+  // Чат встречи — ищем среди своих диалогов (есть, если ты организатор или принят).
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((d) => {
+        const c = (d.items ?? []).find((i: { eventId?: string | null }) => i.eventId === eventId);
+        if (c) setChatId(c.conversationId as string);
+      })
+      .catch(() => {});
+  }, [eventId]);
+
+  useEffect(() => {
+    if (error && event) {
+      flash(error);
+      setError(null);
+    }
+  }, [error, event]);
+
+  async function removeParticipant(userId: string) {
+    setRemovingId(userId);
+    try {
+      const res = await fetch(`/api/events/${eventId}/members/${userId}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        flash(data.error === "event_already_started" ? "Встреча уже началась — убрать участника нельзя." : apiErrorText(data, "Не получилось убрать участника.", res.status));
+        return;
+      }
+      fetch(`/api/events/${eventId}`)
+        .then((r) => r.json())
+        .then((d) => !d.error && setEvent(d));
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
   if (loading) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center">
-        <p className="text-ink-600">Загрузка...</p>
-      </div>
+      <section className="scr ev aurora fade" data-id="event">
+        <div className="sk" style={{ position: "absolute", left: 0, right: 0, top: 0, height: 330, borderRadius: 0 }} />
+        <div className="body">
+          <div className="sheet2" style={{ marginTop: 290 }}>
+            <div className="sk" style={{ height: 32, width: "60%" }} />
+            <div className="sk" style={{ height: 70 }} />
+            <div className="sk" style={{ height: 74 }} />
+          </div>
+        </div>
+      </section>
     );
   }
 
-  if (error && !event) {
+  if (!event) {
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 px-6 text-center">
-        <p className="text-sm text-red-600">{error}</p>
-        <Link href="/feed" className="text-sm font-medium text-accent">
-          Вернуться на главную
-        </Link>
-      </div>
+      <section className="scr aurora fade" data-id="event">
+        <div className="scroll">
+          <div className="bar-top">
+            <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+              <Ic n="back" />
+            </button>
+            <span />
+          </div>
+          <div className="empty" style={{ marginTop: 60 }}>
+            <EmptyIllMini />
+            <b>Встреча не найдена</b>
+            <span>Возможно, её уже удалили. Посмотри другие встречи рядом.</span>
+            <Link className="btn v" href="/feed" style={{ width: "100%", marginTop: 8 }}>
+              На главную
+            </Link>
+          </div>
+        </div>
+      </section>
     );
   }
-  if (!event) return null;
 
-  const categoryLabel = event.isBusiness ? "Бизнес событие" : event.trainingType?.name ?? event.category?.name;
-  const categoryIcon = event.isBusiness ? "/brand/markers/marker-business.png" : event.category ? CATEGORY_ICON[event.category.slug] : undefined;
-  const seatsLeft = event.seatsTotal - event.seatsTaken;
-  const isFull = seatsLeft <= 0;
-
-  // Строки для нового дизайна страницы («Акцент на фото», см.
-  // MESTO_Photo_Focus_Kit) — те же данные, что и раньше, просто собраны
-  // в отдельные подписи под конкретные плашки макета.
-  const timeLabel = event.eventEndTime
-    ? `${event.eventTime.slice(0, 5)}–${event.eventEndTime.slice(0, 5)}`
-    : event.eventTime.slice(0, 5);
-  const dateLabel = `${formatDate(event.eventDate)} · ${timeLabel}`;
-  const addressLine = event.placeName ? `${event.placeName}${event.address ? `, ${event.address}` : ""}` : event.address ?? "";
-  // Неразрывный пробел в "X из Y" — чтобы последняя цифра не переносилась
-  // одна на новую строку на узком экране (см. ТЗ, п.3).
-  const capacityLabel = isFull ? "Мест нет" : `${seatsLeft}\u00A0из\u00A0${event.seatsTotal}`;
-  const priceLabel = event.isBusiness
-    ? event.businessPricingType === "ticket"
-      ? `Билет: ${event.businessPricingDetails}`
-      : event.businessPricingType === "custom"
-        ? event.businessPricingDetails ?? "Свои условия"
-        : "Бесплатно"
-    : event.costType
-      ? { each_pays: "Каждый за себя", organizer_treats: "Автор угощает", free: "Бесплатно", negotiable: "По договорённости" }[
-          event.costType
-        ] ?? "—"
-      : "—";
-  // Фото есть только у "Для бизнеса" — у остальных категорий вместо
-  // фотографии показываем крупную иконку категории на том же месте
-  // (см. п.10 ТЗ — предусмотренный текущим проектом fallback).
-  const heroPhotoSrc = event.photoUrl ?? categoryIcon ?? "/brand/markers/marker-custom-proposal.png";
-  const heroIsRealPhoto = !!event.photoUrl;
-  const canManage = event.viewerStatus === "organizer" && (event.status === "published" || event.status === "closed");
-  // Встреча уже началась — вместо «Отменить» организатор может её завершить.
-  // Сама она закроется в autoCompleteAt (окончание + 30 минут).
+  const mine = event.viewerStatus === "organizer";
+  const st = event.viewerStatus;
+  const going = event.seatsTaken + 1;
+  const max = event.seatsTotal + 1;
+  const free = event.seatsTotal - event.seatsTaken;
+  const isFull = free <= 0;
+  const hid = !!event.organizerHidden;
+  const active = event.status === "published" || event.status === "closed";
+  const canManage = mine && active;
   const hasStarted = !!event.startsAt && new Date(event.startsAt).getTime() <= Date.now();
-  const isLive =
-    hasStarted &&
-    (event.status === "published" || event.status === "closed") &&
-    (!event.endsAt || new Date(event.endsAt).getTime() > Date.now());
+  const isLive = hasStarted && active && (!event.endsAt || new Date(event.endsAt).getTime() > Date.now());
   const autoCompleteLabel = event.autoCompleteAt
     ? new Date(event.autoCompleteAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })
     : null;
+  const catName = event.isBusiness ? "Бизнес событие" : event.trainingType?.name ?? CAT_SHORT[event.category?.slug ?? ""] ?? event.category?.name ?? "Встреча";
+  const icon = eventIcon(event);
+  const timeLabel = `${event.eventTime.slice(0, 5)}${event.eventEndTime ? `–${event.eventEndTime.slice(0, 5)}` : ""}`;
+  const dayLabel = dayLong(event.eventDate).toLowerCase();
+  const ticket = event.isBusiness && event.businessPricingType === "ticket" ? event.businessPricingDetails : null;
+  const costLabel = event.isBusiness
+    ? ticket
+      ? `Билет ${ticket}`
+      : event.businessPricingType === "custom"
+        ? event.businessPricingDetails ?? "Свои условия"
+        : "Бесплатно"
+    : COST_FULL[event.costType ?? ""] ?? "Каждый за себя";
+  const shareWhen = `${dayLong(event.eventDate)}, ${event.eventTime.slice(0, 5)}`;
+  const organizer = event.organizer;
+  const pendingWithUser = pendingApplicants.flatMap((a) => (a.applicant ? [{ ...a, applicant: a.applicant }] : []));
+
+  let ctaBtn: React.ReactNode;
+  if (mine) {
+    ctaBtn = active ? (
+      <Link className="btn v" href={`/events/${event.id}/edit`}>
+        <Ic n="edit" />
+        Редактировать
+      </Link>
+    ) : (
+      <button className="btn o" disabled>
+        {event.status === "completed" ? "Встреча завершена" : "Встреча отменена"}
+      </button>
+    );
+  } else if (!active) {
+    ctaBtn = (
+      <button className="btn o" disabled>
+        {event.status === "completed" ? "Встреча завершена" : "Встреча отменена"}
+      </button>
+    );
+  } else if (st === "accepted") {
+    ctaBtn = event.isBusiness ? (
+      <Link className="btn ok" href={`/events/${event.id}/ticket`}>
+        <Ic n="check" />
+        Открыть билет
+      </Link>
+    ) : (
+      <Link className="btn ok" href={chatId ? `/chats/${chatId}` : "/chats"}>
+        <Ic n="check" />
+        Ты в деле · чат
+      </Link>
+    );
+  } else if (st === "pending") {
+    ctaBtn = (
+      <button className="btn o" onClick={() => flash("Заявка отправлена — ждём ответа организатора")}>
+        <Ic n="clock" />
+        Ждём ответа
+      </button>
+    );
+  } else if (st === "rejected") {
+    ctaBtn = (
+      <button className="btn o" disabled>
+        Не в этот раз
+      </button>
+    );
+  } else if (isFull) {
+    ctaBtn = (
+      <button className="btn o" disabled>
+        Мест нет
+      </button>
+    );
+  } else {
+    ctaBtn = (
+      <button className="btn v" onClick={() => setJoinPhase("confirm")} disabled={applying}>
+        Я иду
+      </button>
+    );
+  }
 
   return (
-    <div className="-mb-24">
-      <div className="mesto">
-        <main className="m-page">
-          <div className="mb-3 flex items-center gap-3">
-            <button onClick={() => router.back()} aria-label="Назад">
-              <Image src="/brand/3d/icon-back.png" alt="" width={28} height={28} />
-            </button>
-          </div>
-
+    <section className="scr ev aurora in" data-id="event">
+      <Cover photoUrl={event.photoUrl} icon={icon} thumb={900} />
+      <div className="ph-sh" />
+      <div className="hb">
+        <button className="rb glass" onClick={() => router.back()} aria-label="Назад">
+          <Ic n="back" />
+        </button>
+        <div className="r">
+          <button className="rb glass" onClick={() => setShareOpen(true)} aria-label="Поделиться">
+            <Ic n="share" />
+          </button>
           {canManage && (
-            <div className="mb-3 flex items-start gap-2 rounded-card-lg bg-[#F1EAFF] p-4">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/3d/icon-badge.png" alt="" width={24} height={24} className="shrink-0" />
+            <Link className="rb glass" href={`/events/${event.id}/edit`} aria-label="Редактировать">
+              <Ic n="edit" />
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <div className="body">
+        <div className="sheet2">
+          {canManage && (
+            <div className="orgbar">
+              <Ic n="shield" c="s" />
               <div>
-                <p className="text-sm font-semibold text-[color:var(--m-purple)]">Вы организатор этого события</p>
-                <p className="mt-0.5 text-xs text-ink-600">Вы можете изменить информацию о событии в любой момент.</p>
+                <b>Ты организатор этого события</b>
+                <span>Информацию можно изменить в любой момент</span>
               </div>
             </div>
           )}
-
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <div className="m-badge">
+          <div className="chips">
+            <span className="pill lav">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={categoryIcon ?? "/brand/3d/icon-calendar.png"} alt="" width={20} height={20} />
-              <span>{categoryLabel}</span>
+              <img src={icon} alt="" style={{ width: 26, height: 26, marginLeft: -8 }} />
+              {catName}
+            </span>
+            <span className="pill gl">{event.isBusiness ? "Бизнес событие" : event.isAnonymous ? "Анонимно" : "Открытая встреча"}</span>
+            {isLive && (
+              <span className="pill gl">
+                <span className="live">
+                  <i />
+                  Идёт сейчас
+                </span>
+              </span>
+            )}
+            {isFull && <span className="pill fullp">Заполнено</span>}
+          </div>
+          <h1 className="t" style={{ fontSize: 28 }}>
+            {event.title}
+          </h1>
+          <div className="tiles3">
+            <div className="gl">
+              <Ic n="clock" c="s" />
+              <b>{timeLabel}</b>
+              <span>{dayLabel}</span>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {canManage && (
-                <Link
-                  href={`/events/${event.id}/edit`}
-                  className="flex shrink-0 items-center gap-1.5 rounded-pill bg-[#F1EAFF] px-4 py-2 text-sm font-medium text-[color:var(--m-purple)]"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/brand/3d/icon-edit.png" alt="" width={18} height={18} />
-                  Редактировать
-                </Link>
-              )}
-              {/* «Поделиться» — на одном уровне с плашкой категории; у организатора
-                  рядом ещё «Редактировать», поэтому кнопка сжимается до иконки. */}
-              <ShareEventButton eventId={event.id} title={event.title} when={dateLabel} compact={canManage} />
+            <div className="gl">
+              <Ic n="people" c="s" />
+              <b>{isFull ? "Мест нет" : `${going} из ${max}`}</b>
+              <span>{isFull ? "заполнено" : `нужно ещё ${free}`}</span>
+            </div>
+            <div className="gl">
+              <Ic n="wallet" c="s" />
+              <b>{ticket ?? costShort(event)}</b>
+              <span>{ticket ? "на месте" : "расходы"}</span>
             </div>
           </div>
 
-          <h1 className="m-title">{event.title}</h1>
-          {isLive && <LiveBadge className="mt-1" />}
-
-          <figure className="m-hero">
-            {/* Своё фото у встречи (бизнес-события) — показываем его; иначе
-                вместо картинки категории — карта с местом встречи. */}
-            {!heroIsRealPhoto && !event.organizerHidden && event.latitude != null && event.longitude != null ? (
-              <EventPlaceMap
-                latitude={event.latitude}
-                longitude={event.longitude}
-                markerSrc={markerIconFor({ isBusiness: event.isBusiness, category: event.category })}
-                placeName={event.placeName}
-                fallbackSrc={heroPhotoSrc}
-              />
+          {organizer &&
+            (hid ? (
+              <button className="host gl" onClick={() => setAnonOpen(true)}>
+                <span className="hv">
+                  <Chr shape="ball" pal="lilac" face="hidden" />
+                </span>
+                <div>
+                  <b>Организатор скрыт · анонимно</b>
+                  <span>
+                    {organizer.ratingAvg > 0 ? `★ ${organizer.ratingAvg.toFixed(1).replace(".", ",")} · ` : ""}откроется после одобрения заявки
+                  </span>
+                </div>
+                <span className="sm">Почему?</span>
+              </button>
             ) : (
-              <div style={{ position: "relative" }}>
-              <Image
-                className="m-photo"
-                src={heroPhotoSrc}
-                alt=""
-                width={480}
-                height={343}
-                style={heroIsRealPhoto ? undefined : { objectFit: "contain", padding: 40, background: "#F1EAFF" }}
-                sizes="100vw"
-                priority
-              />
-              {/* Маршрут и поверх фото события — как на карте. */}
-              {!event.organizerHidden && event.latitude != null && event.longitude != null && (
-                <RouteButton latitude={event.latitude} longitude={event.longitude} className="absolute right-3 top-3" />
-              )}
-              </div>
-            )}
-            {event.organizer && (
-              <div className="m-organizer">
-                <span className="m-avatar" style={{ overflow: "hidden", display: "block" }}>
-                  {event.organizerHidden ? (
-                    <span className="flex h-full w-full items-center justify-center bg-lavender-100">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/brand/3d/icon-mask.png" alt="Анонимно" className="h-3/4 w-3/4 object-contain" />
-                    </span>
-                  ) : event.organizer.avatarUrl ? (
-                    <AvatarViewer src={event.organizer.avatarUrl} alt={event.organizer.name}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={photoThumb(event.organizer.avatarUrl, 56)} alt="" className="h-full w-full object-cover" />
-                    </AvatarViewer>
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center bg-lavender-100 text-sm font-semibold text-ink-600">
-                      {event.organizer.name.charAt(0).toUpperCase()}
-                    </span>
-                  )}
-                </span>
-                <span className="m-organizer-copy">
-                  <span className="m-organizer-name">
-                    {event.organizer.name}
-                    {event.organizer.age ? `, ${event.organizer.age}` : ""}
-                    {event.isAnonymous && !event.organizerHidden ? " · 🎭 анонимно" : ""}
+              <Link className="host gl" href={mine ? "/profile" : `/people/${organizer.id}`}>
+                {organizer.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoThumb(organizer.avatarUrl, 100)} alt="" />
+                ) : (
+                  <span className="hv" style={{ background: "var(--g)", color: "#fff", display: "grid", placeItems: "center", borderRadius: "50%", fontWeight: 500 }}>
+                    {organizer.name.charAt(0).toUpperCase()}
                   </span>
-                  <span className="m-rating">
-                    {event.organizer.ratingAvg > 0 && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src="/mesto/assets/icons/svg/star.svg" alt="" width={16} height={16} />
-                    )}
-                    <span>
-                      {event.organizer.ratingAvg > 0 ? `${event.organizer.ratingAvg.toFixed(1)} · ` : ""}
-                      {event.organizer.completedMeetingsCount} встреч
-                    </span>
+                )}
+                <div>
+                  <b>
+                    {organizer.name}
+                    {mine ? " · это ты" : organizer.age ? `, ${organizer.age}` : ""}
+                  </b>
+                  <span>
+                    {event.isBusiness ? "Бизнес событие · организатор" : "Организатор"}
+                    {organizer.ratingAvg > 0 ? ` · ★ ${organizer.ratingAvg.toFixed(1).replace(".", ",")}` : ""} · {organizer.completedMeetingsCount}{" "}
+                    {plural(organizer.completedMeetingsCount, "встреча", "встречи", "встреч")}
                   </span>
-                </span>
-              </div>
-            )}
-          </figure>
+                </div>
+                <Ic n="chev" c="s" />
+              </Link>
+            ))}
 
-          <section className="m-details" aria-label="Информация о встрече">
-            <p className="m-info m-date">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/3d/icon-calendar.png" alt="" width={26} height={26} />
-              <span>{dateLabel}</span>
-            </p>
-            {event.organizerHidden && (
-              <p className="m-info m-address">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/icon-mask.png" alt="" width={26} height={26} />
-                <span className="flex-1">
-                  Анонимная встреча: организатор и точное место откроются, когда он одобрит твою заявку
-                </span>
-              </p>
-            )}
-            {addressLine && (
-              <p className="m-info m-address">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/icon-location.png" alt="" width={26} height={26} />
-                <span className="flex-1">{addressLine}</span>
-                <button
-                  type="button"
-                  aria-label="Скопировать адрес"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    navigator.clipboard.writeText(addressLine).then(() => {
-                      setAddressCopied(true);
-                      setTimeout(() => setAddressCopied(false), 1500);
-                    });
-                  }}
-                  className="relative shrink-0 rounded-lg p-1 text-[color:var(--m-muted)] active:bg-black/5"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="8" y="8" width="13" height="13" rx="2" stroke="currentColor" strokeWidth="1.8" />
-                    <path
-                      d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"
-                      stroke="currentColor"
-                      strokeWidth="1.8"
+          <div className="addr gl">
+            {hid ? (
+              <div className="lockrow">
+                <Ic n="lock" c="s" />
+                <div>
+                  <b>Место откроется после одобрения</b>
+                  <span>Организатор и точный адрес видны только принятым участникам</span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mini" style={{ height: 130 }}>
+                  {event.latitude != null && event.longitude != null ? (
+                    <EventPlaceMap
+                      latitude={event.latitude}
+                      longitude={event.longitude}
+                      markerSrc={markerIconFor({ isBusiness: event.isBusiness, category: event.category })}
+                      placeName={event.placeName}
+                      fallbackSrc={icon}
                     />
-                  </svg>
-                  {addressCopied && (
-                    <span className="absolute -top-8 right-0 whitespace-nowrap rounded-md bg-[color:var(--m-ink)] px-2 py-1 text-caption text-white">
-                      Скопировано
-                    </span>
+                  ) : (
+                    <MiniMap />
                   )}
-                </button>
-              </p>
-            )}
-            <div className="m-chips">
-              <p className="m-info m-capacity">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/icon-users.png" alt="" width={26} height={26} />
-                <span>{capacityLabel}</span>
-              </p>
-              <p className="m-info m-price">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/3d/subscription-coins.png" alt="" width={26} height={26} />
-                <span>{priceLabel}</span>
-              </p>
-            </div>
-          </section>
-
-          {event.description && <p className="m-description">{event.description}</p>}
-
-          {event.viewerStatus !== "organizer" && (event.status === "published" || event.status === "closed") && (
-            <div className="mb-4 mt-5">
-              <BottomAction
-                viewerStatus={event.viewerStatus}
-                isFull={isFull}
-                applying={applying}
-                onApply={handleApply}
-                eventId={event.id}
-                isBusiness={event.isBusiness}
-              />
-            </div>
-          )}
-
-          {event.participants.length > 0 && (
-            <div className="mb-4 flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {event.participants.slice(0, 5).map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-xs font-semibold text-ink-600"
-                  >
-                    {p.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photoThumb(p.avatarUrl, 48)} alt={p.name} className="h-full w-full object-cover" />
-                    ) : (
-                      p.name.charAt(0).toUpperCase()
-                    )}
+                </div>
+                <div className="arow">
+                  <div>
+                    <b>{event.placeName ?? "Место встречи"}</b>
+                    <span>{event.address ?? ""}</span>
                   </div>
-                ))}
-              </div>
-              <span className="text-xs text-ink-600">
-                {event.participants.length} {pluralizeParticipants(event.participants.length)}
+                </div>
+                <div className="abtns">
+                  {event.address && (
+                    <button
+                      className="sm"
+                      onClick={() =>
+                        navigator.clipboard?.writeText(`${event.placeName ? event.placeName + ", " : ""}${event.address}`).then(
+                          () => flash("Адрес скопирован"),
+                          () => {}
+                        )
+                      }
+                    >
+                      <Ic n="copy" c="xs" /> Скопировать адрес
+                    </button>
+                  )}
+                  {event.latitude != null && event.longitude != null && (
+                    <button className="sm" onClick={() => openRoute(event.latitude!, event.longitude!)}>
+                      <Ic n="route" c="xs" /> Маршрут
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="blk">
+            <div className="blk-h">
+              <b>{isLive ? "Уже на месте" : "Кто идёт"}</b>
+              <span>
+                {going} из {max}
+                {isFull ? " · заполнено" : ` · нужно ещё ${free}`}
               </span>
             </div>
-          )}
-
-          {error && <p className="mb-3 text-center text-sm text-red-600">{error}</p>}
-
-          {event.status === "completed" && (
-            <div className="mb-3 rounded-card bg-white p-4 text-center text-sm text-ink-600 shadow-card">
-              Встреча завершена. Спасибо, что были вместе!
+            <div className="ppl">
+              {organizer && !hid && (
+                <Link href={mine ? "/profile" : `/people/${organizer.id}`}>
+                  {organizer.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={photoThumb(organizer.avatarUrl, 120)} alt="" />
+                  ) : (
+                    <span className="av">{organizer.name.charAt(0).toUpperCase()}</span>
+                  )}
+                  {mine ? "Ты" : organizer.name}
+                </Link>
+              )}
+              {organizer && hid && (
+                <button onClick={() => setAnonOpen(true)}>
+                  <span className="anon">
+                    <Chr shape="ball" pal="lilac" face="hidden" />
+                  </span>
+                  Скрыт
+                </button>
+              )}
+              {event.participants.map((p) => (
+                <Link key={p.id} href={`/people/${p.id}`}>
+                  {p.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={photoThumb(p.avatarUrl, 120)} alt="" />
+                  ) : (
+                    <span className="av">{p.name.charAt(0).toUpperCase()}</span>
+                  )}
+                  {p.name}
+                </Link>
+              ))}
+              {!isFull && st === "none" && active && (
+                <button onClick={() => setJoinPhase("confirm")}>
+                  <span className="av free">
+                    <Ic n="plus" c="s" />
+                  </span>
+                  Свободно
+                </button>
+              )}
             </div>
-          )}
+          </div>
 
+          {event.description && <p className="about">{event.description}</p>}
+
+          {event.status === "completed" && <div className="evnote gl">Встреча завершена. Спасибо, что были вместе!</div>}
           {event.status === "cancelled" && (
-            <div className="mb-3 rounded-card bg-red-50 p-4 text-center text-sm text-red-600">
+            <div className="evnote gl" style={{ color: "#E0569B" }}>
               Эта встреча отменена организатором.
             </div>
           )}
 
           {canManage && (
-            <>
-              {!hasStarted && (
-                <ManageParticipants
-                  eventId={event.id}
-                  participants={event.participants}
-                  isFull={isFull}
-                  pendingCount={pendingApplicants.length}
-                  onChanged={() => {
-                    loadPendingApplicants();
-                    fetch(`/api/events/${eventId}`)
-                      .then((r) => r.json())
-                      .then((data) => !data.error && setEvent(data));
-                  }}
-                />
-              )}
-
+            <div className="orgb">
               {event.status === "published" && pendingApplicants.length > 0 && (
-                <div className="mb-3 rounded-card bg-white p-4 shadow-card">
-                  <h3 className="mb-3 text-sm font-semibold text-ink-900">
-                    Новые заявки ({pendingApplicants.length})
-                  </h3>
-                  <div className="space-y-3">
-                    {pendingApplicants.map((app) => (
-                      <ApplicantCard
-                        key={app.id}
-                        application={app}
-                        onAccept={(id) => handleApplicantDecision(id, "accept")}
-                        onReject={(id) => handleApplicantDecision(id, "reject")}
-                        processing={processingApplicantId === app.id}
-                      />
-                    ))}
+                <div className="blk">
+                  <div className="blk-h">
+                    <b>Новые заявки</b>
+                    <span className="redn">{pendingApplicants.length}</span>
                   </div>
-                </div>
-              )}
-
-              <div className="m-actions" aria-label="Управление встречей">
-                <Link href={`/events/${event.id}/applications`} className="m-action m-requests">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/brand/3d/icon-users.png" alt="" width={52} height={52} />
-                  <span className="m-action-label">Заявки</span>
-                </Link>
-                {event.status === "published" && (
-                  <button type="button" className="m-action m-boost" onClick={handleBoost} disabled={boosting} aria-busy={boosting}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/brand/3d/boost-icon.png" alt="" width={52} height={52} />
-                    <span className="m-action-label">
-                      {boosting ? "Поднимаем…" : (
-                        <>
-                          Поднять
-                          <br />
-                          встречу
-                        </>
-                      )}
-                    </span>
-                  </button>
-                )}
-              </div>
-              {boostMessage && <p className="mt-2 text-center text-xs text-ink-600">{boostMessage}</p>}
-
-              {event.isBusiness && (
-                <Link
-                  href={`/events/${event.id}/tickets`}
-                  className="mt-3 flex w-full items-center gap-3 rounded-card bg-white p-4 shadow-card"
-                >
-                  <Image src="/mesto/assets/icons/png/ticket.png" alt="" width={32} height={32} className="object-contain" />
-                  <span className="flex-1 text-base font-semibold text-ink-900">Билеты участников</span>
-                  <span className="text-sm text-ink-600">{event.participants.length}</span>
-                </Link>
-              )}
-
-              {hasStarted ? (
-                !confirmingComplete ? (
-                  <div className="mt-3">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmingComplete(true)}
-                      className="w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta"
-                    >
-                      Завершить встречу
-                    </button>
-                    {autoCompleteLabel && (
-                      <p className="mt-2 text-center text-xs text-ink-600">
-                        Иначе встреча закроется сама в {autoCompleteLabel} — через 30 минут после окончания.
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div className="mt-3 rounded-card bg-white p-4 text-center shadow-card-lg">
-                    <p className="mb-3 text-sm text-ink-900">
-                      Завершить встречу? Чат закроется, участники смогут оставить отзывы.
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setConfirmingComplete(false)}
-                        className="flex-1 rounded-pill bg-white py-2.5 text-sm font-medium text-ink-600 shadow-card"
-                      >
-                        Не сейчас
+                  {pendingWithUser.map((a) => (
+                    <div key={a.id} className="apl gl">
+                      <Link href={`/people/${a.applicant.id}`}>
+                        {a.applicant.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={photoThumb(a.applicant.avatarUrl, 88)} alt="" />
+                        ) : (
+                          <span className="tgava" style={{ position: "static", width: 44, height: 44, borderRadius: "50%", fontSize: 18 }}>
+                            {a.applicant.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </Link>
+                      <div>
+                        <b>
+                          {a.applicant.name}, {a.applicant.age}
+                        </b>
+                        <span>
+                          {a.applicant.ratingAvg > 0 ? `★ ${a.applicant.ratingAvg.toFixed(1).replace(".", ",")} · ` : ""}
+                          {a.applicant.completedMeetingsCount} {plural(a.applicant.completedMeetingsCount, "встреча", "встречи", "встреч")}
+                        </span>
+                      </div>
+                      <button className="sm no" disabled={processingApplicantId === a.id} onClick={() => handleApplicantDecision(a.id, "reject")}>
+                        Отклонить
                       </button>
-                      <button
-                        onClick={handleComplete}
-                        disabled={completing}
-                        className="flex-1 rounded-pill bg-brand-gradient py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                      >
-                        {completing ? "Завершаем..." : "Да, завершить"}
+                      <button className="sm yes" disabled={processingApplicantId === a.id} onClick={() => handleApplicantDecision(a.id, "accept")}>
+                        Принять
                       </button>
                     </div>
-                  </div>
-                )
-              ) : !confirmingCancel ? (
-                <button type="button" className="m-action m-cancel" onClick={() => setConfirmingCancel(true)}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/mesto/assets/icons/png/cancel.png" alt="" width={44} height={44} />
-                  <span className="m-action-label">Отменить встречу</span>
-                </button>
-              ) : (
-                <div className="rounded-card bg-red-50 p-4 text-center shadow-card-lg">
-                  <p className="mb-3 text-sm text-ink-900">Точно отменить встречу? Лимит тарифа вернётся.</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setConfirmingCancel(false)}
-                      className="flex-1 rounded-pill bg-white py-2.5 text-sm font-medium text-ink-600 shadow-card"
-                    >
-                      Не отменять
-                    </button>
-                    <button
-                      onClick={handleCancel}
-                      disabled={cancelling}
-                      className="flex-1 rounded-pill bg-red-600 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
-                    >
-                      {cancelling ? "Отменяем..." : "Да, отменить"}
-                    </button>
-                  </div>
+                  ))}
                 </div>
               )}
-            </>
+              {event.participants.length > 0 && (
+                <div className="blk">
+                  <div className="blk-h">
+                    <b>Участники</b>
+                    <span>
+                      {going} из {max}
+                    </span>
+                  </div>
+                  {event.participants.map((p) => (
+                    <div key={p.id} className="apl gl">
+                      <Link href={`/people/${p.id}`}>
+                        {p.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={photoThumb(p.avatarUrl, 88)} alt="" />
+                        ) : (
+                          <span className="tgava" style={{ position: "static", width: 44, height: 44, borderRadius: "50%", fontSize: 18 }}>
+                            {p.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </Link>
+                      <div>
+                        <b>{p.name}</b>
+                        <span>Участник</span>
+                      </div>
+                      {!hasStarted && (
+                        <button className="sm no" disabled={removingId === p.id} onClick={() => removeParticipant(p.id)}>
+                          Убрать
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="tiles2">
+                {event.status === "published" ? (
+                  <button className="gl" onClick={handleBoost} disabled={boosting}>
+                    <Ic n="up" />
+                    <b>{boosting ? "Поднимаем…" : "Поднять встречу"}</b>
+                    <span>{boostMessage ?? "в начало ленты"}</span>
+                  </button>
+                ) : (
+                  <Link className="gl" href={`/events/${event.id}/applications`} style={{ borderRadius: 20, padding: 12, display: "grid", gap: 3, color: "var(--violet)" }}>
+                    <Ic n="people" />
+                    <b style={{ fontWeight: 500, fontSize: 14, color: "var(--ink)" }}>Все заявки</b>
+                    <span style={{ fontSize: 12, color: "var(--grey)" }}>история и решения</span>
+                  </Link>
+                )}
+                <Link className="gl" href={`/events/${event.id}/edit`} style={{ borderRadius: 20, padding: 12, display: "grid", gap: 3, color: "var(--violet)" }}>
+                  <Ic n="edit" />
+                  <b style={{ fontWeight: 500, fontSize: 14, color: "var(--ink)" }}>Редактировать</b>
+                  <span style={{ fontSize: 12, color: "var(--grey)" }}>место, время, фото</span>
+                </Link>
+              </div>
+              {event.isBusiness && (
+                <Link className="chatprev gl" href={`/events/${event.id}/tickets`}>
+                  <Ic n="doc" />
+                  <div>
+                    <b>Билеты участников</b>
+                    <span>{event.participants.length} · номера для входа</span>
+                  </div>
+                  <Ic n="chev" c="s" />
+                </Link>
+              )}
+              {hasStarted ? (
+                <>
+                  <button className="btn v" onClick={() => setConfirmingComplete(true)}>
+                    Завершить встречу
+                  </button>
+                  {autoCompleteLabel && (
+                    <p className="hint2" style={{ textAlign: "center" }}>
+                      Иначе встреча закроется сама в {autoCompleteLabel} — через 30 минут после окончания.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <button className="report" onClick={() => setConfirmingCancel(true)}>
+                  Отменить встречу
+                </button>
+              )}
+            </div>
           )}
-        </main>
+
+          {(chatId || st === "pending" || st === "none") && !event.isBusiness && (
+            <Link className="chatprev gl" href={chatId ? `/chats/${chatId}` : "#"} onClick={(e) => !chatId && e.preventDefault()}>
+              <Ic n="chat" />
+              <div>
+                <b>Чат встречи</b>
+                <span>{chatId ? "ты в чате" : "откроется, когда организатор примет заявку"}</span>
+              </div>
+              <Ic n={chatId ? "chev" : "lock"} c="s" />
+            </Link>
+          )}
+        </div>
       </div>
+
+      <div className="cta">
+        <div className="l">
+          <b>{costLabel}</b>
+          <span>{ticket ? "оплата организатору лично" : event.isBusiness ? "вход свободный" : "по заявке организатору"}</span>
+        </div>
+        {ctaBtn}
+      </div>
+
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} when={shareWhen} />
+
+      <Sheet open={anonOpen} onClose={() => setAnonOpen(false)}>
+        <div className="anonbox">
+          <Chr shape="ball" pal="lilac" face="hidden" />
+          <b>Организатор скрыл профиль</b>
+          <span>Так делают, когда хотят сначала познакомиться вживую. Имя, фото и точный адрес откроются, когда организатор одобрит заявку.</span>
+        </div>
+        <button className="btn k" onClick={() => setAnonOpen(false)}>
+          Понятно
+        </button>
+      </Sheet>
+
+      <Sheet open={confirmingCancel} onClose={() => setConfirmingCancel(false)}>
+        <h2 className="t">Отменить встречу?</h2>
+        <p className="muted" style={{ margin: "-4px 0 0", fontSize: 14.5, lineHeight: 1.5 }}>
+          Участники получат уведомление. Лимит тарифа вернётся.
+        </p>
+        <button className="btn k" onClick={handleCancel} disabled={cancelling}>
+          {cancelling ? "Отменяем…" : "Да, отменить"}
+        </button>
+        <button className="btn o" onClick={() => setConfirmingCancel(false)}>
+          Не сейчас
+        </button>
+      </Sheet>
+
+      <Sheet open={confirmingComplete} onClose={() => setConfirmingComplete(false)}>
+        <h2 className="t">Завершить встречу?</h2>
+        <p className="muted" style={{ margin: "-4px 0 0", fontSize: 14.5, lineHeight: 1.5 }}>
+          Чат закроется, участники смогут оставить отзывы.
+        </p>
+        <button className="btn v" onClick={handleComplete} disabled={completing}>
+          {completing ? "Завершаем…" : "Да, завершить"}
+        </button>
+        <button className="btn o" onClick={() => setConfirmingComplete(false)}>
+          Не сейчас
+        </button>
+      </Sheet>
+
+      <Toast text={toast} />
+
+      <JoinFlow
+        event={joinPhase ? event : null}
+        phase={joinPhase}
+        onConfirm={confirmJoin}
+        onClose={() => {
+          if (joinPhase === "done") router.push("/feed");
+          setJoinPhase(null);
+        }}
+      />
+    </section>
+  );
+}
+
+const CAT_SHORT: Record<string, string> = {
+  training: "Тренировка",
+  cinema: "Кино",
+  coffee: "Кофе",
+  breakfast: "Завтрак",
+  dinner: "Ужин",
+  walk: "Прогулка",
+  active: "Активный отдых",
+  party: "Вечеринка",
+  custom: "Своё предложение",
+};
+
+const COST_FULL: Record<string, string> = {
+  each_pays: "Каждый за себя",
+  organizer_treats: "Автор угощает",
+  free: "Без расходов",
+  negotiable: "По договорённости",
+};
+
+function plural(n: number, a: string, b: string, c: string) {
+  const m = n % 10;
+  const h = n % 100;
+  return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 10 || h >= 20) ? b : c;
+}
+
+function EmptyIllMini() {
+  return (
+    <div className="ill">
+      <span style={{ left: 6, top: 36, width: 70, height: 70, position: "absolute" }}>
+        <Chr shape="cloud" pal="mint" face="calm" />
+      </span>
+      <span style={{ left: 52, top: 0, width: 86, height: 86, position: "absolute" }}>
+        <Chr shape="ball" pal="lilac" face="wow" />
+      </span>
+      <span style={{ left: 112, top: 52, width: 62, height: 62, position: "absolute" }}>
+        <Chr shape="squ" pal="pink" face="smile" />
+      </span>
     </div>
   );
-}
-
-function BottomAction({
-  viewerStatus,
-  isFull,
-  applying,
-  onApply,
-  eventId,
-  isBusiness,
-}: {
-  viewerStatus: EventDetails["viewerStatus"];
-  isFull: boolean;
-  applying: boolean;
-  onApply: () => void;
-  eventId: string;
-  isBusiness: boolean;
-}) {
-  if (viewerStatus === "organizer") {
-    return (
-      <Link
-        href={`/events/${eventId}/applications`}
-        className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-4 text-center text-base font-semibold text-white shadow-cta"
-      >
-        <span className="relative h-7 w-7 shrink-0">
-          <Image src="/brand/3d/applications-icon.png" alt="" fill className="object-contain" sizes="28px" />
-        </span>
-        Управлять заявками
-      </Link>
-    );
-  }
-  if (viewerStatus === "accepted" && isBusiness) {
-    return (
-      <div className="space-y-3">
-        <ApplicationStatusView status="accepted" layout="wide" />
-        <Link
-          href={`/events/${eventId}/ticket`}
-          className="flex w-full items-center justify-center gap-2 rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta"
-        >
-          <Image src="/mesto/assets/icons/png/ticket.png" alt="" width={26} height={26} className="object-contain" />
-          Открыть билет
-        </Link>
-      </div>
-    );
-  }
-  if (viewerStatus === "accepted" || viewerStatus === "pending" || viewerStatus === "rejected") {
-    return <ApplicationStatusView status={viewerStatus} layout="wide" />;
-  }
-
-  return (
-    <button
-      onClick={onApply}
-      disabled={isFull || applying}
-      className="w-full rounded-pill bg-brand-gradient py-4 text-base font-semibold text-white shadow-cta disabled:opacity-40"
-    >
-      {isFull ? "Мест нет" : applying ? "Отправляем..." : "Я иду"}
-    </button>
-  );
-}
-
-function formatDate(dateIso: string): string {
-  return new Date(dateIso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
-}
-
-function pluralizeParticipants(count: number): string {
-  const mod10 = count % 10;
-  const mod100 = count % 100;
-  if (mod10 === 1 && mod100 !== 11) return "человек идёт";
-  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return "человека идут";
-  return "человек идут";
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
+import { Ic, Screen } from "@/components/proto/ui";
 import { useRouter } from "next/navigation";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { photoThumb } from "@/lib/photos/thumb";
@@ -107,106 +107,85 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
   }
 
   return (
-    <div className="px-5 pb-28 pt-4">
-      <div className="mb-1 flex items-center gap-3">
-        <button onClick={() => router.back()} aria-label="Назад">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
+    <Screen id="tickets" anim="in">
+      <div className="bar-top">
+        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <Ic n="back" />
         </button>
-        <h1 className="text-title">Билеты</h1>
+        <button className="sm" onClick={copyList} disabled={!tickets.length}>
+          <Ic n={copied ? "check" : "copy"} c="xs" /> {copied ? "Скопировано" : "Список"}
+        </button>
       </div>
-      {title && <p className="mb-4 pl-9 text-sm text-ink-600">{title}</p>}
-
-      {!loading && tickets.length > 0 && (
-        <>
-          <div className="mb-3 grid grid-cols-3 gap-2">
-            <Stat label="Билетов" value={tickets.length} />
-            <Stat label="Пришли" value={arrived} accent />
-            <Stat label="Ждём" value={tickets.length - arrived} />
-          </div>
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            inputMode="search"
-            placeholder="Номер (например, 7) или имя"
-            className="mb-3 w-full rounded-card border border-ink-400/20 bg-white px-4 py-3 text-base outline-none focus:border-accent"
-          />
-          <div className="mb-3 flex items-center gap-2">
-            {(
-              [
-                ["all", "Все"],
-                ["waiting", "Ждём"],
-                ["arrived", "Пришли"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                onClick={() => setShow(value)}
-                className={`rounded-pill px-4 py-1.5 text-sm font-medium ${
-                  show === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-600 shadow-card"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-
-      {loading && <p className="py-10 text-center text-sm text-ink-600">Загрузка...</p>}
-      {error && <p className="mb-3 text-center text-sm text-red-600">{error}</p>}
-
-      {!loading && !error && tickets.length === 0 && (
-        <div className="flex flex-col items-center px-6 py-16 text-center">
-          <div className="relative mb-4 h-24 w-24">
-            <Image src="/mesto/assets/icons/png/ticket.png" alt="" fill className="object-contain" sizes="96px" />
-          </div>
-          <p className="text-sm text-ink-600">Когда ты примешь заявки, здесь появятся билеты участников.</p>
+      <h1 className="t" style={{ marginTop: 18 }}>
+        Билеты <em>гостей</em>
+      </h1>
+      <p className="muted" style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.5 }}>
+        {title}
+        {tickets.length ? ` · пришли ${arrived} из ${tickets.length}` : ""}
+      </p>
+      <label className="sfield gl" style={{ cursor: "text", marginTop: 14 }}>
+        <Ic n="search" c="s" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Номер билета или имя"
+          inputMode="search"
+          style={{ flex: 1, border: 0, background: "none", font: "inherit", fontSize: 15, outline: "none", color: "var(--ink)", minWidth: 0 }}
+        />
+      </label>
+      <div className="chipsrow" style={{ marginTop: 12 }}>
+        {(
+          [
+            ["all", `Все · ${tickets.length}`],
+            ["waiting", `Ждём · ${tickets.length - arrived}`],
+            ["arrived", `Пришли · ${arrived}`],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} className={`chip ${show === k ? "on" : "gl"}`} onClick={() => setShow(k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {error && (
+        <div className="note gl" style={{ marginTop: 12 }}>
+          {error}
         </div>
       )}
-
-      {!loading && tickets.length > 0 && filtered.length === 0 && (
-        <p className="py-6 text-center text-sm text-ink-600">
-          {query.trim() ? "Билет с таким номером не найден." : "Здесь пока никого."}
-        </p>
-      )}
-
-      <div className="space-y-2">
+      <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+        {loading && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 64 }} />)}
         {filtered.map((t) => (
-          <div key={t.userId} className="flex items-center gap-3 rounded-card bg-white p-3 shadow-card">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-sm font-semibold text-ink-600">
-              {t.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={photoThumb(t.avatarUrl, 64)} alt="" className="h-full w-full object-cover" />
+          <div key={t.userId} className="apl gl">
+            {t.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoThumb(t.avatarUrl, 88)} alt="" />
+            ) : (
+              <span className="hav r" style={{ width: 44, height: 44 }}>
+                {t.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <div>
+              <b>{t.ticketCode ?? "—"}</b>
+              <span>{t.name}</span>
+            </div>
+            <button className={`sm ${t.checkedInAt ? "done" : "yes"}`} disabled={savingId === t.userId} onClick={() => toggle(t)}>
+              {t.checkedInAt ? (
+                <>
+                  <Ic n="check" c="xs" /> Пришёл
+                </>
               ) : (
-                t.name.charAt(0).toUpperCase()
+                "Отметить"
               )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-base font-bold tracking-wide text-accent">{t.ticketCode ?? "—"}</p>
-              <p className="truncate text-sm text-ink-900">{t.name}</p>
-            </div>
-            <button
-              onClick={() => toggle(t)}
-              disabled={savingId === t.userId}
-              className={`shrink-0 whitespace-nowrap rounded-pill px-4 py-2 text-sm font-semibold disabled:opacity-50 ${
-                t.checkedInAt ? "bg-[#DDF7E6] text-[#1E8E4E]" : "bg-brand-gradient text-white shadow-cta"
-              }`}
-            >
-              {t.checkedInAt ? "✓ Пришёл" : "Отметить"}
             </button>
           </div>
         ))}
+        {!loading && filtered.length === 0 && (
+          <div className="empty">
+            <b>{tickets.length ? "Никого не нашли" : "Пока нет гостей"}</b>
+            <span>{tickets.length ? "Проверь номер — например, 7 или MKS-007." : "Номера билетов появятся, когда ты примешь заявки."}</span>
+          </div>
+        )}
       </div>
-
-      {!loading && tickets.length > 0 && (
-        <button
-          onClick={copyList}
-          className="mt-4 w-full rounded-pill bg-white py-3.5 text-base font-semibold text-accent shadow-card"
-        >
-          {copied ? "Список скопирован ✓" : "Скопировать список для учёта"}
-        </button>
-      )}
-    </div>
+    </Screen>
   );
 }
 
@@ -214,13 +193,4 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
 function ticketNumber(code: string | null): number {
   const match = code?.match(/(\d+)$/);
   return match?.[1] ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-}
-
-function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
-  return (
-    <div className="rounded-card bg-white p-3 text-center shadow-card">
-      <p className={`text-title ${accent ? "text-[#1E8E4E]" : "text-ink-900"}`}>{value}</p>
-      <p className="text-xs text-ink-600">{label}</p>
-    </div>
-  );
 }

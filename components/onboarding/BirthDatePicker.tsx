@@ -32,7 +32,7 @@ export function BirthDatePicker({ value, onChange }: { value: string; onChange: 
   }
 
   const cls =
-    "w-full min-w-0 appearance-none rounded-card border border-ink-400/20 bg-white px-3 py-4 text-center text-base text-ink-900 outline-none focus:border-accent";
+    "m-glass w-full min-w-0 appearance-none rounded-[20px] border-0 px-3 py-4 text-center text-base text-ink-900 outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]";
 
   return (
     <div className="grid grid-cols-[1fr_1.6fr_1.2fr] gap-2">

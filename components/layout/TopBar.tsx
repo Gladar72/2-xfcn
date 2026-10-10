@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
+import { Icon } from "@/components/brand/Icon";
 import Link from "next/link";
 import { AvatarViewer } from "@/components/profile/AvatarViewer";
 import { photoThumb } from "@/lib/photos/thumb";
@@ -23,33 +23,33 @@ export function TopBar({ city, avatarUrl, onCityPress }: TopBarProps) {
   }, []);
 
   const avatarCircle = (
-    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-brand-gradient text-sm font-semibold text-white shadow-card">
+    <div className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-brand-gradient text-sm font-semibold text-white shadow-cta">
       {avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={photoThumb(avatarUrl, 40)} alt="" className="h-full w-full object-cover" />
+        <img src={photoThumb(avatarUrl, 44)} alt="" className="h-full w-full object-cover" />
       ) : (
-        <Image src="/brand/icons/avatar-placeholder.svg" alt="" width={20} height={20} className="brightness-0 invert" />
+        <Icon name="user" size={20} />
       )}
     </div>
   );
 
   return (
-    <div className="flex items-center justify-between px-5 pt-4">
-      <button
-        onClick={onCityPress}
-        className="flex items-center gap-1 rounded-pill bg-white px-4 py-2 text-sm font-medium shadow-card"
-      >
-        {city} <Image src="/brand/icons/chevron-down.svg" alt="" width={14} height={14} />
+    <div className="flex items-center justify-between gap-3 px-5 pt-4">
+      <button onClick={onCityPress} className="m-press text-left">
+        <small className="block text-xs text-ink-400">Ищем компанию</small>
+        <span className="flex items-center gap-1 text-[17px] font-medium">
+          {city} <Icon name="down" size={16} />
+        </span>
       </button>
 
       <div className="flex items-center gap-2">
         <Link
           href="/notifications"
-          className="relative flex h-10 w-10 items-center justify-center rounded-full bg-white shadow-card"
+          className="m-glass m-press relative flex h-11 w-11 items-center justify-center rounded-full"
           aria-label="Уведомления"
         >
-          <Image src="/brand/3d/icon-bell.png" alt="" width={26} height={26} className="object-contain" />
-          {hasUnread && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent" />}
+          <Icon name="bell" size={21} />
+          {hasUnread && <span className="m-dot" />}
         </Link>
 
         {/* Тап по аватару на главной — сразу крупное фото (как в профиле),

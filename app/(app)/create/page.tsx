@@ -2,7 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { Paywall } from "@/components/paywall/Paywall";
-import { CreateEventWizard } from "@/components/create-event/CreateEventWizard";
+import { useSearchParams } from "next/navigation";
+import { CreateMeetingFlow } from "@/components/create-event/CreateMeetingFlow";
 
 export default function CreatePage() {
   const [status, setStatus] = useState<"loading" | "needs_subscription" | "ready">("loading");
@@ -21,9 +22,15 @@ export default function CreatePage() {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center">
-        <p className="text-ink-600">Загрузка...</p>
-      </div>
+      <section className="scr aurora fade" data-id="create">
+        <div className="done" style={{ paddingTop: 200 }}>
+          <div className="burst wait">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/mosya/mosya_think.webp" alt="" />
+          </div>
+          <p>Секунду…</p>
+        </div>
+      </section>
     );
   }
 
@@ -33,7 +40,13 @@ export default function CreatePage() {
 
   return (
     <Suspense>
-      <CreateEventWizard />
+      <CreateRouter />
     </Suspense>
   );
+}
+
+/** Встреча и бизнес-событие — один мастер из прототипа (у бизнеса свои условия: билет, гостей до 500). */
+function CreateRouter() {
+  const business = useSearchParams().get("business") === "true";
+  return <CreateMeetingFlow business={business} />;
 }

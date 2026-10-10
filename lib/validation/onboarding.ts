@@ -39,6 +39,12 @@ export const onboardingSchema = z.object({
     .default([]),
   // Фото — base64 data URL (data:image/jpeg;base64,...), проверяем размер отдельно на бэкенде.
   photoBase64: z.string().startsWith("data:image/", "Не получилось прочитать фото — выбери его заново").optional(),
+  // Ещё до двух фото профиля (как в прототипе: главное + 2).
+  extraPhotos: z
+    .array(z.string().startsWith("data:image/", "Не получилось прочитать фото — выбери его заново"))
+    .max(2, "Можно добавить не больше 3 фото")
+    .optional()
+    .default([]),
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;

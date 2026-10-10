@@ -1,0 +1,111 @@
+/* Дополнения к стилям прототипа (app/proto.css) для живых данных приложения. */
+.P .plan .gfx{width:46px;height:46px;border-radius:14px;flex:none}
+.P .plan .gfx img{width:70%}
+.P .pcard .tgava{font-size:48px}
+.P .loc{text-align:left}
+.P .field input{font-size:16px}
+/* смена шага мастера создания — въезд по направлению (как в прототипе) */
+.P .crstep{animation:crIn .38s var(--ease) both}
+@keyframes crIn{from{opacity:0;transform:translateX(calc(var(--dir,1) * 40px))}to{opacity:1;transform:none}}
+.P .pmap>div:first-child{position:absolute;inset:0}
+.P .pmap .lab{z-index:4}
+.P .pldrop button{width:100%}
+.P .plan>img{width:46px;height:46px;border-radius:14px;object-fit:cover}
+/* карточки-ссылки (в прототипе это кнопки) — блочные */
+.P a.hero,.P a.acard,.P a.pcard{display:block}
+.P a.ttl,.P a.nearb,.P a.plan,.P a.row,.P a.ci,.P a.sfield,.P a.cat{display:flex}
+.P a.rb{display:grid}
+/* заставка: короткий вариант (повторный запуск) — без пробежки Моси */
+.P .splash .lockup.fast .hero-m{animation-delay:.05s}
+.P .splash .lockup.fast .wm{animation-delay:.25s}
+.P .splash .lockup.fast p{animation-delay:.35s}
+.P .splash .load.fast{animation-delay:.3s}.P .splash .load.fast i{animation-delay:.35s;animation-duration:.6s}
+.P .splash .wm svg{height:auto;margin:0}
+.P .sum .gfx{width:64px;height:64px;border-radius:16px;flex:none}
+.P .ev>.ph.gfx{position:absolute;left:0;right:0;top:0;height:330px;width:100%}
+.P .ev>.ph.gfx img{width:46%}
+.P .mini>div{position:absolute;inset:0}
+.P .apl .sm[disabled]{opacity:.5}
+.P .evnote{border-radius:20px;padding:12px 14px;font-size:14px;line-height:1.45;text-align:center}
+.P .opt .ivth,.P .opt img.ivth{width:46px;height:46px;border-radius:12px;object-fit:cover;flex:none}
+.P .opt .ivth.gfx img{width:72%}
+.P .cta .rb{flex:none}
+.P .ci .cav{width:46px;height:46px;border-radius:15px;flex:none;display:grid;place-items:center;background:var(--g);color:#fff;font-weight:500;font-size:18px;overflow:hidden}
+.P .ci .cav.r{border-radius:50%}
+.P .ci .cav.gfx img{width:76%;height:auto;border-radius:0}
+/* чат: аватар-буква, время, фото, приглашение */
+.P .m .mav{width:28px;height:28px;border-radius:50%;flex:none;background:var(--g);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:600}
+.P .m .bb .mt{display:flex;justify-content:flex-end;align-items:center;gap:4px;font-size:11px;opacity:.6;margin-top:2px}
+.P .m .bb.img{padding:4px}
+.P .m .bb.img>span:not(.mt),.P .m .bb.img .mt,.P .m .bb.img small{padding:0 10px}
+.P .mimg{display:block;border-radius:16px;overflow:hidden}
+.P .mimg img{display:block;width:220px;max-width:100%;max-height:320px;object-fit:cover}
+.P .minv{display:block;min-width:200px}
+.P .minvb{display:block;margin-top:8px;border-radius:999px;padding:8px;text-align:center;font-size:13px;font-weight:600;background:var(--g);color:#fff}
+.P .m.me .minvb{background:rgba(255,255,255,.22)}
+.P .mread{align-self:flex-end;font-size:11.5px;color:var(--grey);margin:-4px 4px 0;max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .mview{position:absolute;inset:0;z-index:490;background:rgba(0,0,0,.9);display:grid;place-items:center;padding:16px}
+.P .mview img{max-width:100%;max-height:100%;border-radius:12px;object-fit:contain}
+.P .hav{width:42px;height:42px;border-radius:14px;flex:none;display:grid;place-items:center;background:var(--g);color:#fff;font-weight:500;overflow:hidden}
+.P .hav.r{border-radius:50%}
+.P .hav.gfx img{width:76%;height:auto;border-radius:0}
+.P .inrow .field button{flex:none}
+.P .send[disabled]{opacity:.45}
+.P .apl .hav{flex:none}
+.P .suppage .msgs2{max-height:none}
+.P .msgs2 .m{max-width:88%}
+.P .scroll.pb150{padding-bottom:150px}
+.P .scroll.pb160{padding-bottom:160px}
+.P .scroll.pb180{padding-bottom:180px}
+.P .map>div{position:absolute;inset:0}
+.P .mcard .mcgfx{width:72px;height:72px;border-radius:17px;flex:none}
+.P .mcard .mcgfx img{width:70%;height:auto}
+.P .listb{display:inline-flex}
+.P .locate,.P .locate2{display:grid}
+.P .docb h2{font-size:15px;font-weight:500;margin:14px 0 4px}
+.P .docb p{font-size:13.5px;line-height:1.5;color:var(--ink-2);margin:6px 0 0}
+.P .docb{padding:6px 16px 16px}
+/* пункты меню-ссылки — как кнопки меню прототипа */
+.P .menu a{width:100%;display:flex;align-items:center;gap:12px;padding:12px 14px;text-align:left;border-bottom:1px solid rgba(140,110,200,.14);font-size:15px;transition:background .2s}
+.P .menu a:active{background:rgba(255,255,255,.5)}
+.P .menu a:last-child{border-bottom:0}
+.P .menu a span{flex:1}
+.P .menu a small{display:block;font-size:12.5px;color:var(--grey);margin-top:2px}
+.P .menu button{text-align:left}
+/* индикатор сегмента стартует от внутреннего отступа */
+.P .seg .si{left:4px}
+/* кнопки-строки в прототипе выровнены влево */
+.P .opt,.P .row,.P .ci,.P .host,.P .nt,.P .plan,.P .ownw,.P .plr,.P .sum,.P .apl,.P .chatprev,.P .mcard,.P .nearb,.P .plq,.P .subc,.P .plan-c,.P .tiles2 button,.P .pldrop button,.P .loc,.P .ttl,.P .sfield,.P .field{text-align:left}
+/* длинный текст в строках не раздвигает список (иначе на узких экранах обрезается время) */
+.P .clist,.P .list,.P .orgb,.P .blk{grid-template-columns:minmax(0,1fr)}
+.P .row .i span{flex-wrap:wrap;row-gap:2px;min-width:0}
+.P .row .i>*{min-width:0}
+/* без чёрной рамки фокуса после касания — только фирменная при управлении с клавиатуры */
+.P :focus{outline:none}
+.P :focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.P input,.P textarea,.P select{outline:none;-webkit-appearance:none;appearance:none;border-radius:0}
+.P .field input,.P .field textarea{border-radius:0;background:none}
+/* статусы в строке встречи — те же «таблетки», текст ровно по центру */
+.P .go-s{display:inline-grid;place-items:center;white-space:nowrap}
+/* .sm.done совпадает по имени с экраном успеха .done — возвращаем вид кнопки */
+.P .sm.done{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:0 13px;justify-items:initial}
+.P .cta .l{min-width:96px;flex:0 1 auto;overflow:hidden}
+.P .cta .l span{display:block}
+.P .cta .l b,.P .cta .l span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .cta .btn{flex:1 1 0;min-width:max-content;padding:0 18px;white-space:nowrap}
+
+/* «Призрак» ушедшего экрана на время перехода (components/proto/ScreenTransitions) */
+.P .scr.ghost{pointer-events:none}
+.P .scr.ghost *{animation:none!important;transition:none!important}
+/* Плавное появление раскрывающихся блоков и смены списков (как el.animate в прототипе) */
+.P .rv{animation:rvIn .3s ease both}
+@keyframes rvIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+.P .rvu{animation:rvUp .35s ease-out both}
+@keyframes rvUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.P .mkpop{animation:mkPop .32s cubic-bezier(.34,1.56,.64,1) both}
+@keyframes mkPop{from{opacity:0;scale:.4}to{opacity:1;scale:1}}
+/* Строки списка встреч, пришедшие с сервера, — мягко «подъезжают» лесенкой */
+.P .list>.row{animation:rvUp .35s ease-out both}
+.P .list>.row:nth-child(2){animation-delay:.04s}.P .list>.row:nth-child(3){animation-delay:.08s}
+.P .list>.row:nth-child(4){animation-delay:.12s}.P .list>.row:nth-child(5){animation-delay:.16s}
+.P .list>.row:nth-child(n+6){animation-delay:.2s}

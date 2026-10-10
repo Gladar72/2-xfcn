@@ -1,10 +1,12 @@
 "use client";
 
-import Image from "next/image";
+import { useGuide } from "@/lib/mosya/guide";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { RouteButton } from "@/components/events/RouteButton";
+import { openRoute } from "@/lib/maps/route";
+import { photoThumb } from "@/lib/photos/thumb";
+import { Ic } from "@/components/proto/ui";
 import { EventsMap, eventTimeLabel, markerIconFor, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
 
 const PAGE_SIZE = 20; // показ длинного списка кластера порциями, а не всё разом
@@ -19,6 +21,7 @@ export default function MapPage() {
 
 function MapPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   // Все параметры (city/categories/date/timeOfDay/costType/gender/
   // ageMin/ageMax) просто пробрасываем как есть — /api/events/map
   // понимает тот же набор фильтров, что и экран поиска (см. кнопку
@@ -30,6 +33,7 @@ function MapPageContent() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  useGuide("map");
   const [locating, setLocating] = useState(false);
   const [locateFailed, setLocateFailed] = useState(false);
   const mapRef = useRef<EventsMapHandle>(null);
@@ -112,142 +116,172 @@ function MapPageContent() {
     mapRef.current.fitBounds(selected.map((e) => [e.longitude, e.latitude] as [number, number]));
   }
 
+  const dateNow = searchParams.get("date");
+  function setDate(d: string | null) {
+    const q = new URLSearchParams(forwardedParams);
+    if (d) q.set("date", d);
+    else q.delete("date");
+    router.replace(`/map${q.toString() ? `?${q}` : ""}`);
+  }
+  const [liveOnly, setLiveOnly] = useState(false);
+  const shown = liveOnly ? events.filter((e) => eventTimeLabel(e).live) : events;
+  const carousel = (selected ?? shown).slice(0, visibleCount);
+
   return (
-    <div className="relative h-[calc(100vh-5rem)]">
-      {resolvedCity && (
-        <div className="absolute left-1/2 top-3 z-40 -translate-x-1/2 rounded-pill bg-white px-4 py-1.5 text-sm font-medium text-ink-900 shadow-card">
-          <Image src="/brand/3d/icon-location.png" alt="" width={16} height={16} className="mr-1 inline-block align-[-3px]" />{resolvedCity}
-        </div>
-      )}
-      {error ? (
-        <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="text-sm text-red-600">{error}</p>
-          {error !== "Сначала заверши регистрацию." && (
-            <button
-              onClick={() => load()}
-              className="rounded-pill bg-brand-gradient px-6 py-2.5 text-sm font-semibold text-white shadow-cta active:scale-95"
-            >
-              Попробовать снова
-            </button>
-          )}
-        </div>
-      ) : loading && events.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-sm text-ink-600">Загрузка карты...</div>
-      ) : (
-        <EventsMap ref={mapRef} events={events} onSelect={handleSelect} city={resolvedCity} />
-      )}
-
-      {!error && !selected && (
-        <>
-          {/* Как у Invitor: справа внизу — «где я» и большая «+» создать встречу. */}
-          <div className="absolute bottom-6 right-4 z-40 flex flex-col items-center gap-3">
-            <button
-              onClick={handleLocate}
-              aria-label="Показать, где я"
-              className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-ink-900 shadow-card active:scale-95"
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" className={locating ? "animate-pulse" : ""}>
-                <path d="M21 3 3 10.5l7.5 3L13.5 21 21 3Z" stroke="#2f80ff" strokeWidth="2" strokeLinejoin="round" fill={locating ? "#2f80ff" : "none"} />
-              </svg>
-            </button>
-            <Link
-              href="/create"
-              aria-label="Создать встречу"
-              className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-gradient text-3xl font-light leading-none text-white shadow-cta active:scale-95"
-            >
-              +
-            </Link>
-          </div>
-          {locateFailed && (
-            <div className="absolute bottom-6 left-4 right-24 z-40 rounded-card bg-white px-3 py-2 text-xs text-ink-600 shadow-card">
-              Не удалось определить, где ты. Разреши доступ к геопозиции для Telegram.
-            </div>
-          )}
-        </>
-      )}
-
-      {selected && (
-        <div
-          className="fixed inset-x-0 bottom-20 z-50 max-h-[60vh] overflow-y-auto rounded-t-[28px] bg-white p-5 shadow-card"
-          role="dialog"
-          aria-label={`Встречи: ${selected.length}`}
-        >
-          <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" onClick={() => setSelected(null)} />
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-title truncate">
-              {selected.length > 1
-                ? `Встречи здесь (${selected.length})`
-                : selected[0]?.placeName || selected[0]?.address || "Место встречи"}
-            </h2>
-            {distinctPlaceCount > 1 && (
-              <button
-                onClick={handleZoomToGroup}
-                className="shrink-0 rounded-pill bg-lavender-100 px-3 py-1.5 text-xs font-medium text-accent"
-              >
-                Приблизить на карте
+    <section className="scr fade" data-id="map">
+      <div className="map" style={{ cursor: "default" }}>
+        {error ? (
+          <div className="empty" style={{ position: "absolute", inset: 0, alignContent: "center" }}>
+            <b>{error}</b>
+            {error !== "Сначала заверши регистрацию." && (
+              <button className="btn v" style={{ width: "auto", padding: "0 24px" }} onClick={() => load()}>
+                Попробовать снова
               </button>
             )}
           </div>
-          <div className="space-y-2">
-            {selected.slice(0, visibleCount).map((event) => (
-              <Link
-                key={event.id}
-                href={`/events/${event.id}`}
-                className="flex items-center gap-3 rounded-card bg-background p-3"
-              >
-                {/* То же фото организатора, что и в булавке на карте */}
-                {event.organizer?.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={event.organizer.avatarUrl} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
-                ) : (
-                  <Image
-                    src={markerIconFor(event)}
-                    alt=""
-                    width={44}
-                    height={44}
-                    unoptimized
-                    className="h-11 w-11 shrink-0 object-contain"
-                  />
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-ink-900">{event.title}</p>
-                  <p className="truncate text-xs text-ink-600">
-                    {formatDate(event.eventDate)} · {event.eventTime.slice(0, 5)}
-                    {eventTimeLabel(event).live && <span className="ml-1 font-semibold text-accent">· идёт сейчас</span>}
-                  </p>
-                  {event.placeName && event.placeName !== event.address && (
-                    <p className="truncate text-xs font-medium text-ink-600">{event.placeName}</p>
-                  )}
-                  {event.organizerHidden && (
-                    <p className="text-xs text-ink-400">🎭 Анонимно · место — после одобрения</p>
-                  )}
-                  {event.address && (
-                    <p className="flex items-center gap-1 text-xs text-ink-400">
-                      <Image src="/brand/3d/icon-location.png" alt="" width={12} height={12} className="shrink-0" />
-                      <span className="line-clamp-2">{event.address.replace(/^Россия,\s*/, "")}</span>
-                    </p>
-                  )}
-                </div>
-                {!event.organizerHidden && (
-                  <RouteButton latitude={event.latitude} longitude={event.longitude} className="shrink-0 self-center" />
-                )}
-              </Link>
-            ))}
+        ) : loading && events.length === 0 ? (
+          <div className="done" style={{ position: "absolute", inset: 0, alignContent: "center", paddingTop: 0 }}>
+            <div className="burst wait">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/brand/mosya/mosya_phone.webp" alt="" />
+            </div>
+            <p>Загружаем карту…</p>
           </div>
-          {visibleCount < selected.length && (
+        ) : (
+          <EventsMap ref={mapRef} events={shown} onSelect={handleSelect} city={resolvedCity} />
+        )}
+      </div>
+
+      <div className="zm">
+        <button className="rb gl" onClick={() => mapRef.current?.zoomIn()} aria-label="Приблизить">
+          <Ic n="plus" c="s" />
+        </button>
+        <button className="rb gl" onClick={() => mapRef.current?.zoomOut()} aria-label="Отдалить">
+          <svg className="ic s" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+            <path d="M5 12h14" />
+          </svg>
+        </button>
+      </div>
+
+      <div className="mtop">
+        <div className="search">
+          <Link className="sfield gl" href="/search">
+            <Ic n="search" c="s" />
+            {resolvedCity ? `Что рядом? · ${resolvedCity}` : "Что рядом?"}
+          </Link>
+          <Link className="rb k" href="/search?filters=1" aria-label="Фильтры" style={{ width: 50, height: 50 }}>
+            <Ic n="filter" />
+          </Link>
+        </div>
+        <div className="chipsrow">
+          <button
+            className={`chip ${liveOnly ? "on" : "gl"}`}
+            onClick={() => {
+              setLiveOnly(true);
+              setDate("today");
+            }}
+          >
+            Сейчас
+          </button>
+          {(
+            [
+              ["today", "Сегодня"],
+              ["tomorrow", "Завтра"],
+              ["weekend", "На выходных"],
+            ] as const
+          ).map(([k, l]) => (
             <button
-              onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-              className="mt-3 w-full rounded-pill bg-lavender-50 py-2.5 text-sm font-medium text-accent"
+              key={k}
+              className={`chip ${!liveOnly && dateNow === k ? "on" : "gl"}`}
+              onClick={() => {
+                setLiveOnly(false);
+                setDate(dateNow === k ? null : k);
+              }}
             >
-              Показать ещё ({selected.length - visibleCount})
+              {l}
             </button>
-          )}
+          ))}
+        </div>
+      </div>
+
+      <button className="rb gl locate" onClick={handleLocate} aria-label="Где я">
+        <Ic n="nav" />
+      </button>
+      <Link className="rb locate2" href="/create" aria-label="Создать встречу">
+        <Ic n="plus" />
+      </Link>
+      {selected ? (
+        <button className="pill gl listb" onClick={() => setSelected(null)}>
+          <Ic n="close" c="xs" />
+          {selected.length > 1 ? `Здесь ${selected.length} · показать все` : "Показать все"}
+        </button>
+      ) : (
+        <Link className="pill gl listb" href="/search">
+          <Ic n="filter" c="xs" />
+          Списком · {shown.length}
+        </Link>
+      )}
+      {selected && distinctPlaceCount > 1 && (
+        <button className="pill gl" style={{ position: "absolute", left: 20, bottom: "calc(var(--bot) + 196px)", zIndex: 5, height: 40 }} onClick={handleZoomToGroup}>
+          Приблизить
+        </button>
+      )}
+      {locateFailed && (
+        <div className="note gl" style={{ position: "absolute", left: 20, right: 84, bottom: "calc(var(--bot) + 196px)", zIndex: 6 }}>
+          Не удалось определить, где ты. Разреши доступ к геопозиции для Telegram.
         </div>
       )}
-    </div>
+
+      <div className="mcar">
+        {carousel.map((e) => (
+          <Link key={e.id} className="mcard gl" href={`/events/${e.id}`}>
+            {e.organizer?.avatarUrl && !e.organizerHidden ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoThumb(e.organizer.avatarUrl, 144)} alt="" />
+            ) : (
+              <span className="mcgfx gfx">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={markerIconFor(e)} alt="" />
+              </span>
+            )}
+            <div className="i">
+              <b>{e.title}</b>
+              <span>
+                {eventTimeLabel(e).live ? "идёт сейчас" : `${dayShort(e.eventDate)}, ${e.eventTime.slice(0, 5)}`} ·{" "}
+                {e.organizerHidden ? "анонимно · место после одобрения" : e.placeName ?? e.address?.replace(/^Россия,\s*/, "") ?? ""}
+              </span>
+              <span>{e.seatsLeft > 0 ? `свободно ${e.seatsLeft}` : "мест нет"}</span>
+            </div>
+            {!e.organizerHidden && (
+              <span
+                className="sm"
+                role="button"
+                aria-label="Маршрут"
+                onClick={(ev) => {
+                  ev.preventDefault();
+                  openRoute(e.latitude, e.longitude);
+                }}
+              >
+                <Ic n="route" c="xs" />
+              </span>
+            )}
+          </Link>
+        ))}
+        {selected && visibleCount < selected.length && (
+          <button className="mcard gl" style={{ width: 160, justifyContent: "center" }} onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}>
+            Ещё {selected.length - visibleCount}
+          </button>
+        )}
+      </div>
+    </section>
   );
 }
 
-function formatDate(dateIso: string): string {
-  return new Date(dateIso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+function dayShort(dateIso: string) {
+  const d = new Date(dateIso);
+  const t = new Date();
+  const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) / 864e5);
+  if (diff === 0) return "сегодня";
+  if (diff === 1) return "завтра";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
 }

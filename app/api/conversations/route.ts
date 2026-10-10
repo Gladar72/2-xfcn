@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { parseInvite } from "@/lib/chat/invite";
 
 /**
  * GET /api/conversations
@@ -71,7 +72,7 @@ export async function GET() {
     if (!lastMessageByConversation.has(msg.conversation_id)) {
       lastMessageByConversation.set(msg.conversation_id, {
         // Сообщение «только фото» — в списке чатов показываем как в Telegram.
-        content: msg.content || "📷 Фото",
+        content: parseInvite(msg.content) ? "📅 Приглашение на встречу" : msg.content || "📷 Фото",
         createdAt: msg.created_at,
         isMine: msg.sender_id === currentUser.userId,
         senderId: msg.sender_id,
@@ -130,6 +131,7 @@ export async function GET() {
       unreadCount: m.unread_count,
       isBlocked: m.is_blocked,
       isFavorite: m.is_favorite,
+      eventId: (conversation as { event_id?: string | null } | null)?.event_id ?? null,
       eventTitle: conversation?.events?.title ?? null,
       eventStatus: conversation?.events?.status ?? null,
       eventPhotoUrl: conversation?.events?.photo_url ?? null,

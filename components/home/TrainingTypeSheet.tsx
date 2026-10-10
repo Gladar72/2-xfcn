@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
+import { Mosya } from "@/components/brand/Mosya";
+import { trainingIcon } from "@/lib/data/category-icons";
 
 interface TrainingType {
   id: string;
@@ -50,20 +51,23 @@ export function TrainingTypeSheet({ open, trainingTypes, onClose }: TrainingType
 
   return (
     <div className="fixed inset-0 z-50 flex items-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative w-full rounded-t-[28px] bg-white p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="m-fade-in absolute inset-0 bg-[rgba(22,18,31,0.35)]" onClick={onClose} />
+      <div className="m-sheet-in m-glass-2 relative w-full rounded-t-[30px] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-        <h2 className="mb-4 text-title">Совместная тренировка</h2>
-        <div className="grid grid-cols-2 gap-2">
+        <h2 className="m-title mb-4 text-[24px]">
+          Совместная <span className="m-em">тренировка</span>
+        </h2>
+        <div className="m-stagger grid grid-cols-3 gap-2">
           {trainingTypes.map((type) => (
             <button
               key={type.id}
               onClick={() => handlePress(type)}
               disabled={checkingType === type.slug}
-              className="flex items-center gap-2 rounded-card bg-background p-3 text-left text-sm font-medium active:scale-[0.98] disabled:opacity-60"
+              className="m-cat bg-white/70 shadow-card disabled:opacity-60"
             >
-              <span className="text-xl leading-none">{type.emoji}</span>
-              {type.name}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={trainingIcon(type.slug)} alt="" />
+              <span>{type.name}</span>
             </button>
           ))}
         </div>
@@ -71,28 +75,24 @@ export function TrainingTypeSheet({ open, trainingTypes, onClose }: TrainingType
 
       {emptyType && (
         <div
-          className="fixed inset-0 z-[60] flex flex-col justify-end bg-black/30"
+          className="m-fade-in fixed inset-0 z-[60] flex flex-col justify-end bg-[rgba(22,18,31,0.35)]"
           onClick={() => setEmptyType(null)}
         >
-          <div className="rounded-t-sheet bg-white p-5 pb-8 text-center" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <div className="relative mx-auto mb-3 h-14 w-14">
-              <Image src="/brand/3d/workout.png" alt="" fill className="object-contain" sizes="56px" />
+          <div className="m-sheet-in m-glass-2 rounded-t-sheet p-5 pb-8 text-center" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-3 h-1 w-10 rounded-pill bg-ink-400/30" />
+            <div className="relative mx-auto mb-2 flex h-24 w-40 items-end justify-center">
+              <Mosya pose="think" size={96} />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={trainingIcon(emptyType.slug)} alt="" className="absolute right-2 top-0 h-12 w-12 object-contain" />
             </div>
-            <h2 className="text-title mb-2">Такую встречу ещё никто не создал</h2>
+            <h2 className="m-title mb-2 text-[24px]">Такую встречу ещё никто <span className="m-em">не создал</span></h2>
             <p className="mb-5 text-sm text-ink-600">
               «{emptyType.name}» в твоём городе пока нет ни одной активной встречи — стань первым.
             </p>
-            <button
-              onClick={() => router.push(`/create?category=training&type=${emptyType.slug}`)}
-              className="w-full rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta"
-            >
+            <button onClick={() => router.push(`/create?category=training&type=${emptyType.slug}`)} className="m-btn m-btn-v">
               Создать первым
             </button>
-            <button
-              onClick={() => setEmptyType(null)}
-              className="mt-2 w-full py-3 text-sm font-medium text-ink-600"
-            >
+            <button onClick={() => setEmptyType(null)} className="m-btn mt-2 h-12 text-ink-600">
               Не сейчас
             </button>
           </div>

@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import { Icon } from "@/components/brand/Icon";
+import { Mosya } from "@/components/brand/Mosya";
+import { Character } from "@/components/brand/AliveStage";
+import { CATEGORY_ICON } from "@/lib/data/category-icons";
 import { useRouter } from "next/navigation";
 
 interface Category {
@@ -16,24 +19,12 @@ interface CategoryGridProps {
   onTrainingPress: () => void;
 }
 
-// 3D-иконки категорий МЕСТО (новый комплект ассетов, см. бриф). emoji остаётся
-// как запасной вариант, если у какой-то категории вдруг не найдётся своей иконки.
-// "custom" ("Своё предложение") теперь тоже обычная плитка сетки — раньше была
-// отдельным широким баннером под сеткой, на её месте теперь баннер "Для бизнеса".
-const CATEGORY_ICON: Record<string, string> = {
-  training: "/brand/3d/workout.png",
-  cinema: "/brand/3d/movie.png",
-  coffee: "/brand/3d/coffee.png",
-  breakfast: "/brand/3d/breakfast.png",
-  dinner: "/brand/3d/dinner.png",
-  walk: "/brand/3d/walk.png",
-  custom: "/brand/3d/custom-proposal.png",
-};
 
 export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps) {
   const router = useRouter();
   const [checkingCategory, setCheckingCategory] = useState<string | null>(null);
   const [emptyCategory, setEmptyCategory] = useState<Category | null>(null);
+  const [spin, setSpin] = useState(false);
 
   async function handlePress(category: Category) {
     if (category.slug === "training") {
@@ -69,129 +60,97 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
     }
   }
 
+  const tiles = categories.filter((c) => c.slug !== "custom");
+
   return (
     <div className="px-5">
-      <div className="grid grid-cols-2 gap-3">
-        {categories
-          .filter((c) => c.slug !== "custom")
-          .map((category) => {
+      {/* Сетка «Что планируем»: стеклянные плитки с глянцевыми 3D-иконками */}
+      <div className="m-stagger grid grid-cols-4 gap-2">
+        {tiles.map((category) => {
           const iconSrc = CATEGORY_ICON[category.slug];
           return (
             <button
               key={category.id}
               onClick={() => handlePress(category)}
               disabled={checkingCategory === category.slug}
-              className="flex flex-col items-start gap-2 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98] disabled:opacity-60"
+              className="m-cat m-glass disabled:opacity-60"
             >
               {iconSrc ? (
-                <div className="relative h-11 w-11">
-                  <Image src={iconSrc} alt="" fill className="object-contain" sizes="44px" />
-                </div>
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={iconSrc} alt="" />
               ) : (
-                <span className="text-2xl">{category.emoji}</span>
+                <span className="text-3xl leading-[52px]">{category.emoji}</span>
               )}
-              <span className="text-sm font-medium leading-tight text-ink-900">
-                {category.name}
-              </span>
+              <span>{shortName(category.name)}</span>
             </button>
           );
         })}
 
-        {/* "Создай своё событие" — раньше было широким баннером под
-            сеткой, по уточнению пользователя (макет) должно быть обычной
-            плиткой сетки, просто с другой раскладкой внутри (иконка слева
-            + текст справа, не иконка сверху) и градиентным фоном вместо
-            белого. Ведёт прямо в мастер создания — без проверки "пусто
-            ли" (та проверка осмысленна только для категорий, где смотрят
-            готовые встречи ДРУГИХ людей). */}
-        {/* «Создать своё событие · Можно анонимно» — плитка по макету владельца:
-            текст слева, справа картинка (телефон, рупор, маска), левый край
-            картинки плавно растворяется в градиенте плитки. */}
-        <button
-          onClick={() => router.push("/create")}
-          aria-label="Создать своё событие — можно анонимно"
-          className="relative flex min-h-[104px] overflow-hidden rounded-card p-4 text-left shadow-card active:scale-[0.98]"
-          style={{ background: "linear-gradient(120deg, #4C19FB 0%, #5A3CF6 55%, #7073FC 100%)" }}
-        >
-          <Image
-            src="/brand/3d/create-event-art.webp"
-            alt=""
-            width={533}
-            height={540}
-            unoptimized
-            className="pointer-events-none absolute inset-y-0 -right-4 h-full w-auto"
-            style={{
-              maskImage: "linear-gradient(to right, transparent 0%, #000 35%)",
-              WebkitMaskImage: "linear-gradient(to right, transparent 0%, #000 35%)",
-            }}
-            priority
-          />
-          <span className="relative z-10 flex flex-col justify-center gap-1.5 [text-shadow:0_1px_6px_rgba(40,0,140,0.45)]">
-            <span className="text-[15px] font-bold leading-tight text-white">
-              Создать своё
-              <br />
-              событие
-            </span>
-            <span className="text-xs leading-tight text-white/90">Можно анонимно</span>
-          </span>
-        </button>
-
-        {/* "Другое" — не категория из базы, а прямой переход в раздел
-            "Встречи" (экран /search, тот же, что открывается по центру
-            нижней навигации), без предустановленного фильтра категории —
-            там можно выбрать любую встречу и применить любые фильтры. */}
-        <button
-          onClick={() => router.push("/search")}
-          className="flex flex-col items-start gap-2 rounded-card bg-white p-4 text-left shadow-card active:scale-[0.98]"
-        >
-          <div className="relative h-11 w-11">
-            <Image src="/brand/3d/other.png" alt="" fill className="object-contain" sizes="44px" />
-          </div>
-          <span className="text-sm font-medium leading-tight text-ink-900">Другое</span>
+        {/* «Другое» — полный список встреч с фильтрами (/search) */}
+        <button onClick={() => router.push("/search")} className="m-cat m-glass">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/cat3d/i_world.webp" alt="" />
+          <span>Другое</span>
         </button>
       </div>
 
-      {/* "Для бизнеса" — на месте прежнего баннера "Своё предложение".
-          Готовый баннер целиком (текст уже внутри картинки) — не
-          собираем текст+иконку в коде поверх градиента, как раньше.
-          Отдельный раздел (/business): свои события, свой мастер
-          создания, свои лимиты по тарифу — см. lib/subscriptions/limits.ts. */}
-      <button onClick={() => router.push("/business")} className="mt-3 block w-full active:scale-[0.98]">
-        <div className="relative aspect-[2175/496] w-full overflow-hidden rounded-card shadow-card">
-          <Image src="/brand/backgrounds/business-banner.webp" alt="Для бизнеса — посетить либо создать событие" fill className="object-cover" sizes="100vw" />
-        </div>
+      {/* «Своё предложение» — крутящаяся звёздочка, ведёт в мастер создания */}
+      <button
+        onClick={() => {
+          setSpin(true);
+          setTimeout(() => router.push("/create?category=custom"), 650);
+        }}
+        aria-label="Создать своё событие — можно анонимно"
+        className="m-own m-glass mt-2"
+      >
+        <span className={`m-star ${spin ? "spin" : ""}`}>
+          <Character shape="star" pal="peach" face="sly" size={62} seed={11} />
+        </span>
+        <span className="min-w-0 flex-1">
+          <b className="block text-[15.5px] font-medium">Своё предложение</b>
+          <span className="block text-[13px] leading-snug text-ink-600">
+            Не нашёл подходящего? Придумай сам — можно анонимно
+          </span>
+        </span>
+        <Icon name="chev" size={18} className="text-ink-400" />
+      </button>
+
+      {/* «Для бизнеса» — афиша заведений, отдельный раздел (/business) */}
+      <button onClick={() => router.push("/business")} className="m-press mt-3 flex w-full items-center gap-3 overflow-hidden rounded-[26px] p-3 pr-4 text-left text-white shadow-card-lg" style={{ background: "linear-gradient(120deg,#2A1F4E 0%,#5B3AA8 55%,#C871B6 100%)" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/cat3d/i_biz.webp" alt="" className="h-16 w-16 shrink-0 object-contain" />
+        <span className="min-w-0 flex-1">
+          <span className="m-chip m-chip-glass mb-1 h-6 px-2 text-[11px]">Афиша заведений</span>
+          <b className="block text-[16px] font-medium">Для бизнеса</b>
+          <span className="block text-[12.5px] leading-snug opacity-85">Концерты, дегустации, мастер-классы — или создай своё событие</span>
+        </span>
+        <Icon name="chev" size={18} />
       </button>
 
       {emptyCategory && (() => {
         const iconSrc = CATEGORY_ICON[emptyCategory.slug];
         return (
           <div
-            className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30"
+            className="m-fade-in fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)]"
             onClick={() => setEmptyCategory(null)}
           >
-            <div className="rounded-t-sheet bg-white p-5 pb-8 text-center" onClick={(e) => e.stopPropagation()}>
-              <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-              {iconSrc ? (
-                <div className="relative mx-auto mb-3 h-14 w-14">
-                  <Image src={iconSrc} alt="" fill className="object-contain" />
-                </div>
-              ) : (
-                <span className="mb-3 block text-4xl">{emptyCategory.emoji}</span>
-              )}
-              <h2 className="text-title mb-2">Такую встречу ещё никто не создал</h2>
+            <div className="m-sheet-in m-glass-2 rounded-t-sheet p-5 pb-8 text-center" onClick={(e) => e.stopPropagation()}>
+              <div className="mx-auto mb-3 h-1 w-10 rounded-pill bg-ink-400/30" />
+              <div className="relative mx-auto mb-2 flex h-24 w-40 items-end justify-center">
+                <Mosya pose="think" size={96} />
+                {iconSrc && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={iconSrc} alt="" className="absolute right-2 top-0 h-12 w-12 object-contain" />
+                )}
+              </div>
+              <h2 className="m-title mb-2 text-[24px]">Такую встречу ещё никто <span className="m-em">не создал</span></h2>
               <p className="mb-5 text-sm text-ink-600">
                 «{emptyCategory.name}» в твоём городе пока нет ни одной активной встречи — стань первым.
               </p>
-              <button
-                onClick={() => router.push(`/create?category=${emptyCategory.slug}`)}
-                className="w-full rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta"
-              >
+              <button onClick={() => router.push(`/create?category=${emptyCategory.slug}`)} className="m-btn m-btn-v">
                 Создать первым
               </button>
-              <button
-                onClick={() => setEmptyCategory(null)}
-                className="mt-2 w-full py-3 text-sm font-medium text-ink-600"
-              >
+              <button onClick={() => setEmptyCategory(null)} className="m-btn mt-2 h-12 text-ink-600">
                 Не сейчас
               </button>
             </div>
@@ -200,4 +159,15 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
       })()}
     </div>
   );
+}
+
+/** Короткие подписи для плиток 4 в ряд («Совместная тренировка» → «Тренировка»). */
+function shortName(name: string) {
+  const map: Record<string, string> = {
+    "Совместная тренировка": "Тренировка",
+    "Попить кофе": "Кофе",
+    "Совместный завтрак": "Завтрак",
+    "Поужинать": "Ужин",
+  };
+  return map[name] ?? name;
 }

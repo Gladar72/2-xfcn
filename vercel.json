@@ -26,6 +26,10 @@
     {
       "path": "/api/cron/outreach",
       "schedule": "52 4 * * *"
+    },
+    {
+      "path": "/api/cron/places",
+      "schedule": "33 21 * * *"
     }
   ]
 }

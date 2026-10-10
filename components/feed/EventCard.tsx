@@ -3,8 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
-import { ApplicationStatusView, type ApplicationStatus } from "@/components/applications/ApplicationStatus";
-import { CATEGORY_ICON } from "@/lib/data/category-icons";
+import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
+import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { RatingStar } from "@/components/ui/RatingStar";
 import { photoThumb } from "@/lib/photos/thumb";
 
@@ -69,198 +69,158 @@ export function EventCard({
   const seatsLeft = event.seatsTotal - event.seatsTaken;
   const isFull = seatsLeft <= 0;
   const isDisabled = isFull || applied || applying;
-  // "Для бизнеса" — свои подпись и значок в шапке карточки (маскот с
-  // кошельком, тот же, что и на карте/баннере), а не общая категория
-  // "Своё предложение" — по явному уточнению пользователя.
-  const categoryLabel = event.isBusiness ? "Бизнес событие" : event.trainingType?.name ?? event.category?.name;
-  const categoryEmoji = event.trainingType?.emoji ?? event.category?.emoji;
+  const categoryLabel = event.isBusiness ? "Бизнес-событие" : event.trainingType?.name ?? event.category?.name;
   const categoryIcon = event.isBusiness
-    ? "/brand/markers/marker-business.png"
-    : event.category
-      ? CATEGORY_ICON[event.category.slug]
-      : undefined;
+    ? CATEGORY_ICON.business
+    : event.category?.slug === "training"
+      ? trainingIcon(event.trainingType?.slug)
+      : event.category
+        ? CATEGORY_ICON[event.category.slug]
+        : undefined;
+  const going = event.goingCount ?? 0;
 
+  // Карточка редизайна: обложка во всю карточку (своё фото или фирменный
+  // градиент с 3D-иконкой категории), сверху статусы, снизу стеклянная
+  // плашка: дата, название, место, кто идёт и «Я иду».
   return (
     <Link
       href={`/events/${event.id}`}
-      className={clsx(
-        "block rounded-card p-4 shadow-card",
-        event.isHighlighted
-          ? "bg-gradient-to-br from-lavender-50 to-white ring-1 ring-accent/25"
-          : "bg-white"
-      )}
+      className={clsx("m-hero block h-[300px] w-full", event.isHighlighted && "ring-2 ring-white/80")}
+      style={event.photoUrl ? undefined : { background: coverGradient(event.category?.slug, event.isBusiness) }}
     >
-      <div className={clsx(event.photoUrl && "flex gap-3")}>
-        <div className="min-w-0 flex-1">
-          <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-accent">
-            {categoryIcon ? (
-              <div className="relative h-4 w-4 shrink-0">
-                <Image src={categoryIcon} alt="" fill className="object-contain" sizes="16px" />
-              </div>
-            ) : (
-              <span>{categoryEmoji}</span>
+      {event.photoUrl ? (
+        <Image src={event.photoUrl} alt="" fill className="ph object-cover" sizes="(max-width: 480px) 100vw, 440px" />
+      ) : (
+        categoryIcon && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={categoryIcon}
+            alt=""
+            className="absolute right-[-6%] top-[8%] h-[66%] w-auto rotate-[-8deg] object-contain opacity-95 drop-shadow-[0_20px_30px_rgba(60,20,140,0.35)]"
+          />
+        )
+      )}
+
+      <div className="tl">
+        {categoryLabel && (
+          <span className="m-chip m-chip-glass">
+            {categoryIcon && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={categoryIcon} alt="" className="h-5 w-5 object-contain" />
             )}
-            <span>{categoryLabel}</span>
-          </div>
-
-          <h3 className="text-title mb-1">{event.title}</h3>
-          {event.isLive && <LiveBadge />}
-          {isFull && (
-            <span className="mb-2 inline-flex items-center rounded-pill bg-ink-400/10 px-2.5 py-0.5 text-caption font-semibold text-ink-600">
-              Заполнено
-            </span>
-          )}
-
-          <div className="mb-3 flex flex-wrap gap-x-3 gap-y-1 text-sm text-ink-600">
-            <span>{formatDate(event.eventDate)}</span>
-            <span>{formatTime(event.eventTime)}</span>
-            {event.placeName && <span>{event.placeName}</span>}
-            {event.organizerHidden && <span>📍 Место — после одобрения</span>}
-          </div>
-
-          {event.description && (
-            <p className="mb-3 line-clamp-2 text-sm text-ink-600">{event.description}</p>
-          )}
-
-          {event.organizer && (
-            <div className="mb-3 flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
-                {event.organizerHidden ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src="/brand/3d/icon-mask.png" alt="Анонимно" className="h-7 w-7 object-contain" />
-                ) : event.organizer.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoThumb(event.organizer.avatarUrl, 32)} alt={event.organizer.name} className="h-full w-full object-cover" />
-                ) : (
-                  event.organizer.name.charAt(0).toUpperCase()
-                )}
-              </div>
-              <div className="text-sm">
-                <span className="font-medium text-ink-900">{event.organizer.name}</span>
-                {event.organizer.age !== null && <span className="text-ink-400">, {event.organizer.age}</span>}
-                {event.isAnonymous && !event.organizerHidden && (
-                  <span className="ml-1 text-ink-400">· 🎭 анонимно</span>
-                )}
-                {event.organizer.ratingAvg > 0 && (
-                  <span className="ml-2 inline-flex items-center gap-1 text-ink-600">
-                    <RatingStar /> {event.organizer.ratingAvg.toFixed(1)} · {event.organizer.completedMeetingsCount} встреч
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {!!event.goingCount && event.goingCount > 0 && (
-            <GoingRow count={event.goingCount} preview={event.goingPreview ?? []} />
-          )}
-
-          {/* Карточка без фото — любой статус во всю ширину над строкой мест. */}
-          {!event.photoUrl && status && (
-            <div className="mb-3">
-              <ApplicationStatusView status={status} layout="wide" />
-            </div>
-          )}
-
-          {!event.photoUrl && (
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm text-ink-600">
-                {isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}
-              </span>
-              {!status && !event.isMine && (
-                <ApplyButton isDisabled={isDisabled} isFull={isFull} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} />
-              )}
-              {event.isMine && <MyEventLabel />}
-            </div>
-          )}
-          {event.photoUrl && (
-            <span className="text-sm text-ink-600">{isFull ? "Мест нет" : `Нужно ещё ${seatsLeft} чел.`}</span>
-          )}
-        </div>
-
-        {event.photoUrl && (
-          <div className="flex shrink-0 flex-col items-end gap-2">
-            <div className="relative aspect-square w-24 overflow-hidden rounded-card">
-              <Image src={event.photoUrl} alt="" fill className="object-cover" sizes="96px" />
-            </div>
-            {event.isMine && <MyEventLabel />}
-            {!status && !event.isMine && (
-              <div className="w-24">
-                <ApplyButton isDisabled={isDisabled} isFull={isFull} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} fullWidth />
-              </div>
-            )}
-            {(status === "accepted" || status === "rejected") && (
-              <ApplicationStatusView status={status} layout="compact" />
-            )}
-          </div>
+            {categoryLabel}
+          </span>
         )}
+        {event.isLive && <span className="m-chip m-chip-live">Идёт сейчас</span>}
+        {isFull ? (
+          <span className="m-chip m-chip-full">Заполнено</span>
+        ) : (
+          <span className="m-chip m-chip-need">
+            Нужно ещё {seatsLeft} {pluralPeople(seatsLeft)}
+          </span>
+        )}
+        {event.isAnonymous && <span className="m-chip m-chip-glass">Анонимно</span>}
+        {event.isMine && <span className="m-chip m-chip-glass">Ваша встреча</span>}
       </div>
 
-      {/* С фото: «ожидание» — широкая плашка под всей карточкой (макет),
-          «принят»/«отклонён» — компактно в колонке под фото (выше). */}
-      {event.photoUrl && status === "pending" && (
-        <div className="mt-3">
-          <ApplicationStatusView status="pending" layout="wide" />
+      <div className="bar">
+        <div className="m-dt">
+          <b>{formatTime(event.eventTime)}</b>
+          <small>{shortDay(event.eventDate)}</small>
         </div>
-      )}
+        <div className="min-w-0 flex-1">
+          <b className="block truncate text-[16px] font-medium leading-tight">{event.title}</b>
+          <span className="mt-1 flex items-center gap-1.5 truncate text-[12.5px] opacity-90">
+            {event.organizerHidden ? (
+              "Место откроется после одобрения"
+            ) : (
+              <>
+                {event.placeName ?? formatDate(event.eventDate)}
+                {event.organizer && event.organizer.ratingAvg > 0 && (
+                  <>
+                    {" · "}
+                    <RatingStar /> {event.organizer.ratingAvg.toFixed(1)}
+                  </>
+                )}
+              </>
+            )}
+          </span>
+          {going > 0 && (
+            <span className="mt-1.5 flex items-center gap-2 text-[12px]">
+              <Faces preview={event.goingPreview ?? []} count={going} />
+              {going} {going === 1 ? "идёт" : "идут"}
+            </span>
+          )}
+        </div>
+        {!status && !event.isMine && (
+          <ApplyButton isDisabled={isDisabled} isFull={isFull} applied={applied} applying={applying} onApplyPress={onApplyPress} eventId={event.id} />
+        )}
+        {status && <MiniStatus status={status} />}
+      </div>
     </Link>
   );
 }
 
-/** Пометка «Встреча уже идёт» — с пульсирующей зелёной точкой. */
-export function LiveBadge({ className }: { className?: string }) {
+/** Компактный статус заявки поверх стеклянной плашки карточки. */
+function MiniStatus({ status }: { status: ApplicationStatus }) {
+  const map = {
+    pending: ["Ждём ответа", "bg-white text-accent"],
+    accepted: ["Ты в деле", "bg-[#22B573] text-white"],
+    rejected: ["Не в этот раз", "bg-white/80 text-ink-600"],
+  } as const;
+  const [label, cls] = map[status];
+  return <span className={clsx("shrink-0 rounded-pill px-3 py-2 text-[13px] font-semibold", cls)}>{label}</span>;
+}
+
+function Faces({ preview, count }: { preview: { id: string; name: string; avatarUrl: string | null }[]; count: number }) {
+  const extra = count - preview.length;
   return (
-    <span
-      className={clsx(
-        "mb-2 mr-1.5 inline-flex items-center gap-1.5 rounded-pill bg-[#E6F8EC] px-2.5 py-0.5 text-caption font-semibold text-[#1E8E4A]",
-        className
+    <span className="m-faces" style={{ ["--ring" as string]: "rgba(255,255,255,.7)" } as React.CSSProperties}>
+      {preview.map((p) =>
+        p.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={p.id} src={photoThumb(p.avatarUrl, 26)} alt="" style={{ width: 22, height: 22 }} />
+        ) : (
+          <span key={p.id} style={{ width: 22, height: 22 }}>
+            {p.name.charAt(0).toUpperCase()}
+          </span>
+        )
       )}
-    >
-      <span className="relative flex h-2 w-2">
-        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2DBE60] opacity-75" />
-        <span className="relative inline-flex h-2 w-2 rounded-full bg-[#2DBE60]" />
-      </span>
-      Встреча уже идёт
+      {extra > 0 && <span style={{ width: 22, height: 22 }}>+{extra}</span>}
     </span>
   );
 }
 
-/** «Уже идут N человек» — кружки с аватарками, как в шапке чата встречи. */
-function GoingRow({
-  count,
-  preview,
-}: {
-  count: number;
-  preview: { id: string; name: string; avatarUrl: string | null }[];
-}) {
-  const extra = count - preview.length;
-  return (
-    <div className="mb-3 flex items-center gap-2">
-      <div className="flex shrink-0 -space-x-2">
-        {preview.map((person) => (
-          <div
-            key={person.id}
-            className="flex h-7 w-7 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-caption font-semibold text-ink-600"
-          >
-            {person.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoThumb(person.avatarUrl, 28)} alt="" className="h-full w-full object-cover" />
-            ) : (
-              person.name.charAt(0).toUpperCase()
-            )}
-          </div>
-        ))}
-        {extra > 0 && (
-          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-white bg-lavender-100 text-caption font-semibold text-accent">
-            +{extra}
-          </div>
-        )}
-      </div>
-      <span className="text-sm font-medium text-ink-900">
-        Уже {count === 1 ? "идёт" : "идут"} {count} {pluralPeople(count)}
-      </span>
-    </div>
-  );
+/** Фирменный фон обложки без фото — у каждой категории свой оттенок. */
+export function coverGradient(slug?: string | null, business?: boolean) {
+  if (business) return "linear-gradient(150deg,#2A1F4E 0%,#5B3AA8 55%,#C871B6 100%)";
+  const g: Record<string, string> = {
+    training: "linear-gradient(150deg,#6C3BFF 0%,#5AA9FF 100%)",
+    cinema: "linear-gradient(150deg,#3A2F8F 0%,#A24DFF 60%,#FF6FA0 100%)",
+    coffee: "linear-gradient(150deg,#A24DFF 0%,#FFB27A 100%)",
+    breakfast: "linear-gradient(150deg,#FF9DBF 0%,#FFB27A 100%)",
+    dinner: "linear-gradient(150deg,#5B3AA8 0%,#FF6FA0 100%)",
+    walk: "linear-gradient(150deg,#5AA9FF 0%,#A24DFF 100%)",
+  };
+  return (slug && g[slug]) || "linear-gradient(120deg,#6C3BFF 0%,#A24DFF 48%,#FF6FA0 100%)";
 }
+
+function shortDay(dateIso: string): string {
+  const d = new Date(dateIso);
+  const today = new Date();
+  const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const t1 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diff = Math.round((t1 - t0) / 86400000);
+  if (diff === 0) return "сегодня";
+  if (diff === 1) return "завтра";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+}
+
+/** Пометка «Идёт сейчас» — красная пилюля с пульсирующей точкой. */
+export function LiveBadge({ className }: { className?: string }) {
+  return <span className={clsx("m-chip m-chip-live", className)}>Идёт сейчас</span>;
+}
+
 
 function pluralPeople(n: number): string {
   const mod10 = n % 10;
@@ -269,12 +229,6 @@ function pluralPeople(n: number): string {
   return "человек";
 }
 
-/** Вместо «Я иду» на своей встрече — метка, что это встреча самого пользователя. */
-function MyEventLabel() {
-  return (
-    <span className="rounded-pill bg-lavender-100 px-3 py-1.5 text-xs font-semibold text-accent">Ваша встреча</span>
-  );
-}
 
 function ApplyButton({
   isDisabled,
@@ -301,12 +255,7 @@ function ApplyButton({
         onApplyPress?.(eventId);
       }}
       disabled={isDisabled}
-      className={clsx(
-        "shrink-0 whitespace-nowrap rounded-pill py-2 font-semibold",
-        fullWidth ? "w-full px-1 text-center" : "px-5",
-        fullWidth && applied ? "text-caption" : "text-sm",
-        isDisabled ? "bg-ink-400/10 text-ink-400" : "bg-brand-gradient text-white shadow-cta active:scale-95"
-      )}
+      className={clsx("m-go", fullWidth && "w-full px-1", isDisabled && "opacity-60")}
     >
       {applied ? "Отклик отправлен" : applying ? "Отправляем..." : isFull ? "Мест нет" : "Я иду"}
     </button>

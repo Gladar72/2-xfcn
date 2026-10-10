@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ReviewForm } from "@/components/reviews/ReviewForm";
+import { useRouter } from "next/navigation";
+import { ReviewSheet } from "@/components/proto/ReviewSheet";
+import { EmptyIll, Ic, Screen, Toast } from "@/components/proto/ui";
 import { photoThumb } from "@/lib/photos/thumb";
 
 interface ReviewableMember {
@@ -18,6 +20,7 @@ interface ReviewableEvent {
 }
 
 export default function ReviewsPage() {
+  const router = useRouter();
   const [events, setEvents] = useState<ReviewableEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTarget, setActiveTarget] = useState<{ eventId: string; member: ReviewableMember } | null>(null);
@@ -88,65 +91,57 @@ export default function ReviewsPage() {
   }
 
   return (
-    <div className="px-5 py-6">
-      <h1 className="text-display mb-4">Отзывы</h1>
-
-      {loading && <p className="text-center text-ink-600">Загрузка...</p>}
-
-      {focusDone && (
-        <div className="mb-4 rounded-card bg-white p-4 text-center text-sm text-ink-600 shadow-card">
-          Эта встреча уже оценена — спасибо! 🙌
-        </div>
-      )}
-
-      {!loading && events.length === 0 && !focusDone && (
-        <div className="rounded-card bg-white p-6 text-center text-sm text-ink-600 shadow-card">
-          Пока нет завершённых встреч, которые можно оценить.
-        </div>
-      )}
-
-      <div className="space-y-6">
-        {events.map((event) => (
-          <div key={event.eventId}>
-            <h2 className="mb-2 text-sm font-medium text-ink-600">{event.title}</h2>
-            <div className="space-y-2">
-              {event.reviewableMembers.map((member) =>
-                activeTarget?.eventId === event.eventId && activeTarget.member.id === member.id ? (
-                  <ReviewForm
-                    key={member.id}
-                    personName={member.name}
-                    onSubmit={handleSubmit}
-                    onCancel={() => setActiveTarget(null)}
-                  />
-                ) : (
-                  <button
-                    key={member.id}
-                    onClick={() => setActiveTarget({ eventId: event.eventId, member })}
-                    className="flex w-full items-center gap-3 rounded-card bg-white p-3 text-left shadow-card"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
-                      {member.avatar_url ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={photoThumb(member.avatar_url, 48)} alt={member.name} className="h-full w-full object-cover" />
-                      ) : (
-                        member.name.charAt(0).toUpperCase()
-                      )}
-                    </div>
-                    <span className="font-medium text-ink-900">{member.name}</span>
-                    <span className="ml-auto text-sm text-accent">Оценить →</span>
-                  </button>
-                )
-              )}
-            </div>
-          </div>
-        ))}
+    <Screen id="reviews" anim="in">
+      <div className="bar-top">
+        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <Ic n="back" />
+        </button>
+        <span />
       </div>
-
-      {toast && (
-        <div className="fixed inset-x-5 bottom-24 z-50 rounded-card bg-ink-900 px-4 py-3 text-center text-sm text-white shadow-card">
-          {toast}
+      <h1 className="t" style={{ marginTop: 18 }}>
+        Отзывы <em>после встреч</em>
+      </h1>
+      <p className="muted" style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.5 }}>
+        Оцени тех, с кем встречался — так в «Месте» остаются надёжные люди.
+      </p>
+      {loading && [0, 1].map((i) => <div key={i} className="sk" style={{ height: 64, marginTop: 10 }} />)}
+      {focusDone && <div className="note gl" style={{ marginTop: 14 }}>Эту встречу ты уже оценил — спасибо!</div>}
+      {!loading && events.length === 0 && (
+        <div className="empty" style={{ marginTop: 20 }}>
+          <EmptyIll a={["cloud", "mint", "calm"]} b={["ball", "lilac", "smile"]} c={["star", "peach", "sly"]} />
+          <b>Оценивать пока некого</b>
+          <span>После каждой встречи здесь появятся её участники.</span>
         </div>
       )}
-    </div>
+      {events.map((e) => (
+        <div key={e.eventId} className="blk" style={{ marginTop: 18 }}>
+          <div className="blk-h">
+            <b>{e.title}</b>
+            <span>{new Date(e.eventDate).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}</span>
+          </div>
+          {e.reviewableMembers.map((m) => (
+            <div key={m.id} className="apl gl">
+              {m.avatar_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={photoThumb(m.avatar_url, 88)} alt="" />
+              ) : (
+                <span className="hav r" style={{ width: 44, height: 44 }}>
+                  {m.name.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <div>
+                <b>{m.name}</b>
+                <span>Участник встречи</span>
+              </div>
+              <button className="sm yes" onClick={() => setActiveTarget({ eventId: e.eventId, member: m })}>
+                Оценить
+              </button>
+            </div>
+          ))}
+        </div>
+      ))}
+      <ReviewSheet open={!!activeTarget} personName={activeTarget?.member.name ?? ""} onSubmit={handleSubmit} onClose={() => setActiveTarget(null)} />
+      <Toast text={toast} />
+    </Screen>
   );
 }

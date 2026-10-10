@@ -173,7 +173,7 @@ export function PhotoCropModal({ src, aspectRatio, onCancel, onConfirm }: PhotoC
             type="button"
             onClick={handleConfirm}
             disabled={!naturalSize || rendering}
-            className="flex-1 rounded-pill bg-brand-gradient py-3 text-sm font-semibold text-white disabled:opacity-60"
+            className="flex-1 rounded-pill bg-brand-gradient py-3 text-sm font-semibold text-white disabled:opacity-60 m-btn-v relative overflow-hidden"
           >
             {rendering ? "Готовим..." : "Готово"}
           </button>

@@ -1,6 +1,12 @@
 "use client";
 
-import Image from "next/image";
+import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
+import { Character } from "@/components/brand/AliveStage";
+import { Icon } from "@/components/brand/Icon";
+import { EventCard, coverGradient } from "@/components/feed/EventCard";
+import { showGuide } from "@/lib/mosya/guide";
+import { confetti } from "@/lib/mosya/confetti";
+import { peek, say } from "@/lib/mosya/peek";
 import clsx from "clsx";
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -48,16 +54,6 @@ const DATE_PRESETS = [
   { label: "Завтра", offsetDays: 1 },
 ];
 
-// 3D-иконки категорий МЕСТО — тот же комплект, что на главном экране и в карточках встреч.
-const CATEGORY_ICON: Record<string, string> = {
-  training: "/brand/3d/workout.png",
-  cinema: "/brand/3d/movie.png",
-  coffee: "/brand/3d/coffee.png",
-  breakfast: "/brand/3d/breakfast.png",
-  dinner: "/brand/3d/dinner.png",
-  walk: "/brand/3d/walk.png",
-  custom: "/brand/3d/create-event-icon.png",
-};
 
 // Компактный размер полей — весь шаг (включая карту и кнопку "Далее")
 // должен помещаться на экране телефона без прокрутки страницы.
@@ -66,7 +62,29 @@ const CATEGORY_ICON: Record<string, string> = {
 // (у flex-элементов по умолчанию min-width:auto, из-за чего браузер не
 // сжимает их внутреннюю "родную" ширину до ширины контейнера).
 const inputClass =
-  "block w-full max-w-full min-w-0 box-border rounded-card border border-lavender-200 bg-white px-4 py-3 text-base text-ink-900 outline-none focus:border-accent";
+  "m-glass block w-full max-w-full min-w-0 box-border rounded-[20px] border-0 px-4 py-3.5 text-base text-ink-900 outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]";
+
+/** Вариант выбора: стекло, выбранный — белый с фиолетовым контуром и галочкой. */
+const optionClass = (selected: boolean) =>
+  clsx(
+    "m-press relative rounded-[22px] p-4 text-left text-sm font-medium transition",
+    selected
+      ? "m-sel text-ink-900"
+      : "m-glass text-ink-900"
+  );
+
+function Check({ on }: { on: boolean }) {
+  return (
+    <span
+      className={clsx(
+        "absolute right-3 top-3 grid h-[22px] w-[22px] place-items-center rounded-full bg-brand-gradient text-white transition-transform duration-500 ease-spring",
+        on ? "scale-100" : "scale-0"
+      )}
+    >
+      <Icon name="check" size={13} strokeWidth={2.6} />
+    </span>
+  );
+}
 
 /** "HH:MM" → минуты от начала суток. */
 function timeToMinutes(t: string): number {
@@ -197,14 +215,23 @@ export function CreateEventWizard() {
         "review",
       ]
     : // Первый вопрос обычной встречи — открыто или анонимно.
+      // Обложка теперь есть у любой встречи: своё фото или фирменная
+      // обложка категории (обязательно фото только для «Своего предложения»).
       categorySlug === "training"
-      ? ["anonymity", "category", "trainingType", "where", "when", "time", "seats", "cost", "details", "review"]
-      : categorySlug === "custom"
-        ? ["anonymity", "category", "where", "when", "time", "seats", "cost", "businessPhoto", "details", "review"]
-        : ["anonymity", "category", "where", "when", "time", "seats", "cost", "details", "review"];
+      ? ["anonymity", "category", "trainingType", "where", "when", "time", "seats", "cost", "details", "businessPhoto", "review"]
+      : ["anonymity", "category", "where", "when", "time", "seats", "cost", "details", "businessPhoto", "review"];
+
+  const photoRequired = isBusiness || categorySlug === "custom";
 
   const step = steps[stepIndex];
   const isLastStep = stepIndex === steps.length - 1;
+
+  // Мося-гид на ключевых шагах (только в первый раз после регистрации).
+  useEffect(() => {
+    if (step === "category" || (isBusiness && step === "businessTitle")) showGuide("create", { low: true });
+    if (step === "businessPhoto") showGuide("cover", { low: true });
+    if (step === "where") showGuide("when", { low: true });
+  }, [step, isBusiness]);
 
   function handleBusinessPhotoChange(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -354,13 +381,16 @@ export function CreateEventWizard() {
         // Сервер говорит, что именно не так (и в каком поле) — показываем
         // это человеку и сразу открываем нужный шаг, чтобы исправить.
         setError(apiErrorText(data, "Не получилось опубликовать встречу. Попробуй ещё раз.", res.status));
+        say("Тут что-то не так — я открыл нужный шаг, поправь и попробуем ещё раз");
         const targetStep = stepForField(data.field);
         if (targetStep) setStepIndex(steps.indexOf(targetStep));
         setSubmitting(false);
         return;
       }
 
-      router.push(`/events/${data.eventId}/applications`);
+      confetti();
+      peek({ pose: "jump", text: "Встреча опубликована! Заявки придут сюда и в Telegram 🎉", quick: true, low: true });
+      setTimeout(() => router.push(`/events/${data.eventId}/applications`), 900);
     } catch {
       setError("Проблема с соединением.");
       setSubmitting(false);
@@ -394,12 +424,12 @@ export function CreateEventWizard() {
       (businessPricingType !== "ticket" || businessTicketPrice.trim().length > 0) &&
       (businessPricingType !== "custom" || businessCustomTerms.trim().length > 0)) ||
     step === "chat" ||
-    (step === "businessPhoto" && !!businessPhotoBase64) ||
+    (step === "businessPhoto" && (!!businessPhotoBase64 || !photoRequired)) ||
     (step === "details" && (isBusiness || title.trim().length >= 3));
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-background px-5 pt-4"
+      className="m-aurora fixed inset-0 z-50 flex flex-col overflow-hidden px-5 pt-4"
       style={{ height: liveHeight ? `${liveHeight}px` : "100dvh" }}
     >
       <StepProgress currentStep={stepIndex + 1} totalSteps={steps.length} />
@@ -423,36 +453,22 @@ export function CreateEventWizard() {
         {step === "anonymity" && (
           <StepBlock title="Как публикуем встречу?">
             <div className="flex flex-col gap-2">
-              <button
-                onClick={() => setIsAnonymous(false)}
-                className={`rounded-card p-4 text-left transition ${
-                  !isAnonymous ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
-                }`}
-              >
-                <span className="block text-sm font-semibold">👤 Открыто</span>
-                <span className={`block text-xs ${!isAnonymous ? "text-white/80" : "text-ink-600"}`}>
+              <button onClick={() => setIsAnonymous(false)} className={optionClass(!isAnonymous)}>
+                <Check on={!isAnonymous} />
+                <span className="block text-[15px] font-semibold">Открыто</span>
+                <span className="mt-0.5 block text-xs font-normal text-ink-600">
                   Все видят твой профиль и место встречи
                 </span>
               </button>
-              <button
-                onClick={() => setIsAnonymous(true)}
-                className={`rounded-card p-4 text-left transition ${
-                  isAnonymous ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
-                }`}
-              >
-                <span className="flex items-center gap-1.5 text-sm font-semibold">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/brand/3d/icon-mask.png" alt="" className="h-5 w-5 object-contain" />
-                  Анонимно
-                </span>
-                <span className={`block text-xs ${isAnonymous ? "text-white/80" : "text-ink-600"}`}>
+              <button onClick={() => setIsAnonymous(true)} className={optionClass(isAnonymous)}>
+                <Check on={isAnonymous} />
+                <span className="block text-[15px] font-semibold">Анонимно</span>
+                <span className="mt-0.5 block text-xs font-normal text-ink-600">
                   Твои имя, фото и точный адрес увидят только те, чью заявку ты одобришь
                 </span>
               </button>
             </div>
-            <div className="mt-3 flex items-start gap-2 rounded-card bg-lavender-50 px-4 py-3 text-xs leading-relaxed text-ink-600">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/brand/3d/icon-mask.png" alt="" className="mt-0.5 h-5 w-5 shrink-0 object-contain" />
+            <div className="m-glass mt-3 rounded-[20px] px-4 py-3 text-xs leading-relaxed text-ink-600">
               <p>
                 Как работает анонимность: пока ты не одобришь заявку, человек не увидит твоё фото, имя и точный
                 адрес — только описание встречи, район и твой рейтинг. Как только одобришь — он увидит твой профиль,
@@ -464,16 +480,12 @@ export function CreateEventWizard() {
 
         {step === "category" && (
           <StepBlock title="Что планируем?">
-            <div className="grid grid-cols-2 gap-3">
-              {categories.map((c) => {
-                const icon = CATEGORY_ICON[c.slug];
-                const selected = categorySlug === c.slug;
-
-                // "Своё предложение" — та же кнопка, что и на главном
-                // экране (иконка слева + текст справа на фирменном
-                // градиенте), а не обычная квадратная плитка с иконкой
-                // сверху, как у остальных категорий — по явному уточнению.
-                if (c.slug === "custom") {
+            <div className="m-stagger grid grid-cols-4 gap-2">
+              {categories
+                .filter((c) => c.slug !== "custom")
+                .map((c) => {
+                  const icon = CATEGORY_ICON[c.slug];
+                  const selected = categorySlug === c.slug;
                   return (
                     <button
                       key={c.id}
@@ -481,56 +493,61 @@ export function CreateEventWizard() {
                         setCategorySlug(c.slug);
                         setTrainingTypeSlug(null);
                       }}
-                      className="flex items-center gap-2 rounded-card p-4 text-left shadow-card transition active:scale-[0.98]"
-                      style={{ background: "linear-gradient(135deg, #6445FB, #7A9CFA)" }}
+                      className={clsx(
+                        "m-cat",
+                        selected ? "m-sel" : "m-glass"
+                      )}
                     >
-                      <div className="relative h-16 w-16 shrink-0">
-                        <Image src={icon ?? "/brand/3d/create-event-icon.png"} alt="" fill className="object-contain" sizes="64px" />
-                      </div>
-                      <span className="text-sm font-medium leading-tight text-white">{c.name}</span>
+                      {icon ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={icon} alt="" />
+                      ) : (
+                        <span className="text-3xl leading-[52px]">{c.emoji}</span>
+                      )}
+                      <span>{tileName(c.name)}</span>
                     </button>
                   );
-                }
-
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => {
-                      setCategorySlug(c.slug);
-                      setTrainingTypeSlug(null);
-                    }}
-                    className={`flex flex-col items-start gap-2 rounded-card p-4 text-left text-sm font-medium transition ${
-                      selected ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
-                    }`}
-                  >
-                    {icon ? (
-                      <div className="relative h-11 w-11">
-                        <Image src={icon} alt="" fill className="object-contain" sizes="44px" />
-                      </div>
-                    ) : (
-                      <span className="text-2xl">{c.emoji}</span>
-                    )}
-                    {c.name}
-                  </button>
-                );
-              })}
+                })}
             </div>
+            {categories.some((c) => c.slug === "custom") && (
+              <button
+                onClick={() => {
+                  setCategorySlug("custom");
+                  setTrainingTypeSlug(null);
+                }}
+                className={clsx(
+                  "m-own relative mt-2",
+                  categorySlug === "custom" ? "m-sel" : "m-glass"
+                )}
+              >
+                <Check on={categorySlug === "custom"} />
+                <span className="m-star">
+                  <Character shape="star" pal="peach" face="sly" size={62} seed={11} />
+                </span>
+                <span className="min-w-0 flex-1 pr-6">
+                  <b className="block text-[15.5px] font-medium">Своё предложение</b>
+                  <span className="block text-[13px] leading-snug text-ink-600">Не нашёл подходящего? Придумай сам — от сапов до вязания</span>
+                </span>
+              </button>
+            )}
           </StepBlock>
         )}
 
         {step === "trainingType" && (
           <StepBlock title="Какая тренировка?">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="m-stagger grid grid-cols-3 gap-2">
               {trainingTypes.map((t) => (
                 <button
                   key={t.id}
                   onClick={() => setTrainingTypeSlug(t.slug)}
-                  className={`flex items-center gap-2 rounded-card p-3 text-left text-sm font-medium transition ${
-                    trainingTypeSlug === t.slug ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
-                  }`}
+                  className={clsx(
+                    "m-cat",
+                    trainingTypeSlug === t.slug ? "m-sel" : "m-glass"
+                  )}
                 >
-                  <span className="text-xl leading-none">{t.emoji}</span>
-                  {t.name}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={trainingIcon(t.slug)} alt="" />
+                  <span>{t.name}</span>
                 </button>
               ))}
             </div>
@@ -569,14 +586,15 @@ export function CreateEventWizard() {
                     className={`text-base ${inputClass}`}
                   />
                   {addressSuggestions.length > 0 && (
-                    <div className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-card bg-white shadow-card-lg">
+                    <div className="m-fade-in absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-[20px] bg-white/95 shadow-card-lg backdrop-blur-xl">
                       {addressSuggestions.map((s) => (
                         <button
                           key={s.address}
                           type="button"
                           onMouseDown={() => handlePickAddressSuggestion(s)}
-                          className="block w-full border-b border-lavender-100 px-4 py-2.5 text-left text-sm text-ink-900 last:border-0 hover:bg-lavender-50"
+                          className="flex w-full items-center gap-2 border-b border-lavender-100 px-4 py-3 text-left text-sm text-ink-900 last:border-0 hover:bg-lavender-50"
                         >
+                          <Icon name="pin" size={16} className="text-accent" />
                           {s.address}
                         </button>
                       ))}
@@ -613,7 +631,7 @@ export function CreateEventWizard() {
                 <button
                   key={preset.label}
                   onClick={() => pickDatePreset(preset.offsetDays)}
-                  className="flex-1 rounded-card bg-white p-3 text-sm font-medium text-ink-900 shadow-card"
+                  className="m-glass m-press flex-1 rounded-pill p-3 text-sm font-medium text-ink-900"
                 >
                   {preset.label}
                 </button>
@@ -661,7 +679,7 @@ export function CreateEventWizard() {
               <p className="mt-2 text-sm text-red-600">Встреча должна длиться хотя бы час.</p>
             )}
             {eventTime && eventEndTime && durationMinutes !== null && durationMinutes >= 60 && (
-              <p className="mt-3 rounded-card bg-lavender-50 p-3 text-center text-sm text-ink-900">
+              <p className="m-glass mt-3 rounded-[20px] p-3 text-center text-sm text-ink-900">
                 Встреча начнётся {formatFullDate(eventDate)} в {eventTime}
                 {spansNextDay ? (
                   <>
@@ -688,11 +706,11 @@ export function CreateEventWizard() {
                   setError(null);
                   setSeatsTotal((n) => n - 1);
                 }}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
+                className="m-glass m-press flex h-14 w-14 items-center justify-center rounded-full text-2xl text-accent"
               >
                 −
               </button>
-              <span className="text-display w-12 text-center">{seatsTotal}</span>
+              <span className="w-20 text-center text-[52px] font-medium leading-none tracking-tight">{seatsTotal}</span>
               <button
                 onClick={() => {
                   const max = isBusiness ? 500 : 30;
@@ -703,7 +721,7 @@ export function CreateEventWizard() {
                   setError(null);
                   setSeatsTotal((n) => n + 1);
                 }}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl text-accent shadow-card active:scale-95"
+                className="m-glass m-press flex h-14 w-14 items-center justify-center rounded-full text-2xl text-accent"
               >
                 +
               </button>
@@ -729,9 +747,7 @@ export function CreateEventWizard() {
                 <button
                   key={value}
                   onClick={() => setBusinessPricingType(value)}
-                  className={`rounded-card p-4 text-left text-sm font-medium transition ${
-                    businessPricingType === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
-                  }`}
+                  className={optionClass(businessPricingType === value)}
                 >
                   {label}
                 </button>
@@ -762,18 +778,38 @@ export function CreateEventWizard() {
         )}
 
         {step === "businessPhoto" && (
-          <StepBlock title="Фото события" subtitle="Обязательно — с фото событие выглядит заметнее и понятнее.">
-            <label className="flex w-full cursor-pointer items-center justify-center overflow-hidden rounded-card-lg bg-white shadow-card" style={{ aspectRatio: "1.4" }}>
+          <StepBlock
+            title="Обложка встречи"
+            subtitle={
+              photoRequired
+                ? "Обязательно — с фото встречу замечают чаще."
+                : "Загрузи своё фото или оставь фирменную обложку — она уже готова."
+            }
+          >
+            <label
+              className="m-hero relative flex w-full cursor-pointer items-center justify-center overflow-hidden"
+              style={{ aspectRatio: "1.4", background: businessPhotoBase64 ? undefined : coverGradient(categorySlug, isBusiness) }}
+            >
               {businessPhotoBase64 ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={businessPhotoBase64} alt="Фото события" className="h-full w-full object-cover" />
+                <img src={businessPhotoBase64} alt="Фото события" className="ph" />
               ) : (
-                <span className="text-sm font-medium text-accent">Загрузить фото</span>
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={isBusiness ? CATEGORY_ICON.business : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : CATEGORY_ICON[categorySlug ?? ""] ?? CATEGORY_ICON.custom}
+                    alt=""
+                    className="absolute right-[-4%] top-[6%] h-[70%] w-auto rotate-[-8deg] object-contain drop-shadow-[0_20px_30px_rgba(60,20,140,0.35)]"
+                  />
+                  <span className="relative z-[2] mt-auto mb-4 flex items-center gap-2 rounded-pill bg-white/25 px-4 py-2.5 text-sm font-medium text-white backdrop-blur-md">
+                    <Icon name="camera" size={18} /> Загрузить своё фото
+                  </span>
+                </>
               )}
               <input type="file" accept="image/*" className="hidden" onChange={handleBusinessPhotoChange} />
             </label>
             {businessPhotoBase64 && (
-              <button onClick={() => setBusinessPhotoBase64(undefined)} className="mt-2 w-full text-center text-sm font-medium text-red-600">
+              <button onClick={() => setBusinessPhotoBase64(undefined)} className="mt-2 w-full text-center text-sm font-medium text-[#D6336C]">
                 Убрать и выбрать другое
               </button>
             )}
@@ -785,17 +821,13 @@ export function CreateEventWizard() {
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => setWantsChat(true)}
-                className={`rounded-card p-4 text-left text-sm font-medium transition ${
-                  wantsChat ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
-                }`}
+                className={optionClass(wantsChat)}
               >
                 Да, создать чат
               </button>
               <button
                 onClick={() => setWantsChat(false)}
-                className={`rounded-card p-4 text-left text-sm font-medium transition ${
-                  !wantsChat ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
-                }`}
+                className={optionClass(!wantsChat)}
               >
                 Нет, без чата — только заявки
               </button>
@@ -822,9 +854,7 @@ export function CreateEventWizard() {
                 <button
                   key={value}
                   onClick={() => setCostType(value)}
-                  className={`rounded-card p-4 text-left text-sm font-medium transition ${
-                    costType === value ? "bg-brand-gradient text-white shadow-cta" : "bg-white text-ink-900 shadow-card"
-                  }`}
+                  className={optionClass(costType === value)}
                 >
                   {label}
                 </button>
@@ -858,8 +888,30 @@ export function CreateEventWizard() {
         )}
 
         {step === "review" && (
-          <StepBlock title="Всё верно?">
-            <div className="space-y-2 rounded-card-lg bg-white p-5 shadow-card-lg">
+          <StepBlock title="Так увидят встречу">
+            <div className="pointer-events-none">
+              <EventCard
+                event={{
+                  id: "preview",
+                  title: title || "Твоя встреча",
+                  description: description || null,
+                  category: isBusiness ? null : categories.find((c) => c.slug === categorySlug) ?? null,
+                  trainingType: trainingTypes.find((t) => t.slug === trainingTypeSlug) ?? null,
+                  placeName,
+                  address,
+                  eventDate: eventDate || new Date().toISOString().slice(0, 10),
+                  eventTime: eventTime || "19:00",
+                  seatsTotal,
+                  seatsTaken: 0,
+                  organizer: null,
+                  isAnonymous: !isBusiness && isAnonymous,
+                  isBusiness,
+                  photoUrl: businessPhotoBase64 ?? null,
+                  isMine: true,
+                }}
+              />
+            </div>
+            <div className="m-glass space-y-2 rounded-[24px] p-5">
               <ReviewRow label="Название" value={title} />
               <ReviewRow label="Место" value={placeName} />
               <ReviewRow label="Дата" value={eventDate} />
@@ -900,11 +952,11 @@ export function CreateEventWizard() {
 
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 shrink-0 bg-background px-5 pb-3 pt-2">
+      <div className="absolute inset-x-0 bottom-0 shrink-0 bg-gradient-to-t from-[#F6F2FF] via-[#F6F2FF]/90 to-transparent px-5 pb-[max(12px,env(safe-area-inset-bottom))] pt-6">
         {/* Ошибка — прямо над кнопками, чтобы её было видно на любом шаге,
             а не где-то внизу прокрутки. */}
         {error && (
-          <div role="alert" className="mb-2 rounded-card bg-red-50 px-4 py-3 text-center text-sm font-medium text-red-700">
+          <div role="alert" className="m-pop mb-2 rounded-[18px] bg-white/90 px-4 py-3 text-center text-sm font-medium text-[#D6336C] shadow-card">
             {error}
           </div>
         )}
@@ -943,6 +995,17 @@ export function CreateEventWizard() {
   );
 }
 
+/** Короткие подписи для плиток 4 в ряд. */
+function tileName(name: string) {
+  const map: Record<string, string> = {
+    "Совместная тренировка": "Тренировка",
+    "Попить кофе": "Кофе",
+    "Совместный завтрак": "Завтрак",
+    "Поужинать": "Ужин",
+  };
+  return map[name] ?? name;
+}
+
 function StepBlock({
   title,
   subtitle,
@@ -954,9 +1017,9 @@ function StepBlock({
 }) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col space-y-3">
-      <div className="shrink-0 text-center">
-        <h1 className="text-title">{title}</h1>
-        {subtitle && <p className="mt-1 text-xs text-ink-600">{subtitle}</p>}
+      <div key={title} className="m-stagger shrink-0 text-left">
+        <h1 className="m-title text-[26px]">{title}</h1>
+        {subtitle && <p className="mt-1.5 text-[13px] leading-snug text-ink-600">{subtitle}</p>}
       </div>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</div>
     </div>

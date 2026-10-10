@@ -61,7 +61,7 @@ export function ManageParticipants({
   }
 
   return (
-    <div className="mb-3 rounded-card bg-white p-4 shadow-card">
+    <div className="mb-3 rounded-card m-glass p-4">
       <div className="mb-1 flex items-center justify-between">
         <h3 className="text-sm font-semibold text-ink-900">Участники ({participants.length})</h3>
         {isFull && (

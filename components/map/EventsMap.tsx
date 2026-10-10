@@ -30,6 +30,8 @@ export interface EventsMapHandle {
   fitBounds: (points: [number, number][]) => void;
   /** Показывает «я здесь» (геолокация Telegram/браузера) и переезжает туда. */
   locate: () => Promise<boolean>;
+  zoomIn: () => void;
+  zoomOut: () => void;
 }
 
 interface EventsMapProps {
@@ -111,13 +113,15 @@ function createClusterButton(count: number, onClick: () => void): HTMLButtonElem
   button.textContent = label;
   button.setAttribute("aria-label", `Показать встречи: ${count}`);
   button.style.cssText = `
-    box-sizing:border-box;width:${size}px;height:${size}px;border:3px solid transparent;
+    box-sizing:border-box;width:${size + 4}px;height:${size + 4}px;border:3px solid #fff;
     border-radius:50%;
-    background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#6c3bff,#8a5cff 45%,#ff8a2a) border-box;
-    color:#111;font:800 ${isThreeChars ? 16 : 17}px/1 var(--font-onest),Onest,Arial,sans-serif;
+    background:linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0);
+    color:#fff;font:600 ${isThreeChars ? 16 : 17}px/1 var(--font-golos),var(--font-onest),Arial,sans-serif;
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 4px 12px rgba(108,59,255,0.15);cursor:pointer;padding:0;
+    box-shadow:0 10px 22px -8px rgba(108,59,255,0.75);cursor:pointer;padding:0;
+    
   `.replace(/\s+/g, " ");
+  button.classList.add("mkpop");
   button.addEventListener("click", (event) => {
     event.stopPropagation();
     onClick();
@@ -206,14 +210,14 @@ function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el
   const initial = (event.organizer?.name || event.title || "М").trim().charAt(0).toUpperCase();
 
   const ring = event.isBusiness
-    ? "background:linear-gradient(#fff,#fff) padding-box,linear-gradient(135deg,#6c3bff,#ff8a2a) border-box;border:3px solid transparent;"
+    ? "background:linear-gradient(#fff,#fff) padding-box,linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0) border-box;border:3px solid transparent;"
     : "background:#fff;border:0;";
   const photoInner = avatar
     ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.replaceWith(Object.assign(document.createElement('img'),{src:'${markerIconFor(event)}',style:'width:100%;height:100%;object-fit:contain;background:#f3efff'}))" />`
-    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6c3bff,#8a5cff 55%,#ff8a2a);color:#fff;font:800 19px/1 var(--font-onest),Onest,Arial,sans-serif;">${escapeHtml(initial)}</div>`;
+    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0);color:#fff;font:600 19px/1 var(--font-golos),var(--font-onest),Arial,sans-serif;">${escapeHtml(initial)}</div>`;
 
-  const pillBg = label.live ? "#6c3bff" : "#fff";
-  const pillColor = label.live ? "#fff" : "#1d1a2b";
+  const pillBg = label.live ? "#ff3b5c" : "#fff";
+  const pillColor = label.live ? "#fff" : "#16121f";
   const pillText = isFull ? "мест нет" : label.text;
 
   const el = document.createElement("div");
@@ -222,15 +226,18 @@ function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el
   el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer;${isFull ? "opacity:0.6;filter:grayscale(0.7);" : ""}`;
   el.innerHTML = `
     <div style="margin-bottom:4px;padding:3px 8px;border-radius:999px;background:${pillBg};color:${pillColor};
-      font:700 11px/1.2 var(--font-onest),Onest,Arial,sans-serif;white-space:nowrap;
-      box-shadow:0 2px 8px rgba(29,26,43,0.18);">${label.live && !isFull ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#7CFFB2;margin-right:4px;vertical-align:1px"></span>' : ""}${escapeHtml(pillText)}</div>
+      font:600 11px/1.2 var(--font-golos),var(--font-onest),Arial,sans-serif;white-space:nowrap;
+      box-shadow:0 6px 14px -6px rgba(60,30,140,0.5);">${label.live && !isFull ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#fff;margin-right:4px;vertical-align:1px"></span>' : ""}${escapeHtml(pillText)}</div>
     <div style="position:relative;width:${PIN}px;height:${PIN}px;">
       <div style="position:absolute;inset:0;box-sizing:border-box;${ring}border-radius:50% 50% 50% 0;transform:rotate(-45deg);
-        box-shadow:0 6px 14px rgba(29,26,43,0.22);"></div>
+        box-shadow:0 10px 18px -8px rgba(60,30,140,0.55);"></div>
       <div style="position:absolute;left:${(PIN - PHOTO) / 2}px;top:${(PIN - PHOTO) / 2}px;width:${PHOTO}px;height:${PHOTO}px;border-radius:50%;overflow:hidden;background:#f3efff;">
         ${photoInner}
       </div>
     </div>`;
+  // Появление метки «пружинкой», как у пинов прототипа (анимируем содержимое —
+  // transform самого элемента занят позиционированием maplibre).
+  Array.from(el.children).forEach((c) => c.classList.add("mkpop"));
   el.addEventListener("click", (e) => {
     e.stopPropagation();
     onClick();
@@ -251,6 +258,12 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
   const meMarkerRef = useRef<MapLibreMarker | null>(null);
 
   useImperativeHandle(ref, () => ({
+    zoomIn() {
+      mapRef.current?.zoomIn();
+    },
+    zoomOut() {
+      mapRef.current?.zoomOut();
+    },
     fitBounds(points) {
       const map = mapRef.current;
       if (!map || points.length === 0) return;
@@ -279,9 +292,10 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
             meMarkerRef.current?.remove();
             const lib = libRef.current;
             if (lib) {
+              // Точка «я здесь» как в прототипе (.me-dot): фиолетовая с расходящейся волной.
               const dot = document.createElement("div");
-              dot.style.cssText =
-                "width:18px;height:18px;border-radius:50%;background:#2f80ff;border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,128,255,0.2),0 2px 6px rgba(0,0,0,0.25);";
+              dot.className = "me-dot";
+              dot.style.position = "absolute";
               meMarkerRef.current = new lib.Marker({ element: dot, anchor: "center" }).setLngLat(point).addTo(map);
             }
             map.flyTo({ center: point, zoom: 15 });

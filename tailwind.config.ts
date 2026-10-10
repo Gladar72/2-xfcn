@@ -17,7 +17,7 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-onest)", "Manrope", "system-ui", "sans-serif"],
+        sans: ["var(--font-golos)", "var(--font-onest)", "system-ui", "sans-serif"],
       },
       colors: {
         // Основной фирменный цвет — purple (был оранжевый accent).
@@ -30,12 +30,18 @@ const config: Config = {
           700: "#4B25B8",
         },
         // Второй фирменный цвет — orange, используется в градиенте и как тёплый акцент.
+        // Редизайн 2026: тёплый акцент — розовый (ротик Моси, конец градиента).
+        // Имя токена "orange" оставлено, чтобы не переписывать className.
         orange: {
-          DEFAULT: "#FF8A2A",
-          400: "#FF9A3D",
-          500: "#FF8A2A",
-          600: "#FFA94D",
+          DEFAULT: "#FF6FA0",
+          400: "#FF86B0",
+          500: "#FF6FA0",
+          600: "#FF9DBF",
         },
+        pink: { DEFAULT: "#FF6FA0", 500: "#FF6FA0" },
+        sky: { DEFAULT: "#5AA9FF" },
+        peach: { DEFAULT: "#FFB27A" },
+        tg: { DEFAULT: "#2AABEE" },
         // Lavender — светлые "фирменные" подложки (selected state, карточки).
         lavender: {
           50: "#F3EEFF",
@@ -44,16 +50,17 @@ const config: Config = {
         },
         surface: "#FFFFFF",
         // Основной фон — белый; background используется там, где нужен лёгкий lavender-оттенок.
-        background: "#FCFAFF",
+        background: "#F6F2FF",
         ink: {
-          900: "#111111",
-          600: "#686868",
-          400: "#8B8B8B",
+          900: "#16121F",
+          700: "#3D3752",
+          600: "#6E6982",
+          400: "#8A84A0",
         },
       },
       backgroundImage: {
         // Основной фирменный градиент МЕСТО — для CTA, selected states, "Своё предложение".
-        "brand-gradient": "linear-gradient(135deg, #6C3BFF 0%, #8A5CFF 45%, #FF8A2A 100%)",
+        "brand-gradient": "linear-gradient(120deg, #6C3BFF 0%, #A24DFF 48%, #FF6FA0 100%)",
       },
       borderRadius: {
         card: "24px",
@@ -72,10 +79,15 @@ const config: Config = {
         display: ["28px", { lineHeight: "34px", fontWeight: "800" }],
         title: ["20px", { lineHeight: "26px", fontWeight: "700" }],
       },
+      // Стеклянные карточки редизайна: тонкий белый контур + мягкая фиолетовая тень.
       boxShadow: {
-        card: "0 6px 20px rgba(110, 70, 180, 0.08)",
-        "card-lg": "0 8px 30px rgba(90, 65, 150, 0.10)",
-        cta: "0 10px 28px rgba(108, 59, 255, 0.25)",
+        card: "inset 0 0 0 1px rgba(255,255,255,.9), 0 10px 26px -20px rgba(80,40,170,.45)",
+        "card-lg": "inset 0 0 0 1px rgba(255,255,255,.9), 0 22px 40px -24px rgba(90,40,180,.55)",
+        cta: "0 14px 30px -14px rgba(130,60,255,.9)",
+      },
+      transitionTimingFunction: {
+        mesto: "cubic-bezier(.32,.72,0,1)",
+        spring: "cubic-bezier(.34,1.56,.64,1)",
       },
     },
   },

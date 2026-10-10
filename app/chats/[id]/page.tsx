@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { MessageBubble, formatDayLabel, type MessageData } from "@/components/chat/MessageBubble";
 import { MiniProfileSheet } from "@/components/chat/MiniProfileSheet";
@@ -12,6 +11,7 @@ import { useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
 import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 import { photoThumb } from "@/lib/photos/thumb";
+import { EmptyIll, Ic, Sheet } from "@/components/proto/ui";
 
 interface ChatPageProps {
   // Next.js 14 (в этом проекте) передаёт params клиентским компонентам
@@ -53,6 +53,7 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [isBusiness, setIsBusiness] = useState(false);
   const [organizerId, setOrganizerId] = useState<string | null>(null);
   const [eventPhotoUrl, setEventPhotoUrl] = useState<string | null>(null);
+  const [eventMeta, setEventMeta] = useState<{ id: string; date: string | null; time: string | null; place: string | null; address: string | null } | null>(null);
   // Все ОСТАЛЬНЫЕ участники чата (не считая себя) — на встречу с 3-4
   // принятыми людьми это будет несколько человек, не один собеседник.
   const [members, setMembers] = useState<Member[]>([]);
@@ -117,6 +118,11 @@ export default function ChatPage({ params }: ChatPageProps) {
         setIsBusiness(history.isBusiness ?? false);
         setOrganizerId(history.organizerId ?? null);
         setEventPhotoUrl(history.eventPhotoUrl ?? null);
+        setEventMeta(
+          history.eventId
+            ? { id: history.eventId, date: history.eventDate, time: history.eventTime, place: history.eventPlace, address: history.eventAddress }
+            : null
+        );
         setMembers(history.members ?? []);
 
         const client = createBrowserRealtimeClient(tokenData.token);
@@ -322,356 +328,314 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   if (accessBlocked) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-8 text-center">
-        <p className="text-title text-ink-900">Чат недоступен</p>
-        <p className="text-sm text-ink-600">Событие уже прошло или было отменено.</p>
-        <button
-          onClick={() => router.push("/chats")}
-          className="mt-2 rounded-pill bg-brand-gradient px-6 py-3 text-sm font-semibold text-white shadow-cta"
-        >
-          Назад к чатам
-        </button>
+      <div className="P">
+        <section className="scr aurora fade" data-id="chat">
+          <div className="scroll">
+            <div className="bar-top">
+              <button className="rb gl" onClick={() => router.push("/chats")} aria-label="Назад">
+                <Ic n="back" />
+              </button>
+              <span />
+            </div>
+            <div className="empty" style={{ marginTop: 60 }}>
+              <b>Чат недоступен</b>
+              <span>Событие уже прошло или было отменено. История сохранится в архиве.</span>
+              <button className="btn v" style={{ width: "100%", marginTop: 8 }} onClick={() => router.push("/chats")}>
+                Назад к чатам
+              </button>
+            </div>
+          </div>
+        </section>
       </div>
     );
   }
 
-  return (
-    <div
-      className="fixed inset-x-0 top-0 z-40 flex flex-col overflow-hidden"
-      style={{ height: liveHeight ? `${liveHeight}px` : "100dvh" }}
-    >
-      <div className={`flex shrink-0 items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3 ${isEventClosed ? "opacity-60" : ""}`}>
-        <button onClick={() => router.push("/chats")} aria-label="Назад">
-          <Image src="/brand/3d/icon-back.png" alt="" width={22} height={22} />
-        </button>
-        <button
-          onClick={() => (soleMember ? setShowMiniProfileFor(soleMember.id) : openParticipants())}
-          className="flex min-w-0 flex-1 items-center gap-3"
-          disabled={members.length === 0}
-        >
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-xs font-semibold text-ink-600">
-            {eventPhotoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoThumb(eventPhotoUrl, 48)} alt="" className="h-full w-full object-cover" />
-            ) : categoryIcon ? (
-              <Image src={categoryIcon} alt="" width={20} height={20} className="object-contain" />
-            ) : category?.emoji ? (
-              <span className="text-sm">{category.emoji}</span>
-            ) : soleMember ? (
-              soleMember.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={photoThumb(soleMember.avatarUrl, 48)} alt="" className="h-full w-full object-cover" />
-              ) : (
-                soleMember.name.charAt(0).toUpperCase()
-              )
-            ) : (
-              <Image src="/brand/3d/icon-users.png" alt="" width={20} height={20} className="object-contain" />
-            )}
-          </div>
-          <span className="truncate font-medium">{headerTitle}</span>
-          {isEventClosed && <span className="shrink-0 text-xs text-ink-400">Событие закрыто</span>}
-        </button>
-      </div>
+  const quick = eventTitle !== null ? ["Я в пути", "Опаздываю на 5 минут", "Уже на месте", "Кто во сколько?"] : ["Привет! Пойдёшь на кофе?", "Видел твою встречу, можно с вами?", "Привет 👋"];
+  const headImg = eventTitle !== null ? eventPhotoUrl : soleMember?.avatarUrl ?? null;
+  const headSub =
+    eventTitle !== null
+      ? `${totalParticipantsCount} ${pluralizePeople(totalParticipantsCount)}${eventMeta?.date ? ` · ${formatDayLabel(eventMeta.date)}${eventMeta.time ? `, ${eventMeta.time.slice(0, 5)}` : ""}` : ""}`
+      : "личная переписка";
 
-      {/* Закреплённая плашка с аватарками участников — по референсу
-          пользователя. Только для группового чата встречи (не для
-          обычного диалога один на один) и пока событие не закрыто. */}
-      {/* Раньше показывалась только для групп (>1 участника кроме себя) —
-          по явному уточнению пользователя, теперь всегда, если в чате
-          вообще есть хоть один участник кроме себя. */}
-      {members.length > 0 && !isEventClosed && (
-        <button
-          onClick={openParticipants}
-          className="mx-4 mt-3 flex shrink-0 items-center gap-3 rounded-card bg-white p-3 text-left shadow-card"
-        >
-          <div className="flex shrink-0 -space-x-2">
-            {members.slice(0, 3).map((m) => (
-              <div
+  return (
+    <div className="P" style={{ height: liveHeight ? `${liveHeight}px` : undefined }}>
+      <section className="scr chat aurora in" data-id="chat">
+        <div className="hd">
+          <button className="rb gl" onClick={() => router.push("/chats")} aria-label="Назад" style={{ width: 40, height: 40 }}>
+            <Ic n="back" />
+          </button>
+          {headImg ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className={eventTitle === null ? "r" : ""} src={photoThumb(headImg, 84)} alt="" />
+          ) : (
+            <span className={`hav ${eventTitle === null ? "r" : "gfx"}`}>
+              {eventTitle === null ? (
+                (soleMember?.name ?? "?").charAt(0).toUpperCase()
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={categoryIcon ?? "/brand/cat3d/i_games.webp"} alt="" />
+              )}
+            </span>
+          )}
+          <div>
+            <b>{headerTitle}</b>
+            <span>{isEventClosed ? "Событие закрыто" : headSub}</span>
+          </div>
+          {eventTitle !== null && eventMeta ? (
+            <button className="rb gl" onClick={() => router.push(`/events/${eventMeta.id}`)} aria-label="О встрече" style={{ width: 40, height: 40 }}>
+              <Ic n="cal" c="s" />
+            </button>
+          ) : soleMember ? (
+            <button className="rb gl" onClick={() => router.push(`/people/${soleMember.id}`)} aria-label="Профиль" style={{ width: 40, height: 40 }}>
+              <Ic n="user" c="s" />
+            </button>
+          ) : null}
+        </div>
+
+        <div className="msgs">
+          {eventTitle !== null && eventMeta && (
+            <>
+              <div className="evpin gl">
+                {eventPhotoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoThumb(eventPhotoUrl, 88)} alt="" />
+                ) : (
+                  <span className="hav gfx" style={{ width: 44, height: 44, borderRadius: 12 }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={categoryIcon ?? "/brand/cat3d/i_games.webp"} alt="" />
+                  </span>
+                )}
+                <div>
+                  <b>
+                    {eventMeta.date ? formatDayLabel(eventMeta.date) : ""}
+                    {eventMeta.time ? `, ${eventMeta.time.slice(0, 5)}` : ""}
+                  </b>
+                  <span>{[eventMeta.place, eventMeta.address].filter(Boolean).join(", ")}</span>
+                </div>
+              </div>
+              {members.length > 0 && !isEventClosed && (
+                <button className="plq gl" onClick={openParticipants}>
+                  <span className="faces">
+                    {members.slice(0, 3).map((m) =>
+                      m.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={m.id} src={photoThumb(m.avatarUrl, 56)} alt="" />
+                      ) : (
+                        <span key={m.id}>{m.name.charAt(0).toUpperCase()}</span>
+                      )
+                    )}
+                  </span>
+                  <div>
+                    <b>
+                      Уже идут {totalParticipantsCount} {pluralizePeople(totalParticipantsCount)}
+                    </b>
+                    <span>Нажми, чтобы посмотреть участников</span>
+                  </div>
+                </button>
+              )}
+            </>
+          )}
+          {eventTitle === null && <span className="daysep">Личная переписка</span>}
+          {loading && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 44, width: i % 2 ? "60%" : "50%", alignSelf: i % 2 ? "flex-end" : "flex-start" }} />)}
+          {error && <span className="daysep">{error}</span>}
+          {!loading && messages.length === 0 && !error && (
+            <div className="empty" style={{ padding: "30px 0" }}>
+              <EmptyIll a={["blob", "pink", "smile"]} b={["flower", "sky", "wow"]} c={["star", "peach", "calm"]} />
+              <span>{eventTitle === null ? "Начни с приветствия или сразу позови на встречу" : "Напиши первым — поздоровайся с компанией"}</span>
+            </div>
+          )}
+          {messages.map((message, index) => {
+            const prev = messages[index - 1];
+            const readers = members.filter((m) => m.lastReadAt && message.createdAt <= m.lastReadAt);
+            const isGroup = members.length > 1;
+            const isLastOwn = message.senderId === myUserId && !messages.slice(index + 1).some((m) => m.senderId === myUserId);
+            const showDaySeparator = !prev || !isSameDay(prev.createdAt, message.createdAt);
+            const isOwn = message.senderId === myUserId;
+            const readStatus: "sent" | "partial" | "read" =
+              members.length > 0 && readers.length === members.length ? "read" : readers.length > 0 ? "partial" : "sent";
+            const readCaption =
+              isGroup && isLastOwn && !message.id.startsWith("temp-")
+                ? readers.length === members.length
+                  ? "Прочитали все"
+                  : readers.length === 0
+                    ? "Ещё никто не прочитал"
+                    : `Прочитали: ${readers.slice(0, 3).map((m) => m.name).join(", ")}${readers.length > 3 ? ` и ещё ${readers.length - 3}` : ""}`
+                : null;
+            const sender = members.find((m) => m.id === message.senderId);
+            const showSender = !isOwn && isGroup && (!prev || prev.senderId !== message.senderId || showDaySeparator);
+            return (
+              <div key={message.id} style={{ display: "contents" }}>
+                {showDaySeparator && <span className="daysep">{formatDayLabel(message.createdAt)}</span>}
+                <MessageBubble
+                  message={message}
+                  isOwn={isOwn}
+                  sender={sender ? { name: sender.name, avatarUrl: sender.avatarUrl } : null}
+                  showSender={showSender}
+                  onSenderPress={sender ? () => setShowMiniProfileFor(sender.id) : undefined}
+                  readStatus={readStatus}
+                  readCaption={readCaption}
+                  onOwnPress={isOwn && isGroup && !message.id.startsWith("temp-") ? () => setReadersFor(message) : undefined}
+                />
+              </div>
+            );
+          })}
+          <div ref={scrollRef} />
+        </div>
+
+        <div className="compose">
+          {isEventClosed ? (
+            <p className="muted" style={{ textAlign: "center", fontSize: 14, padding: "6px 0" }}>
+              Событие закрыто — отправка новых сообщений недоступна.
+            </p>
+          ) : (
+            <>
+              {pendingImage ? (
+                <div className="plq gl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={pendingImage} alt="Выбранное фото" style={{ width: 44, height: 44, borderRadius: 12, objectFit: "cover" }} />
+                  <div>
+                    <b>Фото готово</b>
+                    <span>Добавь подпись или сразу отправь</span>
+                  </div>
+                  <button className="rb gl" style={{ width: 34, height: 34 }} onClick={() => setPendingImage(null)} aria-label="Убрать фото">
+                    <Ic n="close" c="xs" />
+                  </button>
+                </div>
+              ) : (
+                <div className="quick">
+                  {quick.map((q) => (
+                    <button key={q} onClick={() => setDraft(q)}>
+                      {q}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="inrow">
+                <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handlePickImage} />
+                <label className="field gl">
+                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={sending || preparingImage} aria-label="Прикрепить фото" style={{ color: "var(--grey)", display: "grid" }}>
+                    <Ic n="camera" c="s" />
+                  </button>
+                  <input
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSend();
+                    }}
+                    placeholder={pendingImage ? "Подпись к фото…" : "Сообщение"}
+                  />
+                </label>
+                <button className="send" onClick={handleSend} disabled={sending || (!draft.trim() && !pendingImage)} aria-label="Отправить">
+                  <Ic n="send" />
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {showMiniProfileFor && <MiniProfileSheet userId={showMiniProfileFor} onClose={() => setShowMiniProfileFor(null)} />}
+
+        <Sheet open={!!readersFor} onClose={() => setReadersFor(null)}>
+          <h2 className="t">Кто прочитал</h2>
+          <p className="muted" style={{ margin: "-6px 0 0", fontSize: 14 }}>
+            {readersFor?.content || "Фото"}
+          </p>
+          <div style={{ display: "grid", gap: 8 }}>
+            {readersFor &&
+              members.map((m) => {
+                const isRead = !!(m.lastReadAt && readersFor.createdAt <= m.lastReadAt);
+                return (
+                  <div key={m.id} className="apl gl">
+                    {m.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photoThumb(m.avatarUrl, 88)} alt="" />
+                    ) : (
+                      <span className="hav r" style={{ width: 44, height: 44 }}>
+                        {m.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                    <div>
+                      <b>{m.name}</b>
+                      <span>{isRead ? "прочитал(а)" : "ещё не прочитал(а)"}</span>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        </Sheet>
+
+        <Sheet open={showParticipants} onClose={() => setShowParticipants(false)}>
+          <h2 className="t">
+            Участники <em>встречи</em>
+          </h2>
+          <div className="chs">
+            {(
+              [
+                ["all", "Все"],
+                ["organizer", "Организатор"],
+                ["participants", "Участники"],
+              ] as [ParticipantsTab, string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                className={participantsTab === value ? "on" : "gl"}
+                onClick={() => {
+                  setParticipantsTab(value);
+                  setParticipantsExpanded(false);
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {participantsToShow.map((m) => (
+              <button
                 key={m.id}
-                className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-xs font-semibold text-ink-600"
+                className="apl gl"
+                style={{ width: "100%", textAlign: "left" }}
+                onClick={() => {
+                  setShowParticipants(false);
+                  setShowMiniProfileFor(m.id);
+                }}
               >
                 {m.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoThumb(m.avatarUrl, 48)} alt="" className="h-full w-full object-cover" />
+                  <img src={photoThumb(m.avatarUrl, 88)} alt="" />
                 ) : (
-                  m.name.charAt(0).toUpperCase()
+                  <span className="hav r" style={{ width: 44, height: 44 }}>
+                    {m.name.charAt(0).toUpperCase()}
+                  </span>
                 )}
-              </div>
-            ))}
-            {totalParticipantsCount > 4 && (
-              <div className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-lavender-100 text-xs font-semibold text-accent">
-                +{totalParticipantsCount - 3}
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-medium text-ink-900">Уже идут {totalParticipantsCount} человек</p>
-            <p className="text-xs text-ink-600">Нажми, чтобы посмотреть участников</p>
-          </div>
-          <span className="shrink-0 text-ink-400">›</span>
-        </button>
-      )}
-
-      {showMiniProfileFor && (
-        <MiniProfileSheet userId={showMiniProfileFor} onClose={() => setShowMiniProfileFor(null)} />
-      )}
-
-      {readersFor && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={() => setReadersFor(null)}>
-          <div
-            className="max-h-[70vh] overflow-y-auto rounded-t-sheet bg-white p-5 pb-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <h2 className="text-title mb-1 text-center">Кто прочитал</h2>
-            <p className="mb-4 line-clamp-2 text-center text-sm text-ink-600">
-              {readersFor.content || "Фото"}
-            </p>
-            {(() => {
-              const read = members.filter((m) => m.lastReadAt && readersFor.createdAt <= m.lastReadAt);
-              const unread = members.filter((m) => !(m.lastReadAt && readersFor.createdAt <= m.lastReadAt));
-              const row = (m: Member, isRead: boolean) => (
-                <div key={m.id} className="flex items-center gap-3 py-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background text-sm font-semibold text-ink-600">
-                    {m.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photoThumb(m.avatarUrl, 36)} alt={m.name} className="h-full w-full object-cover" />
-                    ) : (
-                      m.name.charAt(0).toUpperCase()
-                    )}
-                  </div>
-                  <span className="flex-1 text-sm font-medium text-ink-900">{m.name}</span>
-                  <span className={isRead ? "text-xs font-medium text-accent" : "text-xs text-ink-400"}>
-                    {isRead ? "прочитал(а)" : "не прочитал(а)"}
+                <div>
+                  <b>
+                    {m.name}
+                    {m.age ? `, ${m.age}` : ""}
+                  </b>
+                  <span>
+                    {m.id === organizerId ? "Организатор" : "Участник"}
+                    {m.completedMeetingsCount > 0 && ` · ${isFemale(m.gender) ? "была" : "был"} на ${m.completedMeetingsCount} ${pluralizeMeetings(m.completedMeetingsCount)}`}
                   </span>
                 </div>
-              );
-              return (
-                <>
-                  {read.length > 0 && (
-                    <>
-                      <p className="mb-1 text-xs font-semibold uppercase text-ink-400">Прочитали · {read.length}</p>
-                      {read.map((m) => row(m, true))}
-                    </>
-                  )}
-                  {unread.length > 0 && (
-                    <>
-                      <p className="mb-1 mt-3 text-xs font-semibold uppercase text-ink-400">Ещё не прочитали · {unread.length}</p>
-                      {unread.map((m) => row(m, false))}
-                    </>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        </div>
-      )}
-
-      {showParticipants && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30" onClick={() => setShowParticipants(false)}>
-          <div
-            className="max-h-[80vh] overflow-y-auto rounded-t-sheet bg-white p-5 pb-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <h2 className="text-title mb-1 text-center">Участники события</h2>
-            <p className="mb-4 text-center text-sm text-ink-600">{totalParticipantsCount} человек</p>
-
-            <div className="mb-4 flex justify-center gap-2">
-              {(
-                [
-                  ["all", "Все"],
-                  ["organizer", "Организатор"],
-                  ["participants", "Участники"],
-                ] as [ParticipantsTab, string][]
-              ).map(([value, label]) => (
-                <button
-                  key={value}
-                  onClick={() => {
-                    setParticipantsTab(value);
-                    setParticipantsExpanded(false);
-                  }}
-                  className={`rounded-pill px-4 py-1.5 text-sm font-medium ${
-                    participantsTab === value ? "bg-brand-gradient text-white" : "bg-lavender-100 text-ink-600"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className="space-y-1">
-              {participantsToShow.map((m) => {
-                const isOrganizer = m.id === organizerId;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => {
-                      setShowParticipants(false);
-                      setShowMiniProfileFor(m.id);
-                    }}
-                    className="flex w-full items-center gap-3 rounded-card p-2 text-left hover:bg-lavender-50"
-                  >
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-lavender-100 text-sm font-semibold text-ink-600">
-                      {m.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={photoThumb(m.avatarUrl, 48)} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        m.name.charAt(0).toUpperCase()
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-ink-900">
-                        {m.name}
-                        {m.age ? `, ${m.age}` : ""}
-                      </p>
-                      <p className="text-xs text-ink-600">
-                        {isOrganizer ? "Организатор" : "Участник"}
-                        {m.completedMeetingsCount > 0 &&
-                          ` • ${isFemale(m.gender) ? "была" : "был"} на ${m.completedMeetingsCount} ${pluralizeMeetings(m.completedMeetingsCount)}`}
-                      </p>
-                    </div>
-                    <span className="shrink-0 text-ink-400">›</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {hiddenParticipantsCount > 0 && (
-              <button
-                onClick={() => setParticipantsExpanded(true)}
-                className="mt-2 w-full py-2 text-center text-sm font-medium text-accent"
-              >
-                Показать ещё {hiddenParticipantsCount} {pluralizeParticipants(hiddenParticipantsCount)} ⌄
+                <Ic n="chev" c="s" />
               </button>
-            )}
+            ))}
           </div>
-        </div>
-      )}
-
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-        {loading && <p className="text-center text-ink-600">Загрузка...</p>}
-        {error && <p className="text-center text-sm text-red-600">{error}</p>}
-
-        {messages.map((message, index) => {
-          const prev = messages[index - 1];
-          const readers = members.filter((m) => m.lastReadAt && message.createdAt <= m.lastReadAt);
-          const isGroup = members.length > 1;
-          // Подпись «кто прочитал» — только под последним своим сообщением в групповом чате.
-          const isLastOwn = message.senderId === myUserId && !messages.slice(index + 1).some((m) => m.senderId === myUserId);
-          const showDaySeparator = !prev || !isSameDay(prev.createdAt, message.createdAt);
-          const isOwn = message.senderId === myUserId;
-          const readStatus: "sent" | "partial" | "read" =
-            members.length > 0 && readers.length === members.length ? "read" : readers.length > 0 ? "partial" : "sent";
-          const readCaption =
-            isGroup && isLastOwn && !message.id.startsWith("temp-")
-              ? readers.length === members.length
-                ? "Прочитали все"
-                : readers.length === 0
-                  ? "Ещё никто не прочитал"
-                  : `Прочитали: ${readers.slice(0, 3).map((m) => m.name).join(", ")}${readers.length > 3 ? ` и ещё ${readers.length - 3}` : ""}`
-              : null;
-          const sender = members.find((m) => m.id === message.senderId);
-          const showSenderLabel = !isOwn && (!prev || prev.senderId !== message.senderId || showDaySeparator);
-
-          return (
-            <div key={message.id}>
-              {showDaySeparator && (
-                <div className="my-3 flex justify-center">
-                  <span className="rounded-pill bg-lavender-100 px-3 py-1 text-caption font-medium text-ink-600">
-                    {formatDayLabel(message.createdAt)}
-                  </span>
-                </div>
-              )}
-              {showSenderLabel && (
-                <p className="mb-1 ml-1 text-xs font-medium text-ink-600">{sender?.name ?? "Участник"}</p>
-              )}
-              <MessageBubble
-                message={message}
-                isOwn={isOwn}
-                readStatus={readStatus}
-                readCaption={readCaption}
-                onOwnPress={isOwn && isGroup && !message.id.startsWith("temp-") ? () => setReadersFor(message) : undefined}
-              />
-            </div>
-          );
-        })}
-        <div ref={scrollRef} />
-      </div>
-
-      {pendingImage && !isEventClosed && (
-        <div className="flex shrink-0 items-center gap-3 border-t border-lavender-100 bg-white px-3 pt-3">
-          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={pendingImage} alt="Выбранное фото" className="h-full w-full object-cover" />
-            <button
-              type="button"
-              onClick={() => setPendingImage(null)}
-              className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-xs leading-none text-white"
-              aria-label="Убрать фото"
-            >
-              ✕
+          {hiddenParticipantsCount > 0 && (
+            <button className="btn o" onClick={() => setParticipantsExpanded(true)}>
+              Показать ещё {hiddenParticipantsCount} {pluralizeParticipants(hiddenParticipantsCount)}
             </button>
-          </div>
-          <p className="text-xs text-ink-600">Добавьте подпись или сразу отправьте</p>
-        </div>
-      )}
-
-      <div className="flex shrink-0 items-center gap-2 border-t border-lavender-100 bg-white p-3">
-        {isEventClosed ? (
-          <p className="w-full text-center text-sm text-ink-400">
-            Событие закрыто — отправка новых сообщений недоступна.
-          </p>
-        ) : (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handlePickImage}
-            />
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={sending || preparingImage}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lavender-100 disabled:opacity-40"
-              aria-label="Прикрепить фото"
-            >
-              {preparingImage ? (
-                <span className="h-5 w-5 animate-spin rounded-full border-2 border-accent border-t-transparent" />
-              ) : (
-                <Image src="/brand/icons/plus.svg" alt="" width={22} height={22} />
-              )}
-            </button>
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSend();
-              }}
-              placeholder={pendingImage ? "Подпись к фото..." : "Написать сообщение..."}
-              className="min-w-0 flex-1 rounded-pill border border-lavender-200 bg-background px-4 py-2.5 text-base outline-none focus:border-accent"
-            />
-            <button
-              onClick={handleSend}
-              disabled={sending || (!draft.trim() && !pendingImage)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-gradient disabled:opacity-40"
-              aria-label="Отправить"
-            >
-              <Image
-                src="/brand/icons/send.svg"
-                alt=""
-                width={18}
-                height={18}
-                style={{ filter: "brightness(0) invert(1)" }}
-              />
-            </button>
-          </>
-        )}
-      </div>
+          )}
+        </Sheet>
+      </section>
     </div>
   );
+}
+
+function pluralizePeople(n: number): string {
+  const m = n % 10;
+  const h = n % 100;
+  return m >= 2 && m <= 4 && (h < 10 || h >= 20) ? "человека" : "человек";
 }
 
 function isSameDay(isoA: string, isoB: string): boolean {

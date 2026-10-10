@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getUserPhotos } from "@/lib/photos/user-photos";
 
 /**
  * GET /api/users/:id
@@ -17,13 +18,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const admin = createAdminClient();
 
-  const [{ data: user }, { data: interestRows }] = await Promise.all([
+  const [{ data: user }, { data: interestRows }, { data: myInterestRows }] = await Promise.all([
     admin
       .from("users")
       .select("id, name, avatar_url, birth_date, gender, bio, rating_avg, completed_meetings_count")
       .eq("id", id)
       .maybeSingle(),
     admin.from("user_interests").select("interests(name)").eq("user_id", id),
+    admin.from("user_interests").select("interests(name)").eq("user_id", currentUser.userId),
   ]);
 
   if (!user) return NextResponse.json({ error: "not_found" }, { status: 404 });
@@ -32,16 +34,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .map((r) => (r.interests as unknown as { name: string } | null)?.name)
     .filter((n): n is string => !!n);
 
+  const photos = await getUserPhotos(admin, user.id as string, user.avatar_url as string | null);
+
   return NextResponse.json({
     id: user.id,
     name: user.name,
     avatarUrl: user.avatar_url,
+    photos,
     age: calculateAge(user.birth_date),
     gender: user.gender,
     bio: user.bio,
     ratingAvg: user.rating_avg,
     completedMeetingsCount: user.completed_meetings_count,
     interests,
+    // Общие с текущим пользователем — для профиля человека («Общие интересы»).
+    commonInterests: interests.filter((n) =>
+      (myInterestRows ?? []).some((r) => (r.interests as unknown as { name: string } | null)?.name === n)
+    ),
   });
 }
 

@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { PlanCard } from "./PlanCard";
 import { PLAN_LIMITS, FREE_APPLICATIONS_LIMIT, type Plan } from "@/lib/subscriptions/limits";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
+import { useRouter } from "next/navigation";
+import { Ic, Screen, Sheet } from "@/components/proto/ui";
 
 const FEATURES: Record<Plan, string[]> = {
   start: [
@@ -43,7 +44,12 @@ interface PaywallProps {
   onActivated: () => void;
 }
 
+const PLAN_NAME: Record<Plan, string> = { start: "Старт", medium: "Медиум", premium: "Премьер" };
+
+/** Выбор тарифа (SCR.paywall прототипа). Оплата — ЮKassa (карта/СБП), как и раньше. */
 export function Paywall({ onActivated }: PaywallProps) {
+  const router = useRouter();
+  const [picked, setPicked] = useState<Plan>("medium");
   const [loadingCardPlan, setLoadingCardPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [receiptContact, setReceiptContact] = useState<string | null | undefined>(undefined); // undefined = ещё загружаем
@@ -122,73 +128,75 @@ export function Paywall({ onActivated }: PaywallProps) {
   }
 
   return (
-    <div className="space-y-4 px-5 py-6">
-      <div className="text-center">
-        <h1 className="text-display">Выбери тариф</h1>
-        <p className="mt-1 text-sm text-ink-600">Чтобы создавать встречи, нужна подписка.</p>
-        <p className="mt-1 text-xs text-ink-400">
-          Без подписки можно откликаться на встречи — до {FREE_APPLICATIONS_LIMIT} за период.
+    <>
+      <Screen id="paywall" anim="in" scrollClass="pb160">
+        <div className="bar-top">
+          <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+            <Ic n="back" />
+          </button>
+          <span className="pill lav">
+            <Ic n="wallet" c="xs" /> Оплата картой / СБП
+          </span>
+        </div>
+        <h1 className="t" style={{ marginTop: 16 }}>
+          Выбери <em>тариф</em>
+        </h1>
+        <p className="muted" style={{ margin: "8px 0 0", fontSize: 14.5, lineHeight: 1.5 }}>
+          Чтобы создавать встречи, нужна подписка. Без неё можно откликаться — до {FREE_APPLICATIONS_LIMIT} раз за период.
         </p>
-        <p className="mt-2 inline-block rounded-pill bg-lavender-100 px-3 py-1 text-xs font-medium text-accent">
-          Оплата картой / СБП
-        </p>
+        {error && !contactPromptPlan && (
+          <p className="note gl" style={{ marginTop: 12, color: "#E0569B" }}>
+            {error}
+          </p>
+        )}
+        <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+          {(["start", "medium", "premium"] as Plan[]).map((pl) => (
+            <button key={pl} className={`plan-c gl ${picked === pl ? "on" : ""}`} onClick={() => setPicked(pl)}>
+              <div className="h">
+                <b>
+                  {PLAN_NAME[pl]}
+                  {pl === "medium" && <span className="popb">Популярный</span>}
+                </b>
+                <span>{PLAN_LIMITS[pl].priceRub} ₽ / мес</span>
+              </div>
+              <ul>
+                {FEATURES[pl].map((x) => (
+                  <li key={x}>
+                    <Ic n="check" c="xs" />
+                    {x}
+                  </li>
+                ))}
+              </ul>
+            </button>
+          ))}
+        </div>
+      </Screen>
+      <div className="foot" style={{ zIndex: 6 }}>
+        <button className="btn v" onClick={() => handleSelectCard(picked)} disabled={loadingCardPlan !== null || receiptContact === undefined}>
+          {loadingCardPlan ? "Открываем оплату…" : `Оплатить ${PLAN_LIMITS[picked].priceRub} ₽`}
+        </button>
+        <small>30 дней · чек придёт на почту или телефон</small>
       </div>
 
-      {error && <p className="text-center text-sm text-red-600">{error}</p>}
-
-      <PlanCard
-        plan="start"
-        limits={PLAN_LIMITS.start}
-        features={FEATURES.start}
-        loadingCard={loadingCardPlan === "start"}
-        onSelectCard={handleSelectCard}
-      />
-      <PlanCard
-        plan="medium"
-        limits={PLAN_LIMITS.medium}
-        features={FEATURES.medium}
-        highlighted
-        loadingCard={loadingCardPlan === "medium"}
-        onSelectCard={handleSelectCard}
-      />
-      <PlanCard
-        plan="premium"
-        limits={PLAN_LIMITS.premium}
-        features={FEATURES.premium}
-        loadingCard={loadingCardPlan === "premium"}
-        onSelectCard={handleSelectCard}
-      />
-
-      {contactPromptPlan && (
-        <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30"
-          onClick={() => setContactPromptPlan(null)}
+      <Sheet open={!!contactPromptPlan} onClose={() => setContactPromptPlan(null)}>
+        <h2 className="t">
+          Куда прислать <em>чек</em>?
+        </h2>
+        <p className="muted" style={{ margin: "-4px 0 0", fontSize: 14.5, lineHeight: 1.5 }}>
+          По закону об онлайн-кассах чек нужно отправить на email или телефон — укажи один раз, дальше не будем спрашивать.
+        </p>
+        <label className="field gl">
+          <input value={contactDraft} onChange={(e) => setContactDraft(e.target.value)} placeholder="email или телефон" autoFocus />
+        </label>
+        {error && <p style={{ color: "#E0569B", fontSize: 13.5 }}>{error}</p>}
+        <button
+          className="btn v"
+          onClick={() => contactPromptPlan && startPayment(contactPromptPlan, contactDraft.trim())}
+          disabled={!contactDraft.trim() || loadingCardPlan !== null}
         >
-          <div className="rounded-t-sheet bg-white p-5 pb-8" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <h2 className="text-title mb-2">Куда прислать чек?</h2>
-            <p className="mb-4 text-sm text-ink-600">
-              По закону об онлайн-кассах чек нужно отправить на email или телефон — укажи один раз, дальше не
-              будем спрашивать.
-            </p>
-            <input
-              value={contactDraft}
-              onChange={(e) => setContactDraft(e.target.value)}
-              placeholder="email или телефон"
-              className="w-full rounded-pill border border-lavender-200 bg-background px-4 py-3 text-base outline-none focus:border-accent"
-              autoFocus
-            />
-            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-            <button
-              onClick={() => contactPromptPlan && startPayment(contactPromptPlan, contactDraft.trim())}
-              disabled={!contactDraft.trim() || loadingCardPlan !== null}
-              className="mt-4 w-full rounded-pill bg-brand-gradient py-3.5 text-sm font-semibold text-white shadow-cta disabled:opacity-60"
-            >
-              {loadingCardPlan ? "Открываем оплату..." : "Продолжить"}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+          {loadingCardPlan ? "Открываем оплату…" : "Продолжить"}
+        </button>
+      </Sheet>
+    </>
   );
 }

@@ -26,7 +26,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     admin
       .from("events")
       .select(
-        "id, title, photo_url, event_date, event_time, event_end_time, place_name, address, latitude, longitude, status, is_business, has_chat, organizer:users(name)"
+        "id, title, photo_url, event_date, event_time, event_end_time, place_name, address, latitude, longitude, status, is_business, has_chat, business_pricing_type, business_pricing_details, organizer:users(name)"
       )
       .eq("id", eventId)
       .maybeSingle(),
@@ -60,6 +60,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       longitude: event.longitude,
       status: event.status,
       organizerName: organizer?.name ?? null,
+      businessPricingType: (event as { business_pricing_type?: string | null }).business_pricing_type ?? null,
+      businessPricingDetails: (event as { business_pricing_details?: string | null }).business_pricing_details ?? null,
     },
   });
 }

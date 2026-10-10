@@ -25,22 +25,22 @@ const PLAN_VISUALS: Record<
   { icon: string; cardClass: string; titleClass: string; textClass: string; buttonVariant: "primary" | "secondary" }
 > = {
   start: {
-    icon: "/brand/3d/plan-start.png",
-    cardClass: "bg-white border border-lavender-200",
+    icon: "/brand/mosya/mosya_wave.webp",
+    cardClass: "m-glass",
     titleClass: "text-ink-900",
     textClass: "text-ink-600",
     buttonVariant: "secondary",
   },
   medium: {
-    icon: "/brand/3d/plan-medium.png",
+    icon: "/brand/mosya/mosya_glasses.webp",
     cardClass: "bg-brand-gradient",
     titleClass: "text-white",
     textClass: "text-white/80",
     buttonVariant: "primary",
   },
   premium: {
-    icon: "/brand/3d/plan-premier.png",
-    cardClass: "bg-ink-900",
+    icon: "/brand/mosya/mosya_jump.webp",
+    cardClass: "bg-[linear-gradient(150deg,#2A1F4E_0%,#5B3AA8_60%,#C871B6_100%)]",
     titleClass: "text-white",
     textClass: "text-white/70",
     buttonVariant: "primary",
@@ -59,11 +59,11 @@ export function PlanCard({ plan, limits, features, highlighted, loadingCard, onS
       )}
 
       <div className="mb-3 flex items-center gap-3">
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-card-sm">
-          <Image src={visual.icon} alt="" fill className="object-cover" sizes="56px" />
+        <div className="relative h-16 w-16 shrink-0">
+          <Image src={visual.icon} alt="" fill className="object-contain" sizes="64px" />
         </div>
         <div>
-          <h3 className={`text-title ${visual.titleClass}`}>{PLAN_TITLES[plan]}</h3>
+          <h3 className={`text-[22px] font-medium tracking-tight ${visual.titleClass}`}>{PLAN_TITLES[plan]}</h3>
           <span className={`text-sm font-semibold ${visual.textClass}`}>{limits.priceRub} ₽/мес</span>
         </div>
       </div>
@@ -80,10 +80,8 @@ export function PlanCard({ plan, limits, features, highlighted, loadingCard, onS
       <button
         onClick={() => onSelectCard(plan)}
         disabled={loadingCard}
-        className={`w-full rounded-pill py-3.5 text-sm font-semibold ${
-          visual.buttonVariant === "primary"
-            ? "bg-white text-ink-900 shadow-cta active:scale-[0.98]"
-            : "bg-brand-gradient text-white shadow-cta active:scale-[0.98]"
+        className={`m-btn h-[52px] text-[15px] ${
+          visual.buttonVariant === "primary" ? "bg-white text-ink-900" : "m-btn-v"
         }`}
       >
         {loadingCard ? "Открываем оплату..." : "Оплата картой / СБП"}

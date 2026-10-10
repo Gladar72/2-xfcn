@@ -100,7 +100,7 @@ export function ChatListItem({
   );
 
   return (
-    <div className="flex items-center gap-2 rounded-card bg-white px-3 py-3 shadow-card">
+    <div className="flex items-center gap-2 rounded-card m-glass px-3 py-3">
       {isEventClosed ? (
         // Закрытая встреча — в чат вообще нельзя зайти (не просто нельзя
         // писать), поэтому здесь обычный div, а не ссылка.
