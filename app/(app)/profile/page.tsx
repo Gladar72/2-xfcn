@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Icon } from "@/components/brand/Icon";
+import { Icon, type IconName } from "@/components/brand/Icon";
 import Link from "next/link";
 import Image from "next/image";
 import { type Plan } from "@/lib/subscriptions/limits";
@@ -10,6 +10,10 @@ import { resizeImageFile } from "@/lib/photos/resize-image-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
 import { RatingStar } from "@/components/ui/RatingStar";
 import { photoThumb } from "@/lib/photos/thumb";
+import { useGuide } from "@/lib/mosya/guide";
+
+/** Поддержка — в боте: на вопросы сразу отвечает ИИ. */
+const SUPPORT_URL = "https://t.me/Mesto_people_bot";
 
 interface Profile {
   name: string;
@@ -36,6 +40,7 @@ const PLAN_TITLES: Record<Plan, string> = { start: "Старт", medium: "Мед
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [subscription, setSubscription] = useState<SubscriptionStatus | null>(null);
+  useGuide("profile", { when: profile !== null });
   const [loading, setLoading] = useState(true);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -177,16 +182,16 @@ export default function ProfilePage() {
         <Link
           href="/settings"
           aria-label="Настройки"
-          className="flex h-12 w-12 items-center justify-center rounded-full bg-ink-900/[0.05] active:scale-95"
+          className="m-glass m-press flex h-11 w-11 items-center justify-center rounded-full"
         >
-          <Image src="/brand/icons/settings.svg" alt="" width={22} height={22} />
+          <Icon name="gear" size={22} />
         </Link>
       </div>
 
       {/* Карточка профиля: фото слева, имя/город/рейтинг/о себе, маскот справа */}
       <div className="relative shrink-0 overflow-hidden rounded-[28px] m-glass px-4 py-5 [@media(max-height:680px)]:py-3.5">
         <Image
-          src="/brand/mosya/mosya_wave.webp"
+          src="/brand/mosya/mosya_sit.webp"
           alt=""
           width={120}
           height={115}
@@ -198,7 +203,7 @@ export default function ProfilePage() {
           <div className="shrink-0">
             {profile.avatarUrl ? (
               <AvatarViewer src={profile.avatarUrl} alt={profile.name}>
-                <div className="h-[104px] w-[104px] overflow-hidden rounded-full bg-lavender-100 [@media(max-height:680px)]:h-[80px] [@media(max-height:680px)]:w-[80px]">
+                <div className="h-[104px] w-[104px] overflow-hidden rounded-full bg-lavender-100 shadow-[0_0_0_3px_#fff,0_0_0_6px_rgba(162,77,255,.55)] [@media(max-height:680px)]:h-[80px] [@media(max-height:680px)]:w-[80px]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={photoThumb(profile.avatarUrl, 128)} alt={profile.name} className="h-full w-full object-cover" />
                 </div>
@@ -207,7 +212,7 @@ export default function ProfilePage() {
               <button
                 onClick={() => fileInputRef.current?.click()}
                 aria-label="Добавить фото"
-                className="flex h-[104px] w-[104px] items-center justify-center rounded-full bg-lavender-100 text-3xl font-semibold text-ink-600 [@media(max-height:680px)]:h-[80px] [@media(max-height:680px)]:w-[80px]"
+                className="flex h-[104px] w-[104px] items-center justify-center rounded-full bg-brand-gradient text-3xl font-semibold text-white [@media(max-height:680px)]:h-[80px] [@media(max-height:680px)]:w-[80px]"
               >
                 {profile.name.charAt(0).toUpperCase()}
               </button>
@@ -216,7 +221,7 @@ export default function ProfilePage() {
           </div>
 
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-title font-extrabold text-ink-900">
+            <h2 className="truncate text-[22px] font-medium tracking-tight text-ink-900">
               {profile.name}, {profile.age}
             </h2>
             <p className="mt-1.5 flex items-center gap-1.5 text-sm text-ink-600">
@@ -243,8 +248,9 @@ export default function ProfilePage() {
 
       <button
         onClick={() => setEditing(true)}
-        className="shrink-0 rounded-[22px] bg-lavender-100 py-4 text-base font-bold text-accent active:scale-[0.99] [@media(max-height:680px)]:py-3"
+        className="m-glass m-press flex shrink-0 items-center justify-center gap-2 rounded-[22px] py-4 text-base font-medium text-accent [@media(max-height:680px)]:py-3"
       >
+        <Icon name="edit" size={18} />
         Редактировать профиль
       </button>
 
@@ -266,26 +272,38 @@ export default function ProfilePage() {
 
       {/* Мои разделы */}
       <div className="shrink-0 rounded-[28px] m-glass px-4 py-1">
-        <MenuRow href="/my-events" icon="/brand/3d/icon-calendar.png" label="Мои встречи" />
-        <MenuRow href="/notifications" icon="/brand/3d/icon-bell.png" label="Уведомления" />
+        <MenuRow href="/my-events" icon="cal" label="Мои встречи" />
+        <MenuRow href="/notifications" icon="bell" label="Уведомления" />
         <MenuRow
           href="/subscriptions"
-          icon="/brand/3d/icon-gift.png"
+          icon="gift"
           label="Подписка"
           value={subscription?.active ? PLAN_TITLES[subscription.plan!] : "не оформлена"}
           badge={!!subscription?.active}
         />
-        <MenuRow href="/reviews" icon="/brand/3d/icon-badge.png" label="Отзывы после встреч" last />
+        <MenuRow href="/reviews" icon="star" label="Отзывы после встреч" last />
       </div>
+
+      {/* Мося-помощник: вопрос в поддержку (ИИ отвечает сразу в боте) */}
+      <a
+        href={SUPPORT_URL}
+        target="_blank"
+        rel="noreferrer"
+        className="m-press fixed bottom-[96px] right-4 z-30 flex items-center gap-2 rounded-pill bg-white/85 py-1.5 pl-1.5 pr-4 text-[13.5px] font-medium shadow-card-lg backdrop-blur-xl"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/mosya/mosya_glasses.webp" alt="" className="h-10 w-10 object-contain" />
+        Задать вопрос
+      </a>
 
       {/* Редактирование — модальное окно поверх, чтобы не раздувать экран */}
       {editing && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink-900/30 px-4 backdrop-blur-sm"
+          className="m-fade-in fixed inset-0 z-50 flex items-center justify-center bg-ink-900/30 px-4 backdrop-blur-sm"
           onClick={() => !savingEdit && setEditing(false)}
         >
           <div
-            className="w-full max-w-sm space-y-2.5 rounded-card-lg m-glass p-4"
+            className="m-pop w-full max-w-sm space-y-2.5 rounded-[28px] bg-white/95 p-4 shadow-card-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="pb-1 text-center text-title text-ink-900">Редактировать профиль</h2>
@@ -357,7 +375,7 @@ function StatCard({
       >
         {icon}
       </div>
-      <div className="text-2xl font-bold leading-7 text-ink-900">{value}</div>
+      <div className="text-2xl font-medium leading-7 tracking-tight text-ink-900">{value}</div>
       <div className="mt-1 truncate text-xs text-ink-600">{label}</div>
     </div>
   );
@@ -397,7 +415,7 @@ function MenuRow({
   last = false,
 }: {
   href: string;
-  icon: string;
+  icon: IconName;
   label: string;
   value?: string;
   /** Показать значение плашкой (как тариф подписки), а не серым текстом. */
@@ -406,13 +424,9 @@ function MenuRow({
 }) {
   return (
     <Link href={href} className="flex items-center gap-3 active:opacity-70">
-      <Image unoptimized
-        src={icon}
-        alt=""
-        width={40}
-        height={40}
-        className="h-12 w-12 shrink-0 object-contain [@media(max-height:680px)]:h-9 [@media(max-height:680px)]:w-9"
-      />
+      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[14px] bg-[rgba(108,59,255,.1)] text-accent [@media(max-height:680px)]:h-9 [@media(max-height:680px)]:w-9">
+        <Icon name={icon} size={21} />
+      </span>
       <div
         className={`flex min-w-0 flex-1 items-center gap-2 py-3.5 [@media(max-height:680px)]:py-2.5 ${last ? "" : "border-b border-lavender-100"}`}
       >

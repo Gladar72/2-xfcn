@@ -1,0 +1,21 @@
+name: redesign-check
+on:
+  push:
+    branches: [redesign-2026]
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx tsc --noEmit
+        continue-on-error: true
+      - run: npx next lint
+        continue-on-error: true
+      - run: npx next build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"

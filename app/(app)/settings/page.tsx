@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Icon } from "@/components/brand/Icon";
+import { Icon, type IconName } from "@/components/brand/Icon";
+import { Wordmark } from "@/components/brand/Logo";
+import { useGuide } from "@/lib/mosya/guide";
 import Link from "next/link";
-import Image from "next/image";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 import { CityPicker } from "@/components/ui/CityPicker";
 
@@ -21,6 +22,7 @@ export default function SettingsPage() {
   const [cityDraft, setCityDraft] = useState("");
   const [savingCity, setSavingCity] = useState(false);
   const [cityError, setCityError] = useState<string | null>(null);
+  useGuide("settings");
 
   useEffect(() => {
     fetch("/api/me/profile")
@@ -86,13 +88,13 @@ export default function SettingsPage() {
         <Link href="/profile" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
           <Icon name="back" size={22} className="" />
         </Link>
-        <h1 className="text-title">Настройки</h1>
+        <h1 className="m-title text-[28px]">Настройки</h1>
       </div>
 
       <Section title="Аккаунт">
-        <Row href="/profile" label="Профиль" value={profile ? profile.name : undefined} icon="/brand/3d/icon-users.png" />
-        <Row href="/subscriptions" label="Мой тариф" icon="/brand/3d/icon-gift.png" />
-        <Row href="/notifications" label="Уведомления" icon="/brand/3d/icon-bell.png" />
+        <Row href="/profile" label="Профиль" value={profile ? profile.name : undefined} icon="user" />
+        <Row href="/subscriptions" label="Мой тариф" icon="gift" />
+        <Row href="/notifications" label="Уведомления" icon="bell" />
         {profile && (
           <ToggleRow
             label="Утренние приглашения"
@@ -102,27 +104,29 @@ export default function SettingsPage() {
           />
         )}
         <button onClick={openCityEditor} className="block w-full text-left">
-          <div className="flex items-center gap-3 rounded-card m-glass p-4">
-            <IconTile src="/brand/3d/icon-location.png" />
+          <div className="flex items-center gap-3 rounded-[22px] m-glass p-3.5">
+            <IconTile name="pin" />
             <span className="flex-1 text-base text-ink-900">Город</span>
             {profile?.city && <span className="text-sm text-ink-400">{profile.city}</span>}
-            <span className="text-ink-400">›</span>
+            <Icon name="chev" size={16} className="text-ink-400" />
           </div>
         </button>
       </Section>
 
       <Section title="Помощь">
-        <Row external href={SUPPORT_BOT_URL} label="Написать в поддержку" icon="/brand/mosya/mosya_phone.webp" />
+        <Row external href={SUPPORT_BOT_URL} label="Написать в поддержку" icon="help" />
       </Section>
 
       <Section title="О приложении">
-        <div className="rounded-card m-glass p-4">
+        <div className="rounded-[22px] m-glass p-3.5">
           {/* У логотипа в SVG есть отступ слева — сдвигаем, чтобы буква «М» стояла ровно по тексту. */}
-          <div className="relative -ml-[3px] mb-4 h-6 w-24">
-            <Image src="/brand/logo/wordmark-purple.svg" alt="МЕСТО" fill className="object-contain object-left" />
+          <div className="mb-4 flex items-end justify-between">
+            <Wordmark height={30} color="#16121F" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/mosya/mosya_wave.webp" alt="" className="-mb-2 h-16 w-16 object-contain" />
           </div>
           <p className="mb-2 text-sm font-medium text-ink-900">
-            МЕСТО — когда есть куда пойти, но не с кем.
+            Место — есть куда пойти. Найдём, с кем.
           </p>
           <p className="mb-2 text-sm text-ink-600">
             Приложение, которое объединяет людей через реальные планы и события.
@@ -137,24 +141,24 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <Row href="/legal/offer" label="Публичная оферта" icon="/brand/3d/icon-document.png" />
-        <Row href="/legal/privacy" label="Политика конфиденциальности" icon="/brand/3d/icon-document.png" />
+        <Row href="/legal/offer" label="Публичная оферта" icon="doc" />
+        <Row href="/legal/privacy" label="Политика конфиденциальности" icon="doc" />
       </Section>
 
       <button
         onClick={handleClose}
-        className="mt-6 w-full rounded-pill border border-lavender-200 bg-white py-3.5 text-sm font-medium text-ink-600"
+        className="m-btn m-btn-o mt-6 h-[52px] text-sm text-ink-600"
       >
         Закрыть приложение
       </button>
 
       {editingCity && (
         <div
-          className="fixed inset-0 z-50 flex flex-col justify-end bg-black/30"
+          className="m-fade-in fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)]"
           onClick={() => setEditingCity(false)}
         >
           <div
-            className="rounded-t-sheet bg-white p-5 pb-8"
+            className="m-sheet-in rounded-t-sheet bg-white p-5 pb-8"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
@@ -175,28 +179,11 @@ export default function SettingsPage() {
   );
 }
 
-/**
- * Иконка строки настроек: одинаковая «плитка» 36×36, иконка по центру.
- * У 3D-иконок разные поля внутри картинки (у одних отступ, у других — нет),
- * поэтому некоторым задан свой масштаб, чтобы визуально все были одного размера.
- */
-const ICON_SCALE: Record<string, number> = {
-  "/brand/mosya/mosya_phone.webp": 0.82,
-};
-
-function IconTile({ src }: { src: string }) {
-  const scale = ICON_SCALE[src] ?? 1;
+/** Иконка строки настроек: лавандовая плитка с линейной иконкой. */
+function IconTile({ name }: { name: IconName }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center" aria-hidden>
-      <Image
-        src={src}
-        alt=""
-        width={30}
-        height={30}
-        unoptimized
-        className="h-[30px] w-[30px] object-contain"
-        style={scale !== 1 ? { transform: `scale(${scale})` } : undefined}
-      />
+    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-[rgba(108,59,255,.1)] text-accent" aria-hidden>
+      <Icon name={name} size={20} />
     </span>
   );
 }
@@ -219,16 +206,16 @@ function Row({
 }: {
   label: string;
   value?: string;
-  icon: string;
+  icon: IconName;
   href?: string;
   external?: boolean;
 }) {
   const content = (
-    <div className="flex items-center gap-3 rounded-card m-glass p-4">
-      <IconTile src={icon} />
+    <div className="flex items-center gap-3 rounded-[22px] m-glass p-3.5">
+      <IconTile name={icon} />
       <span className="flex-1 text-base text-ink-900">{label}</span>
       {value && <span className="text-sm text-ink-400">{value}</span>}
-      {href && <span className="text-ink-400">›</span>}
+      {href && <Icon name="chev" size={16} className="text-ink-400" />}
     </div>
   );
 
@@ -257,7 +244,7 @@ function ToggleRow({
   return (
     <button
       onClick={onChange}
-      className="flex w-full items-center gap-3 rounded-card m-glass p-4 text-left"
+      className="flex w-full items-center gap-3 rounded-[22px] m-glass p-3.5 text-left"
     >
       <div className="flex-1">
         <span className="block text-sm text-ink-900">{label}</span>

@@ -175,7 +175,7 @@ function MiniStatus({ status }: { status: ApplicationStatus }) {
 function Faces({ preview, count }: { preview: { id: string; name: string; avatarUrl: string | null }[]; count: number }) {
   const extra = count - preview.length;
   return (
-    <span className="m-faces" style={{ ["--ring" as string]: "rgba(255,255,255,.7)" }}>
+    <span className="m-faces" style={{ ["--ring" as string]: "rgba(255,255,255,.7)" } as React.CSSProperties}>
       {preview.map((p) =>
         p.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
