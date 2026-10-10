@@ -341,7 +341,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       className="fixed inset-x-0 top-0 z-40 flex flex-col overflow-hidden"
       style={{ height: liveHeight ? `${liveHeight}px` : "100dvh" }}
     >
-      <div className={`flex shrink-0 items-center gap-3 border-b border-lavender-100 bg-white px-4 py-3 ${isEventClosed ? "opacity-60" : ""}`}>
+      <div className={`flex shrink-0 items-center gap-3 border-b border-white/70 bg-white/70 px-4 py-3 backdrop-blur-xl ${isEventClosed ? "opacity-60" : ""}`}>
         <button onClick={() => router.push("/chats")} aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
           <Icon name="back" size={22} className="" />
         </button>
@@ -551,7 +551,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       )}
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
-        {loading && <p className="text-center text-ink-600">Загрузка...</p>}
+        {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className={`m-sk h-12 ${i % 2 ? "ml-auto w-2/3" : "w-3/5"}`} />)}</div>}
         {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
         {messages.map((message, index) => {
@@ -579,7 +579,7 @@ export default function ChatPage({ params }: ChatPageProps) {
             <div key={message.id}>
               {showDaySeparator && (
                 <div className="my-3 flex justify-center">
-                  <span className="rounded-pill bg-lavender-100 px-3 py-1 text-caption font-medium text-ink-600">
+                  <span className="rounded-pill bg-white/70 px-3 py-1 text-caption font-medium text-ink-600 backdrop-blur">
                     {formatDayLabel(message.createdAt)}
                   </span>
                 </div>
@@ -601,7 +601,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       </div>
 
       {pendingImage && !isEventClosed && (
-        <div className="flex shrink-0 items-center gap-3 border-t border-lavender-100 bg-white px-3 pt-3">
+        <div className="flex shrink-0 items-center gap-3 border-t border-white/70 bg-white/70 px-3 pt-3 backdrop-blur-xl">
           <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={pendingImage} alt="Выбранное фото" className="h-full w-full object-cover" />
@@ -618,7 +618,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         </div>
       )}
 
-      <div className="flex shrink-0 items-center gap-2 border-t border-lavender-100 bg-white p-3">
+      <div className="flex shrink-0 items-center gap-2 border-t border-white/70 bg-white/70 p-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur-xl">
         {isEventClosed ? (
           <p className="w-full text-center text-sm text-ink-400">
             Событие закрыто — отправка новых сообщений недоступна.
@@ -636,7 +636,7 @@ export default function ChatPage({ params }: ChatPageProps) {
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={sending || preparingImage}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-lavender-100 disabled:opacity-40"
+              className="m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[rgba(108,59,255,.1)] text-accent disabled:opacity-40"
               aria-label="Прикрепить фото"
             >
               {preparingImage ? (
@@ -652,12 +652,12 @@ export default function ChatPage({ params }: ChatPageProps) {
                 if (e.key === "Enter") handleSend();
               }}
               placeholder={pendingImage ? "Подпись к фото..." : "Написать сообщение..."}
-              className="min-w-0 flex-1 rounded-pill border border-lavender-200 bg-background px-4 py-2.5 text-base outline-none focus:border-accent"
+              className="m-glass min-w-0 flex-1 rounded-pill border-0 px-4 py-2.5 text-base outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]"
             />
             <button
               onClick={handleSend}
               disabled={sending || (!draft.trim() && !pendingImage)}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-gradient disabled:opacity-40"
+              className="m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-gradient text-white shadow-cta disabled:opacity-40"
               aria-label="Отправить"
             >
               <Icon name="send" size={18} />

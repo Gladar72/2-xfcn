@@ -6,7 +6,7 @@ import Image from "next/image";
 
 export default function OfferPage() {
   return (
-    <div className="min-h-screen bg-background px-5 py-4">
+    <div className="min-h-screen px-5 py-4">
       <div className="mb-4 flex items-center gap-3">
         <Link href="/settings" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
           <Icon name="back" size={22} className="" />

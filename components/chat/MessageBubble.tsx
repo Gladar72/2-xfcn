@@ -32,7 +32,7 @@ export function MessageBubble({ message, isOwn, readStatus, readCaption, onOwnPr
   const hasImage = !!message.imageUrl;
 
   return (
-    <div className={clsx("flex flex-col", isOwn ? "items-end" : "items-start")}>
+    <div className={clsx("m-fade-in flex flex-col", isOwn ? "items-end" : "items-start")}>
       <div
         onClick={isOwn && onOwnPress && !message.uploading ? onOwnPress : undefined}
         className={clsx(
@@ -40,8 +40,8 @@ export function MessageBubble({ message, isOwn, readStatus, readCaption, onOwnPr
           "max-w-[75%] text-sm",
           hasImage ? "p-1" : "px-4 py-2.5",
           isOwn
-            ? "bg-accent text-white rounded-[22px_22px_6px_22px]"
-            : "bg-lavender-100 text-ink-900 rounded-[22px_22px_22px_6px]"
+            ? "bg-brand-gradient text-white rounded-[22px_22px_6px_22px] shadow-[0_10px_22px_-14px_rgba(130,60,255,.9)]"
+            : "bg-white/80 text-ink-900 rounded-[22px_22px_22px_6px] shadow-card backdrop-blur-xl"
         )}
       >
         {message.imageUrl && (

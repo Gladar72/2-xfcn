@@ -499,7 +499,7 @@ export function CreateEventWizard() {
                       ) : (
                         <span className="text-3xl leading-[52px]">{c.emoji}</span>
                       )}
-                      <span>{c.name.replace("Совместная ", "").replace("Попить кофе", "Кофе").replace("Совместный ", "").replace("Поужинать", "Ужин")}</span>
+                      <span>{tileName(c.name)}</span>
                     </button>
                   );
                 })}
@@ -988,6 +988,17 @@ export function CreateEventWizard() {
       )}
     </div>
   );
+}
+
+/** Короткие подписи для плиток 4 в ряд. */
+function tileName(name: string) {
+  const map: Record<string, string> = {
+    "Совместная тренировка": "Тренировка",
+    "Попить кофе": "Кофе",
+    "Совместный завтрак": "Завтрак",
+    "Поужинать": "Ужин",
+  };
+  return map[name] ?? name;
 }
 
 function StepBlock({
