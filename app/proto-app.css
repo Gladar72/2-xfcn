@@ -1,0 +1,17 @@
+/* Дополнения к стилям прототипа (app/proto.css) для живых данных приложения. */
+.P .plan .gfx{width:46px;height:46px;border-radius:14px;flex:none}
+.P .plan .gfx img{width:70%}
+.P .pcard .tgava{font-size:48px}
+.P .loc{text-align:left}
+.P .field input{font-size:16px}
+/* смена шага мастера создания — въезд по направлению (как в прототипе) */
+.P .crstep{animation:crIn .38s var(--ease) both}
+@keyframes crIn{from{opacity:0;transform:translateX(calc(var(--dir,1) * 40px))}to{opacity:1;transform:none}}
+.P .pmap>div:first-child{position:absolute;inset:0}
+.P .pmap .lab{z-index:4}
+.P .pldrop button{width:100%}
+.P .plan>img{width:46px;height:46px;border-radius:14px;object-fit:cover}
+/* карточки-ссылки (в прототипе это кнопки) — блочные */
+.P a.hero,.P a.acard,.P a.pcard{display:block}
+.P a.ttl,.P a.nearb,.P a.plan,.P a.row,.P a.ci,.P a.sfield,.P a.cat{display:flex}
+.P a.rb{display:grid}

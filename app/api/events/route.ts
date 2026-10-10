@@ -342,6 +342,8 @@ export async function GET(req: NextRequest) {
       photoUrl: _row.photo_url,
       isAnonymous: !!_row.is_anonymous,
       isLive: liveIds.has(_row.id),
+      // «Поднято» на карточке — поднятие за последние сутки.
+      isBoosted: !!_row.boosted_at && Date.now() - new Date(_row.boosted_at as string).getTime() < 24 * 3600 * 1000,
       // Лёгкое визуальное выделение карточки — привилегия тарифов
       // Медиум и Премьер (см. FEATURES в components/paywall/Paywall.tsx).
       isHighlighted: organizerPlan === "medium" || organizerPlan === "premium",

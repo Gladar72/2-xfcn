@@ -1,296 +1,541 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Mosya } from "@/components/brand/Mosya";
-import { Icon } from "@/components/brand/Icon";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useGuide } from "@/lib/mosya/guide";
 import { say } from "@/lib/mosya/peek";
 import { JoinFlow } from "@/components/events/JoinFlow";
-import { PeopleRail } from "@/components/people/PeopleRail";
-import { AfishaRail } from "@/components/home/AfishaRail";
-import { useRouter } from "next/navigation";
-import { TopBar } from "@/components/layout/TopBar";
-import { CategoryGrid } from "@/components/home/CategoryGrid";
-import { TrainingTypeSheet } from "@/components/home/TrainingTypeSheet";
-import { EventCard, type EventCardData } from "@/components/feed/EventCard";
-import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
-import { Button } from "@/components/ui/Button";
+import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CityPicker } from "@/components/ui/CityPicker";
+import { photoThumb } from "@/lib/photos/thumb";
+import { interestIcon } from "@/lib/data/interests";
+import { Chr, Cover, HeroCard, Ic, MiniMap, RowCard, Screen, Sheet, Toast, eventIcon, type HeroEvent } from "@/components/proto/ui";
+import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
 
 interface Category {
   id: string;
   slug: string;
   name: string;
-  emoji: string | null;
 }
-
 interface TrainingType {
   id: string;
   slug: string;
   name: string;
-  emoji: string | null;
 }
+type FeedEvent = HeroEvent & { isMine?: boolean; myApplicationStatus?: ApplicationStatus | null };
+interface PersonCard {
+  id: string;
+  name: string;
+  age: number;
+  avatarUrl: string | null;
+  sharedInterests: string[];
+  sharedCount: number;
+}
+interface MyEvent {
+  id: string;
+  title: string;
+  eventDate: string;
+  eventTime: string;
+  photoUrl: string | null;
+  role?: string;
+  category?: { slug: string } | null;
+  isBusiness?: boolean;
+}
+
+/** Короткие подписи категорий — как в чипсах прототипа. */
+const SHORT: Record<string, string> = {
+  training: "Тренировка",
+  cinema: "Кино",
+  coffee: "Кофе",
+  breakfast: "Завтрак",
+  dinner: "Ужин",
+  walk: "Прогулка",
+  active: "Активный отдых",
+  party: "Вечеринка",
+};
 
 export default function FeedPage() {
   return (
-    // useSearchParams требует Suspense-границу в Next.js App Router
     <Suspense>
       <FeedPageContent />
     </Suspense>
   );
 }
 
-const POPULAR = 5;
-
 function FeedPageContent() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const categoryFilter = searchParams.get("category");
-  const typeFilter = searchParams.get("type");
+  const sp = useSearchParams();
+  const category = sp.get("category");
+  const type = sp.get("type");
+  return category ? <CategoryScreen slug={category} type={type} /> : <HomeScreen />;
+}
 
+/* ================= главная ================= */
+function HomeScreen() {
+  const router = useRouter();
+  const [city, setCity] = useState<string | null>(null);
+  const [cityOpen, setCityOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
-  const [sheetOpen, setSheetOpen] = useState(false);
-
-  const [events, setEvents] = useState<EventCardData[]>([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  // Статусы заявок, изменившиеся прямо сейчас на этом экране (после
-  // нажатия «Я иду») — поверх того, что пришло с сервера в myApplicationStatus.
-  const [localStatuses, setLocalStatuses] = useState<Record<string, ApplicationStatus>>({});
-  const [applyingEventId, setApplyingEventId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  // null, а не сразу "Тюмень" — раньше лента грузилась ДВАЖДЫ на каждом
-  // открытии: сначала с этим захардкоженным городом по умолчанию (пока
-  // профиль ещё не пришёл), потом ещё раз с настоящим городом из
-  // профиля. Теперь ждём реальный город и грузим ленту только один раз.
-  const [city, setCity] = useState<string | null>(null);
-  const [citySheetOpen, setCitySheetOpen] = useState(false);
-  const [cityInput, setCityInput] = useState("");
-  useGuide("feed", { when: !loading });
+  const [events, setEvents] = useState<FeedEvent[] | null>(null);
+  const [biz, setBiz] = useState<FeedEvent[]>([]);
+  const [people, setPeople] = useState<PersonCard[]>([]);
+  const [plan, setPlan] = useState<{ ev: MyEvent; label: string } | null>(null);
+  const [unreadChats, setUnreadChats] = useState(0);
+  const [unreadNotif, setUnreadNotif] = useState(false);
+  const [trainOpen, setTrainOpen] = useState(false);
+  const [empty, setEmpty] = useState<{ slug: string; name: string; type?: string } | null>(null);
+  useGuide("feed", { when: events !== null });
 
   useEffect(() => {
     fetch("/api/me/profile")
       .then((r) => r.json())
-      .then((data) => {
-        setAvatarUrl(data.avatarUrl ?? null);
-        setCity(data.city || "Тюмень");
-        setCityInput(data.city || "Тюмень");
-      })
+      .then((d) => setCity(d.city || "Тюмень"))
       .catch(() => setCity("Тюмень"));
-  }, []);
-
-  useEffect(() => {
     fetch("/api/categories")
       .then((r) => r.json())
-      .then((data) => {
-        setCategories(data.categories ?? []);
-        setTrainingTypes(data.trainingTypes ?? []);
+      .then((d) => {
+        setCategories(d.categories ?? []);
+        setTrainingTypes(d.trainingTypes ?? []);
       })
-      .catch(() => {
-        setCategories([]);
-        setTrainingTypes([]);
-      });
+      .catch(() => {});
+    fetch("/api/people")
+      .then((r) => r.json())
+      .then((d) => setPeople(Array.isArray(d.items) ? d.items : []))
+      .catch(() => {});
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((d) => setUnreadChats((d.items ?? []).reduce((s: number, i: { unreadCount?: number }) => s + (i.unreadCount || 0), 0)))
+      .catch(() => {});
+    fetch("/api/notifications")
+      .then((r) => r.json())
+      .then((d) => setUnreadNotif((d.items ?? []).some((n: { isRead?: boolean }) => !n.isRead)))
+      .catch(() => {});
+    fetch("/api/me/events?scope=upcoming")
+      .then((r) => r.json())
+      .then((d) => {
+        const mine = ((d.items ?? d.events ?? []) as MyEvent[]).filter((e) => e.role !== "organizer");
+        if (mine[0]) setPlan({ ev: mine[0], label: "Ты в деле" });
+      })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (city === null) return; // город ещё не пришёл из профиля — не грузим ленту вхолостую
-    setEvents([]);
-    setPage(0);
-    loadPage(0, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryFilter, typeFilter, city]);
+    if (!city) return;
+    fetch(`/api/events?page=0&city=${encodeURIComponent(city)}`)
+      .then((r) => r.json())
+      .then((d) => setEvents(d.items ?? []))
+      .catch(() => setEvents([]));
+    fetch(`/api/events?business=true&city=${encodeURIComponent(city)}`)
+      .then((r) => r.json())
+      .then((d) => setBiz((d.items ?? []).filter((e: FeedEvent) => e.isBusiness)))
+      .catch(() => {});
+  }, [city]);
 
-  async function loadPage(pageToLoad: number, replace: boolean) {
-    if (city === null) return;
-    setLoading(true);
-    setError(null);
+  // Заявка «ждём ответа» тоже показывается плашкой сверху (если нет подтверждённой).
+  useEffect(() => {
+    if (plan || !events) return;
+    const p = events.find((e) => e.myApplicationStatus === "pending");
+    if (p) setPlan({ ev: { id: p.id, title: p.title, eventDate: p.eventDate, eventTime: p.eventTime, photoUrl: p.photoUrl ?? null, category: p.category, isBusiness: p.isBusiness }, label: "Заявка отправлена" });
+  }, [events, plan]);
+
+  async function openCategory(c: Category, typeSlug?: string) {
+    if (c.slug === "training" && !typeSlug) {
+      setTrainOpen(true);
+      return;
+    }
+    setTrainOpen(false);
+    const q = new URLSearchParams({ category: c.slug, page: "0" });
+    if (typeSlug) q.set("type", typeSlug);
+    if (city) q.set("city", city);
     try {
-      const params = new URLSearchParams({ page: String(pageToLoad), city });
-      if (categoryFilter) params.set("category", categoryFilter);
-      if (typeFilter) params.set("type", typeFilter);
-
-      const res = await fetch(`/api/events?${params.toString()}`);
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error === "city_required" ? "Сначала заверши регистрацию." : "Не удалось загрузить ленту.");
+      const d = await fetch(`/api/events?${q}`).then((r) => r.json());
+      if (Array.isArray(d.items) && d.items.length === 0) {
+        const tName = trainingTypes.find((t) => t.slug === typeSlug)?.name;
+        setEmpty({ slug: c.slug, name: tName ?? SHORT[c.slug] ?? c.name, type: typeSlug });
         return;
       }
-
-      setEvents((prev) => (replace ? data.items : [...prev, ...data.items]));
-      setHasMore(Boolean(data.hasMore));
-      setPage(pageToLoad);
     } catch {
-      setError("Проблема с соединением.");
-    } finally {
-      setLoading(false);
+      /* сеть — просто открываем раздел */
     }
+    router.push(`/feed?category=${c.slug}${typeSlug ? `&type=${typeSlug}` : ""}`);
   }
 
-  // «Я иду» → шторка подтверждения → экран «Заявка отправлена».
-  const [joinEvent, setJoinEvent] = useState<EventCardData | null>(null);
-  const [joinPhase, setJoinPhase] = useState<"confirm" | "sending" | "done" | null>(null);
+  const pop = (events ?? []).filter((e) => !e.isBusiness).slice(0, 4);
+  const nearN = (events ?? []).filter((e) => !e.isBusiness && !e.isMine).length;
+  const cats = categories.filter((c) => c.slug !== "custom");
+  const training = categories.find((c) => c.slug === "training");
 
-  function handleApply(eventId: string) {
-    const knownStatus = localStatuses[eventId] ?? events.find((e) => e.id === eventId)?.myApplicationStatus;
-    if (knownStatus || applyingEventId) return;
-    const ev = events.find((e) => e.id === eventId) ?? null;
-    setJoinEvent(ev);
-    setJoinPhase("confirm");
+  return (
+    <Screen id="home">
+      <div className="top">
+        <button className="loc" onClick={() => setCityOpen(true)}>
+          <small>Ищем компанию в</small>
+          <b data-city>
+            {city ?? "…"} <Ic n="down" c="s" />
+          </b>
+        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Link className="rb gl" href="/chats" aria-label="Чаты">
+            <Ic n="chat" />
+            {unreadChats > 0 && <span className="cnt">{unreadChats > 9 ? "9+" : unreadChats}</span>}
+          </Link>
+          <Link className="rb gl" href="/notifications" aria-label="Уведомления">
+            <Ic n="bell" />
+            {unreadNotif && <span className="dot" />}
+          </Link>
+        </div>
+      </div>
+
+      <Link className="ttl" href="/search">
+        <h1 className="t" style={{ fontSize: 30 }}>
+          Что ищешь <em>сегодня?</em>
+        </h1>
+        <span className="ar">
+          <Ic n="chev" c="s" />
+        </span>
+      </Link>
+
+      {plan && (
+        <Link className="plan" href={`/events/${plan.ev.id}`}>
+          <Cover photoUrl={plan.ev.photoUrl} icon={eventIcon(plan.ev)} cls="" thumb={120} />
+          <div>
+            <span>
+              {plan.label} · {whenText(plan.ev.eventDate, plan.ev.eventTime)}
+            </span>
+            <b>{plan.ev.title}</b>
+          </div>
+          <Ic n="chev" c="s" />
+        </Link>
+      )}
+
+      <div className="search">
+        <Link className="sfield gl" href="/search">
+          <Ic n="search" c="s" />
+          Кофе, пробежка, кино…
+        </Link>
+        <Link className="rb k" href="/search?filters=1" aria-label="Фильтры" style={{ width: 50, height: 50 }}>
+          <Ic n="filter" />
+        </Link>
+      </div>
+
+      <div className="cats" style={{ marginTop: 14 }}>
+        {cats.map((c) => (
+          <button key={c.id} className="cat gl" onClick={() => openCategory(c)}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" />
+            {SHORT[c.slug] ?? c.name}
+          </button>
+        ))}
+        <Link className="cat gl" href="/search">
+          <span className="ownic">
+            <Chr shape="cloud" pal="mint" face="smile" />
+          </span>
+          Другое
+        </Link>
+      </div>
+
+      <div className="sec">
+        <b>Популярное сегодня</b>
+        <Link href="/search">Все</Link>
+      </div>
+      <div className="rail">
+        {events === null
+          ? [0, 1].map((i) => <div key={i} className="sk" style={{ flex: "none", width: 262, height: 290, borderRadius: 32 }} />)
+          : pop.map((e) => <HeroCard key={e.id} e={e} />)}
+        {events !== null && pop.length === 0 && (
+          <Link href="/create" className="hero" style={{ display: "grid", placeItems: "center", textAlign: "center", color: "#fff", background: "var(--g)" }}>
+            <div style={{ padding: 24 }}>
+              <b style={{ fontSize: 18, fontWeight: 500 }}>Сегодня пока тихо</b>
+              <p style={{ marginTop: 8, opacity: 0.9, fontSize: 14 }}>Создай первую встречу в своём городе</p>
+            </div>
+          </Link>
+        )}
+      </div>
+
+      {people.length > 0 && (
+        <>
+          <div className="sec">
+            <b>Люди с похожими интересами</b>
+            <span>рядом</span>
+          </div>
+          <div className="rail">
+            {people.map((q) => (
+              <Link key={q.id} className="pcard" href={`/people/${q.id}`}>
+                {q.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={photoThumb(q.avatarUrl, 320)} alt="" />
+                ) : (
+                  <span className="tgava">{q.name.charAt(0).toUpperCase()}</span>
+                )}
+                {q.sharedCount > 0 && (
+                  <span className="mt">
+                    {q.sharedInterests.slice(0, 2).map((i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={interestIcon(i)} alt="" />
+                    ))}
+                    {q.sharedCount} {plural(q.sharedCount, "общий", "общих", "общих")}
+                  </span>
+                )}
+                <div>
+                  <b>
+                    {q.name}, {q.age}
+                  </b>
+                  <span>{q.sharedInterests.slice(0, 2).join(" · ")}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
+
+      <div className="afisha">
+        <div className="af-h">
+          <div>
+            <small>Для бизнеса</small>
+            <b>Афиша заведений</b>
+          </div>
+          <Link href="/business">
+            Все <Ic n="chev" c="xs" />
+          </Link>
+        </div>
+        <div className="rail">
+          {biz.map((e) => (
+            <Link key={e.id} className="acard" href={`/events/${e.id}`}>
+              <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} thumb={480} />
+              <span className="pill glass">
+                <span className="bzl">{(e.organizer?.name ?? "Б").charAt(0).toUpperCase()}</span>
+                {e.organizer?.name ?? "Заведение"}
+              </span>
+              <div>
+                <b>{e.title}</b>
+                <p>
+                  <span className="ach">
+                    <Ic n="cal" c="xs" />
+                    {whenShort(e.eventDate, e.eventTime)}
+                  </span>
+                </p>
+                <p>
+                  <span className="ach">
+                    <Ic n="people" c="xs" />
+                    {e.seatsTaken} из {e.seatsTotal}
+                  </span>
+                  <span className="ach pr">{e.businessPricingType === "free" ? "Бесплатно" : e.businessPricingDetails?.trim() || "Бесплатно"}</span>
+                </p>
+              </div>
+            </Link>
+          ))}
+          {biz.length === 0 && (
+            <Link className="acard" href="/business" style={{ background: "rgba(255,255,255,.1)", display: "grid", placeItems: "center" }}>
+              <div style={{ position: "static", padding: 16 }}>
+                <b>Скоро здесь афиша</b>
+                <span>Концерты, дегустации, мастер-классы — или создай своё событие</span>
+              </div>
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <Link className="nearb gl" href="/map">
+        <div className="nb-m">
+          <MiniMap />
+          <span>{nearN}</span>
+        </div>
+        <div>
+          <b>
+            {nearN > 0 ? `Ещё ${nearN} ${plural(nearN, "встреча", "встречи", "встреч")} рядом` : "Встречи на карте"}
+          </b>
+          <span>Смотри на карте или списком</span>
+        </div>
+        <Ic n="chev" c="s" />
+      </Link>
+
+      {/* шторки */}
+      <Sheet open={trainOpen} onClose={() => setTrainOpen(false)}>
+        <h2 className="t">
+          Совместная <em>тренировка</em>
+        </h2>
+        <div className="igrid">
+          {trainingTypes.map((t) => (
+            <button key={t.id} className="it gl" onClick={() => training && openCategory(training, t.slug)}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={trainingIcon(t.slug)} alt="" />
+              {t.name}
+            </button>
+          ))}
+        </div>
+      </Sheet>
+
+      <Sheet open={!!empty} onClose={() => setEmpty(null)}>
+        <EmptyCat name={empty?.name ?? ""} />
+        <Link className="btn v" href={`/create?category=${empty?.slug ?? ""}${empty?.type ? `&type=${empty.type}` : ""}`}>
+          Создать первым
+        </Link>
+        <button className="btn o" onClick={() => setEmpty(null)}>
+          Не сейчас
+        </button>
+      </Sheet>
+
+      <Sheet open={cityOpen} onClose={() => setCityOpen(false)}>
+        <h2 className="t">
+          Выбери <em>город</em>
+        </h2>
+        <div className="field gl">
+          <CityPicker
+            autoFocus
+            value={city ?? ""}
+            onChange={(selected) => {
+              setCity(selected);
+              setCityOpen(false);
+              fetch("/api/me/profile", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ city: selected }),
+              }).catch(() => {});
+            }}
+            placeholder="Начни вводить город"
+            dropdownDirection="up"
+            className="w-full border-0 bg-transparent text-base outline-none"
+          />
+        </div>
+      </Sheet>
+    </Screen>
+  );
+}
+
+/** Иллюстрация пустого состояния: три персонажа-эмоции (emptyIll прототипа). */
+export function EmptyIll({
+  a = ["flower", "sky", "calm"],
+  b = ["clover", "violet", "wow"],
+  c = ["star", "peach", "smile"],
+}: {
+  a?: [Parameters<typeof Chr>[0]["shape"], Parameters<typeof Chr>[0]["pal"], Parameters<typeof Chr>[0]["face"]];
+  b?: [Parameters<typeof Chr>[0]["shape"], Parameters<typeof Chr>[0]["pal"], Parameters<typeof Chr>[0]["face"]];
+  c?: [Parameters<typeof Chr>[0]["shape"], Parameters<typeof Chr>[0]["pal"], Parameters<typeof Chr>[0]["face"]];
+}) {
+  return (
+    <div className="ill">
+      <span style={{ left: 6, top: 36, width: 70, height: 70, position: "absolute" }}>
+        <Chr shape={a[0]} pal={a[1]} face={a[2]} />
+      </span>
+      <span style={{ left: 52, top: 0, width: 86, height: 86, position: "absolute" }}>
+        <Chr shape={b[0]} pal={b[1]} face={b[2]} />
+      </span>
+      <span style={{ left: 112, top: 52, width: 62, height: 62, position: "absolute" }}>
+        <Chr shape={c[0]} pal={c[1]} face={c[2]} />
+      </span>
+    </div>
+  );
+}
+
+function EmptyCat({ name }: { name: string }) {
+  return (
+    <div className="anonbox">
+      <div className="empty" style={{ padding: 0 }}>
+        <EmptyIll />
+      </div>
+      <b>Такую встречу ещё никто не создал</b>
+      <span>«{name}» в твоём городе пока нет ни одной активной встречи — стань первым.</span>
+    </div>
+  );
+}
+
+/* ================= экран категории ================= */
+function CategoryScreen({ slug, type }: { slug: string; type: string | null }) {
+  const router = useRouter();
+  const [events, setEvents] = useState<FeedEvent[] | null>(null);
+  const [title, setTitle] = useState(SHORT[slug] ?? "");
+  const [statuses, setStatuses] = useState<Record<string, ApplicationStatus>>({});
+  const [joinEvent, setJoinEvent] = useState<FeedEvent | null>(null);
+  const [joinPhase, setJoinPhase] = useState<"confirm" | "sending" | "done" | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = new URLSearchParams({ category: slug, page: "0" });
+    if (type) q.set("type", type);
+    fetch(`/api/events?${q}`)
+      .then((r) => r.json())
+      .then((d) => setEvents(d.items ?? []))
+      .catch(() => setEvents([]));
+    if (type)
+      fetch("/api/categories")
+        .then((r) => r.json())
+        .then((d) => {
+          const t = (d.trainingTypes ?? []).find((x: TrainingType) => x.slug === type);
+          if (t) setTitle(t.name);
+        })
+        .catch(() => {});
+  }, [slug, type]);
+
+  function flash(t: string) {
+    setToast(t);
+    setTimeout(() => setToast(null), 2800);
   }
 
   async function confirmJoin() {
     if (!joinEvent) return;
     setJoinPhase("sending");
-    const ok = await sendApplication(joinEvent.id);
-    if (ok) setJoinPhase("done");
-    else {
-      setJoinPhase(null);
-      setJoinEvent(null);
-    }
-  }
-
-  async function sendApplication(eventId: string): Promise<boolean> {
-    let ok = false;
-    setApplyingEventId(eventId);
     try {
       const res = await fetch("/api/applications", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId }),
+        body: JSON.stringify({ eventId: joinEvent.id }),
       });
       const data = await res.json().catch(() => ({}));
-
-      if (res.ok) {
-        ok = true;
-        setLocalStatuses((prev) => ({ ...prev, [eventId]: "pending" }));
-      } else if (data.error === "already_applied") {
-        setLocalStatuses((prev) => ({ ...prev, [eventId]: "pending" }));
-        setToast("Ты уже откликался на эту встречу.");
-      } else if (data.error === "event_full") {
-        setToast("Мест уже не осталось.");
-        say("Упс, мест уже нет. Посмотри другие встречи — их много 👇");
-      } else if (data.error === "cannot_apply_to_own_event") {
-        setToast("Это твоя встреча — не нужно откликаться на неё самому.");
-      } else {
-        setToast(apiErrorText(data, "Не получилось отправить отклик.", res.status));
+      if (res.ok || data.error === "already_applied") {
+        setStatuses((s) => ({ ...s, [joinEvent.id]: "pending" }));
+        setJoinPhase(res.ok ? "done" : null);
+        if (!res.ok) flash("Ты уже откликался на эту встречу.");
+        return;
       }
+      if (data.error === "event_full") say("Упс, мест уже нет. Посмотри другие встречи — их много 👇");
+      flash(apiErrorText(data, "Не получилось отправить отклик.", res.status));
     } catch {
-      setToast("Проблема с соединением.");
-    } finally {
-      setApplyingEventId(null);
-      setTimeout(() => setToast(null), 3000);
+      flash("Проблема с соединением.");
     }
-    return ok;
+    setJoinPhase(null);
+    setJoinEvent(null);
   }
 
+  const icon = type ? trainingIcon(type) : CATEGORY_ICON[slug] ?? CATEGORY_ICON.custom;
   return (
-    <div>
-      <TopBar city={city ?? "..."} avatarUrl={avatarUrl} onCityPress={() => setCitySheetOpen(true)} />
-
-      <div className="flex items-end justify-between gap-3 px-5 pb-1 pt-5">
-        <h1 className="m-title">
-          Что ищешь <span className="m-em">сегодня?</span>
-        </h1>
-        <Mosya pose="wave" size={64} className="-mb-1 shrink-0" />
+    <Screen id="cat" anim="in">
+      <div className="bar-top">
+        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <Ic n="back" />
+        </button>
+        <span />
       </div>
-
-      <Link href="/search" className="m-glass m-press mx-5 mb-4 mt-3 flex h-[50px] items-center gap-2.5 rounded-pill px-4 text-[15px] text-ink-400">
-        <Icon name="search" size={20} />
-        Кофе, пробежка, кино…
-      </Link>
-
-      <CategoryGrid categories={categories} onTrainingPress={() => setSheetOpen(true)} />
-
-      {/* Популярное сегодня — первые встречи ленты (она уже отсортирована
-          по рейтингу) крупными карточками в горизонтальной ленте. */}
-      {events.length > 0 && (
-        <div className="mt-7">
-          <div className="mb-3 flex items-baseline justify-between px-5">
-            <h2 className="m-h2">Популярное сегодня</h2>
-            <Link href="/search" className="text-[13.5px] text-ink-400">
-              Все
-            </Link>
-          </div>
-          <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {events.slice(0, POPULAR).map((event) => (
-              <div key={event.id} className="w-[86%] max-w-[340px] shrink-0 snap-start">
-                <EventCard
-                  event={event}
-                  applicationStatus={localStatuses[event.id]}
-                  applying={applyingEventId === event.id}
-                  onApplyPress={handleApply}
-                />
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {!categoryFilter && <PeopleRail />}
-      {!categoryFilter && <AfishaRail onApplyPress={(id) => router.push(`/events/${id}`)} />}
-
-      <div className="mt-6 space-y-3 px-5">
-        <h2 className="m-h2">Интересные встречи рядом</h2>
-
-        {loading && events.length === 0 && (
-          <div className="space-y-3">
-            {[0, 1, 2].map((i) => (
-              <div key={i} className="m-sk h-[300px]" />
-            ))}
-          </div>
-        )}
-
-        {error && <p className="text-center text-sm text-red-600">{error}</p>}
-
-        {!loading && !error && events.length === 0 && (
-          <div className="m-glass flex flex-col items-center rounded-card px-6 py-8 text-center">
-            <Mosya pose="think" size={110} className="mb-3" />
-            <p className="text-sm text-ink-600">Сегодня пока тихо. Создай первый план в своём городе.</p>
-            <Link href="/create" className="m-btn m-btn-v mt-4 h-12 text-[15px]">
+      <div className="cathead">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={icon} alt="" />
+        <h1 className="t">{title}</h1>
+      </div>
+      <div className="list" style={{ marginTop: 14 }}>
+        {events === null && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
+        {events?.map((e) => (
+          <RowCard
+            key={e.id}
+            e={e}
+            status={statuses[e.id] ?? e.myApplicationStatus ?? null}
+            onJoin={() => {
+              setJoinEvent(e);
+              setJoinPhase("confirm");
+            }}
+          />
+        ))}
+        {events?.length === 0 && (
+          <div className="empty">
+            <EmptyIll />
+            <b>Пока пусто</b>
+            <span>В этой категории сейчас нет встреч — создай свою, люди подтянутся.</span>
+            <Link className="btn v" href={`/create?category=${slug}${type ? `&type=${type}` : ""}`} style={{ width: "100%", marginTop: 8 }}>
               Создать встречу
             </Link>
           </div>
         )}
-
-        {events.length > 0 && events.length <= POPULAR && !loading && (
-          <p className="text-sm text-ink-600">Это все встречи на сегодня — смотри выше или создай свою.</p>
-        )}
-
-        <div className="m-stagger space-y-3">
-          {events.slice(POPULAR).map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              applicationStatus={localStatuses[event.id]}
-              applying={applyingEventId === event.id}
-              onApplyPress={handleApply}
-            />
-          ))}
-        </div>
-
-        {hasMore && (
-          <Button variant="secondary" onClick={() => loadPage(page + 1, false)} disabled={loading}>
-            {loading ? "Загружаем..." : "Показать ещё"}
-          </Button>
-        )}
       </div>
-
-      <TrainingTypeSheet
-        open={sheetOpen}
-        trainingTypes={trainingTypes}
-        onClose={() => setSheetOpen(false)}
-      />
-
-      {toast && <div className="m-toast">{toast}</div>}
-
       <JoinFlow
         event={joinEvent}
         phase={joinPhase}
@@ -300,41 +545,28 @@ function FeedPageContent() {
           setJoinEvent(null);
         }}
       />
-
-      {citySheetOpen && (
-        <div
-          className="m-fade-in fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)]"
-          onClick={() => setCitySheetOpen(false)}
-        >
-          <div
-            className="m-sheet-in rounded-t-sheet bg-white p-5 pb-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <h2 className="text-title mb-4">Выбери город</h2>
-            <CityPicker
-              autoFocus
-              value={cityInput}
-              onChange={(selected) => {
-                setCityInput(selected);
-                setCity(selected);
-                setCitySheetOpen(false);
-                // Раньше смена города здесь оставалась только в памяти
-                // этой страницы — при переходе в другой раздел (например,
-                // "Карта") сервер снова видел старый город из профиля.
-                fetch("/api/me/profile", {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ city: selected }),
-                }).catch(() => {});
-              }}
-              placeholder="Начни вводить город"
-              dropdownDirection="up"
-              className="w-full min-w-0 box-border rounded-card border border-lavender-200 bg-background px-4 py-3 text-base outline-none focus:border-accent"
-            />
-          </div>
-        </div>
-      )}
-    </div>
+      <Toast text={toast} />
+    </Screen>
   );
+}
+
+function plural(n: number, a: string, b: string, c: string) {
+  const m = n % 10;
+  const h = n % 100;
+  return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 10 || h >= 20) ? b : c;
+}
+
+function whenText(dateIso: string, time: string) {
+  const d = new Date(dateIso);
+  const t = new Date();
+  const diff = Math.round(
+    (new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) / 86400000
+  );
+  const day = diff === 0 ? "сегодня" : diff === 1 ? "завтра" : d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  return `${day}, ${time.slice(0, 5)}`;
+}
+
+function whenShort(dateIso: string, time: string) {
+  const d = new Date(dateIso);
+  return `${d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")} · ${time.slice(0, 5)}`;
 }

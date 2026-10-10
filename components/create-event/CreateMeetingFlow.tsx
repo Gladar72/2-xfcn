@@ -1,136 +1,152 @@
 "use client";
 
-import clsx from "clsx";
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LocationPicker } from "@/components/map/LocationPicker";
 import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
 import { getInitData } from "@/lib/telegram/webapp-client";
-import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
-import { Character } from "@/components/brand/AliveStage";
-import { Icon } from "@/components/brand/Icon";
-import { Mosya } from "@/components/brand/Mosya";
-import { EventCard } from "@/components/feed/EventCard";
-import { ShareEventButton, eventShareUrl } from "@/components/events/ShareEventButton";
 import { showGuide } from "@/lib/mosya/guide";
 import { confetti } from "@/lib/mosya/confetti";
 import { peek, say } from "@/lib/mosya/peek";
+import { Chr, Cover, HeroCard, Ic, Toast } from "@/components/proto/ui";
+import { CalendarSheet, Wheel } from "@/components/proto/pickers";
+import { ShareSheet } from "@/components/proto/ShareSheet";
+import { mosyaSrc } from "@/components/brand/Mosya";
 import { PhotoCropModal } from "./PhotoCropModal";
 
 /**
- * Создание встречи в 4 шага (редизайн 2026, как в прототипе):
- *   1. Что планируем — категории, тип тренировки, «Своё предложение»
- *   2. Название и обложка — своё фото или обложка, которую рисует Мося
- *   3. Когда и где — день, время, длительность, место с подсказками
- *   4. Кто и сколько — число людей, расходы, открыто/анонимно, превью
- * После публикации — экран «Встреча опубликована» с «Поделиться».
- * Отправляет на сервер те же поля, что и прежний мастер (POST /api/events).
+ * Создание встречи в 4 шага — разметка и анимации из прототипа (SCR.create):
+ *   1. Что планируем — 8 категорий, вид тренировки, «Своё предложение»
+ *   2. Название и обложка — обложки рисует Мося, можно своё фото
+ *   3. Когда и где — колёса дня и времени, календарь, длительность, место
+ *   4. Кто и сколько — люди, расходы, открыто/анонимно, превью карточки
+ * Потом — «Встреча опубликована» и «Поделиться». На сервер уходят те же
+ * поля, что и раньше (POST /api/events).
  */
 
 interface Category {
   id: string;
   slug: string;
   name: string;
-  emoji: string | null;
 }
 interface TrainingType {
   id: string;
   slug: string;
   name: string;
-  emoji: string | null;
 }
 interface PlaceSuggestion {
   name: string;
   address: string;
   latitude: number;
   longitude: number;
-  source: "yandex" | "history";
+  source: "yandex" | "osm" | "history";
 }
 type CostType = "each_pays" | "organizer_treats" | "free" | "negotiable";
 
-const STEPS = ["what", "cover", "when", "who"] as const;
-type Step = (typeof STEPS)[number];
-
-const COSTS: [CostType, string, string][] = [
-  ["each_pays", "Каждый за себя", "Каждый платит за своё"],
-  ["organizer_treats", "Автор угощает", "Ты платишь за всех"],
-  ["free", "Без расходов", "Ничего платить не нужно"],
-  ["negotiable", "По договорённости", "Обсудите в чате"],
+const COSTS: [CostType, string][] = [
+  ["each_pays", "Каждый за себя"],
+  ["organizer_treats", "Автор угощает"],
+  ["free", "Без расходов"],
+  ["negotiable", "По договорённости"],
 ];
-const DURATIONS = [60, 90, 120, 180, 240];
-
-const TILE: Record<string, string> = {
-  "Совместная тренировка": "Тренировка",
-  "Попить кофе": "Кофе",
-  "Совместный завтрак": "Завтрак",
-  Поужинать: "Ужин",
+const DURS: [number, string][] = [
+  [60, "1 ч"],
+  [90, "1,5 ч"],
+  [120, "2 ч"],
+  [180, "3 ч"],
+  [240, "4 ч"],
+];
+/** Подписи плиток — как в прототипе. */
+const SHORT: Record<string, string> = {
+  training: "Тренировка",
+  cinema: "Кино",
+  coffee: "Кофе",
+  breakfast: "Завтрак",
+  dinner: "Ужин",
+  walk: "Прогулка",
+  active: "Активный отдых",
+  party: "Вечеринка",
 };
 
-const isoDay = (offset: number) => {
+const N_DAYS = 120;
+const WD = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const WDL = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
+const MS = ["янв", "февр", "марта", "апр", "мая", "июня", "июля", "авг", "сент", "окт", "нояб", "дек"];
+const MG = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+function dayDate(i: number) {
   const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-};
-const dayLabel = (offset: number) => {
-  if (offset === 0) return "Сегодня";
-  if (offset === 1) return "Завтра";
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return d.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric" }).replace(".", "");
-};
-const addMinutes = (hhmm: string, mins: number) => {
-  const [h = 0, m = 0] = hhmm.split(":").map(Number);
-  const t = (h * 60 + m + mins) % (24 * 60);
-  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
-};
-const nextRoundTime = () => {
-  const d = new Date(Date.now() + 60 * 60 * 1000);
-  return `${String(d.getHours()).padStart(2, "0")}:${d.getMinutes() < 30 ? "30" : "00"}`;
-};
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + i);
+  return d;
+}
+const DAYS = Array.from({ length: N_DAYS }, (_, i) => {
+  const d = dayDate(i);
+  const wd = WDL[d.getDay()] ?? "";
+  return {
+    iso: `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`,
+    s: i === 0 ? "Сегодня" : i === 1 ? "Завтра" : `${WD[d.getDay()]}, ${d.getDate()} ${MS[d.getMonth()]}`,
+    l: i === 0 ? `Сегодня, ${d.getDate()} ${MG[d.getMonth()]}` : i === 1 ? `Завтра, ${d.getDate()} ${MG[d.getMonth()]}` : `${wd.charAt(0).toUpperCase() + wd.slice(1)}, ${d.getDate()} ${MG[d.getMonth()]}`,
+    chip: i === 0 ? "Сегодня" : i === 1 ? "Завтра" : `${WD[d.getDay()]}, ${d.getDate()}`,
+  };
+});
+const HOURS = Array.from({ length: 24 }, (_, h) => String(h));
+const MINS = Array.from({ length: 12 }, (_, m) => pad2(m * 5));
 
-const selCls = "m-sel";
-const inputCls =
-  "m-glass block w-full min-w-0 box-border rounded-[20px] border-0 px-4 py-3.5 text-base text-ink-900 outline-none focus:shadow-[inset_0_0_0_2px_#9B5CFF]";
+/** Быстрые дни: сегодня, завтра и ближайшие пятница и суббота. */
+const QUICK_DAYS = (() => {
+  const out = [0, 1];
+  for (let i = 2; i < 9 && out.length < 4; i++) {
+    const wd = dayDate(i).getDay();
+    if (wd === 5 || wd === 6) out.push(i);
+  }
+  return out;
+})();
 
 export function CreateMeetingFlow() {
   const router = useRouter();
-  useLockBodyScroll();
   const searchParams = useSearchParams();
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
-  const [stepIndex, setStepIndex] = useState(0);
-  const step: Step = STEPS[stepIndex] ?? "what";
-  const [error, setError] = useState<string | null>(null);
+  const [step, setStep] = useState(1);
+  const [dir, setDir] = useState(1);
+  const [toast, setToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [publishedId, setPublishedId] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [me, setMe] = useState<{ name: string; avatarUrl: string | null } | null>(null);
 
   const [categorySlug, setCategorySlug] = useState<string | null>(searchParams.get("category"));
   const [trainingTypeSlug, setTrainingTypeSlug] = useState<string | null>(searchParams.get("type"));
-  const [trainingSheet, setTrainingSheet] = useState(false);
+  const [own, setOwn] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [photo, setPhoto] = useState<string | undefined>();
-  const [photoKind, setPhotoKind] = useState<"own" | "mosya" | null>(null);
+  const [ownPhoto, setOwnPhoto] = useState<string | undefined>();
   const [covers, setCovers] = useState<string[]>([]);
-  const [coverIndex, setCoverIndex] = useState(0);
+  const [coverShift, setCoverShift] = useState(0);
   const [cropSrc, setCropSrc] = useState<string | undefined>();
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  const [eventDate, setEventDate] = useState(isoDay(0));
-  const [eventTime, setEventTime] = useState(nextRoundTime());
+  const [di, setDi] = useState(0);
+  const [hh, setHh] = useState(() => Math.min(23, new Date().getHours() + 1));
+  const [mi, setMi] = useState(0);
+  const [calOpen, setCalOpen] = useState(false);
   const [duration, setDuration] = useState(120);
-  const [customDuration, setCustomDuration] = useState(false);
+  const [durOwn, setDurOwn] = useState(false);
   const [placeName, setPlaceName] = useState("");
+  const [placeQuery, setPlaceQuery] = useState("");
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState<number | undefined>();
   const [longitude, setLongitude] = useState<number | undefined>();
   const [externalCoords, setExternalCoords] = useState<{ latitude: number; longitude: number } | null>(null);
-  const [placeSuggestions, setPlaceSuggestions] = useState<PlaceSuggestion[]>([]);
-  const [placeFocus, setPlaceFocus] = useState(false);
-  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
-  const suppressAddressSearch = useRef(false);
+  const [recs, setRecs] = useState<PlaceSuggestion[]>([]);
+  const [drop, setDrop] = useState<PlaceSuggestion[]>([]);
+  const [addrDrop, setAddrDrop] = useState<AddressSuggestion[]>([]);
 
   const [seatsTotal, setSeatsTotal] = useState(3);
   const [costType, setCostType] = useState<CostType>("each_pays");
@@ -144,84 +160,85 @@ export function CreateMeetingFlow() {
         setTrainingTypes(data.trainingTypes ?? []);
       })
       .catch(() => {});
+    fetch("/api/me/profile")
+      .then((r) => r.json())
+      .then((d) => setMe({ name: d.name ?? "Ты", avatarUrl: d.avatarUrl ?? null }))
+      .catch(() => {});
   }, []);
 
-  // Мося-гид на шагах — только первый раз после регистрации.
   useEffect(() => {
-    if (step === "what") showGuide("create", { low: true });
-    if (step === "cover") showGuide("cover", { low: true });
-    if (step === "when") showGuide("when", { low: true });
+    if (step === 1) showGuide("create", { low: true });
+    if (step === 2) showGuide("cover", { low: true });
+    if (step === 3) showGuide("when", { low: true });
   }, [step]);
 
-  const category = categories.find((c) => c.slug === categorySlug) ?? null;
-  const trainingType = trainingTypes.find((t) => t.slug === trainingTypeSlug) ?? null;
-  const categoryIconSrc =
-    categorySlug === "training" ? trainingIcon(trainingTypeSlug) : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
+  const isOwn = categorySlug === "custom";
+  const iconSrc =
+    categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/cat3d/i_games.webp" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
+  const catLabel =
+    categorySlug === "training"
+      ? trainingTypes.find((t) => t.slug === trainingTypeSlug)?.name ?? "Тренировка"
+      : isOwn
+        ? own || "Своё"
+        : (categorySlug && SHORT[categorySlug]) || "встречи";
 
-  // Обложки от Моси: перерисовываем, когда меняется категория.
+  // Обложки от Моси — перерисовываются при смене категории и «Ещё варианты».
   useEffect(() => {
-    if (step !== "cover" || !categoryIconSrc) return;
+    if (step !== 2 || !iconSrc) return;
     let cancelled = false;
-    drawCovers(categoryIconSrc).then((list) => {
+    setCovers([]);
+    drawCovers(iconSrc, coverShift).then((list) => {
       if (cancelled) return;
       setCovers(list);
-      if (!photo || photoKind === "mosya") {
-        setPhoto(list[coverIndex] ?? list[0]);
-        setPhotoKind("mosya");
-      }
+      if (!photo || photo !== ownPhoto) setPhoto(list[0]);
     });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, categoryIconSrc]);
+  }, [step, iconSrc, coverShift]);
 
-  // Подсказки мест под категорию (кинотеатры для «Кино» и т.д.) + по введённому тексту.
+  // «Мося рекомендует» — места под категорию (кинотеатры для «Кино»…).
   useEffect(() => {
-    if (step !== "when") return;
+    if (step !== 3) return;
+    const p = new URLSearchParams();
+    if (categorySlug) p.set("category", categorySlug);
+    if (trainingTypeSlug) p.set("type", trainingTypeSlug);
+    fetch(`/api/places?${p}`)
+      .then((r) => r.json())
+      .then((d) => setRecs(Array.isArray(d.items) ? d.items.slice(0, 4) : []))
+      .catch(() => setRecs([]));
+  }, [step, categorySlug, trainingTypeSlug]);
+
+  // Поиск по набранному: места (подсказки) + адреса (геокодер).
+  useEffect(() => {
+    const q = placeQuery.trim();
+    if (q.length < 2) {
+      setDrop([]);
+      setAddrDrop([]);
+      return;
+    }
     const t = setTimeout(() => {
-      const p = new URLSearchParams();
+      const p = new URLSearchParams({ q });
       if (categorySlug) p.set("category", categorySlug);
-      if (trainingTypeSlug) p.set("type", trainingTypeSlug);
-      if (placeName.trim().length >= 2) p.set("q", placeName.trim());
-      fetch(`/api/places?${p.toString()}`)
+      fetch(`/api/places?${p}`)
         .then((r) => r.json())
-        .then((d) => setPlaceSuggestions(Array.isArray(d.items) ? d.items : []))
-        .catch(() => setPlaceSuggestions([]));
+        .then((d) => setDrop(Array.isArray(d.items) ? d.items.slice(0, 4) : []))
+        .catch(() => setDrop([]));
+      if (q.length >= 3) searchAddress(q).then((a) => setAddrDrop(a.slice(0, 3)));
     }, 300);
     return () => clearTimeout(t);
-  }, [step, categorySlug, trainingTypeSlug, placeName]);
+  }, [placeQuery, categorySlug]);
 
-  // Автодополнение адреса.
-  useEffect(() => {
-    if (suppressAddressSearch.current) {
-      suppressAddressSearch.current = false;
-      return;
-    }
-    if (address.trim().length < 3) {
-      setAddressSuggestions([]);
-      return;
-    }
-    const t = setTimeout(() => searchAddress(address).then(setAddressSuggestions), 400);
-    return () => clearTimeout(t);
-  }, [address]);
-
-  function pickPlace(p: PlaceSuggestion) {
-    suppressAddressSearch.current = true;
+  function pickPlace(p: { name: string; address: string; latitude: number; longitude: number }) {
     setPlaceName(p.name);
     setAddress(p.address);
     setLatitude(p.latitude);
     setLongitude(p.longitude);
     setExternalCoords({ latitude: p.latitude, longitude: p.longitude });
-    setPlaceFocus(false);
-  }
-  function pickAddress(s: AddressSuggestion) {
-    suppressAddressSearch.current = true;
-    setAddress(s.address);
-    setLatitude(s.latitude);
-    setLongitude(s.longitude);
-    setExternalCoords({ latitude: s.latitude, longitude: s.longitude });
-    setAddressSuggestions([]);
+    setPlaceQuery("");
+    setDrop([]);
+    setAddrDrop([]);
   }
 
   function handlePhoto(e: ChangeEvent<HTMLInputElement>) {
@@ -233,50 +250,55 @@ export function CreateMeetingFlow() {
     reader.readAsDataURL(file);
   }
 
-  const eventEndTime = addMinutes(eventTime, duration);
-  const photoRequired = categorySlug === "custom";
+  const eventDate = DAYS[di]?.iso ?? DAYS[0]!.iso;
+  const eventTime = `${pad2(hh)}:${pad2(mi * 5)}`;
+  const endMin = (hh * 60 + mi * 5 + duration) % 1440;
+  const eventEndTime = `${pad2(Math.floor(endMin / 60))}:${pad2(endMin % 60)}`;
+  const sumTxt = `${DAYS[di]?.l}, ${hh}:${pad2(mi * 5)}–${Math.floor(endMin / 60)}:${pad2(endMin % 60)}`;
 
-  function hint(): string | null {
-    if (step === "what") {
+  function flash(t: string) {
+    setToast(t);
+    setTimeout(() => setToast(null), 2600);
+  }
+
+  function problem(): string | null {
+    if (step === 1) {
       if (!categorySlug) return "Выбери, что планируешь.";
       if (categorySlug === "training" && !trainingTypeSlug) return "Выбери вид тренировки.";
+      if (isOwn && own.trim().length < 2) return "Напиши одним-двумя словами, чем займёмся — например «сапы». Так встречу найдут поиском";
     }
-    if (step === "cover") {
-      if (title.trim().length < 3) return "Название — минимум 3 символа.";
-      if (photoRequired && !photo) return "Добавь обложку — фото или вариант от Моси.";
-    }
-    if (step === "when") {
-      if (!eventDate || !eventTime) return "Выбери день и время.";
+    if (step === 2 && title.trim().length < 3) return "Придумай название — хотя бы 3 буквы.";
+    if (step === 3) {
       if (duration < 60) return "Встреча должна длиться хотя бы час.";
-      if (placeName.trim().length < 2) return "Напиши, где встречаемся.";
-      if (latitude === undefined || longitude === undefined) return "Выбери место из подсказок или отметь точку на карте.";
+      if (placeName.trim().length < 2 || latitude === undefined || longitude === undefined) return "Выбери место из подсказок или отметь точку на карте.";
     }
-    if (step === "who" && seatsTotal < 1) return "Нужен хотя бы 1 человек кроме тебя.";
+    if (step === 4 && seatsTotal < 1) return "Нужен хотя бы 1 человек кроме тебя.";
     return null;
   }
 
   function next() {
-    const h = hint();
+    const h = problem();
     if (h) {
-      setError(h);
       say(h, "think");
       return;
     }
-    setError(null);
-    if (stepIndex < STEPS.length - 1) setStepIndex(stepIndex + 1);
-    else publish();
+    if (step === 1 && isOwn && !title) setTitle(own.trim());
+    if (step < 4) {
+      setDir(1);
+      setStep(step + 1);
+    } else publish();
   }
   function back() {
-    setError(null);
-    if (stepIndex > 0) setStepIndex(stepIndex - 1);
-    else router.back();
+    if (step > 1) {
+      setDir(-1);
+      setStep(step - 1);
+    } else router.back();
   }
 
   async function publish() {
     setSubmitting(true);
-    setError(null);
     if (!getInitData()) {
-      setError("Открой приложение через Telegram.");
+      flash("Открой приложение через Telegram.");
       setSubmitting(false);
       return;
     }
@@ -296,8 +318,10 @@ export function CreateMeetingFlow() {
           eventEndTime,
           seatsTotal,
           costType,
-          title,
-          description,
+          title: title.trim(),
+          description: [isOwn && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description]
+            .filter(Boolean)
+            .join(". "),
           isBusiness: false,
           isAnonymous,
           photoBase64: photo,
@@ -305,500 +329,549 @@ export function CreateMeetingFlow() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(apiErrorText(data, "Не получилось опубликовать встречу. Попробуй ещё раз.", res.status));
-        const map: Record<string, Step> = {
-          categorySlug: "what",
-          trainingTypeSlug: "what",
-          title: "cover",
-          description: "cover",
-          photoBase64: "cover",
-          placeName: "when",
-          address: "when",
-          latitude: "when",
-          longitude: "when",
-          eventDate: "when",
-          eventTime: "when",
-          eventEndTime: "when",
-          seatsTotal: "who",
-          costType: "who",
-          isAnonymous: "who",
+        const map: Record<string, number> = {
+          categorySlug: 1,
+          trainingTypeSlug: 1,
+          title: 2,
+          description: 2,
+          photoBase64: 2,
+          placeName: 3,
+          address: 3,
+          latitude: 3,
+          longitude: 3,
+          eventDate: 3,
+          eventTime: 3,
+          eventEndTime: 3,
         };
         const target = typeof data.field === "string" ? map[data.field] : undefined;
-        if (target) setStepIndex(STEPS.indexOf(target));
-        say("Тут что-то не так — я открыл нужный шаг, поправь и попробуем ещё раз");
+        if (target) {
+          setDir(-1);
+          setStep(target);
+        }
+        say(apiErrorText(data, "Не получилось опубликовать встречу. Попробуй ещё раз.", res.status), "think");
         setSubmitting(false);
         return;
       }
       confetti();
       setPublishedId(data.eventId as string);
-      setTimeout(() => peek({ pose: "jump", text: "Готово! Заявки придут в Telegram — ты сам решаешь, кого принять", quick: true }), 700);
+      setTimeout(() => peek({ pose: "jump", text: "Готово! Заявки придут в Telegram — ты сам решаешь, кого принять", quick: true }), 900);
     } catch {
-      setError("Проблема с соединением.");
+      flash("Проблема с соединением.");
       setSubmitting(false);
     }
   }
 
-  const previewEvent = {
-    id: "preview",
-    title: title || "Твоя встреча",
-    description: description || null,
-    category: category ? { slug: category.slug, name: category.name, emoji: category.emoji } : null,
-    trainingType: trainingType ? { slug: trainingType.slug, name: trainingType.name, emoji: trainingType.emoji } : null,
-    placeName,
-    address,
-    eventDate,
-    eventTime,
-    seatsTotal,
-    seatsTaken: 0,
-    organizer: null,
-    isAnonymous,
-    photoUrl: photo ?? null,
-    isMine: true,
-  };
+  const preview = useMemo(
+    () => ({
+      id: "preview",
+      title: title || own || "Моя встреча",
+      eventDate,
+      eventTime,
+      placeName: isAnonymous ? null : placeName || null,
+      organizerHidden: isAnonymous,
+      seatsTotal,
+      seatsTaken: 0,
+      photoUrl: photo ?? null,
+      isAnonymous,
+      costType,
+      category: categorySlug ? { slug: categorySlug } : null,
+      trainingType: trainingTypeSlug ? { slug: trainingTypeSlug } : null,
+      goingPreview: [],
+    }),
+    [title, own, eventDate, eventTime, isAnonymous, placeName, seatsTotal, photo, costType, categorySlug, trainingTypeSlug]
+  );
 
+  /* ---------- опубликовано ---------- */
   if (publishedId) {
     return (
-      <div className="m-aurora fixed inset-0 z-50 flex flex-col items-center justify-center px-6 text-center">
-        <Mosya pose="jump" size={170} className="m-pop" />
-        <h1 className="m-title mt-2">
-          Встреча <span className="m-em">опубликована</span>
-        </h1>
-        <p className="mt-2 max-w-[300px] text-[14.5px] leading-snug text-ink-600">
-          Её уже видят люди рядом. Заявки придут сюда и в Telegram — ты сам решаешь, кого принять.
-        </p>
-        <div className="m-glass mt-6 w-full max-w-[400px] rounded-[24px] p-4 text-left">
-          <b className="block text-[15px] font-medium">Поделиться встречей</b>
-          <p className="mt-1 break-all text-xs text-ink-400">{eventShareUrl(publishedId)}</p>
-          <ShareEventButton eventId={publishedId} title={title} when={`${eventDate.split("-").reverse().join(".")}, ${eventTime}`} className="mt-3 w-full" />
+      <section className="scr aurora up" data-id="published">
+        <div className="scroll" style={{ paddingBottom: 180 }}>
+          <div className="done">
+            <div className="burst">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={mosyaSrc("wave")} alt="" />
+            </div>
+            <h1 className="t">
+              Встреча <em>опубликована</em>
+            </h1>
+            <p>
+              {isAnonymous
+                ? "Встреча анонимная: имя, фото и адрес увидят только те, кого ты примешь."
+                : `${photo !== ownPhoto ? "Обложку нарисовал Мося — поменять можно в редактировании. " : ""}Её уже видят люди рядом. Заявки придут сюда и в Telegram — ты сам решаешь, кого принять.`}
+            </p>
+          </div>
         </div>
-        <button onClick={() => router.push(`/events/${publishedId}/applications`)} className="m-btn m-btn-v mt-4 max-w-[400px]">
-          К заявкам
-        </button>
-        <button onClick={() => router.push("/my-events")} className="m-btn mt-1 h-12 max-w-[400px] text-ink-600">
-          Мои встречи
-        </button>
-      </div>
+        <div className="foot">
+          <button className="btn v" onClick={() => setShareOpen(true)}>
+            <Ic n="share" />
+            Поделиться ссылкой
+          </button>
+          <button className="btn o" onClick={() => router.push("/my-events")}>
+            Мои встречи
+          </button>
+        </div>
+        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={publishedId} title={title} when={sumTxt} />
+      </section>
     );
   }
 
-  const h = hint();
+  const cats = categories.filter((c) => c.slug !== "custom");
+  const hasCustom = categories.some((c) => c.slug === "custom");
 
   return (
-    <div className="m-aurora fixed inset-0 z-50 flex flex-col overflow-hidden">
-      <div className="flex items-center gap-3 px-5 pt-[max(14px,env(safe-area-inset-top))]">
-        <button onClick={back} aria-label={stepIndex ? "Назад" : "Закрыть"} className="m-glass m-press grid h-11 w-11 shrink-0 place-items-center rounded-full">
-          <Icon name={stepIndex ? "back" : "close"} size={22} />
-        </button>
-        <div className="flex flex-1 gap-1.5">
-          {STEPS.map((s, i) => (
-            <i key={s} className={clsx("h-1.5 flex-1 rounded-pill transition-colors duration-500", i <= stepIndex ? "bg-brand-gradient" : "bg-white/60")} />
-          ))}
+    <section className="scr cr aurora up" data-id="create">
+      <div className="scroll" style={{ paddingBottom: 160 }}>
+        <div className="head">
+          <button className="rb gl" onClick={back} aria-label={step > 1 ? "Назад" : "Закрыть"}>
+            <Ic n={step > 1 ? "back" : "close"} />
+          </button>
+          <span className="prog">
+            {[1, 2, 3, 4].map((i) => (
+              <i key={i} className={i <= step ? "on" : ""} />
+            ))}
+          </span>
+          <span style={{ minWidth: 44, textAlign: "right", color: "var(--grey)", fontSize: 13 }}>{step}/4</span>
         </div>
-        <span className="text-xs text-ink-400">{stepIndex + 1}/4</span>
-      </div>
 
-      <div key={step} className="m-fade-in min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-5 pb-40 pt-5">
-        {step === "what" && (
-          <>
-            <Head title="Что" em="планируем?" sub="Выбери, во что будет встреча. Так её найдут люди с похожими интересами." />
-            <div className="m-stagger grid grid-cols-4 gap-2">
-              {categories
-                .filter((c) => c.slug !== "custom")
-                .map((c) => (
+        <div key={step} className="crstep" style={{ ["--dir" as string]: dir } as React.CSSProperties}>
+          {step === 1 && (
+            <>
+              <h1 className="t">
+                Что <em>планируем</em>?
+              </h1>
+              <p className="sub">Выбери, во что будет встреча. Так её найдут люди с похожими интересами.</p>
+              <div className="grid4">
+                {cats.map((c) => (
                   <button
                     key={c.id}
+                    className={`it gl ${categorySlug === c.slug ? "sel" : ""}`}
                     onClick={() => {
                       setCategorySlug(c.slug);
-                      if (c.slug === "training") setTrainingSheet(true);
-                      else setTrainingTypeSlug(null);
+                      if (c.slug !== "training") setTrainingTypeSlug(null);
                     }}
-                    className={clsx("m-cat relative", categorySlug === c.slug ? selCls : "m-glass")}
                   >
+                    <span className="ck">
+                      <Ic n="check" />
+                    </span>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={c.slug === "training" && trainingTypeSlug ? trainingIcon(trainingTypeSlug) : CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" />
-                    <span>{c.slug === "training" && trainingType ? trainingType.name : TILE[c.name] ?? c.name}</span>
+                    <img src={CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" />
+                    {SHORT[c.slug] ?? c.name}
                   </button>
                 ))}
-            </div>
-            {categories.some((c) => c.slug === "custom") && (
-              <button
-                onClick={() => {
-                  setCategorySlug("custom");
-                  setTrainingTypeSlug(null);
-                }}
-                className={clsx("m-own relative mt-2", categorySlug === "custom" ? selCls : "m-glass")}
-              >
-                <span className={clsx("m-star", categorySlug === "custom" && "spin")}>
-                  <Character shape="star" pal="peach" face="sly" size={62} seed={11} />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <b className="block text-[15.5px] font-medium">Своё предложение</b>
-                  <span className="block text-[13px] leading-snug text-ink-600">Не нашёл подходящего? Придумай сам — от сапов до вязания</span>
-                </span>
-              </button>
-            )}
-            {categorySlug === "custom" && (
-              <div className="m-fade-in mt-3">
-                <label className="mb-1.5 block px-1 text-[12.5px] font-medium text-ink-600">Чем займёмся?</label>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Например: сапы, вязание, бадминтон" maxLength={100} className={inputCls} />
-                <p className="mt-1.5 px-1 text-xs text-ink-400">Встреча попадёт в раздел «Другое» и в поиск по этому слову.</p>
               </div>
-            )}
-          </>
-        )}
-
-        {step === "cover" && (
-          <>
-            <Head title="Название" em="и обложка" sub="Короткое название и картинка решают, придут ли люди." />
-            <label className="mb-1.5 block px-1 text-[12.5px] font-medium text-ink-600">Название</label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={category?.slug === "coffee" ? "Кофе на крыше" : "Например: утренняя пробежка в парке"}
-              maxLength={100}
-              className={inputCls}
-            />
-            <div className="mb-2 mt-4 flex items-center justify-between px-1">
-              <span className="text-[12.5px] font-medium text-ink-600">Обложка</span>
-              <span className="m-chip m-chip-lav h-6 px-2.5 text-[11px]">✦ Нарисовал Мося</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {covers.map((c, i) => (
+              {hasCustom && (
                 <button
-                  key={i}
+                  className={`ownw gl ${isOwn ? "sel" : ""}`}
                   onClick={() => {
-                    setCoverIndex(i);
-                    setPhoto(c);
-                    setPhotoKind("mosya");
+                    setCategorySlug("custom");
+                    setTrainingTypeSlug(null);
                   }}
-                  className={clsx("m-press relative aspect-[1.4] overflow-hidden rounded-[18px]", photoKind === "mosya" && coverIndex === i && "m-sel-cover")}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={c} alt={`Обложка ${i + 1}`} className="h-full w-full object-cover" />
+                  <span className="ck">
+                    <Ic n="check" />
+                  </span>
+                  <span className="spinstar">
+                    <Chr shape="star" pal="peach" face="sly" />
+                  </span>
+                  <div>
+                    <b>Своё предложение</b>
+                    <span>Не нашёл подходящего? Придумай сам — от сапов до вязания</span>
+                  </div>
                 </button>
-              ))}
-              {covers.length === 0 && [0, 1, 2].map((i) => <div key={i} className="m-sk aspect-[1.4]" />)}
-            </div>
-            <label className={clsx("m-glass m-press mt-2 flex cursor-pointer items-center gap-3 rounded-[20px] p-3", photoKind === "own" && selCls)}>
-              {photoKind === "own" && photo ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={photo} alt="" className="h-14 w-20 rounded-[14px] object-cover" />
-              ) : (
-                <span className="grid h-14 w-20 place-items-center rounded-[14px] bg-[rgba(108,59,255,.1)] text-accent">
-                  <Icon name="camera" size={24} />
-                </span>
               )}
-              <span className="flex-1">
-                <b className="block text-[14.5px] font-medium">{photoKind === "own" ? "Твоё фото" : "Загрузить своё фото"}</b>
-                <span className="text-xs text-ink-600">Своё фото всегда смотрится живее</span>
-              </span>
-              <input type="file" accept="image/*" className="hidden" onChange={handlePhoto} />
-            </label>
-            <label className="mb-1.5 mt-4 block px-1 text-[12.5px] font-medium text-ink-600">Описание · необязательно</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Что будем делать, как узнать друг друга"
-              maxLength={500}
-              rows={3}
-              className={`${inputCls} resize-none`}
-            />
-          </>
-        )}
-
-        {step === "when" && (
-          <>
-            <Head title="Когда" em="и где?" sub="Выбери день и время, потом место — адрес подставлю сам." />
-            <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {[0, 1, 2, 3, 4, 5, 6].map((o) => (
-                <button
-                  key={o}
-                  onClick={() => setEventDate(isoDay(o))}
-                  className={clsx("m-press h-11 shrink-0 rounded-pill px-4 text-sm font-medium", eventDate === isoDay(o) ? "bg-ink-900 text-white" : "m-glass")}
-                >
-                  {dayLabel(o)}
-                </button>
-              ))}
-              <label className="m-glass m-press relative flex h-11 shrink-0 cursor-pointer items-center gap-1.5 rounded-pill px-4 text-sm font-medium text-accent">
-                <Icon name="cal" size={18} /> Календарь
-                <input
-                  type="date"
-                  value={eventDate}
-                  min={isoDay(0)}
-                  onChange={(e) => e.target.value && setEventDate(e.target.value)}
-                  className="absolute inset-0 opacity-0"
-                />
-              </label>
-            </div>
-
-            <div className="m-glass mt-3 flex items-center gap-3 rounded-[24px] p-3">
-              <div className="flex-1">
-                <span className="block px-1 text-xs text-ink-400">Начало</span>
-                <input
-                  type="time"
-                  value={eventTime}
-                  onChange={(e) => setEventTime(e.target.value)}
-                  className="w-full appearance-none bg-transparent px-1 text-[34px] font-medium tracking-tight outline-none"
-                />
-              </div>
-              <div className="text-right">
-                <span className="block text-xs text-ink-400">Конец</span>
-                <b className="text-[22px] font-medium tracking-tight text-ink-600">{eventEndTime}</b>
-              </div>
-            </div>
-
-            <span className="mb-1.5 mt-3 block px-1 text-[12.5px] font-medium text-ink-600">Сколько продлится</span>
-            <div className="flex flex-wrap gap-2">
-              {DURATIONS.map((d) => (
-                <button
-                  key={d}
-                  onClick={() => {
-                    setDuration(d);
-                    setCustomDuration(false);
-                  }}
-                  className={clsx("m-press h-10 rounded-pill px-4 text-sm font-medium", !customDuration && duration === d ? "bg-ink-900 text-white" : "m-glass")}
-                >
-                  {d % 60 ? `${Math.floor(d / 60)},5 ч` : `${d / 60} ч`}
-                </button>
-              ))}
-              <button
-                onClick={() => setCustomDuration(true)}
-                className={clsx("m-press h-10 rounded-pill px-4 text-sm font-medium", customDuration ? "bg-ink-900 text-white" : "m-glass")}
-              >
-                Своё
-              </button>
-            </div>
-            {customDuration && (
-              <div className="m-fade-in mt-2 flex items-center gap-2">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={72}
-                  value={Math.floor(duration / 60)}
-                  onChange={(e) => setDuration(Math.max(0, Number(e.target.value || 0)) * 60 + (duration % 60))}
-                  className={`${inputCls} w-24 text-center`}
-                />
-                <span className="text-sm text-ink-600">ч</span>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  max={59}
-                  step={5}
-                  value={duration % 60}
-                  onChange={(e) => setDuration(Math.floor(duration / 60) * 60 + Math.min(59, Math.max(0, Number(e.target.value || 0))))}
-                  className={`${inputCls} w-24 text-center`}
-                />
-                <span className="text-sm text-ink-600">мин</span>
-              </div>
-            )}
-
-            <span className="mb-1.5 mt-4 block px-1 text-[12.5px] font-medium text-ink-600">Место</span>
-            <div className="relative">
-              <input
-                value={placeName}
-                onChange={(e) => setPlaceName(e.target.value)}
-                onFocus={() => setPlaceFocus(true)}
-                onBlur={() => setTimeout(() => setPlaceFocus(false), 150)}
-                placeholder="Название места или адрес"
-                className={inputCls}
-              />
-              {placeFocus && placeSuggestions.length > 0 && (
-                <div className="m-fade-in absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-[20px] bg-white/95 shadow-card-lg backdrop-blur-xl">
-                  {placeSuggestions.map((p) => (
-                    <button key={p.name + p.address} type="button" onMouseDown={() => pickPlace(p)} className="flex w-full items-start gap-2 border-b border-lavender-100 px-4 py-3 text-left last:border-0">
-                      <Icon name="pin" size={16} className="mt-0.5 text-accent" />
-                      <span className="min-w-0">
-                        <b className="block truncate text-sm font-medium">{p.name}</b>
-                        {p.address && <span className="block truncate text-xs text-ink-400">{p.address}</span>}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            {placeSuggestions.length > 0 && !placeFocus && (
-              <div className="mt-2">
-                <span className="m-chip m-chip-lav mb-1.5 h-6 px-2.5 text-[11px]">✦ Мося рекомендует{category ? ` для «${TILE[category.name] ?? category.name}»` : ""}</span>
-                <div className="-mx-5 flex gap-2 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                  {placeSuggestions.slice(0, 6).map((p) => (
-                    <button
-                      key={p.name}
-                      onClick={() => pickPlace(p)}
-                      className={clsx("m-press shrink-0 rounded-[16px] px-3 py-2 text-left", placeName === p.name ? selCls : "m-glass")}
-                    >
-                      <b className="block max-w-[180px] truncate text-[13px] font-medium">{p.name}</b>
-                      {p.address && <span className="block max-w-[180px] truncate text-[11px] text-ink-400">{p.address}</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-            {placeName.trim().length > 0 && (
-              <div className="relative mt-2">
-                <input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Адрес — начни вводить или отметь на карте" className={inputCls} />
-                {addressSuggestions.length > 0 && (
-                  <div className="m-fade-in absolute inset-x-0 top-full z-20 mt-1 overflow-hidden rounded-[20px] bg-white/95 shadow-card-lg backdrop-blur-xl">
-                    {addressSuggestions.map((s) => (
-                      <button key={s.address} type="button" onMouseDown={() => pickAddress(s)} className="flex w-full items-center gap-2 border-b border-lavender-100 px-4 py-3 text-left text-sm last:border-0">
-                        <Icon name="pin" size={16} className="text-accent" />
-                        {s.address}
+              {categorySlug === "training" && (
+                <div>
+                  <span className="lbl">Какая тренировка?</span>
+                  <div className="cats" style={{ flexWrap: "wrap", margin: 0, padding: 0 }}>
+                    {trainingTypes.map((t) => (
+                      <button key={t.id} className={`cat ${trainingTypeSlug === t.slug ? "on" : "gl"}`} onClick={() => setTrainingTypeSlug(t.slug)}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={trainingIcon(t.slug)} alt="" />
+                        {t.name}
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+              {isOwn && (
+                <div className="ownbox">
+                  <span className="lbl">Чем займёмся?</span>
+                  <label className="field gl">
+                    <input value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Например: сапы, вязание, бадминтон" maxLength={30} />
+                  </label>
+                  <p className="muted" style={{ fontSize: 13, margin: "8px 2px 0", lineHeight: 1.45 }}>
+                    Встреча попадёт в раздел «Другое», а люди найдут её поиском по этому слову.
+                  </p>
+                </div>
+              )}
+            </>
+          )}
+
+          {step === 2 && (
+            <>
+              <h1 className="t">
+                Название <em>и обложка</em>
+              </h1>
+              <p className="sub">Короткое название и картинка решают, придут ли люди.</p>
+              <span className="lbl">Название</span>
+              <label className="field gl">
+                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Например, кофе перед работой" maxLength={100} />
+              </label>
+              <div className="aihead">
+                <span className="lbl" style={{ margin: 0 }}>
+                  Обложка
+                </span>
+                <span className={`aitag ${covers.length ? "" : "run"}`}>{covers.length ? (title.trim() ? `✦ Нарисовано под «${title.trim()}»` : "✦ Мося нарисовал") : "✦ Мося рисует…"}</span>
+              </div>
+              <div className="covers">
+                {covers.length === 0
+                  ? [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "1", borderRadius: 18 }} />)
+                  : covers.map((c, i) => (
+                      <button key={c.slice(-40) + i} className={`aic ${photo === c ? "on" : ""}`} style={{ animationDelay: `${i * 0.08}s` }} onClick={() => setPhoto(c)}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img className="cv" src={c} alt={`Обложка ${i + 1}`} />
+                        <span className="aib">✦ Мося</span>
+                      </button>
+                    ))}
+              </div>
+              <div className="covers" style={{ marginTop: 8 }}>
+                <button className="up gl" onClick={() => fileRef.current?.click()}>
+                  <Ic n="camera" />
+                  Своё фото
+                </button>
+                {ownPhoto && (
+                  <button className={photo === ownPhoto ? "on" : ""} onClick={() => setPhoto(ownPhoto)}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={ownPhoto} alt="" />
+                  </button>
+                )}
+                <button className="up gl" onClick={() => setCoverShift((s) => s + 1)}>
+                  ↻<br />
+                  Ещё варианты
+                </button>
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
+              <p className="muted" style={{ fontSize: 13, margin: "10px 2px 0", lineHeight: 1.45 }}>
+                Фото можно загрузить к любой встрече. Не загрузишь — Мося нарисует обложку сам, у каждой встречи будет картинка.
+              </p>
+              <span className="lbl">
+                Описание <small className="muted">необязательно</small>
+              </span>
+              <label className="field gl ta">
+                <textarea rows={3} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Что будем делать, как узнать друг друга" />
+              </label>
+            </>
+          )}
+
+          {step === 3 && (
+            <>
+              <h1 className="t">
+                Когда <em>и где</em>?
+              </h1>
+              <p className="sub">Покрути день и время, как будильник на айфоне, или открой календарь.</p>
+              <div className="whsum gl">
+                <div>
+                  <small>Встреча</small>
+                  <b>{sumTxt}</b>
+                </div>
+                <button className="sm" onClick={() => setCalOpen(true)}>
+                  <Ic n="cal" c="xs" /> Календарь
+                </button>
+              </div>
+              <div className="chs nw" style={{ marginTop: 10 }}>
+                {QUICK_DAYS.map((i) => (
+                  <button key={i} className={di === i ? "on" : "gl"} onClick={() => setDi(i)}>
+                    {DAYS[i]?.chip}
+                  </button>
+                ))}
+              </div>
+              <div className="wheels gl">
+                <Wheel cls="d" items={DAYS.map((d) => d.s)} index={di} onChange={setDi} />
+                <Wheel items={HOURS} index={hh} onChange={setHh} />
+                <span className="colon">:</span>
+                <Wheel items={MINS} index={mi} onChange={setMi} />
+              </div>
+              <span className="lbl">Сколько продлится</span>
+              <div className="chs nw">
+                {DURS.map(([v, t]) => (
+                  <button
+                    key={v}
+                    className={duration === v && !durOwn ? "on" : "gl"}
+                    onClick={() => {
+                      setDuration(v);
+                      setDurOwn(false);
+                    }}
+                  >
+                    {t}
+                  </button>
+                ))}
+                <button className={durOwn ? "on" : "gl"} onClick={() => setDurOwn(true)}>
+                  Своё
+                </button>
+              </div>
+              {durOwn && (
+                <div>
+                  <div className="durrow">
+                    <label className="field gl">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={23}
+                        value={Math.floor(duration / 60)}
+                        onChange={(e) => setDuration(Math.max(0, Math.min(23, Number(e.target.value || 0))) * 60 + (duration % 60))}
+                      />
+                      <span>ч</span>
+                    </label>
+                    <label className="field gl">
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min={0}
+                        max={55}
+                        step={5}
+                        value={duration % 60}
+                        onChange={(e) => setDuration(Math.floor(duration / 60) * 60 + Math.max(0, Math.min(55, Number(e.target.value || 0))))}
+                      />
+                      <span>мин</span>
+                    </label>
+                  </div>
+                  <p className="hint2">Минимум 1 час. Окончание может быть на следующий день.</p>
+                </div>
+              )}
+
+              <span className="lbl">Место</span>
+              <label className="sfield gl plin" style={{ cursor: "text", height: 48 }}>
+                <Ic n="search" c="s" />
+                <input
+                  value={placeQuery}
+                  onChange={(e) => setPlaceQuery(e.target.value)}
+                  placeholder="Название места или адрес"
+                  style={{ flex: 1, border: 0, background: "none", font: "inherit", fontSize: 15, outline: "none", color: "var(--ink)", minWidth: 0 }}
+                />
+              </label>
+              {placeQuery.trim().length >= 2 && (
+                <div className="pldrop gl">
+                  {drop.map((p) => (
+                    <button key={"p" + p.name + p.address} onClick={() => pickPlace(p)}>
+                      <Ic n="pin" c="s" />
+                      <div>
+                        <b>{p.name}</b>
+                        <span>{p.address}</span>
+                      </div>
+                    </button>
+                  ))}
+                  {addrDrop.map((a) => (
+                    <button key={"a" + a.address} onClick={() => pickPlace({ name: placeQuery.trim(), address: a.address, latitude: a.latitude, longitude: a.longitude })}>
+                      <Ic n="nav" c="s" />
+                      <div>
+                        <b>{a.address.split(",")[0]}</b>
+                        <span>{a.address}</span>
+                      </div>
+                    </button>
+                  ))}
+                  {drop.length === 0 && addrDrop.length === 0 && <div className="pln">Ищем… или нажми на карту — адрес определится сам</div>}
+                </div>
+              )}
+              {recs.length > 0 && (
+                <>
+                  <div className="aihead" style={{ margin: "10px 0 6px" }}>
+                    <span className="aitag">✦ Мося рекомендует для «{catLabel}»</span>
+                  </div>
+                  <div className="plrec">
+                    {recs.map((p) => (
+                      <button key={p.name} className={`plr gl ${placeName === p.name ? "on" : ""}`} onClick={() => pickPlace(p)}>
+                        <b>{p.name}</b>
+                        <span>{p.address || "отметим на карте"}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              <div className="pmap">
+                <LocationPicker
+                  onPick={({ latitude: la, longitude: lo }) => {
+                    setLatitude(la);
+                    setLongitude(lo);
+                    if (!placeName) setPlaceName("Точка на карте");
+                  }}
+                  onAddressResolved={(resolved) => setAddress(resolved)}
+                  externalCoords={externalCoords}
+                  heightPx={300}
+                />
+                {latitude === undefined && <span className="phint">Нажми на карту — адрес определится сам</span>}
+                {placeName && (
+                  <div className="lab gl">
+                    <div>
+                      <b style={{ fontWeight: 500 }}>{placeName}</b>
+                      <br />
+                      <span className="muted">{address}</span>
+                    </div>
+                    <button className="sm" onClick={() => navigator.clipboard?.writeText(address).then(() => flash("Адрес скопирован"), () => {})} aria-label="Скопировать адрес">
+                      <Ic n="copy" c="xs" />
+                    </button>
+                  </div>
                 )}
               </div>
-            )}
-            <div className="mt-2 overflow-hidden rounded-[24px] shadow-card">
-              <LocationPicker
-                onPick={({ latitude: la, longitude: lo }) => {
-                  setLatitude(la);
-                  setLongitude(lo);
-                }}
-                onAddressResolved={(resolved) => {
-                  suppressAddressSearch.current = true;
-                  setAddress(resolved);
-                }}
-                externalCoords={externalCoords}
-                heightPx={240}
-              />
-            </div>
-          </>
-        )}
+            </>
+          )}
 
-        {step === "who" && (
-          <>
-            <Head title="Кто" em="и сколько?" sub="Все приходят по заявке — ты сам решаешь, кого принять." />
-            <span className="mb-1.5 block px-1 text-[12.5px] font-medium text-ink-600">Сколько человек ищешь</span>
-            <div className="m-glass flex items-center justify-between rounded-[24px] p-2">
-              <button onClick={() => setSeatsTotal((n) => Math.max(1, n - 1))} className="m-press grid h-12 w-12 place-items-center rounded-full bg-white text-2xl text-accent shadow-card">
-                −
-              </button>
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                max={30}
-                value={seatsTotal}
-                onChange={(e) => setSeatsTotal(Math.max(1, Math.min(30, Number(e.target.value || 1))))}
-                className="w-24 bg-transparent text-center text-[40px] font-medium tracking-tight outline-none"
-              />
-              <button onClick={() => setSeatsTotal((n) => Math.min(30, n + 1))} className="m-press grid h-12 w-12 place-items-center rounded-full bg-white text-2xl text-accent shadow-card">
-                +
-              </button>
-            </div>
-            <p className="mt-1.5 px-1 text-xs text-ink-400">
-              Не считая тебя. На встрече будет: ты + {seatsTotal} = {seatsTotal + 1} чел.
-            </p>
-
-            <span className="mb-1.5 mt-4 block px-1 text-[12.5px] font-medium text-ink-600">Как насчёт расходов?</span>
-            <div className="grid grid-cols-2 gap-2">
-              {COSTS.map(([v, label, sub]) => (
-                <button key={v} onClick={() => setCostType(v)} className={clsx("m-press relative rounded-[20px] p-3 text-left", costType === v ? selCls : "m-glass")}>
-                  <b className="block text-[14px] font-medium">{label}</b>
-                  <span className="text-[11.5px] text-ink-400">{sub}</span>
+          {step === 4 && (
+            <>
+              <h1 className="t">
+                Кто <em>и сколько</em>?
+              </h1>
+              <p className="sub">Все приходят по заявке — ты сам решаешь, кого принять.</p>
+              <span className="lbl">Сколько человек ищешь</span>
+              <div className="stepper">
+                <button className="gl" onClick={() => setSeatsTotal((n) => Math.max(1, n - 1))} aria-label="Меньше">
+                  −
                 </button>
-              ))}
-            </div>
-
-            <span className="mb-1.5 mt-4 block px-1 text-[12.5px] font-medium text-ink-600">Как публикуем?</span>
-            <div className="grid gap-2">
-              <button onClick={() => setIsAnonymous(false)} className={clsx("m-press rounded-[20px] p-3 text-left", !isAnonymous ? selCls : "m-glass")}>
-                <b className="block text-[14px] font-medium">Открыто</b>
-                <span className="text-[11.5px] text-ink-400">Все видят твой профиль и место встречи</span>
-              </button>
-              <button onClick={() => setIsAnonymous(true)} className={clsx("m-press rounded-[20px] p-3 text-left", isAnonymous ? selCls : "m-glass")}>
-                <b className="block text-[14px] font-medium">Анонимно</b>
-                <span className="text-[11.5px] text-ink-400">Имя, фото и точный адрес увидят только те, чью заявку ты примешь</span>
-              </button>
-            </div>
-
-            <span className="mb-1.5 mt-5 block px-1 text-[12.5px] font-medium text-ink-600">Так увидят встречу другие</span>
-            <div className="pointer-events-none">
-              <EventCard event={previewEvent} />
-            </div>
-          </>
-        )}
+                <input
+                  key={seatsTotal}
+                  className="numin gl bump"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={30}
+                  value={seatsTotal}
+                  onChange={(e) => setSeatsTotal(Math.max(1, Math.min(30, Number(e.target.value || 1))))}
+                  aria-label="Количество человек"
+                />
+                <button className="gl" onClick={() => setSeatsTotal((n) => Math.min(30, n + 1))} aria-label="Больше">
+                  +
+                </button>
+              </div>
+              <p className="hint2">
+                Не считая тебя. На встрече будет: ты + {seatsTotal} = {seatsTotal + 1} чел.
+                {seatsTotal > 4 && (
+                  <>
+                    {" "}
+                    <a onClick={() => router.push("/subscriptions")}>На «Старт» — до 4, больше на «Медиум»</a>
+                  </>
+                )}
+              </p>
+              <span className="lbl">Как насчёт расходов?</span>
+              <div className="costs">
+                {COSTS.map(([v, t]) => (
+                  <button key={v} className={`opt gl ${costType === v ? "on" : ""}`} onClick={() => setCostType(v)}>
+                    <span className="radio" />
+                    <b>{t}</b>
+                  </button>
+                ))}
+              </div>
+              <span className="lbl">Как публикуем?</span>
+              <div style={{ display: "grid", gap: 8 }}>
+                <button className={`opt gl ${!isAnonymous ? "on" : ""}`} onClick={() => setIsAnonymous(false)}>
+                  <span className="radio" />
+                  <div className="d">
+                    <b>Открыто</b>
+                    <span>Все видят твой профиль и место встречи</span>
+                  </div>
+                </button>
+                <button className={`opt gl ${isAnonymous ? "on" : ""}`} onClick={() => setIsAnonymous(true)}>
+                  <span className="radio" />
+                  <div className="d">
+                    <b>Анонимно</b>
+                    <span>Имя, фото и точный адрес увидят только те, чью заявку ты одобришь</span>
+                  </div>
+                </button>
+              </div>
+              <span className="lbl">Так увидят другие</span>
+              <div className="pvbox gl">
+                <div className="pvr">
+                  <Cover photoUrl={photo} icon={iconSrc} cls="th" />
+                  <div>
+                    <b>{title || own || "Моя встреча"}</b>
+                    <span>
+                      {DAYS[di]?.s.toLowerCase()}, {hh}:{pad2(mi * 5)} · {isAnonymous ? "анонимно · место после одобрения" : placeName}
+                    </span>
+                    <span className="pvorg">
+                      {isAnonymous ? (
+                        <span className="pvav">
+                          <Chr shape="ball" pal="lilac" face="hidden" />
+                        </span>
+                      ) : (
+                        <span className="pvav me">
+                          {me?.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={me.avatarUrl} alt="" />
+                          ) : (
+                            (me?.name ?? "Я").charAt(0)
+                          )}
+                        </span>
+                      )}
+                      {isAnonymous ? "Организатор скрыт" : `${me?.name ?? "Ты"} · организатор`}
+                    </span>
+                  </div>
+                </div>
+                <div className="pvmap">
+                  <div className="pvpin">
+                    <span className="pw">
+                      {isAnonymous ? (
+                        <Chr shape="ball" pal="lilac" face="hidden" />
+                      ) : (
+                        <span className="pvme">
+                          {me?.avatarUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={me.avatarUrl} alt="" />
+                          ) : (
+                            (me?.name ?? "Я").charAt(0)
+                          )}
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <span>На карте {isAnonymous ? "вместо фото — персонаж, точный адрес скрыт" : "— твоё фото на метке"}</span>
+                </div>
+              </div>
+              <div style={{ pointerEvents: "none" }}>
+                <HeroCard e={preview} full />
+              </div>
+            </>
+          )}
+        </div>
       </div>
-
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[#F6F2FF] via-[#F6F2FF]/90 to-transparent px-5 pb-[max(14px,env(safe-area-inset-bottom))] pt-6">
-        {error && (
-          <div role="alert" className="m-pop mb-2 rounded-[18px] bg-white/90 px-4 py-3 text-center text-sm font-medium text-[#D6336C] shadow-card">
-            {error}
-          </div>
-        )}
-        <button onClick={next} disabled={submitting} className={clsx("m-btn", stepIndex === 3 ? "m-btn-v" : "m-btn-k", h && "opacity-60")}>
-          {stepIndex === 3 ? (submitting ? "Публикуем..." : "Опубликовать") : "Дальше"}
+      <div className="foot">
+        <button className={`btn ${step === 4 ? "v" : "k"}`} onClick={next} disabled={submitting}>
+          {step === 4 ? (submitting ? "Публикуем…" : "Опубликовать") : "Дальше"}
         </button>
       </div>
 
-      {trainingSheet && (
-        <div className="m-fade-in fixed inset-0 z-[60] flex flex-col justify-end bg-[rgba(22,18,31,0.35)]" onClick={() => setTrainingSheet(false)}>
-          <div className="m-sheet-in m-glass-2 rounded-t-[30px] p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
-            <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-            <h2 className="m-title mb-4 text-[24px]">
-              Совместная <span className="m-em">тренировка</span>
-            </h2>
-            <div className="m-stagger grid grid-cols-3 gap-2">
-              {trainingTypes.map((t) => (
-                <button
-                  key={t.id}
-                  onClick={() => {
-                    setTrainingTypeSlug(t.slug);
-                    setTrainingSheet(false);
-                  }}
-                  className={clsx("m-cat", trainingTypeSlug === t.slug ? selCls : "bg-white/70 shadow-card")}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={trainingIcon(t.slug)} alt="" />
-                  <span>{t.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
+      <CalendarSheet open={calOpen} onClose={() => setCalOpen(false)} dayIndex={di} maxDays={N_DAYS} onPick={(i) => setDi(i)} />
+      <Toast text={toast} />
       {cropSrc && (
         <PhotoCropModal
           src={cropSrc}
           aspectRatio={1.4}
           onCancel={() => setCropSrc(undefined)}
           onConfirm={(dataUrl) => {
+            setOwnPhoto(dataUrl);
             setPhoto(dataUrl);
-            setPhotoKind("own");
             setCropSrc(undefined);
           }}
         />
       )}
-    </div>
-  );
-}
-
-function Head({ title, em, sub }: { title: string; em: string; sub: string }) {
-  return (
-    <div className="m-stagger mb-4">
-      <h1 className="m-title">
-        {title} <span className="m-em">{em}</span>
-      </h1>
-      <p className="mt-1.5 text-[13.5px] leading-snug text-ink-600">{sub}</p>
-    </div>
+    </section>
   );
 }
 
 /**
- * Три фирменные обложки, которые «рисует Мося»: градиент + большая
- * глянцевая 3D-иконка категории + мягкие блики. Рисуем в canvas и
- * отдаём JPEG — дальше обложка загружается как обычное фото встречи.
+ * Обложки, которые «рисует Мося»: фон в фирменной гамме (пастельный, как
+ * .gfx прототипа, и два насыщенных градиента) + большая глянцевая
+ * 3D-иконка категории. Рисуем в canvas и отдаём JPEG — дальше обложка
+ * загружается как обычное фото встречи. shift — «Ещё варианты».
  */
-const COVER_GRADIENTS: [string, string, string][] = [
-  ["#6C3BFF", "#A24DFF", "#FF6FA0"],
-  ["#3A2F8F", "#6C3BFF", "#5AA9FF"],
-  ["#A24DFF", "#FF6FA0", "#FFB27A"],
+type Bg = { kind: "pastel" } | { kind: "grad"; stops: [string, string, string] };
+const BGS: Bg[] = [
+  { kind: "pastel" },
+  { kind: "grad", stops: ["#6C3BFF", "#A24DFF", "#FF6FA0"] },
+  { kind: "grad", stops: ["#3A2F8F", "#6C3BFF", "#5AA9FF"] },
+  { kind: "grad", stops: ["#A24DFF", "#FF6FA0", "#FFB27A"] },
+  { kind: "grad", stops: ["#1A1230", "#5B3AA8", "#C871B6"] },
 ];
 
-async function drawCovers(iconSrc: string): Promise<string[]> {
+async function drawCovers(iconSrc: string, shift = 0): Promise<string[]> {
   const img = await new Promise<HTMLImageElement | null>((resolve) => {
     const i = new Image();
     i.onload = () => resolve(i);
@@ -807,46 +880,47 @@ async function drawCovers(iconSrc: string): Promise<string[]> {
   });
   const W = 1120;
   const H = 800;
-  return COVER_GRADIENTS.map(([a, b, c], k) => {
+  return [0, 1, 2].map((k) => {
+    const bg = BGS[(k + shift * 3) % BGS.length]!;
     const cv = document.createElement("canvas");
     cv.width = W;
     cv.height = H;
     const ctx = cv.getContext("2d");
     if (!ctx) return "";
-    const g = ctx.createLinearGradient(0, 0, W, H);
-    g.addColorStop(0, a);
-    g.addColorStop(0.5, b);
-    g.addColorStop(1, c);
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, W, H);
-    // мягкие блики
-    const blobs: [number, number, number, string][] = [
-      [W * 0.15, H * 0.2, 320, "rgba(255,255,255,.22)"],
-      [W * 0.9, H * 0.95, 380, "rgba(255,255,255,.14)"],
-      [W * 0.55, H * 0.55, 260, "rgba(255,255,255,.10)"],
-    ];
-    for (const [x, y, r, col] of blobs) {
+    const blob = (x: number, y: number, r: number, col: string) => {
       const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
       rg.addColorStop(0, col);
       rg.addColorStop(1, "rgba(255,255,255,0)");
       ctx.fillStyle = rg;
       ctx.fillRect(0, 0, W, H);
+    };
+    if (bg.kind === "pastel") {
+      ctx.fillStyle = "#E9E0FF";
+      ctx.fillRect(0, 0, W, H);
+      blob(W * 0.18, H * 0.18, 620, "rgba(183,155,255,1)");
+      blob(W * 0.9, H * 0.92, 620, "rgba(255,176,207,1)");
+      blob(W * 0.9, H * 0.1, 460, "rgba(191,226,255,1)");
+    } else {
+      const g = ctx.createLinearGradient(0, 0, W, H);
+      g.addColorStop(0, bg.stops[0]);
+      g.addColorStop(0.5, bg.stops[1]);
+      g.addColorStop(1, bg.stops[2]);
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+      blob(W * 0.15, H * 0.2, 320, "rgba(255,255,255,.22)");
+      blob(W * 0.9, H * 0.95, 380, "rgba(255,255,255,.14)");
     }
     if (img) {
-      const size = H * (k === 1 ? 0.95 : 0.82);
+      const size = H * (k === 0 ? 0.7 : 0.78);
+      const rot = ((shift + k) % 2 ? 8 : -8) * (Math.PI / 180);
       ctx.save();
-      ctx.translate(W * (k === 2 ? 0.36 : 0.66), H * 0.54);
-      ctx.rotate(((k === 2 ? 10 : -10) * Math.PI) / 180);
-      ctx.shadowColor = "rgba(40,10,90,.35)";
+      ctx.translate(W * 0.5, H * 0.52);
+      ctx.rotate(rot);
+      ctx.shadowColor = "rgba(40,10,90,.32)";
       ctx.shadowBlur = 50;
       ctx.shadowOffsetY = 26;
       ctx.drawImage(img, -size / 2, -size / 2, size, size);
       ctx.restore();
-      if (k === 0) {
-        ctx.globalAlpha = 0.5;
-        ctx.drawImage(img, W * 0.06, H * 0.58, H * 0.3, H * 0.3);
-        ctx.globalAlpha = 1;
-      }
     }
     return cv.toDataURL("image/jpeg", 0.86);
   });

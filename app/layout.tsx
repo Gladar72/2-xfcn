@@ -5,6 +5,8 @@ import localFont from "next/font/local";
 // (идут позже) могут их точечно переопределять — как слой components.
 import "./mesto.css";
 import "./globals.css";
+import "./proto.css";
+import "./proto-app.css";
 import { TelegramInit } from "@/components/telegram/TelegramInit";
 
 // Golos Text — шрифт интерфейса редизайна 2026 (локальный вариативный файл,
