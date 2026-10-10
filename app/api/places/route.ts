@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { searchOsm } from "@/lib/places/osm";
 
 /**
  * GET /api/places?category=cinema&q=пр&city=Тюмень
@@ -9,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * 1) Поиск по организациям Яндекса (кинотеатры для «Кино», кофейни для
  *    «Кофе» и т.д.) — если задан ключ YANDEX_PLACES_API_KEY
  *    («API Поиска по организациям» в кабинете разработчика Яндекса).
+ *    Без ключа — бесплатно из OpenStreetMap (lib/places/osm.ts).
  * 2) Места, где в этом городе уже проходили встречи этой категории, —
  *    работает всегда, без ключа. Чем чаще место выбирали, тем выше.
  * Ответ: { items: [{ name, address, latitude, longitude, source }] }.
@@ -38,7 +40,7 @@ interface Place {
   address: string;
   latitude: number;
   longitude: number;
-  source: "yandex" | "history";
+  source: "yandex" | "osm" | "history";
 }
 
 export async function GET(req: NextRequest) {
@@ -57,14 +59,17 @@ export async function GET(req: NextRequest) {
     city = (me?.city as string | undefined) ?? "Тюмень";
   }
 
+  const hasYandex = !!process.env.YANDEX_PLACES_API_KEY;
   const [yandex, history] = await Promise.all([
-    searchYandex(q || QUERY_BY_TRAINING[trainingType] || QUERY_BY_CATEGORY[category] || "", city),
+    hasYandex
+      ? searchYandex(q || QUERY_BY_TRAINING[trainingType] || QUERY_BY_CATEGORY[category] || "", city)
+      : searchOsm(city, category, trainingType, q),
     searchHistory(admin, category, city, q),
   ]);
 
-  // Склеиваем без повторов (по названию), яндекс первым.
+  // Склеиваем без повторов (по названию): сначала места, где уже встречались, потом каталог.
   const seen = new Set<string>();
-  const items = [...yandex, ...history].filter((p) => {
+  const items = [...history.slice(0, 3), ...yandex, ...history.slice(3)].filter((p) => {
     const k = p.name.toLowerCase();
     if (seen.has(k)) return false;
     seen.add(k);
