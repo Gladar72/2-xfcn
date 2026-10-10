@@ -62,3 +62,6 @@
 .P .mcard .mcgfx img{width:70%;height:auto}
 .P .listb{display:inline-flex}
 .P .locate,.P .locate2{display:grid}
+.P .docb h2{font-size:15px;font-weight:500;margin:14px 0 4px}
+.P .docb p{font-size:13.5px;line-height:1.5;color:var(--ink-2);margin:6px 0 0}
+.P .docb{padding:6px 16px 16px}

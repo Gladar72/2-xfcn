@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { Icon } from "@/components/brand/Icon";
-import Image from "next/image";
+import { Ic } from "@/components/proto/ui";
 
 export default function OfferPage() {
   return (
-    <div className="min-h-screen px-5 py-4">
-      <div className="mb-4 flex items-center gap-3">
-        <Link href="/settings" aria-label="Назад" className="m-glass m-press flex h-11 w-11 shrink-0 items-center justify-center rounded-full">
-          <Icon name="back" size={22} className="" />
+    <div className="P">
+      <section className="scr aurora in" data-id="doc">
+        <div className="scroll">
+      <div className="bar-top">
+        <Link className="rb gl" href="/settings" aria-label="Назад">
+          <Ic n="back" />
         </Link>
-        <h1 className="m-title text-[28px]">Публичная оферта</h1>
+        <span />
       </div>
+      <h1 className="t" style={{ marginTop: 18 }}>Публичная оферта</h1>
 
-      <div className="space-y-4 rounded-card m-glass p-5 text-sm leading-relaxed text-ink-900">
+      <div className="docb gl">
         <p className="text-xs text-ink-400">Редакция от 15 сентября 2026 г.</p>
 
         <p>
@@ -110,6 +112,8 @@ export default function OfferPage() {
           Контакты для обращений: esenin_info@bk.ru
         </p>
       </div>
+        </div>
+      </section>
     </div>
   );
 }

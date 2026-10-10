@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { RatingStar } from "@/components/ui/RatingStar";
+import Link from "next/link";
+import { interestIcon } from "@/lib/data/interests";
+import { Sheet } from "@/components/proto/ui";
 import { photoThumb } from "@/lib/photos/thumb";
 
 interface MiniProfile {
@@ -36,55 +38,46 @@ export function MiniProfileSheet({ userId, onClose }: { userId: string; onClose:
   }, [userId]);
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end bg-[rgba(22,18,31,0.35)] m-fade-in" onClick={onClose}>
-      <div className="rounded-t-sheet bg-white p-5 pb-8 m-sheet-in" onClick={(e) => e.stopPropagation()}>
-        <div className="mx-auto mb-4 h-1 w-10 rounded-pill bg-ink-400/30" />
-
-        {loading && <div className="m-sk mx-auto my-6 h-24 w-24 rounded-full" />}
-
-        {!loading && !profile && <p className="py-8 text-center text-ink-600">Не удалось загрузить профиль.</p>}
-
-        {profile && (
-          <div className="flex flex-col items-center text-center">
-            <div className="mb-3 h-24 w-24 overflow-hidden rounded-full bg-lavender-100 text-3xl font-semibold text-ink-600">
+    <Sheet open onClose={onClose}>
+      {loading && <div className="sk" style={{ width: 96, height: 96, borderRadius: "50%", justifySelf: "center" }} />}
+      {!loading && !profile && <p className="muted" style={{ textAlign: "center", padding: "24px 0" }}>Не удалось загрузить профиль.</p>}
+      {profile && (
+        <>
+          <div className="anonbox" style={{ padding: 0 }}>
+            <div className="pava" style={{ width: 96, height: 96, fontSize: 36 }}>
               {profile.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={photoThumb(profile.avatarUrl, 96)} alt={profile.name} className="h-full w-full object-cover" />
+                <img src={photoThumb(profile.avatarUrl, 192)} alt="" />
               ) : (
-                <div className="flex h-full w-full items-center justify-center">
-                  {profile.name.charAt(0).toUpperCase()}
-                </div>
+                profile.name.charAt(0).toUpperCase()
               )}
             </div>
-
-            <h2 className="text-title">
-              {profile.name}, {profile.age}
+            <h2 className="t" style={{ marginTop: 10 }}>
+              {profile.name}
+              {profile.age ? `, ${profile.age}` : ""}
             </h2>
-
-            <div className="mt-1 flex items-center gap-3 text-sm text-ink-600">
-              <span className="inline-flex items-center gap-1"><RatingStar /> {profile.ratingAvg.toFixed(1)}</span>
-              <span>·</span>
-              <span>{profile.completedMeetingsCount} встреч</span>
-              {profile.gender && <span>· {profile.gender === "male" ? "Мужчина" : "Женщина"}</span>}
-            </div>
-
-            {profile.bio && <p className="mt-3 text-sm text-ink-900">{profile.bio}</p>}
-
-            {profile.interests.length > 0 && (
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
-                {profile.interests.map((interest) => (
-                  <span key={interest} className="rounded-pill bg-[rgba(108,59,255,.1)] px-3 py-1 text-xs text-accent">
-                    {interest}
-                  </span>
-                ))}
-              </div>
-            )}
-            <a href={`/people/${profile.id}`} className="m-btn m-btn-v mt-5 h-12 text-[15px]">
-              Открыть профиль
-            </a>
+            <span>
+              {profile.ratingAvg > 0 ? `★ ${profile.ratingAvg.toFixed(1).replace(".", ",")} · ` : ""}
+              {profile.completedMeetingsCount} встреч
+            </span>
+            {profile.bio && <p className="about" style={{ marginTop: 6 }}>{profile.bio}</p>}
           </div>
-        )}
-      </div>
-    </div>
+          {profile.interests.length > 0 && (
+            <div className="itags" style={{ justifyContent: "center" }}>
+              {profile.interests.map((i) => (
+                <span key={i} className="itag gl">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={interestIcon(i)} alt="" />
+                  {i}
+                </span>
+              ))}
+            </div>
+          )}
+          <Link className="btn v" href={`/people/${profile.id}`}>
+            Открыть профиль
+          </Link>
+        </>
+      )}
+    </Sheet>
   );
 }

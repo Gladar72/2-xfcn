@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ApplicantCard, type ApplicantCardData } from "@/components/applications/ApplicantCard";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type ApplicantCardData } from "@/components/applications/ApplicantCard";
+import { photoThumb } from "@/lib/photos/thumb";
+import { EmptyIll, Ic, Screen } from "@/components/proto/ui";
 
 interface EventApplicationsPageProps {
   // См. пояснение в app/chats/[id]/page.tsx — params здесь плоский объект
@@ -12,6 +16,7 @@ interface EventApplicationsPageProps {
 
 export default function EventApplicationsPage({ params }: EventApplicationsPageProps) {
   const { id: eventId } = params;
+  const router = useRouter();
 
   const [eventTitle, setEventTitle] = useState("");
   const [seats, setSeats] = useState<{ total: number; taken: number } | null>(null);
@@ -83,45 +88,103 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
   const pending = applications.filter((a) => a.status === "pending");
   const processed = applications.filter((a) => a.status !== "pending");
 
+  const STATUS: Record<string, string> = { accepted: "Принят", rejected: "Отклонена", cancelled: "Отменил сам", removed: "Убран из встречи" };
+  const card = (app: ApplicantCardData, actions: React.ReactNode) => {
+    const u = app.applicant;
+    if (!u) return null;
+    return (
+      <div key={app.id} className="apl gl">
+        <Link href={`/people/${u.id}`}>
+          {u.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoThumb(u.avatarUrl, 88)} alt="" />
+          ) : (
+            <span className="hav r" style={{ width: 44, height: 44 }}>
+              {u.name.charAt(0).toUpperCase()}
+            </span>
+          )}
+        </Link>
+        <div>
+          <b>
+            {u.name}, {u.age}
+          </b>
+          <span>
+            {u.ratingAvg > 0 ? `★ ${u.ratingAvg.toFixed(1).replace(".", ",")} · ` : ""}
+            {u.completedMeetingsCount} встреч{app.status !== "pending" ? ` · ${STATUS[app.status] ?? ""}` : ""}
+          </span>
+        </div>
+        {actions}
+      </div>
+    );
+  };
+
   return (
-    <div className="-mb-24 min-h-screen px-5 py-6">
-      <h1 className="m-title mb-1">{eventTitle || "Заявки"}</h1>
-      {seats && (
-        <p className="mb-6 text-sm text-ink-600">
-          Занято {seats.taken} из {seats.total} мест
-        </p>
-      )}
-
-      {loading && <p className="text-center text-ink-600">Загрузка...</p>}
-      {error && <p className="text-center text-sm text-red-600">{error}</p>}
-
-      {!loading && !error && applications.length === 0 && (
-        <div className="rounded-card m-glass p-6 text-center text-sm text-ink-600">
-          Пока никто не откликнулся.
+    <Screen id="applications" anim="in">
+      <div className="bar-top">
+        <button className="rb gl" onClick={() => router.back()} aria-label="Назад">
+          <Ic n="back" />
+        </button>
+        <span />
+      </div>
+      <h1 className="t" style={{ marginTop: 18 }}>
+        Заявки <em>на встречу</em>
+      </h1>
+      <p className="muted" style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.5 }}>
+        {eventTitle}
+        {seats ? ` · занято ${seats.taken} из ${seats.total}` : ""}
+      </p>
+      {loading && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 64, marginTop: 10 }} />)}
+      {error && (
+        <div className="note gl" style={{ marginTop: 14 }}>
+          {error}
         </div>
       )}
-
-      <div className="space-y-3">
-        {pending.map((app) => (
-          <ApplicantCard
-            key={app.id}
-            application={app}
-            onAccept={(id) => handleAction(id, "accept")}
-            onReject={(id) => handleAction(id, "reject")}
-            processing={processingId === app.id}
-          />
-        ))}
-        {processed.map((app) => (
-          <ApplicantCard
-            key={app.id}
-            application={app}
-            onAccept={() => {}}
-            onReject={() => {}}
-            onRemove={handleRemove}
-            processing={processingId === app.applicant?.id}
-          />
-        ))}
-      </div>
-    </div>
+      {!loading && !error && applications.length === 0 && (
+        <div className="empty" style={{ marginTop: 20 }}>
+          <EmptyIll />
+          <b>Пока никто не откликнулся</b>
+          <span>Поделись встречей — так заявки придут быстрее.</span>
+        </div>
+      )}
+      {pending.length > 0 && (
+        <div className="blk" style={{ marginTop: 18 }}>
+          <div className="blk-h">
+            <b>Новые заявки</b>
+            <span className="redn">{pending.length}</span>
+          </div>
+          {pending.map((app) =>
+            card(
+              app,
+              <>
+                <button className="sm no" disabled={processingId === app.id} onClick={() => handleAction(app.id, "reject")}>
+                  Отклонить
+                </button>
+                <button className="sm yes" disabled={processingId === app.id} onClick={() => handleAction(app.id, "accept")}>
+                  Принять
+                </button>
+              </>
+            )
+          )}
+        </div>
+      )}
+      {processed.length > 0 && (
+        <div className="blk" style={{ marginTop: 18 }}>
+          <div className="blk-h">
+            <b>Решения</b>
+            <span>{processed.length}</span>
+          </div>
+          {processed.map((app) =>
+            card(
+              app,
+              app.status === "accepted" && app.applicant ? (
+                <button className="sm no" disabled={processingId === app.applicant.id} onClick={() => handleRemove(app.applicant!.id)}>
+                  Убрать
+                </button>
+              ) : null
+            )
+          )}
+        </div>
+      )}
+    </Screen>
   );
 }
