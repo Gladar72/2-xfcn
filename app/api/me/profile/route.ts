@@ -47,12 +47,17 @@ export async function GET() {
   ]);
 
   const photos = await getUserPhotos(admin, user.id as string, user.avatar_url as string | null);
+  const { data: interestRows } = await admin.from("user_interests").select("interest_id, interests(name)").eq("user_id", currentUser.userId);
+  const interests = (interestRows ?? [])
+    .map((r) => ({ id: r.interest_id as string, name: (r.interests as unknown as { name: string } | null)?.name ?? "" }))
+    .filter((i) => i.name);
 
   return NextResponse.json({
     id: user.id,
     name: user.name,
     avatarUrl: user.avatar_url,
     photos,
+    interests,
     age: calculateAge(user.birth_date),
     city: user.city,
     bio: user.bio,
@@ -126,11 +131,22 @@ export async function PATCH(req: Request) {
     update.morning_reminders_enabled = body.morningRemindersEnabled;
   }
 
-  if (Object.keys(update).length === 0) {
+  // Интересы (как в прототипе: «Изменить» в редактировании профиля) — заменяем список целиком.
+  const interestIds: string[] | null = Array.isArray(body?.interestIds)
+    ? (body.interestIds as unknown[]).filter((x): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/.test(x)).slice(0, 15)
+    : null;
+
+  if (Object.keys(update).length === 0 && !interestIds) {
     return NextResponse.json({ error: "nothing_to_update" }, { status: 400 });
   }
 
   const admin = createAdminClient();
+  if (interestIds) {
+    if (interestIds.length < 3) return NextResponse.json({ error: "too_few_interests" }, { status: 422 });
+    await admin.from("user_interests").delete().eq("user_id", currentUser.userId);
+    await admin.from("user_interests").insert(interestIds.map((interest_id) => ({ user_id: currentUser.userId, interest_id })));
+    if (Object.keys(update).length === 0) return NextResponse.json({ status: "ok" });
+  }
   const { error } = await admin.from("users").update(update).eq("id", currentUser.userId);
   if (error) return NextResponse.json({ error: "update_failed" }, { status: 500 });
 

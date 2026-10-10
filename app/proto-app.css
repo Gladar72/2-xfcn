@@ -52,3 +52,8 @@
 .P .inrow .field button{flex:none}
 .P .send[disabled]{opacity:.45}
 .P .apl .hav{flex:none}
+.P .suppage .msgs2{max-height:none}
+.P .msgs2 .m{max-width:88%}
+.P .scroll.pb150{padding-bottom:150px}
+.P .scroll.pb160{padding-bottom:160px}
+.P .scroll.pb180{padding-bottom:180px}

@@ -3,7 +3,6 @@
 import { Suspense, useEffect, useState } from "react";
 import { Paywall } from "@/components/paywall/Paywall";
 import { useSearchParams } from "next/navigation";
-import { CreateEventWizard } from "@/components/create-event/CreateEventWizard";
 import { CreateMeetingFlow } from "@/components/create-event/CreateMeetingFlow";
 
 export default function CreatePage() {
@@ -23,11 +22,15 @@ export default function CreatePage() {
 
   if (status === "loading") {
     return (
-      <div className="flex min-h-[70vh] flex-col items-center justify-center gap-2 text-sm text-ink-600">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/mosya/mosya_think.webp" alt="" className="h-24 w-24 animate-pulse object-contain" />
-        Секунду…
-      </div>
+      <section className="scr aurora fade" data-id="create">
+        <div className="done" style={{ paddingTop: 200 }}>
+          <div className="burst wait">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/brand/mosya/mosya_think.webp" alt="" />
+          </div>
+          <p>Секунду…</p>
+        </div>
+      </section>
     );
   }
 
@@ -42,8 +45,8 @@ export default function CreatePage() {
   );
 }
 
-/** Бизнес-события — прежний мастер (свои шаги про билеты и чат), обычные встречи — новые 4 шага. */
+/** Встреча и бизнес-событие — один мастер из прототипа (у бизнеса свои условия: билет, гостей до 500). */
 function CreateRouter() {
   const business = useSearchParams().get("business") === "true";
-  return business ? <CreateEventWizard /> : <CreateMeetingFlow />;
+  return <CreateMeetingFlow business={business} />;
 }

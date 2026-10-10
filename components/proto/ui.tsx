@@ -6,6 +6,7 @@
  * поэтому и вид, и анимации совпадают с презентацией.
  */
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Icon, type IconName } from "@/components/brand/Icon";
 import { characterSvg, type Face, type Palette, type Shape } from "@/components/brand/characters";
@@ -309,6 +310,16 @@ export function Screen({
 }
 
 /**
+ * Слой поверх экрана: шторки, тосты, «Задать вопрос» живут в корне .P
+ * (как в прототипе), а не внутри прокрутки экрана — иначе уезжали бы с ней.
+ */
+export function Overlay({ children }: { children: React.ReactNode }) {
+  const [root, setRoot] = useState<Element | null>(null);
+  useEffect(() => setRoot(document.querySelector(".P") ?? document.body), []);
+  return root ? createPortal(children, root) : null;
+}
+
+/**
  * Шторка прототипа (.scrim + .sheetx): выезжает пружиной, закрывается
  * тапом по затемнению. open=false — плавно уезжает и размонтируется.
  */
@@ -339,13 +350,13 @@ export function Sheet({
   }, [open]);
   if (!mounted) return null;
   return (
-    <>
+    <Overlay>
       <div className={`scrim ${on ? "on" : ""}`} onClick={onClose} />
       <div className={`sheetx ${cls} ${on ? "on" : ""}`} role="dialog">
         {grab && <span className="grab" />}
         {children}
       </div>
-    </>
+    </Overlay>
   );
 }
 
@@ -356,10 +367,12 @@ export function Toast({ text }: { text: string | null }) {
     if (text) setShown(text);
   }, [text]);
   return (
-    <div className={`toast ${text ? "on" : ""}`} role="status">
-      <Ic n="check" />
-      <span>{shown}</span>
-    </div>
+    <Overlay>
+      <div className={`toast ${text ? "on" : ""}`} role="status">
+        <Ic n="check" />
+        <span>{shown}</span>
+      </div>
+    </Overlay>
   );
 }
 

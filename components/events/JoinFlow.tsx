@@ -1,7 +1,7 @@
 "use client";
 
 import { mosyaSrc } from "@/components/brand/Mosya";
-import { Cover, Ic, Sheet, dayLong, eventIcon } from "@/components/proto/ui";
+import { Cover, Ic, Overlay, Sheet, dayLong, eventIcon } from "@/components/proto/ui";
 import { confetti } from "@/lib/mosya/confetti";
 
 export interface JoinEvent {
@@ -39,6 +39,7 @@ export function JoinFlow({
 
   if (event && phase === "done") {
     return (
+      <Overlay>
       <section className="scr aurora up" data-id="done" style={{ zIndex: 350 }}>
         <div className="scroll" style={{ paddingBottom: 180 }}>
           <div className="bar-top">
@@ -80,6 +81,7 @@ export function JoinFlow({
           </button>
         </div>
       </section>
+      </Overlay>
     );
   }
 

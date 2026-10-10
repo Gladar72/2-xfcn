@@ -106,7 +106,9 @@ const QUICK_DAYS = (() => {
   return out;
 })();
 
-export function CreateMeetingFlow() {
+export function CreateMeetingFlow({ business: businessProp = false, editId }: { business?: boolean; editId?: string } = {}) {
+  const [business, setBusiness] = useState(businessProp);
+  const [minSeats, setMinSeats] = useState(1);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -150,7 +152,19 @@ export function CreateMeetingFlow() {
 
   const [seatsTotal, setSeatsTotal] = useState(3);
   const [costType, setCostType] = useState<CostType>("each_pays");
+  // Бизнес-событие: билет / бесплатно / свои условия (оплата — организатору лично).
+  const [bizPricing, setBizPricing] = useState<"ticket" | "free" | "custom">("ticket");
+  const [ticketPrice, setTicketPrice] = useState("");
+  const [bizTerms, setBizTerms] = useState("");
+  // «Анонимно по умолчанию» из настроек приватности.
   const [isAnonymous, setIsAnonymous] = useState(false);
+  useEffect(() => {
+    try {
+      if (!editId && localStorage.getItem("mesto_anon_default") === "1") setIsAnonymous(true);
+    } catch {
+      /* нет хранилища */
+    }
+  }, []);
 
   useEffect(() => {
     fetch("/api/categories")
@@ -166,7 +180,55 @@ export function CreateMeetingFlow() {
       .catch(() => {});
   }, []);
 
+  // Правка встречи: заполняем шаги данными с сервера.
   useEffect(() => {
+    if (!editId) return;
+    fetch(`/api/events/${editId}`)
+      .then((r) => r.json())
+      .then((e) => {
+        if (e.error) return;
+        setBusiness(!!e.isBusiness);
+        setCategorySlug(e.category?.slug ?? null);
+        setTrainingTypeSlug(e.trainingType?.slug ?? null);
+        setTitle(e.title ?? "");
+        setDescription(e.description ?? "");
+        if (e.photoUrl) {
+          setOwnPhoto(e.photoUrl);
+          setPhoto(e.photoUrl);
+        }
+        const d = new Date(e.eventDate);
+        const t0 = new Date();
+        t0.setHours(0, 0, 0, 0);
+        setDi(Math.max(0, Math.min(N_DAYS - 1, Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - t0.getTime()) / 864e5))));
+        const [h = 19, m = 0] = String(e.eventTime ?? "19:00").split(":").map(Number);
+        setHh(h);
+        setMi(Math.round(m / 5) % 12);
+        if (e.eventEndTime) {
+          const [eh = 0, em = 0] = String(e.eventEndTime).split(":").map(Number);
+          const dur = (eh * 60 + em - (h * 60 + m) + 1440) % 1440 || 120;
+          setDuration(dur);
+          setDurOwn(![60, 90, 120, 180, 240].includes(dur));
+        }
+        setPlaceName(e.placeName ?? "");
+        setAddress(e.address ?? "");
+        if (e.latitude != null && e.longitude != null) {
+          setLatitude(e.latitude);
+          setLongitude(e.longitude);
+          setExternalCoords({ latitude: e.latitude, longitude: e.longitude });
+        }
+        setSeatsTotal(e.seatsTotal ?? 3);
+        setMinSeats(Math.max(1, e.seatsTaken ?? 1));
+        if (e.costType) setCostType(e.costType);
+        setIsAnonymous(!!e.isAnonymous);
+        if (e.businessPricingType) setBizPricing(e.businessPricingType);
+        if (e.businessPricingType === "ticket") setTicketPrice(String(e.businessPricingDetails ?? "").replace(/[^\d]/g, ""));
+        if (e.businessPricingType === "custom") setBizTerms(e.businessPricingDetails ?? "");
+      })
+      .catch(() => {});
+  }, [editId]);
+
+  useEffect(() => {
+    if (editId) return;
     if (step === 1) showGuide("create", { low: true });
     if (step === 2) showGuide("cover", { low: true });
     if (step === 3) showGuide("when", { low: true });
@@ -190,7 +252,7 @@ export function CreateMeetingFlow() {
     drawCovers(iconSrc, coverShift).then((list) => {
       if (cancelled) return;
       setCovers(list);
-      if (!photo || photo !== ownPhoto) setPhoto(list[0]);
+      if (!ownPhoto && (!photo || photo !== ownPhoto)) setPhoto(list[0]);
     });
     return () => {
       cancelled = true;
@@ -273,6 +335,8 @@ export function CreateMeetingFlow() {
       if (placeName.trim().length < 2 || latitude === undefined || longitude === undefined) return "Выбери место из подсказок или отметь точку на карте.";
     }
     if (step === 4 && seatsTotal < 1) return "Нужен хотя бы 1 человек кроме тебя.";
+    if (step === 4 && business && bizPricing === "ticket" && !ticketPrice.trim()) return "Укажи цену билета.";
+    if (step === 4 && business && bizPricing === "custom" && !bizTerms.trim()) return "Опиши условия участия.";
     return null;
   }
 
@@ -303,11 +367,12 @@ export function CreateMeetingFlow() {
       return;
     }
     try {
-      const res = await fetch("/api/events", {
-        method: "POST",
+      const res = await fetch(editId ? `/api/events/${editId}` : "/api/events", {
+        method: editId ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          categorySlug,
+          ...(editId ? { action: "update" } : {}),
+          categorySlug: editId && business ? undefined : categorySlug,
           trainingTypeSlug: trainingTypeSlug ?? undefined,
           placeName,
           address,
@@ -317,14 +382,17 @@ export function CreateMeetingFlow() {
           eventTime,
           eventEndTime,
           seatsTotal,
-          costType,
+          costType: business ? undefined : costType,
+          businessPricingType: business ? bizPricing : undefined,
+          businessPricingDetails: business ? (bizPricing === "ticket" ? `${ticketPrice.trim()} ₽` : bizPricing === "custom" ? bizTerms.trim() : undefined) : undefined,
           title: title.trim(),
           description: [isOwn && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description]
             .filter(Boolean)
             .join(". "),
-          isBusiness: false,
-          isAnonymous,
-          photoBase64: photo,
+          isBusiness: business,
+          isAnonymous: business ? false : isAnonymous,
+          // при правке фото отправляем, только если его поменяли (новый data:URL)
+          photoBase64: editId ? (photo?.startsWith("data:") ? photo : undefined) : photo,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -352,6 +420,11 @@ export function CreateMeetingFlow() {
         setSubmitting(false);
         return;
       }
+      if (editId) {
+        peek({ pose: "jump", text: "Сохранил! Участники увидят изменения", quick: true });
+        router.push(`/events/${editId}`);
+        return;
+      }
       confetti();
       setPublishedId(data.eventId as string);
       setTimeout(() => peek({ pose: "jump", text: "Готово! Заявки придут в Telegram — ты сам решаешь, кого принять", quick: true }), 900);
@@ -372,13 +445,17 @@ export function CreateMeetingFlow() {
       seatsTotal,
       seatsTaken: 0,
       photoUrl: photo ?? null,
-      isAnonymous,
+      isAnonymous: business ? false : isAnonymous,
       costType,
+      isBusiness: business,
+      businessPricingType: business ? bizPricing : null,
+      businessPricingDetails: business ? (bizPricing === "ticket" ? (ticketPrice ? `${ticketPrice} ₽` : "Билет") : bizTerms || null) : null,
+      organizer: business ? { name: me?.name ?? "Твоё заведение" } : null,
       category: categorySlug ? { slug: categorySlug } : null,
       trainingType: trainingTypeSlug ? { slug: trainingTypeSlug } : null,
       goingPreview: [],
     }),
-    [title, own, eventDate, eventTime, isAnonymous, placeName, seatsTotal, photo, costType, categorySlug, trainingTypeSlug]
+    [title, own, eventDate, eventTime, isAnonymous, placeName, seatsTotal, photo, costType, categorySlug, trainingTypeSlug, business, bizPricing, ticketPrice, bizTerms, me]
   );
 
   /* ---------- опубликовано ---------- */
@@ -430,16 +507,30 @@ export function CreateMeetingFlow() {
               <i key={i} className={i <= step ? "on" : ""} />
             ))}
           </span>
-          <span style={{ minWidth: 44, textAlign: "right", color: "var(--grey)", fontSize: 13 }}>{step}/4</span>
+          <span style={{ minWidth: 44, textAlign: "right", color: "var(--grey)", fontSize: 13 }}>
+            {editId ? "Правка " : business ? "Бизнес " : ""}
+            {step}/4
+          </span>
         </div>
 
         <div key={step} className="crstep" style={{ ["--dir" as string]: dir } as React.CSSProperties}>
           {step === 1 && (
             <>
-              <h1 className="t">
-                Что <em>планируем</em>?
-              </h1>
-              <p className="sub">Выбери, во что будет встреча. Так её найдут люди с похожими интересами.</p>
+              {business ? (
+                <>
+                  <h1 className="t">
+                    Какое <em>событие</em>?
+                  </h1>
+                  <p className="sub">Выбери ближе всего подходящее. Название напишешь на следующем шаге.</p>
+                </>
+              ) : (
+                <>
+                  <h1 className="t">
+                    Что <em>планируем</em>?
+                  </h1>
+                  <p className="sub">Выбери, во что будет встреча. Так её найдут люди с похожими интересами.</p>
+                </>
+              )}
               <div className="grid4">
                 {cats.map((c) => (
                   <button
@@ -515,7 +606,7 @@ export function CreateMeetingFlow() {
               <p className="sub">Короткое название и картинка решают, придут ли люди.</p>
               <span className="lbl">Название</span>
               <label className="field gl">
-                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Например, кофе перед работой" maxLength={100} />
+                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={business ? "Например, дегустация вин от сомелье" : "Например, кофе перед работой"} maxLength={100} />
               </label>
               <div className="aihead">
                 <span className="lbl" style={{ margin: 0 }}>
@@ -724,7 +815,10 @@ export function CreateMeetingFlow() {
               <p className="sub">Все приходят по заявке — ты сам решаешь, кого принять.</p>
               <span className="lbl">Сколько человек ищешь</span>
               <div className="stepper">
-                <button className="gl" onClick={() => setSeatsTotal((n) => Math.max(1, n - 1))} aria-label="Меньше">
+                <button className="gl" onClick={() => {
+                    if (seatsTotal <= minSeats && editId) say(`Меньше ${minSeats} нельзя — уже подтверждены`, "think");
+                    setSeatsTotal((n) => Math.max(minSeats, n - 1));
+                  }} aria-label="Меньше">
                   −
                 </button>
                 <input
@@ -733,15 +827,20 @@ export function CreateMeetingFlow() {
                   type="number"
                   inputMode="numeric"
                   min={1}
-                  max={30}
+                  max={business ? 500 : 30}
                   value={seatsTotal}
-                  onChange={(e) => setSeatsTotal(Math.max(1, Math.min(30, Number(e.target.value || 1))))}
+                  onChange={(e) => setSeatsTotal(Math.max(minSeats, Math.min(business ? 500 : 30, Number(e.target.value || 1))))}
                   aria-label="Количество человек"
                 />
-                <button className="gl" onClick={() => setSeatsTotal((n) => Math.min(30, n + 1))} aria-label="Больше">
+                <button className="gl" onClick={() => setSeatsTotal((n) => Math.min(business ? 500 : 30, n + 1))} aria-label="Больше">
                   +
                 </button>
               </div>
+              {business ? (
+                <p className="hint2">
+                  {seatsTotal > 20 ? "Больше 20 человек — общий чат не создаётся, только заявки." : "Для бизнес-событий: до 40 на «Старт», до 100 на «Медиум»."}
+                </p>
+              ) : (
               <p className="hint2">
                 Не считая тебя. На встрече будет: ты + {seatsTotal} = {seatsTotal + 1} чел.
                 {seatsTotal > 4 && (
@@ -751,7 +850,43 @@ export function CreateMeetingFlow() {
                   </>
                 )}
               </p>
-              <span className="lbl">Как насчёт расходов?</span>
+              )}
+              <span className="lbl">{business ? "Стоимость" : "Как насчёт расходов?"}</span>
+              {business ? (
+                <>
+                  <div className="costs">
+                    {(
+                      [
+                        ["ticket", "Билет"],
+                        ["free", "Бесплатно"],
+                        ["custom", "Другие условия"],
+                      ] as const
+                    ).map(([v, t]) => (
+                      <button key={v} className={`opt gl ${bizPricing === v ? "on" : ""}`} onClick={() => setBizPricing(v)}>
+                        <span className="radio" />
+                        <b>{t}</b>
+                      </button>
+                    ))}
+                  </div>
+                  {bizPricing === "ticket" && (
+                    <div>
+                      <label className="field gl" style={{ marginTop: 8 }}>
+                        <input value={ticketPrice} onChange={(e) => setTicketPrice(e.target.value.replace(/[^\d]/g, "").slice(0, 6))} placeholder="Цена билета, например 800" inputMode="numeric" />
+                        <span>₽</span>
+                      </label>
+                      <div className="note gl" style={{ marginTop: 8 }}>
+                        <Ic n="wallet" c="s" />
+                        <span>Гости платят тебе лично — на месте или переводом. После одобрения заявки гость получит номер билета и назовёт его на входе.</span>
+                      </div>
+                    </div>
+                  )}
+                  {bizPricing === "custom" && (
+                    <label className="field gl ta" style={{ marginTop: 8 }}>
+                      <textarea rows={2} maxLength={300} value={bizTerms} onChange={(e) => setBizTerms(e.target.value)} placeholder="Например: депозит 1000 ₽ на баре" />
+                    </label>
+                  )}
+                </>
+              ) : (
               <div className="costs">
                 {COSTS.map(([v, t]) => (
                   <button key={v} className={`opt gl ${costType === v ? "on" : ""}`} onClick={() => setCostType(v)}>
@@ -760,7 +895,9 @@ export function CreateMeetingFlow() {
                   </button>
                 ))}
               </div>
-              <span className="lbl">Как публикуем?</span>
+              )}
+              {!business && <span className="lbl">Как публикуем?</span>}
+              {!business && (
               <div style={{ display: "grid", gap: 8 }}>
                 <button className={`opt gl ${!isAnonymous ? "on" : ""}`} onClick={() => setIsAnonymous(false)}>
                   <span className="radio" />
@@ -777,6 +914,7 @@ export function CreateMeetingFlow() {
                   </div>
                 </button>
               </div>
+              )}
               <span className="lbl">Так увидят другие</span>
               <div className="pvbox gl">
                 <div className="pvr">
@@ -834,7 +972,7 @@ export function CreateMeetingFlow() {
       </div>
       <div className="foot">
         <button className={`btn ${step === 4 ? "v" : "k"}`} onClick={next} disabled={submitting}>
-          {step === 4 ? (submitting ? "Публикуем…" : "Опубликовать") : "Дальше"}
+          {step === 4 ? (submitting ? (editId ? "Сохраняем…" : "Публикуем…") : editId ? "Сохранить изменения" : "Опубликовать") : "Дальше"}
         </button>
       </div>
 
