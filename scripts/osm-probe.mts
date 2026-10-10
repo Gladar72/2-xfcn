@@ -11,6 +11,6 @@ const cases: [string, string, string, string][] = [
 for (const [city, cat, tt, q] of cases) {
   const t = Date.now();
   const r = await searchOsm(city, cat, tt, q);
-  console.log(`${cat || "q=" + q}${tt ? "/" + tt : ""}: ${r.length} за ${Date.now() - t} мс →`, r.slice(0, 5).map((p) => `${p.name} (${p.address || "—"})`).join("; "));
+  console.log(`::notice::${cat || "q=" + q}${tt ? "/" + tt : ""}: ${r.length} за ${Date.now() - t} мс →`, r.slice(0, 5).map((p) => `${p.name} (${p.address || "—"})`).join("; "));
   await new Promise((s) => setTimeout(s, 1500));
 }
