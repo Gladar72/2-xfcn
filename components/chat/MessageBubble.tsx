@@ -20,6 +20,10 @@ export interface MessageData {
 interface MessageBubbleProps {
   message: MessageData;
   isOwn: boolean;
+  /** Отправитель чужого сообщения — аватар и имя (как в прототипе). */
+  sender?: { name: string; avatarUrl: string | null } | null;
+  showSender?: boolean;
+  onSenderPress?: () => void;
   /** Только для своих сообщений: какую галочку показать. */
   readStatus?: "sent" | "partial" | "read";
   /** Групповой чат: под сообщением — кто прочитал («Прочитали: Ник, Валерия»). */
@@ -28,109 +32,75 @@ interface MessageBubbleProps {
   onOwnPress?: () => void;
 }
 
-export function MessageBubble({ message, isOwn, readStatus, readCaption, onOwnPress }: MessageBubbleProps) {
+/** Сообщение (.m/.bb прототипа): свои — градиент справа, чужие — стекло слева с аватаром. */
+export function MessageBubble({ message, isOwn, sender, showSender, onSenderPress, readStatus, readCaption, onOwnPress }: MessageBubbleProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const inviteId = parseInvite(message.content);
   const hasImage = !!message.imageUrl;
 
   return (
-    <div className={clsx("m-fade-in flex flex-col", isOwn ? "items-end" : "items-start")}>
-      <div
-        onClick={isOwn && onOwnPress && !message.uploading ? onOwnPress : undefined}
-        className={clsx(
-          isOwn && onOwnPress && "cursor-pointer",
-          "max-w-[75%] text-sm",
-          hasImage ? "p-1" : "px-4 py-2.5",
-          isOwn
-            ? "bg-brand-gradient text-white rounded-[22px_22px_6px_22px] shadow-[0_10px_22px_-14px_rgba(130,60,255,.9)]"
-            : "bg-white/80 text-ink-900 rounded-[22px_22px_22px_6px] shadow-card backdrop-blur-xl"
-        )}
-      >
-        {message.imageUrl && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!message.uploading) setViewerOpen(true);
-            }}
-            className="relative block overflow-hidden rounded-[18px]"
-            aria-label="Открыть фото"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photoThumb(message.imageUrl, 240)}
-              alt="Фото"
-              className={clsx(
-                "block max-h-80 w-60 max-w-full object-cover",
-                message.uploading && "opacity-60"
-              )}
-            />
-            {message.uploading && (
-              <span className="absolute inset-0 flex items-center justify-center">
-                <span className="h-8 w-8 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              </span>
-            )}
-          </button>
-        )}
-        <div className={clsx(hasImage && "px-3 pb-1.5 pt-1")}>
+    <>
+      <div className={clsx("m", isOwn && "me", "new")}>
+        {!isOwn &&
+          (sender?.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={photoThumb(sender.avatarUrl, 56)} alt="" onClick={onSenderPress} style={{ cursor: onSenderPress ? "pointer" : undefined, visibility: showSender === false ? "hidden" : undefined }} />
+          ) : (
+            <span className="mav" onClick={onSenderPress} style={{ visibility: showSender === false ? "hidden" : undefined }}>
+              {(sender?.name ?? "?").charAt(0).toUpperCase()}
+            </span>
+          ))}
+        <div className={clsx("bb", hasImage && "img")} onClick={isOwn && onOwnPress && !message.uploading ? onOwnPress : undefined} style={isOwn && onOwnPress ? { cursor: "pointer" } : undefined}>
+          {!isOwn && showSender && sender && <small>{sender.name}</small>}
+          {message.imageUrl && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!message.uploading) setViewerOpen(true);
+              }}
+              className="mimg"
+              aria-label="Открыть фото"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={photoThumb(message.imageUrl, 240)} alt="Фото" style={message.uploading ? { opacity: 0.6 } : undefined} />
+            </button>
+          )}
           {inviteId ? (
-            <a href={`/events/${inviteId}`} className="block min-w-[200px]">
-              <span className="flex items-center gap-2">
+            <a href={`/events/${inviteId}`} className="minv">
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/mosya/mosya_wave.webp" alt="" className="h-10 w-10 object-contain" />
+                <img src="/brand/mosya/mosya_wave.webp" alt="" style={{ width: 40, height: 40, objectFit: "contain" }} />
                 <span>
-                  <b className="block text-[14px] font-semibold">Приглашение на встречу</b>
-                  <span className={clsx("text-xs", isOwn ? "text-white/80" : "text-ink-600")}>
-                    {isOwn ? "Ты позвал на свою встречу" : "Тебя зовут на встречу"}
-                  </span>
+                  <b style={{ display: "block", fontWeight: 600, fontSize: 14 }}>Приглашение на встречу</b>
+                  <span style={{ fontSize: 12, opacity: 0.8 }}>{isOwn ? "Ты позвал на встречу" : "Тебя зовут на встречу"}</span>
                 </span>
               </span>
-              <span className={clsx("mt-2 block rounded-pill py-2 text-center text-[13px] font-semibold", isOwn ? "bg-white/20" : "bg-brand-gradient text-white")}>
-                Открыть встречу
-              </span>
+              <span className="minvb">Открыть встречу</span>
             </a>
           ) : (
-            message.content && <p className="whitespace-pre-wrap break-words">{message.content}</p>
+            message.content && <span style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{message.content}</span>
           )}
-          <span
-            className={clsx(
-              "mt-1 flex items-center justify-end gap-1 text-caption",
-              isOwn ? "text-white/70" : "text-ink-400"
-            )}
-          >
+          <span className="mt">
             {formatTime(message.createdAt)}
             {isOwn && <ReadTicks status={readStatus ?? "sent"} />}
           </span>
         </div>
       </div>
-
       {isOwn && readCaption && (
-        <button
-          type="button"
-          onClick={onOwnPress}
-          className="mr-1 mt-0.5 max-w-[75%] truncate text-caption text-ink-400"
-        >
+        <button type="button" onClick={onOwnPress} className="mread">
           {readCaption}
         </button>
       )}
-
       {viewerOpen && message.imageUrl && (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/90 p-4"
-          onClick={() => setViewerOpen(false)}
-        >
+        <div className="mview" onClick={() => setViewerOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={photoThumb(message.imageUrl, 640)}
-            alt="Фото"
-            className="max-h-full max-w-full rounded-xl object-contain"
-          />
+          <img src={photoThumb(message.imageUrl, 640)} alt="Фото" />
         </div>
       )}
-    </div>
+    </>
   );
 }
-
 
 function formatTime(iso: string): string {
   const date = new Date(iso);

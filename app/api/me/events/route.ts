@@ -21,7 +21,15 @@ export async function GET(req: NextRequest) {
     .select("event_id, role")
     .eq("user_id", currentUser.userId);
 
-  const eventIds = (memberRows ?? []).map((m) => m.event_id);
+  // Заявки, на которые ещё ждём ответа, — тоже показываем в «Моих встречах»
+  // (статус «Ждём ответа», как в прототипе). Только для предстоящих.
+  const { data: pendingRows } =
+    scope === "archive"
+      ? { data: [] as { event_id: string }[] }
+      : await admin.from("applications").select("event_id").eq("user_id", currentUser.userId).eq("status", "pending");
+  const pendingIds = new Set((pendingRows ?? []).map((r) => r.event_id as string));
+
+  const eventIds = [...new Set([...(memberRows ?? []).map((m) => m.event_id), ...pendingIds])];
   if (eventIds.length === 0) return NextResponse.json({ items: [] });
 
   const roleByEventId = new Map((memberRows ?? []).map((m) => [m.event_id, m.role]));
@@ -89,6 +97,8 @@ export async function GET(req: NextRequest) {
     isBusiness: e.is_business,
     photoUrl: e.photo_url ?? null,
     role: roleByEventId.get(e.id) === "organizer" ? "organizer" : "participant",
+    // pending — заявка отправлена, организатор ещё не ответил
+    myStatus: roleByEventId.has(e.id) ? "member" : pendingIds.has(e.id) ? "pending" : "member",
     pendingApplicationsCount: pendingCountByEventId.get(e.id) ?? 0,
     pendingApplicantPreview: pendingPreviewByEventId.get(e.id) ?? null,
   }));

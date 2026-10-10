@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ReviewForm } from "@/components/reviews/ReviewForm";
+import { ReviewSheet } from "@/components/proto/ReviewSheet";
 
 interface ReviewableMember {
   id: string;
@@ -67,11 +67,5 @@ export function PendingReviewModal() {
     setQueue((prev) => prev.slice(1));
   }
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[rgba(22,18,31,0.35)] px-4 pb-4 m-fade-in">
-      <div className="w-full max-w-md">
-        <ReviewForm personName={currentMember.name} onSubmit={handleSubmit} onCancel={handleSkip} />
-      </div>
-    </div>
-  );
+  return <ReviewSheet open personName={currentMember.name} onSubmit={handleSubmit} onClose={handleSkip} />;
 }

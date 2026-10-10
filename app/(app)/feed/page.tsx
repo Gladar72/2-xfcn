@@ -11,7 +11,7 @@ import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CityPicker } from "@/components/ui/CityPicker";
 import { photoThumb } from "@/lib/photos/thumb";
 import { interestIcon } from "@/lib/data/interests";
-import { Chr, Cover, HeroCard, Ic, MiniMap, RowCard, Screen, Sheet, Toast, eventIcon, type HeroEvent } from "@/components/proto/ui";
+import { Chr, Cover, EmptyIll, HeroCard, Ic, MiniMap, RowCard, Screen, Sheet, Toast, eventIcon, type HeroEvent } from "@/components/proto/ui";
 import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
 
 interface Category {
@@ -401,31 +401,6 @@ function HomeScreen() {
         </div>
       </Sheet>
     </Screen>
-  );
-}
-
-/** Иллюстрация пустого состояния: три персонажа-эмоции (emptyIll прототипа). */
-export function EmptyIll({
-  a = ["flower", "sky", "calm"],
-  b = ["clover", "violet", "wow"],
-  c = ["star", "peach", "smile"],
-}: {
-  a?: [Parameters<typeof Chr>[0]["shape"], Parameters<typeof Chr>[0]["pal"], Parameters<typeof Chr>[0]["face"]];
-  b?: [Parameters<typeof Chr>[0]["shape"], Parameters<typeof Chr>[0]["pal"], Parameters<typeof Chr>[0]["face"]];
-  c?: [Parameters<typeof Chr>[0]["shape"], Parameters<typeof Chr>[0]["pal"], Parameters<typeof Chr>[0]["face"]];
-}) {
-  return (
-    <div className="ill">
-      <span style={{ left: 6, top: 36, width: 70, height: 70, position: "absolute" }}>
-        <Chr shape={a[0]} pal={a[1]} face={a[2]} />
-      </span>
-      <span style={{ left: 52, top: 0, width: 86, height: 86, position: "absolute" }}>
-        <Chr shape={b[0]} pal={b[1]} face={b[2]} />
-      </span>
-      <span style={{ left: 112, top: 52, width: 62, height: 62, position: "absolute" }}>
-        <Chr shape={c[0]} pal={c[1]} face={c[2]} />
-      </span>
-    </div>
   );
 }
 

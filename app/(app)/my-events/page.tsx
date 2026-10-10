@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CATEGORY_ICON } from "@/lib/data/category-icons";
-import { useGuide } from "@/lib/mosya/guide";
 import Link from "next/link";
-import Image from "next/image";
-import { photoThumb } from "@/lib/photos/thumb";
+import { useGuide } from "@/lib/mosya/guide";
+import { Cover, EmptyIll, Ic, Screen, dayLong, eventIcon } from "@/components/proto/ui";
+import { ReviewSheet, type ReviewData } from "@/components/proto/ReviewSheet";
 
 interface MyEvent {
   id: string;
@@ -18,202 +17,178 @@ interface MyEvent {
   isBusiness: boolean;
   photoUrl: string | null;
   role: "organizer" | "participant";
+  myStatus?: "member" | "pending";
   pendingApplicationsCount: number;
-  pendingApplicantPreview: { id: string; name: string; avatarUrl: string | null } | null;
 }
-
-
-const DEFAULT_ICON = "/brand/cat3d/i_world.webp";
-
+interface Reviewable {
+  eventId: string;
+  reviewableMembers: { id: string; name: string }[];
+}
 type Scope = "upcoming" | "archive";
 
-const STATUS_LABEL: Record<string, string> = {
-  published: "Активна",
-  closed: "Встреча забита",
-  completed: "Завершена",
-  cancelled: "Отменена",
-};
+const WD = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
+/** «Мои встречи» (SCR.meets прототипа). */
 export default function MyEventsPage() {
   const [scope, setScope] = useState<Scope>("upcoming");
-  const [items, setItems] = useState<MyEvent[]>([]);
-  const [loading, setLoading] = useState(true);
-  useGuide("myEvents");
-  // Полоса календаря на 2 недели: точки — дни со встречами, тап — фильтр по дню.
+  const [items, setItems] = useState<MyEvent[] | null>(null);
   const [day, setDay] = useState<string | null>(null);
+  const [unread, setUnread] = useState(0);
+  const [reviewable, setReviewable] = useState<Reviewable[]>([]);
+  const [review, setReview] = useState<{ eventId: string; member: { id: string; name: string } } | null>(null);
+  useGuide("myEvents");
+
+  useEffect(() => {
+    fetch("/api/conversations")
+      .then((r) => r.json())
+      .then((d) => setUnread((d.items ?? []).reduce((s: number, i: { unreadCount?: number }) => s + (i.unreadCount || 0), 0)))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setItems([]);
+    setItems(null);
     fetch(`/api/me/events?scope=${scope}`)
       .then((r) => r.json())
-      .then((data) => {
-        if (!cancelled) setItems(data.items ?? []);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+      .then((data) => !cancelled && setItems(data.items ?? []))
+      .catch(() => !cancelled && setItems([]));
+    if (scope === "archive")
+      fetch("/api/reviews/reviewable")
+        .then((r) => r.json())
+        .then((d) => !cancelled && setReviewable(d.events ?? []))
+        .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [scope]);
 
+  async function sendReview(d: ReviewData) {
+    if (!review) return;
+    await fetch("/api/reviews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ eventId: review.eventId, revieweeId: review.member.id, ...d }),
+    }).catch(() => {});
+    setReviewable((list) =>
+      list.map((e) => (e.eventId === review.eventId ? { ...e, reviewableMembers: e.reviewableMembers.filter((m) => m.id !== review.member.id) } : e))
+    );
+    setReview(null);
+  }
+
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    return d;
+  });
+  const shown = (items ?? []).filter((e) => scope !== "upcoming" || !day || e.eventDate.slice(0, 10) === day);
+
   return (
-    <div className="px-5 py-4">
-      <h1 className="m-title mb-4">Мои встречи</h1>
-
-      <div className="mb-4 flex gap-2">
-        <Link
-          href="/search"
-          className="flex-1 rounded-pill m-glass px-4 py-2 text-center text-sm font-medium text-ink-900"
-        >
-          Все встречи
+    <Screen id="meets">
+      <div className="top">
+        <h1 className="t">
+          Мои <em>встречи</em>
+        </h1>
+        <Link className="rb gl" href="/chats" aria-label="Чаты">
+          <Ic n="chat" />
+          {unread > 0 && <span className="cnt">{unread > 9 ? "9+" : unread}</span>}
         </Link>
-        <span className="flex-1 rounded-pill bg-ink-900 px-4 py-2 text-center text-sm font-medium text-white">
-          Мои встречи
-        </span>
       </div>
-
-      {/* Предстоящие / Архив */}
-      <div className="m-glass mb-4 flex rounded-pill p-1">
-        {(
-          [
-            ["upcoming", "Предстоящие"],
-            ["archive", "Архив"],
-          ] as const
-        ).map(([value, label]) => (
-          <button
-            key={value}
-            onClick={() => setScope(value)}
-            className={`flex-1 rounded-pill py-1.5 text-sm font-medium transition-colors ${
-              scope === value ? "bg-ink-900 text-white" : "text-ink-600"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      <div className="seg gl">
+        <span className="si" style={{ width: "calc(50% - 4px)", transform: scope === "archive" ? "translateX(100%)" : "none" }} />
+        <button className={scope === "upcoming" ? "on" : ""} onClick={() => setScope("upcoming")}>
+          Предстоящие
+        </button>
+        <button className={scope === "archive" ? "on" : ""} onClick={() => setScope("archive")}>
+          Архив
+        </button>
       </div>
-
       {scope === "upcoming" && (
-        <div className="-mx-5 mb-4 flex gap-1.5 overflow-x-auto px-5 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {Array.from({ length: 14 }, (_, i) => {
-            const d = new Date();
-            d.setDate(d.getDate() + i);
-            const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-            const has = items.some((e) => e.eventDate.slice(0, 10) === iso);
-            const on = day === iso;
+        <div className="week gl">
+          {week.map((d) => {
+            const k = iso(d);
+            const has = (items ?? []).some((e) => e.eventDate.slice(0, 10) === k);
             return (
-              <button
-                key={iso}
-                onClick={() => setDay(on ? null : iso)}
-                className={`m-press relative flex h-[62px] w-[46px] shrink-0 flex-col items-center justify-center rounded-[18px] ${
-                  on ? "bg-ink-900 text-white" : i === 0 ? "bg-white/90 shadow-[inset_0_0_0_2px_#9B5CFF]" : "m-glass"
-                }`}
-              >
-                <span className={`text-[11px] ${on ? "text-white/70" : "text-ink-400"}`}>
-                  {d.toLocaleDateString("ru-RU", { weekday: "short" }).replace(".", "")}
-                </span>
-                <b className="text-[17px] font-medium leading-tight">{d.getDate()}</b>
-                {has && <span className={`absolute bottom-1.5 h-1.5 w-1.5 rounded-full ${on ? "bg-white" : "bg-accent"}`} />}
+              <button key={k} className={`${day === k ? "on" : ""} ${has ? "has" : ""}`} onClick={() => setDay(day === k ? null : k)}>
+                <span>{WD[d.getDay()]}</span>
+                <b>{d.getDate()}</b>
               </button>
             );
           })}
         </div>
       )}
-
-      {loading && <div className="space-y-3">{[0, 1, 2].map((i) => <div key={i} className="m-sk h-24" />)}</div>}
-
-      {!loading && items.length === 0 && (
-        <div className="flex flex-col items-center px-6 py-16 text-center">
-          <div className="relative mb-4 h-28 w-28">
-            <Image src="/brand/mosya/mosya_think.webp" alt="" fill className="object-contain" sizes="112px" />
-          </div>
-          <p className="text-sm text-ink-600">
-            {scope === "archive"
-              ? "Прошедших встреч пока нет."
-              : "Предстоящих встреч нет — загляни в ленту или создай свою."}
-          </p>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        {items
-          .filter((e) => scope !== "upcoming" || !day || e.eventDate.slice(0, 10) === day)
-          .map((event) => {
-          const icon = event.isBusiness
-            ? CATEGORY_ICON.business ?? DEFAULT_ICON
-            : (event.category && CATEGORY_ICON[event.category.slug]) || DEFAULT_ICON;
-          const isPast = scope === "archive";
-          return (
-            <Link
-              key={event.id}
-              href={`/events/${event.id}`}
-              className={`m-glass m-press flex items-center gap-3 rounded-[22px] p-3 ${isPast ? "opacity-75" : ""}`}
-            >
-              <div className="relative h-12 w-12 shrink-0">
-                {event.photoUrl ? (
-                  <div className={`h-12 w-12 overflow-hidden rounded-[14px] bg-lavender-100 ${isPast ? "grayscale" : ""}`}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photoThumb(event.photoUrl, 48)} alt="" className="h-full w-full object-cover" />
-                  </div>
-                ) : (
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-lavender-100">
-                    <Image src={icon} alt="" width={36} height={36} className="h-9 w-9 object-contain" />
-                  </div>
-                )}
-                {event.pendingApplicationsCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-pill bg-red-500 px-1 text-caption font-semibold text-white">
-                    {event.pendingApplicationsCount}
+      <div style={{ marginTop: 16 }}>
+        <div className="list">
+          {items === null && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
+          {shown.map((e) => {
+            const past = scope === "archive";
+            const rv = reviewable.find((r) => r.eventId === e.id)?.reviewableMembers[0];
+            const st =
+              e.status === "cancelled"
+                ? "Отменена"
+                : past
+                  ? "Завершена"
+                  : e.role === "organizer"
+                    ? "Активна"
+                    : e.myStatus === "pending"
+                      ? "Ждём ответа"
+                      : "Ты в деле";
+            return (
+              <Link key={e.id} href={`/events/${e.id}`} className={`row gl ${past ? "past" : ""}`}>
+                <span className="thw">
+                  <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} cls="th" thumb={140} />
+                  {e.pendingApplicationsCount > 0 && <span className="redn abs">{e.pendingApplicationsCount}</span>}
+                </span>
+                <div className="i">
+                  <b>{e.title}</b>
+                  <span>
+                    {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}
+                    {e.placeName ? ` · ${e.placeName}` : ""}
+                  </span>
+                  <span>
+                    <span className={`role ${e.role === "organizer" ? "org" : ""}`}>{e.role === "organizer" ? "Организатор" : "Участник"}</span>
+                    <span className={`stt ${st === "Ждём ответа" ? "w" : ""}`}>{st}</span>
+                  </span>
+                </div>
+                {e.role === "organizer" && !past && (
+                  <span className="go-s" style={{ display: "grid", placeItems: "center" }} aria-label="Редактировать">
+                    <Ic n="edit" c="xs" />
                   </span>
                 )}
-                <ApplicantPreviewBadge preview={event.pendingApplicantPreview} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-ink-900">{event.title}</p>
-                <p className="truncate text-xs text-ink-600">
-                  {formatDate(event.eventDate)} · {event.eventTime.slice(0, 5)}
-                  {event.placeName ? ` · ${event.placeName}` : ""}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                <span className="block text-caption font-medium text-accent">
-                  {event.role === "organizer" ? "Организатор" : "Участник"}
-                </span>
-                <span className="block text-caption text-ink-400">{STATUS_LABEL[event.status] ?? event.status}</span>
-              </div>
-            </Link>
-          );
-        })}
+                {past && rv && (
+                  <button
+                    className="go-s"
+                    onClick={(ev) => {
+                      ev.preventDefault();
+                      setReview({ eventId: e.id, member: rv });
+                    }}
+                  >
+                    Оценить
+                  </button>
+                )}
+              </Link>
+            );
+          })}
+        </div>
+        {items !== null && shown.length === 0 && (
+          <div className="empty" style={{ paddingTop: 14 }}>
+            <EmptyIll a={["cloud", "mint", "calm"]} b={["ball", "lilac", "calm"]} c={["squ", "pink", "smile"]} />
+            <span>
+              {scope === "archive"
+                ? "Здесь будут прошедшие встречи — после них можно оценить участников."
+                : day
+                  ? "В этот день встреч нет."
+                  : "Ты пока никуда не идёшь — загляни в ленту или создай свою встречу."}
+            </span>
+            {scope === "upcoming" && !day && (
+              <Link className="btn k" href="/feed" style={{ marginTop: 6, width: "auto", padding: "0 22px", height: 46 }}>
+                Найти встречу
+              </Link>
+            )}
+          </div>
+        )}
       </div>
-    </div>
-  );
-}
-
-function formatDate(dateIso: string): string {
-  return new Date(dateIso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
-}
-
-/**
- * Аватарка самого свежего заявителя (или плюсик, если фото нет) — снизу
- * от иконки категории на карточке встречи, чтобы сразу видеть, КТО
- * откликнулся, не только сколько (число уже показано сверху).
- */
-function ApplicantPreviewBadge({
-  preview,
-}: {
-  preview: { id: string; name: string; avatarUrl: string | null } | null;
-}) {
-  if (!preview) return null;
-
-  return (
-    <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center overflow-hidden rounded-full border-2 border-white bg-lavender-100 text-caption font-semibold text-ink-600">
-      {preview.avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={photoThumb(preview.avatarUrl, 24)} alt={preview.name} className="h-full w-full object-cover" />
-      ) : (
-        <span>+</span>
-      )}
-    </div>
+      <ReviewSheet open={!!review} personName={review?.member.name ?? ""} onSubmit={sendReview} onClose={() => setReview(null)} />
+    </Screen>
   );
 }
