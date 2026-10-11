@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { createPortal } from "react-dom";
 
 interface PhotoCropModalProps {
   src: string;
@@ -26,6 +27,10 @@ export function PhotoCropModal({ src, aspectRatio, onCancel, onConfirm }: PhotoC
     null
   );
   const [rendering, setRendering] = useState(false);
+  // Окно рисуем прямо в <body>: внутри экрана (.scr с анимацией) «fixed»
+  // считается от экрана, и нижние кнопки перекрывал таббар.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Базовый размер картинки внутри рамки — как object-fit:cover при
   // scale=1 (заполняет рамку целиком, без пустых полей), дальше scale
@@ -111,9 +116,27 @@ export function PhotoCropModal({ src, aspectRatio, onCancel, onConfirm }: PhotoC
     onConfirm(dataUrl);
   }
 
-  return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-black/90 p-4">
-      <div className="flex flex-1 items-center justify-center overflow-hidden">
+  if (!mounted) return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 flex flex-col bg-black/90 px-4"
+      style={{ zIndex: 2147483000, paddingTop: "max(env(safe-area-inset-top, 0px), 12px)", fontFamily: "var(--f, inherit)" }}
+    >
+      <div className="mx-auto flex w-full max-w-md shrink-0 items-center justify-between gap-3 py-3">
+        <button type="button" onClick={onCancel} className="rounded-pill bg-white/10 px-4 py-2 text-sm font-medium text-white">
+          Отмена
+        </button>
+        <span className="text-sm font-medium text-white">Обложка встречи</span>
+        <button
+          type="button"
+          onClick={handleConfirm}
+          disabled={!naturalSize || rendering}
+          className="rounded-pill bg-brand-gradient px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+        >
+          {rendering ? "…" : "Готово"}
+        </button>
+      </div>
+      <div className="flex flex-1 flex-col items-center justify-center gap-3 overflow-hidden">
         <div
           ref={containerRef}
           onPointerDown={handlePointerDown}
@@ -145,9 +168,10 @@ export function PhotoCropModal({ src, aspectRatio, onCancel, onConfirm }: PhotoC
             }}
           />
         </div>
+        <p className="text-center text-xs text-white/70">Двигай фото пальцем, ползунком — приблизить. Потом нажми «Сохранить фото».</p>
       </div>
 
-      <div className="mx-auto w-full max-w-md shrink-0 space-y-4 pb-[env(safe-area-inset-bottom,0px)] pt-4">
+      <div className="mx-auto w-full max-w-md shrink-0 space-y-4 pt-4" style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 20px)" }}>
         <div className="flex items-center gap-3">
           <span className="text-xs text-white/70">−</span>
           <input
@@ -175,10 +199,11 @@ export function PhotoCropModal({ src, aspectRatio, onCancel, onConfirm }: PhotoC
             disabled={!naturalSize || rendering}
             className="flex-1 rounded-pill bg-brand-gradient py-3 text-sm font-semibold text-white disabled:opacity-60 m-btn-v relative overflow-hidden"
           >
-            {rendering ? "Готовим..." : "Готово"}
+            {rendering ? "Сохраняем…" : "Сохранить фото"}
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
