@@ -34,6 +34,23 @@ export interface FeedEvent {
   isMine: boolean;
   organizer: Organizer | null;
   myApplicationStatus: "pending" | "accepted" | "rejected" | null;
+  isLive?: boolean;
+  isBoosted?: boolean;
+  isAnonymous?: boolean;
+  organizerHidden?: boolean;
+  goingCount?: number;
+  goingPreview?: { id: string; name: string; avatarUrl: string | null }[];
+  businessPricingType?: "ticket" | "free" | "custom" | null;
+  businessPricingDetails?: string | null;
+}
+
+export interface PersonCard {
+  id: string;
+  name: string;
+  age: number;
+  avatarUrl: string | null;
+  sharedInterests: string[];
+  sharedCount: number;
 }
 
 export interface EventDetail extends Omit<FeedEvent, "isHighlighted" | "isMine" | "myApplicationStatus"> {
@@ -58,6 +75,9 @@ export interface MapEvent {
   isBusiness: boolean;
   placeName: string | null;
   organizer: { name: string; avatarUrl: string | null } | null;
+  category?: { slug: string; name: string } | null;
+  isAnonymous?: boolean;
+  organizerHidden?: boolean;
 }
 
 export interface MyProfile {
@@ -73,4 +93,5 @@ export interface MyProfile {
   eventsOrganizedCount: number;
   eventsAttendedCount: number;
   phone: string | null;
+  email: string | null;
 }

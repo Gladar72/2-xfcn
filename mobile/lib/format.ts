@@ -49,3 +49,34 @@ export function formatPhoneInput(raw: string): string {
   if (d.length > 8) out += "-" + d.slice(8, 10);
   return out;
 }
+
+/** «сегодня» / «завтра» / «пт» — подпись под временем на карточке. */
+export function dayShort(dateIso: string): string {
+  const [y, m, d] = dateIso.split("-").map(Number) as [number, number, number];
+  const t = new Date();
+  const diff = Math.round((new Date(y, m - 1, d).getTime() - new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) / 86400000);
+  if (diff === 0) return "сегодня";
+  if (diff === 1) return "завтра";
+  return ["вс", "пн", "вт", "ср", "чт", "пт", "сб"][new Date(y, m - 1, d).getDay()]!;
+}
+
+const COST_SHORT: Record<string, string> = {
+  each_pays: "за себя",
+  organizer_treats: "угощаю",
+  free: "бесплатно",
+  negotiable: "договоримся",
+};
+
+/** Цена на карточке: «за себя», «угощаю», «350 ₽». */
+export function costShort(e: { costType?: string | null; isBusiness?: boolean; businessPricingType?: string | null; businessPricingDetails?: string | null }): string {
+  if (e.isBusiness) return e.businessPricingType === "free" ? "бесплатно" : e.businessPricingDetails?.trim() || "бесплатно";
+  return (e.costType && COST_SHORT[e.costType]) || "за себя";
+}
+
+export function plural(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
+  return many;
+}
