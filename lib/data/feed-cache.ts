@@ -1,5 +1,5 @@
 /**
- * Кэш ленты — короткая память сервера на 15 секунд.
+ * Кэш ленты — короткая память сервера на 45 секунд.
  *
  * Список встреч города (с фильтрами) одинаковый для всех, кто открывает
  * ленту в одни и те же секунды. Вместо того чтобы каждый раз спрашивать
@@ -14,10 +14,11 @@
  * Память у каждого экземпляра функции Vercel своя; при создании встречи
  * кэш этого экземпляра сбрасывается (clearFeedCache), чтобы автор сразу
  * видел свою встречу. В худшем случае новая встреча появится у других
- * через 15 секунд.
+ * через 45 секунд. Справочники (категории) живут дольше — см. ttlMs.
  */
 
-const CACHE_TTL_MS = 15_000;
+// 45 секунд вместо 15 — в 3 раза меньше запросов к базе при наплыве людей.
+const CACHE_TTL_MS = 45_000;
 const MAX_ENTRIES = 500;
 
 interface Entry<T> {
@@ -27,7 +28,7 @@ interface Entry<T> {
 
 const cache = new Map<string, Entry<unknown>>();
 
-export async function cachedFeed<T>(key: string, load: () => Promise<T>): Promise<T> {
+export async function cachedFeed<T>(key: string, load: () => Promise<T>, ttlMs: number = CACHE_TTL_MS): Promise<T> {
   const now = Date.now();
   const hit = cache.get(key) as Entry<T> | undefined;
   if (hit && hit.expiresAt > now) return hit.value;
@@ -42,7 +43,7 @@ export async function cachedFeed<T>(key: string, load: () => Promise<T>): Promis
   }
 
   const value = load();
-  cache.set(key, { expiresAt: now + CACHE_TTL_MS, value });
+  cache.set(key, { expiresAt: now + ttlMs, value });
   // Ошибку не кэшируем — следующий запрос попробует снова.
   value.catch(() => {
     if (cache.get(key)?.value === value) cache.delete(key);
