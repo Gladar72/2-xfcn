@@ -1,18 +1,20 @@
 import { useCallback, useState } from "react";
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect } from "expo-router";
-import { Image } from "expo-image";
-import Ionicons from "@expo/vector-icons/Ionicons";
-import { Avatar, Button } from "@/components/ui";
+import { LinearGradient } from "expo-linear-gradient";
+import { Aurora, Glass, Mosya } from "@/components/brand";
+import { Icon, type IconName } from "@/components/Icon";
+import { Avatar } from "@/components/ui";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { API_URL } from "@/lib/config";
-import { colors, font, radius } from "@/lib/theme";
+import { colors, FONT } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 
 export default function ProfileScreen() {
   const { signOut } = useAuth();
+  const insets = useSafeAreaInsets();
   const [me, setMe] = useState<MyProfile | null>(null);
 
   useFocusEffect(
@@ -29,63 +31,81 @@ export default function ProfileScreen() {
   }
 
   return (
-    <SafeAreaView edges={["top"]} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
-        <Text style={styles.title}>Профиль</Text>
+    <View style={{ flex: 1 }}>
+      <Aurora />
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 120, gap: 12 }} showsVerticalScrollIndicator={false}>
         <View style={styles.card}>
-          <Image source={require("@/assets/mascot.png")} style={styles.mascot} contentFit="contain" />
-          <Avatar uri={me?.avatarUrl} name={me?.name} size={96} />
+          <LinearGradient colors={["#6C3BFF", "#A24DFF", "#FF6FA0"]} start={{ x: 0, y: 0.2 }} end={{ x: 1, y: 0.8 }} style={StyleSheet.absoluteFill} />
+          <Mosya pose="glasses" size={96} style={styles.mosya} />
+          <View style={styles.avaRing}>
+            <Avatar uri={me?.avatarUrl} name={me?.name} size={96} />
+          </View>
           <Text style={styles.name}>{me ? `${me.name}, ${me.age}` : " "}</Text>
-          <Text style={styles.meta}>{me?.city ?? ""}</Text>
+          <Text style={styles.city}>{me?.city ?? ""}</Text>
           {me?.bio ? <Text style={styles.bio}>{me.bio}</Text> : null}
           <View style={styles.stats}>
             <Stat value={me?.ratingAvg ? me.ratingAvg.toFixed(1) : "—"} label="рейтинг" />
+            <View style={styles.statSep} />
             <Stat value={String(me?.eventsOrganizedCount ?? 0)} label="создал" />
+            <View style={styles.statSep} />
             <Stat value={String(me?.eventsAttendedCount ?? 0)} label="сходил" />
           </View>
         </View>
 
-        <Row
-          icon="call-outline"
-          label={me?.phone ? `Телефон ${me.phone}` : "Привязать номер телефона"}
-          onPress={() => router.push("/link-phone")}
-        />
-        <Row icon="document-text-outline" label="Оферта" onPress={() => Linking.openURL(`${API_URL}/legal/offer`)} />
-        <Row icon="shield-checkmark-outline" label="Политика конфиденциальности" onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)} />
-        <Row icon="paper-plane-outline" label="Открыть «Место» в Telegram" onPress={() => Linking.openURL("https://t.me/Mesto_people_bot")} />
+        <Glass strong style={styles.list}>
+          <Row icon="mail" label={me?.email ? `Почта: ${me.email}` : "Привязать почту для входа"} onPress={() => router.push("/link-email")} />
+          <Row icon="tg" label="Открыть «Место» в Telegram" onPress={() => Linking.openURL("https://t.me/Mesto_people_bot")} />
+          <Row icon="doc" label="Оферта" onPress={() => Linking.openURL(`${API_URL}/legal/offer`)} />
+          <Row icon="shield" label="Политика конфиденциальности" onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)} last />
+        </Glass>
 
-        <Button title="Выйти" variant="ghost" onPress={confirmSignOut} />
+        <Pressable onPress={confirmSignOut} style={styles.logout} hitSlop={8}>
+          <Text style={styles.logoutText}>Выйти из аккаунта</Text>
+        </Pressable>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 function Stat({ value, label }: { value: string; label: string }) {
   return (
     <View style={{ alignItems: "center", flex: 1 }}>
-      <Text style={{ fontSize: font.title, fontWeight: "800", color: colors.ink900 }}>{value}</Text>
-      <Text style={{ fontSize: font.xs, color: colors.ink600 }}>{label}</Text>
+      <Text style={styles.statValue}>{value}</Text>
+      <Text style={styles.statLabel}>{label}</Text>
     </View>
   );
 }
 
-function Row({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) {
+function Row({ icon, label, onPress, last }: { icon: IconName; label: string; onPress: () => void; last?: boolean }) {
   return (
-    <Pressable onPress={onPress} style={styles.row}>
-      <Ionicons name={icon} size={22} color={colors.accent} />
-      <Text style={{ flex: 1, fontSize: font.base, color: colors.ink900, fontWeight: "600" }}>{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color={colors.ink400} />
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, !last && styles.rowSep, pressed && { opacity: 0.7 }]}>
+      <View style={styles.rowIc}>
+        <Icon name={icon} size={19} color={colors.violet} />
+      </View>
+      <Text style={styles.rowText} numberOfLines={1}>
+        {label}
+      </Text>
+      <Icon name="chev" size={18} color={colors.grey} />
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: font.display, fontWeight: "800", color: colors.ink900 },
-  card: { backgroundColor: "#fff", borderRadius: radius.card, padding: 20, alignItems: "center", gap: 6, borderWidth: 1, borderColor: colors.border, overflow: "hidden" },
-  mascot: { position: "absolute", right: -10, top: -6, width: 90, height: 86, opacity: 0.9 },
-  name: { fontSize: font.title, fontWeight: "800", color: colors.ink900, marginTop: 6 },
-  meta: { fontSize: font.sm, color: colors.ink600 },
-  bio: { fontSize: font.sm, color: colors.ink900, textAlign: "center", marginTop: 4 },
-  stats: { flexDirection: "row", marginTop: 12, alignSelf: "stretch" },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 18, padding: 16, borderWidth: 1, borderColor: colors.border },
+  card: { borderRadius: 32, padding: 20, paddingTop: 26, alignItems: "center", gap: 4, overflow: "hidden" },
+  mosya: { position: "absolute", right: -6, top: -4, opacity: 0.95 },
+  avaRing: { padding: 4, borderRadius: 60, backgroundColor: "rgba(255,255,255,0.35)" },
+  name: { fontFamily: FONT, fontSize: 24, fontWeight: "500", color: "#fff", marginTop: 8, letterSpacing: -0.5 },
+  city: { fontFamily: FONT, fontSize: 14, color: "rgba(255,255,255,0.85)" },
+  bio: { fontFamily: FONT, fontSize: 14, color: "#fff", textAlign: "center", marginTop: 6, opacity: 0.95 },
+  stats: { flexDirection: "row", marginTop: 16, alignSelf: "stretch", backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 22, paddingVertical: 12, borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
+  statSep: { width: 1, backgroundColor: "rgba(255,255,255,0.3)" },
+  statValue: { fontFamily: FONT, fontSize: 22, fontWeight: "500", color: "#fff" },
+  statLabel: { fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.85)" },
+  list: { borderRadius: 26, paddingHorizontal: 12 },
+  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
+  rowSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(108,59,255,0.15)" },
+  rowIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
+  rowText: { flex: 1, fontFamily: FONT, fontSize: 15, color: colors.ink },
+  logout: { alignItems: "center", paddingVertical: 14 },
+  logoutText: { fontFamily: FONT, fontSize: 15, color: colors.grey },
 });
