@@ -8,6 +8,7 @@ import { Cover, Ic, Sheet, Toast, dayLong, eventIcon } from "@/components/proto/
 import { useGuide } from "@/lib/mosya/guide";
 import { peek, say } from "@/lib/mosya/peek";
 import { goBack } from "@/lib/nav/back";
+import { photoThumb } from "@/lib/photos/thumb";
 import { distanceLabel } from "@/lib/geo/approx-distance";
 import { suggestMeet } from "@/lib/mosya/suggest";
 
@@ -17,7 +18,8 @@ export interface Person {
   avatarUrl: string | null;
   photos?: string[];
   age: number;
-  bio: string | null;
+  /** undefined — полный профиль ещё грузится. */
+  bio?: string | null;
   ratingAvg: number;
   completedMeetingsCount: number;
   interests: string[];
@@ -59,13 +61,19 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   const [myEvents, setMyEvents] = useState<MyEvent[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [gi, setGi] = useState(0);
-  const swipe = useRef<{ x: number; y: number; top: boolean; axis: "x" | "y" | null } | null>(null);
+  const swipe = useRef<{ x: number; y: number; t: number; top: boolean; axis: "x" | "y" | null } | null>(null);
   const card = useRef<HTMLElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
   useGuide(deck ? "deck" : "person", { when: person !== null, force: !!deck });
+
+  // Колода сначала даёт короткую карточку (имя, фото), потом полный профиль —
+  // подменяем без перерисовки экрана, чтобы не было мигания.
+  useEffect(() => {
+    if (initial) setPerson((p) => (p && p.id === initial.id && p.bio !== undefined && initial.bio === undefined ? p : initial));
+  }, [initial]);
 
   useEffect(() => {
     if (initial) return;
@@ -75,23 +83,35 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       .catch(() => setError("Проблема с соединением."));
   }, [id, initial]);
 
+  // Все фото человека грузим сразу — быстрые тапы не показывают пустоту.
+  useEffect(() => {
+    for (const src of person?.photos ?? []) {
+      const im = new Image();
+      im.decoding = "async";
+      im.src = photoThumb(src, 300);
+    }
+  }, [person?.photos]);
+
   /** Карточка улетает в сторону, потом колода показывает следующего. */
+  const flying = useRef(false);
+  const raf = useRef(0);
   function fly(dir: 1 | -1) {
     const el = card.current;
-    if (!deck) return;
+    if (!deck || flying.current) return;
     if (dir === -1 && !deck.hasPrev) return snap();
+    flying.current = true;
     if (el) {
-      el.style.transition = "transform .28s cubic-bezier(.3,.7,.4,1), opacity .28s";
-      el.style.transform = `translateX(${dir * -120}%) rotate(${dir * -14}deg)`;
+      el.style.transition = "transform .22s cubic-bezier(.3,.6,.4,1), opacity .22s";
+      el.style.transform = `translate3d(${dir * -120}%,0,0) rotate(${dir * -12}deg)`;
       el.style.opacity = "0";
     }
-    setTimeout(() => deck.onSwipe(dir), 240);
+    setTimeout(() => deck.onSwipe(dir), 200);
   }
   function snap() {
     const el = card.current;
     if (!el) return;
-    el.style.transition = "transform .3s cubic-bezier(.2,.9,.3,1.2)";
-    el.style.transform = "";
+    el.style.transition = "transform .28s cubic-bezier(.2,.9,.3,1.15)";
+    el.style.transform = "translate3d(0,0,0)";
   }
 
   async function openDirect(eventId?: string) {
@@ -202,7 +222,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         {photos.length ? (
           photos.map((src, i) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={src} src={src} className={i === gi ? "on" : ""} alt="" />
+            <img key={src} src={photoThumb(src, 300)} className={i === gi ? "on" : ""} alt="" decoding="async" />
           ))
         ) : (
           <div style={{ position: "absolute", inset: 0, background: "var(--g)", display: "grid", placeItems: "center" }}>
@@ -261,7 +281,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         ref={bodyRef}
         onTouchStart={(e) => {
           const t = e.touches[0];
-          if (t) swipe.current = { x: t.clientX, y: t.clientY, top: e.target === e.currentTarget, axis: null };
+          if (t && !flying.current) swipe.current = { x: t.clientX, y: t.clientY, t: Date.now(), top: e.target === e.currentTarget, axis: null };
         }}
         onTouchMove={(e) => {
           const st = swipe.current;
@@ -271,9 +291,13 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           const dy = t.clientY - st.y;
           if (!st.axis && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) st.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
           if (st.axis === "x" && card.current) {
-            // Карточка тянется за пальцем, как в Tinder.
-            card.current.style.transition = "none";
-            card.current.style.transform = `translateX(${dx}px) rotate(${dx / 24}deg)`;
+            // Карточка тянется за пальцем, как в Tinder (один кадр — одно обновление).
+            const el = card.current;
+            cancelAnimationFrame(raf.current);
+            raf.current = requestAnimationFrame(() => {
+              el.style.transition = "none";
+              el.style.transform = `translate3d(${dx}px,0,0) rotate(${dx / 26}deg)`;
+            });
           }
         }}
         onTouchEnd={(e) => {
@@ -285,8 +309,11 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           const dy = t.clientY - st.y;
           if (deck) {
             if (st.axis !== "x") return;
+            cancelAnimationFrame(raf.current);
             // Свайп влево — следующий человек, вправо — предыдущий.
-            if (Math.abs(dx) > 90) fly(dx < 0 ? 1 : -1);
+            // Быстрый короткий взмах тоже считается.
+            const fast = Math.abs(dx) > 35 && Date.now() - st.t < 300;
+            if (Math.abs(dx) > 90 || fast) fly(dx < 0 ? 1 : -1);
             else snap();
             return;
           }
@@ -318,7 +345,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             <div className="blk-h">
               <b>О себе</b>
             </div>
-            <p className="about">{person.bio || "Пока без описания"}</p>
+            <p className="about">{person.bio === undefined ? "" : person.bio || "Пока без описания"}</p>
           </div>
           {common.length > 0 && (
             <div className="blk">

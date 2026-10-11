@@ -7,11 +7,33 @@ import { PersonView, type Person } from "@/components/people/PersonView";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { Ic } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
+import { photoThumb } from "@/lib/photos/thumb";
 
 interface Card {
   id: string;
+  name: string;
+  age: number;
   avatarUrl: string | null;
+  ratingAvg: number;
+  completedMeetingsCount: number;
+  sharedInterests: string[];
   distanceKm?: number | null;
+}
+
+/** Короткий профиль из карточки — показываем сразу, пока грузится полный. */
+function quick(c: Card): Person {
+  return {
+    id: c.id,
+    name: c.name,
+    age: c.age,
+    avatarUrl: c.avatarUrl,
+    photos: c.avatarUrl ? [c.avatarUrl] : [],
+    ratingAvg: c.ratingAvg,
+    completedMeetingsCount: c.completedMeetingsCount,
+    interests: c.sharedInterests,
+    commonInterests: c.sharedInterests,
+    distanceKm: c.distanceKm,
+  };
 }
 
 /**
@@ -79,17 +101,18 @@ function Deck() {
     );
   }
 
-  // Заранее подгружаем соседей: следующий профиль открывается мгновенно.
+  // Заранее подгружаем соседей: следующий профиль и его фото уже готовы.
   useEffect(() => {
     if (!cards) return;
-    for (const c of [cards[ix], cards[ix + 1], cards[ix - 1]]) {
+    for (const c of [cards[ix], cards[ix + 1], cards[ix + 2], cards[ix - 1]]) {
       if (!c || cache.current.has(c.id)) continue;
       cache.current.set(c.id, null);
-      if (c.avatarUrl) new Image().src = c.avatarUrl;
+      if (c.avatarUrl) new Image().src = photoThumb(c.avatarUrl, 300);
       fetch(`/api/users/${c.id}`)
         .then((r) => r.json())
         .then((d) => {
           if (!d.error) {
+            for (const src of (d.photos ?? []) as string[]) new Image().src = photoThumb(src, 300);
             cache.current.set(c.id, d);
             force((n) => n + 1);
           }
@@ -167,13 +190,13 @@ function Deck() {
       <div className="deck-under">
         {next?.avatarUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={next.avatarUrl} alt="" />
+          <img src={photoThumb(next.avatarUrl, 300)} alt="" decoding="async" />
         )}
       </div>
       <PersonView
       key={c.id}
       id={c.id}
-      initial={cached ?? undefined}
+      initial={cached ?? quick(c)}
       deck={{
         hasPrev: ix > 0,
         from,
