@@ -52,7 +52,7 @@ export default function EditProfilePage() {
     const s = slot.current;
     setBusySlot(s);
     try {
-      const dataUrl = await resizeImageFile(file, s === 0 ? 1600 : 1280, 0.82);
+      const dataUrl = await resizeImageFile(file, 1600, 0.9);
       const res = await fetch(s === 0 ? "/api/me/avatar" : "/api/me/photos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
