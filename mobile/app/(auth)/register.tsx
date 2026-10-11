@@ -8,7 +8,8 @@ import { Button, Chip, ErrorText, Field } from "@/components/ui";
 import { api, type ApiError } from "@/lib/api";
 import { useAuth, type AuthResult } from "@/lib/auth";
 import { loginWithTelegram } from "@/lib/telegramLogin";
-import { colors, font } from "@/lib/theme";
+import { Aurora, Glass, Title } from "@/components/brand";
+import { colors, FONT } from "@/lib/theme";
 
 const POPULAR_CITIES = ["Тюмень", "Москва", "Санкт-Петербург", "Екатеринбург", "Новосибирск", "Казань"];
 
@@ -107,17 +108,18 @@ export default function RegisterScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1 }}>
+      <Aurora />
       <ScrollView contentContainerStyle={styles.wrap} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>Расскажи о себе</Text>
+        <Title plain="Расскажи " em="о себе" size={30} />
         <Text style={styles.sub}>Так люди поймут, с кем идут на встречу</Text>
 
-        {ticketKind === "phone" ? (
-          <View style={styles.tgBox}>
+        {ticketKind === "phone" || ticketKind === "email" ? (
+          <Glass strong style={styles.tgBox}>
             <Text style={styles.tgTitle}>Уже есть профиль в «Место» в Telegram?</Text>
-            <Text style={styles.tgText}>Войди через Telegram — номер привяжется к твоему профилю, встречи и чаты сохранятся.</Text>
+            <Text style={styles.tgText}>Войди через Telegram — почта привяжется к твоему профилю, встречи и чаты сохранятся.</Text>
             <Button title="Войти через Telegram" variant="telegram" onPress={useExistingTelegramProfile} loading={tgBusy} />
             <ErrorText>{tgError}</ErrorText>
-          </View>
+          </Glass>
         ) : null}
 
         <Pressable onPress={pickPhoto} style={styles.photo}>
@@ -172,7 +174,7 @@ export default function RegisterScreen() {
           <View style={[styles.check, agreed && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
             {agreed ? <Text style={{ color: "#fff", fontWeight: "900" }}>✓</Text> : null}
           </View>
-          <Text style={{ flex: 1, color: colors.ink600, fontSize: font.sm }}>Мне есть 18 лет, принимаю условия оферты и политику конфиденциальности</Text>
+          <Text style={{ flex: 1, fontFamily: FONT, color: colors.ink2, fontSize: 14 }}>Мне есть 18 лет, принимаю условия оферты и политику конфиденциальности</Text>
         </Pressable>
 
         <ErrorText>{error}</ErrorText>
@@ -185,23 +187,24 @@ export default function RegisterScreen() {
 
 const styles = StyleSheet.create({
   wrap: { padding: 20, gap: 12, paddingBottom: 40 },
-  title: { fontSize: font.display, fontWeight: "800", color: colors.ink900 },
-  sub: { fontSize: font.sm, color: colors.ink600, marginBottom: 8 },
-  label: { fontSize: font.sm, color: colors.ink600, fontWeight: "600" },
+  sub: { fontFamily: FONT, fontSize: 15, color: colors.grey, marginBottom: 8 },
+  label: { fontFamily: FONT, fontSize: 13.5, color: colors.grey, fontWeight: "500", marginLeft: 6 },
   wrapRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   photo: {
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    backgroundColor: colors.lavender100,
+    width: 116,
+    height: 116,
+    borderRadius: 58,
+    backgroundColor: "rgba(255,255,255,0.7)",
+    borderWidth: 2,
+    borderColor: "#fff",
     alignSelf: "center",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
-  tgBox: { backgroundColor: colors.lavender100, borderRadius: 18, padding: 14, gap: 8, marginBottom: 8 },
-  tgTitle: { fontSize: font.base, fontWeight: "800", color: colors.ink900 },
-  tgText: { fontSize: font.sm, color: colors.ink600 },
+  tgBox: { borderRadius: 26, padding: 16, gap: 8, marginBottom: 8 },
+  tgTitle: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink },
+  tgText: { fontFamily: FONT, fontSize: 14, color: colors.grey },
   terms: { flexDirection: "row", gap: 12, alignItems: "center", marginVertical: 8 },
-  check: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, borderColor: colors.border, alignItems: "center", justifyContent: "center" },
+  check: { width: 26, height: 26, borderRadius: 9, borderWidth: 2, borderColor: "rgba(108,59,255,0.35)", alignItems: "center", justifyContent: "center" },
 });
