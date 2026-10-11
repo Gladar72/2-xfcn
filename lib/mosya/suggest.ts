@@ -72,10 +72,11 @@ export function suggestMeet(interests: string[], common: string[]): Suggestion |
     ideas.push({ ...idea, icon: interestIcon(i), interest: i, common: common.includes(i) });
     if (ideas.length === 2) break;
   }
-  if (!ideas.length) return null;
+  const [first, second] = ideas;
+  if (!first) return null;
   const low = (l: string[]) => l.map((x) => x.toLowerCase()).join(", ");
   const rest = interests.filter((i) => !common.includes(i)).slice(0, 3);
-  const offer = ideas.length > 1 ? `${ideas[0].what} или ${ideas[1].what}` : ideas[0].what;
+  const offer = second ? `${first.what} или ${second.what}` : first.what;
   const about = common.length
     ? `у вас общее: ${low(common.slice(0, 3))}${rest.length ? `, а ещё любит ${low(rest)}` : ""}`
     : `в интересах: ${low(rest)}`;

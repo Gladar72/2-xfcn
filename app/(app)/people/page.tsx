@@ -107,7 +107,8 @@ function Deck() {
       </section>
     );
 
-  if (ix >= cards.length)
+  const c = cards[ix];
+  if (!c)
     return (
       <section className="scr aurora in" data-id="deck-end">
         <div className="bar-top" style={{ padding: "0 20px" }}>
@@ -158,7 +159,6 @@ function Deck() {
       </section>
     );
 
-  const c = cards[ix];
   const next = cards[ix + 1];
   const cached = cache.current.get(c.id);
   return (
