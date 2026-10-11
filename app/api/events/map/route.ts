@@ -3,6 +3,7 @@ import { ANONYMOUS_ORGANIZER_NAME, fuzzCoordinate } from "@/lib/events/anonymity
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { eventTiming, eventUtcOffsetHours } from "@/lib/events/timing";
+import { cachedFeed } from "@/lib/data/feed-cache";
 
 /**
  * GET /api/events/map?city=...
@@ -98,7 +99,20 @@ export async function GET(req: NextRequest) {
     query = query.gte("event_time", "18:00:00").lt("event_time", "23:59:59");
   }
 
-  const { data: events, error } = await query;
+  // Общий для всех список встреч города — из короткого кэша (как лента),
+  // личное (анонимность, возраст/пол) считается ниже для каждого отдельно.
+  const mapKey = JSON.stringify(["map", city, todayIso, categorySlugsParam, costTypeParam, dateFilter, timeOfDay]);
+  let events: Awaited<typeof query>["data"] = null;
+  let error: unknown = null;
+  try {
+    events = await cachedFeed(mapKey, async () => {
+      const result = await query;
+      if (result.error) throw result.error;
+      return result.data;
+    });
+  } catch (err) {
+    error = err;
+  }
 
   if (error) {
     // Логируем настоящую причину — раньше ошибка "проглатывалась" и в
