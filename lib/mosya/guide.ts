@@ -24,6 +24,8 @@ export const GUIDE: Record<string, [MosyaPose, string]> = {
   settings: ["think", "Настройки: город, уведомления, приватность и документы сервиса"],
   subscriptions: ["glasses", "Подписка нужна, чтобы создавать свои встречи. Откликаться на чужие можно и без неё"],
   ticket: ["wave", "Это твой билет. Назови номер организатору на входе, оплата — ему лично"],
+  deck: ["wave", "Это люди с похожими интересами в твоём городе. Листай вбок — следующий человек, тап по фото — другие фото, свайп вверх — о себе. Понравился — зови на встречу 😉"],
+  bizmap: ["glasses", "Это карта заведений: здесь только события кафе, баров и студий твоего города. Обычные встречи людей — на основной карте"],
   person: ["glasses", "Профиль человека: фото, интересы и рейтинг. Можно написать или позвать на свою встречу"],
   support: ["glasses", "Я Мося-помощник. Спрашивай что угодно про «Место» — отвечу сразу"],
   myEvents: ["think", "Здесь твои встречи: куда идёшь и что организуешь. Новые заявки видно сразу"],
@@ -59,10 +61,11 @@ export function startGuideTour() {
 }
 
 /** Показать подсказку раздела, если человек здесь впервые после регистрации. */
-export function showGuide(id: string, opts?: { low?: boolean; delay?: number }) {
+export function showGuide(id: string, opts?: { low?: boolean; delay?: number; force?: boolean }) {
   const g = GUIDE[id];
-  const st = read();
-  if (!g || !st?.active || st.seen.includes(id)) return false;
+  // force — новые разделы: подсказка один раз для всех, даже после тура.
+  const st = read() ?? (opts?.force ? { active: false, seen: [] } : null);
+  if (!g || !st || (!st.active && !opts?.force) || st.seen.includes(id)) return false;
   st.seen.push(id);
   write(st);
   setTimeout(() => peek({ pose: g[0], text: g[1], low: opts?.low, ms: Math.max(5000, g[1].length * 62) }), opts?.delay ?? 750);
@@ -70,10 +73,10 @@ export function showGuide(id: string, opts?: { low?: boolean; delay?: number }) 
 }
 
 /** Хук: показать подсказку раздела при первом открытии. */
-export function useGuide(id: string, opts?: { low?: boolean; when?: boolean }) {
+export function useGuide(id: string, opts?: { low?: boolean; when?: boolean; force?: boolean }) {
   const when = opts?.when ?? true;
   useEffect(() => {
-    if (when) showGuide(id, { low: opts?.low });
+    if (when) showGuide(id, { low: opts?.low, force: opts?.force });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, when]);
 }

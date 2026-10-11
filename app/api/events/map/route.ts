@@ -74,6 +74,10 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // «Карта заведений» (из раздела «Для бизнеса») — только бизнес-события.
+  const businessOnly = searchParams.get("business") === "only";
+  if (businessOnly) query = query.eq("is_business", true);
+
   if (costTypeParam && costTypeParam !== "any") {
     query = query.eq("cost_type", costTypeParam);
   }
@@ -101,7 +105,7 @@ export async function GET(req: NextRequest) {
 
   // Общий для всех список встреч города — из короткого кэша (как лента),
   // личное (анонимность, возраст/пол) считается ниже для каждого отдельно.
-  const mapKey = JSON.stringify(["map", city, todayIso, categorySlugsParam, costTypeParam, dateFilter, timeOfDay]);
+  const mapKey = JSON.stringify(["map", city, businessOnly, todayIso, categorySlugsParam, costTypeParam, dateFilter, timeOfDay]);
   let events: Awaited<typeof query>["data"] = null;
   let error: unknown = null;
   try {

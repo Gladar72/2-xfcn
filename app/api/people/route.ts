@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { approxDistanceKm } from "@/lib/geo/approx-distance";
 
 /**
  * GET /api/people
@@ -9,15 +10,25 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * человека ещё нет интересов — просто новые люди города с фото.
  * Скрытые профили и заблокированные модерацией не показываются.
  */
-export async function GET() {
+export async function GET(req: Request) {
+  // Колода «Люди рядом» берёт больше карточек, чем лента на главной.
+  const deck = new URL(req.url).searchParams.get("deck") === "1";
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const admin = createAdminClient();
 
-  const [{ data: me }, { data: myInterestRows }] = await Promise.all([
-    admin.from("users").select("id, city").eq("id", currentUser.userId).maybeSingle(),
+  const [{ data: me }, { data: myInterestRows }, { data: blockRows }] = await Promise.all([
+    admin.from("users").select("id, city, approx_lat, approx_lon, approx_location_at, show_distance").eq("id", currentUser.userId).maybeSingle(),
     admin.from("user_interests").select("interest_id, interests(name)").eq("user_id", currentUser.userId),
+    // Безопасность: заблокированные в обе стороны друг друга не видят.
+    admin
+      .from("blocks")
+      .select("blocker_id, blocked_id")
+      .or(`blocker_id.eq.${currentUser.userId},blocked_id.eq.${currentUser.userId}`),
   ]);
+  const blocked = new Set(
+    (blockRows ?? []).map((b) => (b.blocker_id === currentUser.userId ? b.blocked_id : b.blocker_id) as string)
+  );
   if (!me) return NextResponse.json({ items: [] });
 
   const myInterestIds = (myInterestRows ?? []).map((r) => r.interest_id as string);
@@ -51,7 +62,7 @@ export async function GET() {
 
   let query = admin
     .from("users")
-    .select("id, name, avatar_url, birth_date, rating_avg, completed_meetings_count")
+    .select("id, name, avatar_url, birth_date, rating_avg, completed_meetings_count, approx_lat, approx_lon, approx_location_at, show_distance")
     .eq("city", me.city)
     .eq("is_profile_hidden", false)
     .eq("moderation_status", "active")
@@ -60,6 +71,7 @@ export async function GET() {
   const { data: users } = await query.limit(60);
 
   const items = (users ?? [])
+    .filter((u) => !blocked.has(u.id as string))
     .map((u) => {
       const sharedInterests = shared.get(u.id as string) ?? [];
       return {
@@ -71,13 +83,15 @@ export async function GET() {
         completedMeetingsCount: Number(u.completed_meetings_count ?? 0),
         sharedInterests: sharedInterests.slice(0, 3),
         sharedCount: sharedInterests.length,
+        distanceKm: approxDistanceKm(me, u),
       };
     })
     // С фото — выше: в карточке человека фото главное.
     .sort((a, b) => b.sharedCount - a.sharedCount || Number(!!b.avatarUrl) - Number(!!a.avatarUrl))
-    .slice(0, 12);
+    .slice(0, deck ? 40 : 12);
 
-  return NextResponse.json({ items });
+  const meHasLocation = approxDistanceKm(me, me) !== null;
+  return NextResponse.json({ items, meHasLocation });
 }
 
 function age(birthDateIso: string): number {

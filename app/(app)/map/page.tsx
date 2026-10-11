@@ -7,6 +7,7 @@ import Link from "next/link";
 import { openRoute } from "@/lib/maps/route";
 import { photoThumb } from "@/lib/photos/thumb";
 import { Ic } from "@/components/proto/ui";
+import { goBack } from "@/lib/nav/back";
 import { EventsMap, eventTimeLabel, markerIconFor, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
 
 const PAGE_SIZE = 20; // показ длинного списка кластера порциями, а не всё разом
@@ -33,7 +34,9 @@ function MapPageContent() {
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  useGuide("map");
+  // «Карта заведений» — открывается из раздела «Для бизнеса».
+  const bizOnly = searchParams.get("business") === "only";
+  useGuide(bizOnly ? "bizmap" : "map", { force: bizOnly });
   const [locating, setLocating] = useState(false);
   const [locateFailed, setLocateFailed] = useState(false);
   const mapRef = useRef<EventsMapHandle>(null);
@@ -124,7 +127,8 @@ function MapPageContent() {
     router.replace(`/map${q.toString() ? `?${q}` : ""}`);
   }
   const [liveOnly, setLiveOnly] = useState(false);
-  const shown = liveOnly ? events.filter((e) => eventTimeLabel(e).live) : events;
+  const base = bizOnly ? events.filter((e) => e.isBusiness) : events;
+  const shown = liveOnly ? base.filter((e) => eventTimeLabel(e).live) : base;
   const carousel = (selected ?? shown).slice(0, visibleCount);
 
   return (
@@ -165,9 +169,18 @@ function MapPageContent() {
 
       <div className="mtop">
         <div className="search">
-          <Link className="sfield gl" href="/search">
+          {bizOnly ? (
+            <button className="rb gl" onClick={() => goBack(router, "/business")} aria-label="Назад" style={{ width: 50, height: 50, flex: "none" }}>
+              <Ic n="back" />
+            </button>
+          ) : null}
+          <Link className="sfield gl" href={bizOnly ? "/business" : "/search"}>
             <Ic n="search" c="s" />
-            {resolvedCity ? `Что рядом? · ${resolvedCity}` : "Что рядом?"}
+            {bizOnly
+              ? `Заведения${resolvedCity ? ` · ${resolvedCity}` : ""}`
+              : resolvedCity
+                ? `Что рядом? · ${resolvedCity}`
+                : "Что рядом?"}
           </Link>
           <Link className="rb k" href="/search?filters=1" aria-label="Фильтры" style={{ width: 50, height: 50 }}>
             <Ic n="filter" />
@@ -203,6 +216,15 @@ function MapPageContent() {
           ))}
         </div>
       </div>
+      {bizOnly && !error && (
+        <div className="bizmap-note gl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/markers/marker-business.png" alt="" />
+          <span>
+            Здесь только события заведений{resolvedCity ? ` в городе ${resolvedCity}` : " твоего города"} — кафе, бары, студии.
+          </span>
+        </div>
+      )}
 
       <button className="rb gl locate" onClick={handleLocate} aria-label="Где я">
         <Ic n="nav" />
@@ -216,7 +238,7 @@ function MapPageContent() {
           {selected.length > 1 ? `Здесь ${selected.length} · показать все` : "Показать все"}
         </button>
       ) : (
-        <Link className="pill gl listb" href="/search">
+        <Link className="pill gl listb" href={bizOnly ? "/business" : "/search"}>
           <Ic n="filter" c="xs" />
           Списком · {shown.length}
         </Link>

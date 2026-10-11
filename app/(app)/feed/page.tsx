@@ -260,11 +260,11 @@ function HomeScreen() {
         <>
           <div className="sec">
             <b>Люди с похожими интересами</b>
-            <span>рядом</span>
+            <Link href="/people">Листать →</Link>
           </div>
           <div className="rail">
             {people.map((q) => (
-              <Link key={q.id} className="pcard" href={`/people/${q.id}`}>
+              <Link key={q.id} className="pcard" href={`/people?start=${q.id}`}>
                 {q.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoThumb(q.avatarUrl, 320)} alt="" />

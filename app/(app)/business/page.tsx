@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useGuide } from "@/lib/mosya/guide";
-import { EmptyIll, HeroCard, Ic, Screen, type HeroEvent } from "@/components/proto/ui";
+import { EmptyIll, HeroCard, Ic, Overlay, Screen, type HeroEvent } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
 
 /** «Для бизнеса» (SCR.business прототипа): как это работает + ближайшие события. */
@@ -68,6 +68,14 @@ export default function BusinessPage() {
           </div>
         )}
       </div>
+      <div style={{ height: 90 }} />
+      {/* Как на главной — по центру внизу: карта только с событиями заведений. */}
+      <Overlay>
+        <Link className="mapfab" href="/map?business=only">
+          <Ic n="map" />
+          Карта
+        </Link>
+      </Overlay>
     </Screen>
   );
 }

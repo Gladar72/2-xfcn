@@ -120,6 +120,10 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [toast, setToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [publishedId, setPublishedId] = useState<string | null>(null);
+  // «Позвать на встречу» → «Новая встреча»: после публикации приглашение уходит само.
+  const inviteUserId = searchParams.get("invite");
+  const inviteName = searchParams.get("inviteName");
+  const [invited, setInvited] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [me, setMe] = useState<{ name: string; avatarUrl: string | null } | null>(null);
 
@@ -440,7 +444,26 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       }
       confetti();
       setPublishedId(data.eventId as string);
-      setTimeout(() => peek({ pose: "jump", text: "Готово! Заявки придут в Telegram — ты сам решаешь, кого принять", quick: true }), 900);
+      if (inviteUserId) {
+        const ok = await fetch("/api/conversations/direct", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: inviteUserId, eventId: data.eventId }),
+        })
+          .then((r) => r.ok)
+          .catch(() => false);
+        setInvited(ok);
+        setTimeout(
+          () =>
+            peek({
+              pose: "jump",
+              text: ok ? `Готово! ${inviteName ?? "Человек"} получит приглашение в Telegram` : "Встреча готова, но приглашение не ушло — позови из профиля ещё раз",
+              quick: true,
+            }),
+          900
+        );
+      } else
+        setTimeout(() => peek({ pose: "jump", text: "Готово! Заявки придут в Telegram — ты сам решаешь, кого принять", quick: true }), 900);
     } catch {
       flash("Проблема с соединением.");
       setSubmitting(false);
@@ -485,6 +508,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               Встреча <em>опубликована</em>
             </h1>
             <p>
+              {invited && inviteName ? `Приглашение для ${inviteName} уже отправлено. ` : ""}
               {isAnonymous
                 ? "Встреча анонимная: имя, фото и адрес увидят только те, кого ты примешь."
                 : `${photo !== ownPhoto ? "Обложку нарисовал Мося — поменять можно в редактировании. " : ""}Её уже видят люди рядом. Заявки придут сюда и в Telegram — ты сам решаешь, кого принять.`}

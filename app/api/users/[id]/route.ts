@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserPhotos } from "@/lib/photos/user-photos";
 import { canDirectMessage } from "@/lib/chat/can-direct";
+import { approxDistanceKm } from "@/lib/geo/approx-distance";
 
 /**
  * GET /api/users/:id
@@ -17,19 +18,28 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const admin = createAdminClient();
 
-  const [{ data: user }, { data: interestRows }, { data: myInterestRows }] = await Promise.all([
+  const [{ data: user }, { data: interestRows }, { data: myInterestRows }, { data: meGeo }, { data: blockRow }] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, avatar_url, birth_date, gender, bio, rating_avg, completed_meetings_count")
+      .select("id, name, avatar_url, birth_date, gender, bio, rating_avg, completed_meetings_count, moderation_status, approx_lat, approx_lon, approx_location_at, show_distance")
       .eq("id", id)
       .maybeSingle(),
     admin.from("user_interests").select("interests(name)").eq("user_id", id),
     admin.from("user_interests").select("interests(name)").eq("user_id", currentUser.userId),
+    admin.from("users").select("approx_lat, approx_lon, approx_location_at, show_distance").eq("id", currentUser.userId).maybeSingle(),
+    // Безопасность: заблокированные (в любую сторону) профили друг друга не открывают.
+    admin
+      .from("blocks")
+      .select("blocker_id")
+      .or(`and(blocker_id.eq.${currentUser.userId},blocked_id.eq.${id}),and(blocker_id.eq.${id},blocked_id.eq.${currentUser.userId})`)
+      .limit(1)
+      .maybeSingle(),
   ]);
 
-  if (!user) return NextResponse.json({ error: "not_found" }, { status: 404 });
+  if (!user || blockRow || (user.moderation_status && user.moderation_status !== "active")) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const interests = (interestRows ?? [])
     .map((r) => (r.interests as unknown as { name: string } | null)?.name)
@@ -49,6 +59,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     bio: user.bio,
     ratingAvg: user.rating_avg,
     completedMeetingsCount: user.completed_meetings_count,
+    // Только примерно (целые км) — точное местоположение не раскрываем.
+    distanceKm: user.id === currentUser.userId ? null : approxDistanceKm(meGeo, user),
     interests,
     // Общие с текущим пользователем — для профиля человека («Общие интересы»).
     commonInterests: interests.filter((n) =>
