@@ -615,7 +615,7 @@ export function CreateEventWizard() {
               }}
               externalCoords={pickedFromAddress}
               heightPx={mapHeight}
-              markerIconSrc={isBusiness ? "/brand/markers/marker-business.png" : undefined}
+              markerIconSrc={isBusiness ? "/brand/markers/v2/pin-business.png" : undefined}
             />
             {placeName.trim().length >= 2 && latitude === undefined && (
               <p className="mt-2 shrink-0 text-center text-xs font-medium text-accent">

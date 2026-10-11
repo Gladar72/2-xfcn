@@ -9,6 +9,7 @@ import { useGuide } from "@/lib/mosya/guide";
 import { peek, say } from "@/lib/mosya/peek";
 import { goBack } from "@/lib/nav/back";
 import { distanceLabel } from "@/lib/geo/approx-distance";
+import { suggestMeet } from "@/lib/mosya/suggest";
 
 export interface Person {
   id: string;
@@ -125,6 +126,11 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
 
   function openInvite() {
     setInviteOpen(true);
+    // Мося подсказывает, куда позвать, — по интересам человека.
+    if (person) {
+      const sg = suggestMeet(person.interests, person.commonInterests ?? []);
+      if (sg) setTimeout(() => peek({ pose: "glasses", text: sg.text, ms: 6500 }), 450);
+    }
     if (myEvents === null)
       fetch("/api/me/events?scope=upcoming")
         .then((r) => r.json())
@@ -376,8 +382,38 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         <h2 className="t">
           Позвать <em>{person.name}</em>
         </h2>
-        <p className="muted" style={{ margin: "-6px 0 0", fontSize: 14 }}>
-          {myEvents?.length ? "Твои ближайшие встречи" : "У тебя пока нет ближайших встреч"}
+        {suggestMeet(person.interests, common) && (
+          <>
+            <p className="muted" style={{ margin: "-6px 0 0", fontSize: 14 }}>
+              Мося советует по интересам
+            </p>
+            <div style={{ display: "grid", gap: 10, marginTop: 4 }}>
+          {suggestMeet(person.interests, common)?.ideas.map((idea) => (
+            <button
+              key={idea.title}
+              className="opt gl idea"
+              onClick={() =>
+                router.push(
+                  `/create?category=${idea.category}${idea.type ? `&type=${idea.type}` : ""}&invite=${person.id}&inviteName=${encodeURIComponent(person.name)}`
+                )
+              }
+            >
+              <span className="idea-ic">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={idea.icon} alt="" />
+              </span>
+              <div className="d">
+                <b>{idea.title}</b>
+                <span>{idea.common ? "ваш общий интерес" : `любит: ${idea.interest.toLowerCase()}`} · создать и позвать</span>
+              </div>
+              <span className="mosya-tag">Совет Моси</span>
+            </button>
+          ))}
+            </div>
+          </>
+        )}
+        <p className="muted" style={{ margin: "4px 0 0", fontSize: 14 }}>
+          {myEvents?.length ? "Или позови на свою встречу" : "У тебя пока нет ближайших встреч"}
         </p>
         <div style={{ display: "grid", gap: 8 }}>
           {myEvents === null && <div className="sk" style={{ height: 70 }} />}
@@ -411,7 +447,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           Для безопасности первая встреча — в людном месте. Написать лично можно после общей встречи.
         </p>
         <button className="btn v" disabled={!pick || busy} onClick={() => pick && openDirect(pick)}>
-          {busy ? "Отправляем…" : `Позвать ${person.name}`}
+          {busy ? "Отправляем…" : "Отправить приглашение"}
         </button>
       </Sheet>
 

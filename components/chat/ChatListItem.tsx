@@ -39,7 +39,7 @@ export function ChatListItem({
   chat: ChatListItemData;
   onToggleFavorite: (conversationId: string, next: boolean) => void;
 }) {
-  const categoryIcon = chat.isBusiness ? "/brand/markers/marker-business.png" : chat.category ? CATEGORY_ICON[chat.category.slug] : undefined;
+  const categoryIcon = chat.isBusiness ? "/brand/cat3d/i_biz.webp" : chat.category ? CATEGORY_ICON[chat.category.slug] : undefined;
   const isEventClosed = chat.eventStatus === "completed" || chat.eventStatus === "cancelled";
   const name = chat.otherUser?.name ?? "Пользователь";
   // Заголовок карточки — название встречи (по референсу это важнее, чем

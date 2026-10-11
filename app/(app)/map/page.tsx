@@ -8,7 +8,7 @@ import { openRoute } from "@/lib/maps/route";
 import { photoThumb } from "@/lib/photos/thumb";
 import { Ic } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
-import { EventsMap, eventTimeLabel, markerIconFor, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
+import { EventsMap, categoryIcon3d, eventTimeLabel, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
 
 const PAGE_SIZE = 20; // показ длинного списка кластера порциями, а не всё разом
 
@@ -219,7 +219,7 @@ function MapPageContent() {
       {bizOnly && !error && (
         <div className="bizmap-note gl">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/markers/marker-business.png" alt="" />
+          <img src="/brand/markers/v2/pin-business.png" alt="" />
           <span>
             Здесь только события заведений{resolvedCity ? ` в городе ${resolvedCity}` : " твоего города"} — кафе, бары, студии.
           </span>
@@ -263,7 +263,7 @@ function MapPageContent() {
             ) : (
               <span className="mcgfx gfx">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={markerIconFor(e)} alt="" />
+                <img src={categoryIcon3d(e)} alt="" />
               </span>
             )}
             <div className="i">

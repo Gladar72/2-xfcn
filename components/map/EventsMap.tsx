@@ -3,6 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createMap, type LngLat, type MapLibreMap, type MapLibreMarker } from "@/lib/maps/load-maplibre";
 import { searchAddress } from "@/lib/maps/forward-geocode";
+import { CATEGORY_ICON } from "@/lib/data/category-icons";
 
 export interface MapEventItem {
   id: string;
@@ -80,20 +81,22 @@ async function geocodeCityCenter(city: string): Promise<[number, number]> {
 
 // Новые SVG-маркеры (viewBox 256×288, "кончик" пина на y≈269/288). Соответствие
 // slug категории (см. supabase/migrations/0003_categories.sql) маркерам МЕСТО.
-const MARKER_BY_SLUG: Record<string, string> = {
-  training: "/brand/markers/marker-workout.svg",
-  cinema: "/brand/markers/marker-movie.svg",
-  coffee: "/brand/markers/marker-coffee.svg",
-  breakfast: "/brand/markers/marker-breakfast.svg",
-  dinner: "/brand/markers/marker-dinner.svg",
-  walk: "/brand/markers/marker-walk.svg",
-  custom: "/brand/markers/marker-custom-proposal.png",
-};
-const FALLBACK_MARKER = "/brand/markers/marker-custom-proposal.png";
+// Метки карты — новые 3D-иконки категорий в фирменной градиентной капле.
+const PIN_SLUGS = new Set(["training", "cinema", "coffee", "breakfast", "dinner", "walk", "active", "party", "custom"]);
+const pinSrc = (slug: string) => `/brand/markers/v2/pin-${slug}.png`;
+const FALLBACK_MARKER = pinSrc("custom");
 
-/** Та же иконка, что у маркера встречи на карте — для списка в нижней шторке. */
+/** Метка-капля встречи (для мини-карты встречи и выбора места). */
 export function markerIconFor(event: Pick<MapEventItem, "isBusiness" | "category">): string {
-  return event.isBusiness ? "/brand/markers/marker-business.png" : MARKER_BY_SLUG[event.category?.slug ?? ""] ?? FALLBACK_MARKER;
+  if (event.isBusiness) return pinSrc("business");
+  const slug = event.category?.slug ?? "";
+  return PIN_SLUGS.has(slug) ? pinSrc(slug) : FALLBACK_MARKER;
+}
+
+/** 3D-иконка категории без капли — внутрь метки и для карточек списка. */
+export function categoryIcon3d(event: Pick<MapEventItem, "isBusiness" | "category">): string {
+  if (event.isBusiness) return CATEGORY_ICON.business ?? "";
+  return CATEGORY_ICON[event.category?.slug ?? ""] ?? CATEGORY_ICON.custom ?? "";
 }
 
 /**
@@ -203,18 +206,21 @@ const PHOTO = 44; // фото внутри неё
  * значок категории), сверху белая «пилюля» со временем. Бизнес-события —
  * с оранжево-фиолетовой обводкой, заполненные — приглушённые.
  */
-function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el: HTMLElement; offsetY: number } {
+export function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el: HTMLElement; offsetY: number } {
   const label = eventTimeLabel(event);
   const isFull = event.seatsLeft <= 0;
   const avatar = event.organizer?.avatarUrl;
-  const initial = (event.organizer?.name || event.title || "М").trim().charAt(0).toUpperCase();
 
   const ring = event.isBusiness
     ? "background:linear-gradient(#fff,#fff) padding-box,linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0) border-box;border:3px solid transparent;"
     : "background:#fff;border:0;";
   const photoInner = avatar
-    ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.replaceWith(Object.assign(document.createElement('img'),{src:'${markerIconFor(event)}',style:'width:100%;height:100%;object-fit:contain;background:#f3efff'}))" />`
-    : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0);color:#fff;font:600 19px/1 var(--font-golos),var(--font-onest),Arial,sans-serif;">${escapeHtml(initial)}</div>`;
+    ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.replaceWith(Object.assign(document.createElement('img'),{src:'${categoryIcon3d(event)}',style:'width:100%;height:100%;object-fit:contain;padding:5px;box-sizing:border-box;background:#f3efff'}))" />`
+    : `<img src="${categoryIcon3d(event)}" alt="" style="width:100%;height:100%;object-fit:contain;padding:5px;box-sizing:border-box;display:block;" />`;
+  // У метки с фото организатора — значок категории в уголке.
+  const badge = avatar
+    ? `<div style="position:absolute;right:-6px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 3px 8px -2px rgba(60,30,140,.45);display:flex;align-items:center;justify-content:center;"><img src="${categoryIcon3d(event)}" alt="" style="width:19px;height:19px;object-fit:contain;" /></div>`
+    : "";
 
   const pillBg = label.live ? "#ff3b5c" : "#fff";
   const pillColor = label.live ? "#fff" : "#16121f";
@@ -234,6 +240,7 @@ function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el
       <div style="position:absolute;left:${(PIN - PHOTO) / 2}px;top:${(PIN - PHOTO) / 2}px;width:${PHOTO}px;height:${PHOTO}px;border-radius:50%;overflow:hidden;background:#f3efff;">
         ${photoInner}
       </div>
+      ${badge}
     </div>`;
   // Появление метки «пружинкой», как у пинов прототипа (анимируем содержимое —
   // transform самого элемента занят позиционированием maplibre).

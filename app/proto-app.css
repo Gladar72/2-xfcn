@@ -177,3 +177,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .pr.deck .gal .nm .dist{background:rgba(108,59,255,.55)}
 .P .geo-ask{position:absolute;left:20px;right:20px;top:calc(var(--top) + 64px);z-index:7;display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;border-radius:18px;font-size:13px;line-height:1.35;color:#16121F}
 .P .geo-ask button{flex:none;height:32px;padding:0 12px;border-radius:16px;background:var(--violet);color:#fff;font-size:13px;font-weight:500}
+.P .opt.idea{position:relative;border:1.5px solid rgba(108,59,255,.28)}
+.P .opt.idea .idea-ic{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#efe8ff,#ffe6f1);display:grid;place-items:center;flex:none}
+.P .opt.idea .idea-ic img{width:38px;height:38px;object-fit:contain}
+.P .opt.idea .mosya-tag{position:absolute;top:-9px;right:12px;height:18px;padding:0 8px;border-radius:9px;background:linear-gradient(120deg,#6c3bff,#ff6fa0);color:#fff;font-size:10.5px;font-weight:500;display:flex;align-items:center}
