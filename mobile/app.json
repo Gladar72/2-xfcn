@@ -3,7 +3,7 @@
     "name": "Место",
     "slug": "mesto",
     "scheme": "mesto",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FCFAFF"
+      "backgroundColor": "#F6F2FF"
     },
     "ios": {
       "bundleIdentifier": "ru.mesto.app",
@@ -26,25 +26,50 @@
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F4EFFF"
+        "backgroundColor": "#F6F2FF"
       },
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"],
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "config": {
-        "googleMaps": { "apiKey": "GOOGLE_MAPS_ANDROID_API_KEY" }
+        "googleMaps": {
+          "apiKey": "GOOGLE_MAPS_ANDROID_API_KEY"
+        }
       }
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-web-browser",
-      ["expo-location", { "locationWhenInUsePermission": "Чтобы показать встречи рядом с тобой на карте." }],
-      ["expo-image-picker", { "photosPermission": "Чтобы выбрать фото для профиля и встречи." }],
-      ["expo-notifications", { "color": "#6C3BFF" }]
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Чтобы показать встречи рядом с тобой на карте."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Чтобы выбрать фото для профиля и встречи."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#6C3BFF"
+        }
+      ]
     ],
-    "experiments": { "typedRoutes": true },
+    "experiments": {
+      "typedRoutes": true
+    },
     "extra": {
       "apiUrl": "https://2-xfcn.vercel.app",
-      "eas": { "projectId": "" }
+      "eas": {
+        "projectId": ""
+      },
+      "appleLogin": false
     }
   }
 }
