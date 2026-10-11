@@ -316,14 +316,14 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
     const slot = slotRef.current;
     if (slot === 0) {
       const [first, ...rest] = files;
-      resizeImageFile(first!, 1600, 0.82).then((dataUrl) => {
+      resizeImageFile(first!, 1600, 0.9).then((dataUrl) => {
         setPhotoBase64(dataUrl);
         setPhotoFromTelegram(false);
       });
-      rest.slice(0, 2).forEach((f) => resizeImageFile(f, 1280, 0.8).then((d) => setExtraPhotos((x) => [...x, d].slice(0, 2))));
+      rest.slice(0, 2).forEach((f) => resizeImageFile(f, 1600, 0.88).then((d) => setExtraPhotos((x) => [...x, d].slice(0, 2))));
       return;
     }
-    files.slice(0, 2).forEach((f) => resizeImageFile(f, 1280, 0.8).then((d) => setExtraPhotos((x) => [...x, d].slice(0, 2))));
+    files.slice(0, 2).forEach((f) => resizeImageFile(f, 1600, 0.88).then((d) => setExtraPhotos((x) => [...x, d].slice(0, 2))));
   }
 
   /** «Разрешить геолокацию»: город определяется сам, и сразу сохраняем профиль. */
