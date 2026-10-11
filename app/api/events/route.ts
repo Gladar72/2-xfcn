@@ -640,6 +640,28 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Защита от двойной публикации: такая же встреча (тот же организатор,
+  // название и дата) за последние 10 минут — вторую не создаём и рассылку
+  // не повторяем. Реальный случай: «Караоке-вечеринку» нажали трижды,
+  // и уведомление ушло всему городу 3 раза.
+  const duplicateSince = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { data: duplicate } = await admin
+    .from("events")
+    .select("id, status")
+    .eq("organizer_id", currentUser.userId)
+    .eq("title", input.title ?? "")
+    .eq("event_date", input.eventDate)
+    .gte("created_at", duplicateSince)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (duplicate && (duplicate.status === "published" || duplicate.status === "closed")) {
+    return NextResponse.json({ status: "created", eventId: duplicate.id });
+  }
+  // Такую же встречу только что создали и отменили — новую создаём, но
+  // людям про неё второй раз не пишем.
+  const isRepost = !!duplicate;
+
   const { data: createdEvent, error: insertError } = await admin
     .from("events")
     .insert({
@@ -706,7 +728,9 @@ export async function POST(req: NextRequest) {
     // Напрямую через Bot API (notifyTelegram), не через n8n — так это не
     // зависит от того, настроен ли n8n, и было принято и для уведомления
     // организатора чуть выше.
-    const cityUsersQuery = await admin
+    const cityUsersQuery = isRepost
+      ? { data: [] as { telegram_id: number }[] }
+      : await admin
       .from("users")
       .select("telegram_id")
       .eq("city", organizerProfile?.city ?? "")
@@ -735,7 +759,7 @@ export async function POST(req: NextRequest) {
   // Workflow 1 (п.27 ТЗ): находим потенциально релевантных пользователей —
   // та же логика интересов, что и в ranking (lib/scoring), но здесь как
   // одноразовый список получателей для n8n, а не как скоринг.
-  await runInBackground(() =>
+  if (!isRepost) await runInBackground(() =>
     notifyRelevantUsers(admin, {
       eventId: createdEvent.id,
       organizerId: currentUser.userId,
