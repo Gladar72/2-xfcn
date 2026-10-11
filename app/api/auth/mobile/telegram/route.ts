@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { issueRegistrationTicket, verifyRegistrationTicket, verifyTelegramLogin } from "@/lib/mobile/auth";
-import { attachPhone } from "@/lib/mobile/otp";
+import { attachEmail, attachPhone } from "@/lib/mobile/otp";
 import { mobileSessionPayload } from "@/lib/mobile/session-response";
 
 /**
@@ -49,6 +49,15 @@ export async function POST(req: NextRequest) {
     if (attached.ok) phoneLinked = phoneTicket.phone;
     else phoneError = attached.message;
   }
+  // Так же — почта, подтверждённая кодом из письма (передаётся в том же поле phoneTicket или в emailTicket).
+  let emailLinked: string | null = null;
+  const emailTicketRaw = typeof body?.emailTicket === "string" ? body.emailTicket : body?.phoneTicket;
+  const emailTicket = typeof emailTicketRaw === "string" ? verifyRegistrationTicket(emailTicketRaw) : null;
+  if (emailTicket?.kind === "email") {
+    const attached = await attachEmail(admin, user.id, emailTicket.email);
+    if (attached.ok) emailLinked = emailTicket.email;
+    else phoneError = attached.message;
+  }
 
-  return NextResponse.json({ ...(await mobileSessionPayload(admin, user)), phoneLinked, phoneError });
+  return NextResponse.json({ ...(await mobileSessionPayload(admin, user)), phoneLinked, emailLinked, phoneError });
 }
