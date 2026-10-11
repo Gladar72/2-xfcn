@@ -150,7 +150,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* Колесо городов */
 .P .wh.city div{text-align:center;padding:0 10px;font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 /* колода «Люди рядом» */
-.P .pr.dk-r{animation:dkR .34s cubic-bezier(.2,.8,.3,1) backwards}
+.P .pr.dk-r{animation:dkR .22s ease-out backwards}
 .P .pr.dk-l{animation:dkL .34s cubic-bezier(.2,.8,.3,1) backwards}
 .P .pr.dk-0{animation:dk0 .4s ease backwards}
 @keyframes dk0{from{opacity:0}to{opacity:1}}
@@ -162,7 +162,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .pr .upk{display:none}
 .P .pr.deck .upk{display:grid;place-items:center;position:absolute;right:20px;top:calc(100vh - var(--bot) - 166px);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.22);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#fff;pointer-events:auto;z-index:2;animation:upk 2.4s ease-in-out infinite}
 .P .pr.deck .cta{background:none}
-@keyframes dkR{from{transform:translateX(40%) scale(.94);opacity:0}to{transform:none;opacity:1}}
+@keyframes dkR{from{transform:scale(.96)}to{transform:none}}
 @keyframes dkL{from{transform:translateX(-40%) scale(.94);opacity:0}to{transform:none;opacity:1}}
 @keyframes upk{0%,100%{translate:0 0}50%{translate:0 -3px}}
 .P .safe{display:flex;gap:8px;align-items:flex-start;margin:2px 0 0;font-size:12.5px;line-height:1.4;color:var(--grey)}
@@ -181,3 +181,6 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .opt.idea .idea-ic{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#efe8ff,#ffe6f1);display:grid;place-items:center;flex:none}
 .P .opt.idea .idea-ic img{width:38px;height:38px;object-fit:contain}
 .P .opt.idea .mosya-tag{position:absolute;top:-9px;right:12px;height:18px;padding:0 8px;border-radius:9px;background:linear-gradient(120deg,#6c3bff,#ff6fa0);color:#fff;font-size:10.5px;font-weight:500;display:flex;align-items:center}
+.P .pr.deck{will-change:transform;backface-visibility:hidden}
+.P .pr.deck .body{touch-action:pan-y}
+.P .pr.deck .gal>img{transition:opacity .2s ease;transform:none!important}
