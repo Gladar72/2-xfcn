@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { cachedFeed } from "@/lib/data/feed-cache";
+
+// Справочник меняется редко — держим в памяти сервера 10 минут
+// (его запрашивает каждое открытие главной).
+const CATEGORIES_TTL_MS = 10 * 60 * 1000;
 
 /**
  * GET /api/categories
@@ -9,8 +14,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export async function GET() {
   const admin = createAdminClient();
 
-  const [{ data: categories, error: categoriesError }, { data: trainingTypes, error: trainingError }] =
-    await Promise.all([
+  const loadCategories = async () => {
+    const [{ data: categories, error: categoriesError }, { data: trainingTypes, error: trainingError }] =
+      await Promise.all([
       admin
         .from("categories")
         .select("id, slug, name, emoji")
@@ -21,11 +27,16 @@ export async function GET() {
         .select("id, slug, name, emoji")
         .eq("is_active", true)
         .order("sort_order"),
-    ]);
+      ]);
+    if (categoriesError || trainingError) throw categoriesError ?? trainingError;
+    return { categories, trainingTypes };
+  };
 
-  if (categoriesError || trainingError) {
+  try {
+    const { categories, trainingTypes } = await cachedFeed("categories", loadCategories, CATEGORIES_TTL_MS);
+    return NextResponse.json({ categories, trainingTypes });
+  } catch (error) {
+    console.error("GET /api/categories:", error);
     return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
   }
-
-  return NextResponse.json({ categories, trainingTypes });
 }
