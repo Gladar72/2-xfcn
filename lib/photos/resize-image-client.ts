@@ -25,6 +25,9 @@ export function resizeImageFile(file: File, maxSide: number, quality: number): P
           reject(new Error("canvas_unavailable"));
           return;
         }
+        // Плавное уменьшение без «лесенок» и мыла.
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         resolve(canvas.toDataURL("image/jpeg", quality));
       };
