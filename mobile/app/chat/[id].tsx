@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { Stack, useLocalSearchParams } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { router, useLocalSearchParams } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import { LinearGradient } from "expo-linear-gradient";
+import { Aurora, Glass, Grad, RoundBtn } from "@/components/brand";
+import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
-import { colors, font } from "@/lib/theme";
+import { brandGradient, colors, FONT, gradientEnd, gradientStart } from "@/lib/theme";
 
 interface Message {
   id: string;
@@ -28,6 +30,7 @@ export default function ChatScreen() {
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const list = useRef<FlatList<Message>>(null);
+  const insets = useSafeAreaInsets();
 
   const load = useCallback(async () => {
     try {
@@ -63,9 +66,17 @@ export default function ChatScreen() {
   }
 
   return (
-    <SafeAreaView edges={["bottom"]} style={{ flex: 1, backgroundColor: colors.background }}>
-      <Stack.Screen options={{ headerShown: true, title, headerBackTitle: "Чаты", headerTintColor: colors.accent }} />
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined} keyboardVerticalOffset={90}>
+    <View style={{ flex: 1 }}>
+      <Aurora />
+      <Glass strong style={[styles.header, { paddingTop: insets.top + 8 }]}>
+        <RoundBtn onPress={() => router.back()} size={40}>
+          <Icon name="back" />
+        </RoundBtn>
+        <Text style={styles.headerTitle} numberOfLines={1}>
+          {title}
+        </Text>
+      </Glass>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <FlatList
           ref={list}
           data={[...messages].reverse()}
@@ -74,35 +85,52 @@ export default function ChatScreen() {
           contentContainerStyle={{ padding: 12, gap: 6 }}
           renderItem={({ item }) => {
             const mine = item.senderId === me;
-            return (
-              <View style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
+            const inner = (
+              <>
                 {!mine && names[item.senderId] ? <Text style={styles.sender}>{names[item.senderId]}</Text> : null}
                 {item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.image} contentFit="cover" /> : null}
                 {item.content ? <Text style={[styles.text, mine && { color: "#fff" }]}>{item.content}</Text> : null}
-              </View>
+              </>
+            );
+            return mine ? (
+              <LinearGradient colors={brandGradient} start={gradientStart} end={gradientEnd} style={[styles.bubble, styles.mine]}>
+                {inner}
+              </LinearGradient>
+            ) : (
+              <Glass strong style={[styles.bubble, styles.theirs]}>
+                {inner}
+              </Glass>
             );
           }}
         />
-        {error ? <Text style={{ color: colors.danger, textAlign: "center", fontSize: font.xs }}>{error}</Text> : null}
-        <View style={styles.inputRow}>
-          <TextInput value={text} onChangeText={setText} placeholder="Сообщение" placeholderTextColor={colors.ink400} style={styles.input} multiline />
-          <Pressable onPress={send} style={styles.send}>
-            <Ionicons name="arrow-up" size={20} color="#fff" />
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+        <View style={[styles.inputRow, { paddingBottom: Math.max(insets.bottom, 10) }]}>
+          <Glass strong style={styles.inputWrap}>
+            <TextInput value={text} onChangeText={setText} placeholder="Сообщение" placeholderTextColor={colors.grey} style={styles.input} multiline />
+          </Glass>
+          <Pressable onPress={send} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.88 : 1 }] })}>
+            <Grad style={styles.send}>
+              <Icon name="send" color="#fff" size={20} />
+            </Grad>
           </Pressable>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  bubble: { maxWidth: "80%", borderRadius: 18, paddingHorizontal: 12, paddingVertical: 8 },
-  mine: { alignSelf: "flex-end", backgroundColor: colors.accent, borderBottomRightRadius: 6 },
-  theirs: { alignSelf: "flex-start", backgroundColor: "#fff", borderBottomLeftRadius: 6, borderWidth: 1, borderColor: colors.border },
-  sender: { fontSize: font.xs, color: colors.accent, fontWeight: "700", marginBottom: 2 },
-  text: { fontSize: font.base, color: colors.ink900 },
-  image: { width: 220, height: 220, borderRadius: 12, marginBottom: 4 },
-  inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, padding: 10, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: "#fff" },
-  input: { flex: 1, minHeight: 40, maxHeight: 120, borderRadius: 20, backgroundColor: colors.lavender50, paddingHorizontal: 14, paddingVertical: 10, fontSize: font.base },
-  send: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+  header: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 14, paddingBottom: 10, borderRadius: 0 },
+  headerTitle: { flex: 1, fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink },
+  bubble: { maxWidth: "80%", borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9 },
+  mine: { alignSelf: "flex-end", borderBottomRightRadius: 6 },
+  theirs: { alignSelf: "flex-start", borderBottomLeftRadius: 6 },
+  sender: { fontFamily: FONT, fontSize: 12, color: colors.violet, fontWeight: "500", marginBottom: 2 },
+  text: { fontFamily: FONT, fontSize: 15.5, color: colors.ink, lineHeight: 21 },
+  image: { width: 220, height: 220, borderRadius: 14, marginBottom: 4 },
+  error: { fontFamily: FONT, color: colors.danger, textAlign: "center", fontSize: 12 },
+  inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8 },
+  inputWrap: { flex: 1, borderRadius: 24, paddingHorizontal: 16, minHeight: 48, justifyContent: "center" },
+  input: { fontFamily: FONT, minHeight: 44, maxHeight: 120, fontSize: 15.5, color: colors.ink, paddingVertical: 10 },
+  send: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
 });
