@@ -73,6 +73,30 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     }
   }
 
+  // Приглашения: гостю — его приглашение (кнопки «Пойду / Не смогу»),
+  // организатору — список приглашённых со статусами.
+  let myInvite: { id: string; status: string; message: string | null } | null = null;
+  let invites: { id: string; status: string; user: { id: string; name: string; avatarUrl: string | null } }[] = [];
+  if (currentUser && viewerStatus === "organizer") {
+    const { data: rows } = await admin
+      .from("event_invites")
+      .select("id, status, invitee:users!event_invites_invitee_id_fkey(id, name, avatar_url)")
+      .eq("event_id", eventId)
+      .order("created_at", { ascending: false });
+    invites = (rows ?? []).map((r) => {
+      const u = r.invitee as unknown as { id: string; name: string; avatar_url: string | null };
+      return { id: r.id as string, status: r.status as string, user: { id: u.id, name: u.name, avatarUrl: u.avatar_url } };
+    });
+  } else if (currentUser) {
+    const { data: row } = await admin
+      .from("event_invites")
+      .select("id, status, message")
+      .eq("event_id", eventId)
+      .eq("invitee_id", currentUser.userId)
+      .maybeSingle();
+    if (row) myInvite = { id: row.id as string, status: row.status as string, message: (row.message as string | null) ?? null };
+  }
+
   // Когда встреча началась и когда закроется сама (окончание + 30 минут) —
   // чтобы организатор видел «Завершить встречу» и время автозакрытия.
   const timing = eventTiming(event);
@@ -124,6 +148,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       : null,
     participants,
     viewerStatus,
+    myInvite,
+    invites,
   });
 }
 
