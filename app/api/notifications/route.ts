@@ -116,18 +116,29 @@ export async function GET() {
 /**
  * PATCH /api/notifications
  * Отмечает все уведомления пользователя прочитанными (вызывается при
- * открытии экрана уведомлений).
+ * открытии экрана уведомлений). С телом { ids: string[] } — только
+ * указанные (мобильное приложение: тап по конкретному уведомлению).
  */
-export async function PATCH(_req: NextRequest) {
+export async function PATCH(req: NextRequest) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
+  const body = await req.json().catch(() => null);
+  const ids = Array.isArray(body?.ids)
+    ? (body.ids as unknown[]).filter((id): id is string => typeof id === "string").slice(0, 100)
+    : null;
+
+  // Явно передан пустой список — отмечать нечего (не «всё прочитано»).
+  if (ids && ids.length === 0) return NextResponse.json({ status: "ok" });
+
   const admin = createAdminClient();
-  await admin
+  let query = admin
     .from("notifications")
     .update({ is_read: true })
     .eq("user_id", currentUser.userId)
     .eq("is_read", false);
+  if (ids) query = query.in("id", ids);
+  await query;
 
   return NextResponse.json({ status: "ok" });
 }
