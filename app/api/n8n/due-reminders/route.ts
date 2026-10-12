@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidN8nRequest } from "@/lib/n8n/auth";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { sendPushToUsers } from "@/lib/push/expo";
+import { shortTitle } from "@/lib/notify/user";
 import { buildNotificationText } from "@/lib/notifications/text";
 
 const REMINDER_WINDOW_MINUTES = 15; // n8n дёргает раз в 15 минут — окно должно совпадать с частотой опроса
@@ -95,6 +97,24 @@ export async function GET(req: NextRequest) {
         const text = buildNotificationText("event_reminder", item.title);
         return item.recipients.map((telegramId) => notifyTelegram(telegramId, text));
       })
+    );
+
+    // Push в мобильное приложение — всем участникам и организатору.
+    await Promise.all(
+      items.map((item) =>
+        sendPushToUsers(
+          admin,
+          (members ?? [])
+            .filter((m) => m.event_id === item.eventId)
+            .map((m) => (m.users as unknown as { id: string } | null)?.id)
+            .filter((id): id is string => !!id),
+          {
+            title: "Скоро встреча ⏰",
+            body: `«${shortTitle(item.title)}» в ${String(item.eventTime).slice(0, 5)}${item.placeName ? ` · ${item.placeName}` : ""}`,
+            data: { url: `/event/${item.eventId}`, type: "event_reminder", eventId: item.eventId },
+          }
+        )
+      )
     );
   }
 
