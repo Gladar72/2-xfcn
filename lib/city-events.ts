@@ -143,7 +143,7 @@ export async function syncCityCovers(admin: Admin, limit = 20): Promise<number> 
  * Координаты для карты заведений: Яндекс Геокодер по адресу или названию
  * площадки. Каждое событие пробуем один раз (geo_tried_at).
  */
-export async function geocodeCityEvents(admin: Admin, limit = 8): Promise<void> {
+export async function geocodeCityEvents(admin: Admin, limit = 20): Promise<void> {
   const key = process.env.YANDEX_GEOCODER_API_KEY;
   if (!key) return;
   const { data } = await admin
@@ -152,6 +152,7 @@ export async function geocodeCityEvents(admin: Admin, limit = 8): Promise<void> 
     .is("latitude", null)
     .is("geo_tried_at", null)
     .neq("status", "rejected")
+    .order("status", { ascending: true }) // approved раньше pending
     .limit(limit);
   for (const r of data ?? []) {
     const q = (r.address as string | null) ?? (r.place_name as string | null);
