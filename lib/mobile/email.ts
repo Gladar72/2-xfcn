@@ -23,8 +23,8 @@ export async function sendEmailCode(email: string, code: string): Promise<{ ok: 
     </div>
   </div></body></html>`;
 
-  const keyId = process.env.POSTBOX_ACCESS_KEY_ID;
-  const secret = process.env.POSTBOX_SECRET_KEY;
+  const keyId = process.env.POSTBOX_ACCESS_KEY_ID?.trim();
+  const secret = process.env.POSTBOX_SECRET_KEY?.trim();
   if (keyId && secret && from) {
     return sendViaPostbox({ keyId, secret, from, fromName, to: email, subject, text, html });
   }
@@ -119,7 +119,13 @@ async function sendViaPostbox(p: {
       body,
     });
     if (!res.ok) {
-      console.error("sendEmailCode postbox:", res.status, await res.text().catch(() => ""));
+      // Диагностика без раскрытия секрета: формат ID ключа (у Яндекса начинается с «YCAJ») и длина секрета (обычно 40).
+      console.error(
+        "sendEmailCode postbox:",
+        res.status,
+        await res.text().catch(() => ""),
+        `keyId=${p.keyId.slice(0, 4)}…(${p.keyId.length}) secretLen=${p.secret.length} from=${p.from}`
+      );
       return { ok: false, error: "email_failed" };
     }
     return { ok: true };
