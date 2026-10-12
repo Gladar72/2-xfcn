@@ -5,6 +5,7 @@ import { inviteContent } from "@/lib/chat/invite";
 import { InlineKeyboard } from "grammy";
 import { getBot } from "@/lib/telegram/bot";
 import { findDirectConversation, haveSharedEvent } from "@/lib/chat/can-direct";
+import { INVITES_PER_DAY } from "@/lib/invites/respond";
 
 /**
  * POST /api/conversations/direct
@@ -24,6 +25,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const otherId = typeof body?.userId === "string" ? body.userId : null;
   const eventId = typeof body?.eventId === "string" ? body.eventId : null;
+  const inviteMessage = typeof body?.message === "string" ? body.message.trim().slice(0, 300) : "";
   if (!otherId || otherId === currentUser.userId) return NextResponse.json({ error: "invalid_user" }, { status: 400 });
 
   const admin = createAdminClient();
@@ -46,6 +48,55 @@ export async function POST(req: NextRequest) {
     allowed = own?.organizer_id === currentUser.userId;
   }
   if (!allowed) return NextResponse.json({ error: "no_shared_event" }, { status: 403 });
+
+  // Приглашение на встречу: только на свою, одного человека — один раз,
+  // не больше INVITES_PER_DAY за сутки, и только пока есть места.
+  let inviteId: string | null = null;
+  if (eventId) {
+    const { data: ev } = await admin
+      .from("events")
+      .select("organizer_id, status, seats_total, seats_taken")
+      .eq("id", eventId)
+      .maybeSingle();
+    if (!ev || ev.organizer_id !== currentUser.userId) return NextResponse.json({ error: "not_your_event" }, { status: 403 });
+    if (ev.status === "cancelled" || ev.status === "completed") return NextResponse.json({ error: "event_unavailable" }, { status: 422 });
+    if (ev.status === "closed" || ev.seats_taken >= ev.seats_total) return NextResponse.json({ error: "event_full" }, { status: 422 });
+
+    const { data: app } = await admin
+      .from("applications")
+      .select("status")
+      .eq("event_id", eventId)
+      .eq("user_id", otherId)
+      .maybeSingle();
+    if (app?.status === "accepted") return NextResponse.json({ error: "already_member" }, { status: 422 });
+
+    const { data: prevInvite } = await admin
+      .from("event_invites")
+      .select("id")
+      .eq("event_id", eventId)
+      .eq("invitee_id", otherId)
+      .maybeSingle();
+    if (prevInvite) return NextResponse.json({ error: "already_invited" }, { status: 422 });
+
+    const since = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
+    const { count } = await admin
+      .from("event_invites")
+      .select("id", { count: "exact", head: true })
+      .eq("inviter_id", currentUser.userId)
+      .gte("created_at", since);
+    if ((count ?? 0) >= INVITES_PER_DAY) return NextResponse.json({ error: "invite_limit", limit: INVITES_PER_DAY }, { status: 429 });
+
+    const { data: inv, error: invErr } = await admin
+      .from("event_invites")
+      .insert({ event_id: eventId, inviter_id: currentUser.userId, invitee_id: otherId, message: inviteMessage || null })
+      .select("id")
+      .single();
+    if (invErr || !inv) {
+      if (invErr?.code === "23505") return NextResponse.json({ error: "already_invited" }, { status: 422 });
+      return NextResponse.json({ error: "create_failed" }, { status: 500 });
+    }
+    inviteId = inv.id as string;
+  }
 
   if (!conversationId) {
     const { data: conv, error } = await admin.from("conversations").insert({ event_id: null }).select("id").single();
@@ -102,14 +153,10 @@ export async function POST(req: NextRequest) {
     if (telegramId) {
       const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const name = esc(((sender?.name as string | undefined) ?? "").trim() || "Кто-то");
-      const keyboard = appUrl
-        ? new InlineKeyboard()
-            .webApp("Открыть встречу", `${appUrl}?goto=event_${eventId}`)
-            .row()
-            .webApp("💬 Ответить", `${appUrl}?goto=chat_${conversationId}`)
-        : undefined;
+      const keyboard = new InlineKeyboard().text("✅ Пойду", `inv:y:${inviteId}`).text("Не смогу", `inv:n:${inviteId}`);
+      if (appUrl) keyboard.row().webApp("Открыть встречу", `${appUrl}?goto=event_${eventId}`);
       try {
-        await getBot().api.sendMessage(telegramId, `🎉 <b>${name}</b> зовёт тебя на встречу «${esc(event.title as string)}»`, {
+        await getBot().api.sendMessage(telegramId, `🎉 <b>${name}</b> зовёт тебя на встречу «${esc(event.title as string)}»${inviteMessage ? `\n\n«${esc(inviteMessage)}»` : ""}\n\nПримешь — сразу попадёшь в участники и чат встречи, без заявки.`, {
           parse_mode: "HTML",
           reply_markup: keyboard,
           link_preview_options: { is_disabled: true },
