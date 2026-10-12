@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyTelegram } from "@/lib/telegram/notify";
+import { notifyUser, shortTitle } from "@/lib/notify/user";
 import { eventTiming } from "@/lib/events/timing";
 
 /**
@@ -75,9 +75,14 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
     .select("telegram_id")
     .eq("id", memberUserId)
     .maybeSingle();
-  if (removedUser) {
-    await notifyTelegram(removedUser.telegram_id, `Организатор убрал тебя из встречи «${event.title}».`).catch(() => {});
-  }
+  await notifyUser(admin, memberUserId, {
+    title: "Ты больше не в списке встречи",
+    body: `Организатор убрал тебя из встречи «${shortTitle(event.title)}»`,
+    url: `/event/${eventId}`,
+    data: { type: "member_removed", eventId },
+    telegramText: `Организатор убрал тебя из встречи «${event.title}».`,
+    telegramId: removedUser?.telegram_id ?? null,
+  });
 
   return NextResponse.json({ status: "removed" });
 }
