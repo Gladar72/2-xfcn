@@ -46,3 +46,32 @@ export function presetCoverUrl(value: string | null | undefined): string | null 
   const base = (process.env.APP_URL || "https://2-xfcn.vercel.app").replace(/\/+$/, "");
   return `${base}${value}`;
 }
+
+/**
+ * «Своё предложение»: Мося подбирает готовую обложку по словам, которые
+ * написал организатор («пробежка», «сапы», «настолки в баре»…). Ничего
+ * не подошло — null, и тогда нужно своё фото.
+ */
+const TEXT_COVER: [RegExp, string][] = [
+  [/йог|растяж|медитац|пилатес/i, "yoga"],
+  [/бег|пробеж|марафон|забег/i, "running"],
+  [/вело|байк|самокат/i, "cycling"],
+  [/футбол|мини-футбол/i, "football"],
+  [/падел|теннис|бадминтон|сквош/i, "padel"],
+  [/hyrox|хайрокс|кроссфит|функционал/i, "hyrox"],
+  [/трен|зал|качал|фитнес|воркаут|спорт/i, "gym"],
+  [/кофе|кофейн|капучино|чай/i, "coffee"],
+  [/завтрак|бранч/i, "breakfast"],
+  [/ужин|обед|ресторан|кухн|пицц|суши|бургер/i, "dinner"],
+  [/кино|фильм|сеанс|сериал/i, "cinema"],
+  [/вечерин|туса|тусов|бар|клуб|караоке|танц|коктейл/i, "party"],
+  [/поход|сап|каяк|байдар|лес|природ|рыбал|горы|лыж|сноуборд|пикник|кемп/i, "active"],
+  [/прогул|гулять|погул|набережн|парк|экскурс/i, "walk"],
+];
+
+export function coverForText(text: string | null | undefined): string | null {
+  const t = (text ?? "").trim();
+  if (t.length < 2) return null;
+  for (const [re, slug] of TEXT_COVER) if (re.test(t)) return `/brand/covers/${slug}.webp`;
+  return null;
+}
