@@ -622,15 +622,9 @@ export async function POST(req: NextRequest) {
   // uploadEventPhoto ниже делает ту же проверку ещё раз перед реальной
   // загрузкой в Storage — здесь же просто ранний, "дешёвый" отказ, не
   // трогая базу вообще.
-  // Готовая обложка Моси (/brand/covers/…) — модерация не нужна. Для
-  // «Своё предложение» готовых обложек нет: только своё фото.
+  // Готовая обложка Моси (/brand/covers/…) — своя картинка сервиса,
+  // модерация не нужна. Своё фото организатора проверяем ниже.
   const presetCover = presetCoverUrl(input.photoBase64);
-  if (presetCover && !input.isBusiness && input.categorySlug === "custom") {
-    return NextResponse.json(
-      { error: "photo_required", field: "photoBase64", message: "Для своей встречи загрузи своё фото." },
-      { status: 422 }
-    );
-  }
   if (input.photoBase64 && !presetCover) {
     const match = input.photoBase64.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
     const mimeType = match?.[1];
