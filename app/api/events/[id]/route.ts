@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
+import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { eventTiming } from "@/lib/events/timing";
 import { finalizeCompletedEvents } from "@/lib/reviews/complete-due-events";
 import { clearFeedCache } from "@/lib/data/feed-cache";
@@ -321,7 +322,10 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
     // Фото — только если реально прислали новое (пусто/не передано =
     // оставляем текущее как есть).
-    if (typeof body.photoBase64 === "string" && body.photoBase64) {
+    const presetCover = presetCoverUrl(typeof body.photoBase64 === "string" ? body.photoBase64 : null);
+    if (presetCover) {
+      updatePayload.photo_url = presetCover;
+    } else if (typeof body.photoBase64 === "string" && body.photoBase64) {
       const photoResult = await uploadEventPhoto(admin, eventId, body.photoBase64);
       if (!photoResult.ok) {
         return NextResponse.json({ error: photoResult.error }, { status: 422 });
