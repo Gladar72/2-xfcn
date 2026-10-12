@@ -184,3 +184,14 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .pr.deck{will-change:transform;backface-visibility:hidden}
 .P .pr.deck .body{touch-action:pan-y}
 .P .pr.deck .gal>img{transition:opacity .2s ease;transform:none!important}
+/* «Что ещё в городе» и приглашение заведениям в афише */
+.P .acard.city .pill{gap:4px}
+.P .acard.invite{background:linear-gradient(135deg,rgba(255,255,255,.16),rgba(255,255,255,.06));border:1.5px dashed rgba(255,255,255,.4);display:grid;place-items:center;text-align:center}
+.P .acard.invite::after{display:none}
+.P .acard.invite div{position:static;padding:14px;display:grid;gap:4px;justify-items:center}
+.P .acard.invite img{width:56px;height:56px;object-fit:contain}
+.P .acard.invite b{font-size:15px;margin:0;text-shadow:none}
+.P .acard.invite span{font-size:12px;opacity:.8;line-height:1.35}
+.P .acard.city .acb p{min-width:0}
+.P .acard.city .ach:not(.pr){min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.P .acard.city .ach.pr{flex:none}

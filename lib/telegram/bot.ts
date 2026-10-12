@@ -3,6 +3,7 @@ import { getSupportAiReply } from "@/lib/telegram/support-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activateSubscription } from "@/lib/subscriptions/server";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
+import { registerCityEventReview } from "@/lib/telegram/city-events-review";
 import { handleRsvpAnswer } from "@/lib/telegram/event-reminders";
 import { respondToInvite } from "@/lib/invites/respond";
 import { EVENT_START_PREFIX, buildEventCard } from "@/lib/telegram/event-card";
@@ -392,6 +393,8 @@ export function getBot(): Bot {
       reply_markup: new InlineKeyboard().text("👀 Предпросмотр", "gift_preview"),
     });
   });
+
+  registerCityEventReview(bot);
 
   bot.command("admin", async (ctx) => {
     if (!isAdminTelegramId(ctx.from?.id ?? 0)) return;
