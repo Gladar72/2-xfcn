@@ -74,7 +74,16 @@ export default function EventScreen() {
   const action = (() => {
     switch (event.viewerStatus) {
       case "organizer":
-        return <Btn kind="o" title="Это твоя встреча" disabled />;
+        return open ? (
+          <Btn
+            kind="o"
+            title="Изменить встречу"
+            icon={<Icon name="edit" size={20} color={colors.ink} />}
+            onPress={() => router.push({ pathname: "/create", params: { id: event.id } })}
+          />
+        ) : (
+          <Btn kind="o" title="Это твоя встреча" disabled />
+        );
       case "accepted":
         return <Btn kind="k" title="Открыть чат встречи" icon={<Icon name="chat" color="#fff" size={20} />} onPress={() => router.navigate("/(tabs)/chats")} />;
       case "pending":
