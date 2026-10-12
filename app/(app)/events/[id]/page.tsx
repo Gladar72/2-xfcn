@@ -55,6 +55,10 @@ interface EventDetails {
   organizerHidden?: boolean;
   participants: { id: string; name: string; avatarUrl: string | null }[];
   viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none";
+  /** Приглашение от организатора (для гостя). */
+  myInvite?: { id: string; status: "pending" | "accepted" | "declined"; message: string | null } | null;
+  /** Кого позвал организатор (только для организатора). */
+  invites?: { id: string; status: "pending" | "accepted" | "declined"; user: { id: string; name: string; avatarUrl: string | null } }[];
 }
 
 interface EventDetailsPageProps {
@@ -247,6 +251,25 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [anonOpen, setAnonOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [answering, setAnswering] = useState(false);
+  async function answerInvite(action: "accept" | "decline") {
+    if (!event?.myInvite) return;
+    setAnswering(true);
+    try {
+      const res = await fetch(`/api/invites/${event.myInvite.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const d = await res.json().catch(() => ({}));
+      flash(d.message ?? (res.ok ? "Готово" : "Не получилось — попробуй ещё раз"));
+      const fresh = await fetch(`/api/events/${eventId}`).then((r) => r.json()).catch(() => null);
+      if (fresh && !fresh.error) setEvent(fresh);
+    } finally {
+      setAnswering(false);
+    }
+  }
+
   function flash(t: string) {
     setToast(t);
     setTimeout(() => setToast(null), 2600);
@@ -355,8 +378,21 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const organizer = event.organizer;
   const pendingWithUser = pendingApplicants.flatMap((a) => (a.applicant ? [{ ...a, applicant: a.applicant }] : []));
 
+  const invitePending = !mine && active && event.myInvite?.status === "pending" && st !== "accepted";
+
   let ctaBtn: React.ReactNode;
-  if (mine) {
+  if (invitePending) {
+    ctaBtn = (
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="btn o" onClick={() => answerInvite("decline")} disabled={answering}>
+          Не смогу
+        </button>
+        <button className="btn v" onClick={() => answerInvite("accept")} disabled={answering || isFull}>
+          {isFull ? "Мест нет" : "Пойду"}
+        </button>
+      </div>
+    );
+  } else if (mine) {
     ctaBtn = active ? (
       <Link className="btn v" href={`/events/${event.id}/edit`}>
         <Ic n="edit" />
@@ -624,6 +660,16 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             </div>
           </div>
 
+          {invitePending && (
+            <div className="evnote gl" style={{ display: "grid", gap: 6 }}>
+              <b style={{ fontWeight: 500, color: "var(--violet)" }}>Тебя пригласили на эту встречу</b>
+              {event.myInvite?.message && <span style={{ fontStyle: "italic" }}>«{event.myInvite.message}»</span>}
+              <span className="muted" style={{ fontSize: 13 }}>
+                Нажмёшь «Пойду» — сразу попадёшь в участники и чат встречи, без заявки.
+              </span>
+            </div>
+          )}
+
           {event.description && <p className="about">{event.description}</p>}
 
           {event.status === "completed" && <div className="evnote gl">Встреча завершена. Спасибо, что были вместе!</div>}
@@ -668,6 +714,47 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                       <button className="sm yes" disabled={processingApplicantId === a.id} onClick={() => handleApplicantDecision(a.id, "accept")}>
                         Принять
                       </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {(event.invites?.length ?? 0) > 0 && (
+                <div className="blk">
+                  <div className="blk-h">
+                    <b>Приглашённые</b>
+                    <span>
+                      {event.invites!.filter((i) => i.status === "accepted").length} из {event.invites!.length} идут
+                    </span>
+                  </div>
+                  {event.invites!.map((i) => (
+                    <div key={i.id} className="apl gl">
+                      <Link href={`/people/${i.user.id}`}>
+                        {i.user.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={photoThumb(i.user.avatarUrl, 88)} alt="" />
+                        ) : (
+                          <span className="tgava" style={{ position: "static", width: 44, height: 44, borderRadius: "50%", fontSize: 18 }}>
+                            {i.user.name.charAt(0).toUpperCase()}
+                          </span>
+                        )}
+                      </Link>
+                      <div style={{ flex: 1 }}>
+                        <b>{i.user.name}</b>
+                        <span>приглашение</span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: 12.5,
+                          fontWeight: 500,
+                          padding: "5px 10px",
+                          borderRadius: 999,
+                          whiteSpace: "nowrap",
+                          background: i.status === "accepted" ? "#E7F7EC" : i.status === "declined" ? "#F1EFF5" : "#FFF3E3",
+                          color: i.status === "accepted" ? "#15803D" : i.status === "declined" ? "#5A5470" : "#9A5200",
+                        }}
+                      >
+                        {i.status === "accepted" ? "Идёт" : i.status === "declined" ? "Не сможет" : "Ждём ответа"}
+                      </span>
                     </div>
                   ))}
                 </div>
