@@ -30,6 +30,13 @@ export function reviewKeyboard(id: string, url: string) {
 }
 
 export function registerCityEventReview(bot: Bot) {
+  // /afisha — прислать найденные события на одобрение прямо сейчас (не ждать утра).
+  bot.command("afisha", async (ctx) => {
+    if (!ctx.from || !isAdminTelegramId(ctx.from.id)) return;
+    const n = await sendPendingCityEvents(ctx.api, ctx.from.id, true);
+    if (!n) await ctx.reply("Новых событий на одобрение нет 👌");
+  });
+
   bot.callbackQuery(/^ce:(ok|no):([0-9a-f-]{36})$/, async (ctx) => {
     if (!isAdminTelegramId(ctx.from.id)) return ctx.answerCallbackQuery();
     const [, act, id] = ctx.match as RegExpMatchArray;
@@ -53,14 +60,14 @@ export function registerCityEventReview(bot: Bot) {
 }
 
 /** Разослать админу ещё не показанные найденные события (раз в утро, из крона). */
-export async function sendPendingCityEvents(api: Bot["api"], adminId: number): Promise<number> {
+export async function sendPendingCityEvents(api: Bot["api"], adminId: number, all = false): Promise<number> {
   const admin = createAdminClient();
   await syncCityCovers(admin).catch(() => 0);
   const { data } = await admin
     .from("city_events")
     .select("id, title, event_date, event_time, end_date, place_name, address, price_text, source, source_url, photo_url")
     .eq("status", "pending")
-    .is("notified_at", null)
+    .or(all ? "notified_at.is.null,notified_at.not.is.null" : "notified_at.is.null")
     .gte("event_date", new Date(Date.now() - 864e5).toISOString().slice(0, 10))
     .order("event_date", { ascending: true })
     .limit(25);
