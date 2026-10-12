@@ -67,6 +67,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
+  const [inviteNote, setInviteNote] = useState("");
   useGuide(deck ? "deck" : "person", { when: person !== null, force: !!deck });
 
   // Колода сначала даёт короткую карточку (имя, фото), потом полный профиль —
@@ -121,22 +122,26 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       const res = await fetch("/api/conversations/direct", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: person.id, eventId }),
+        body: JSON.stringify({ userId: person.id, eventId, message: eventId ? inviteNote.trim() || undefined : undefined }),
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok || !d.conversationId) {
-        say(
-          d.error === "event_unavailable"
-            ? "Эта встреча уже закрыта — выбери другую"
-            : d.error === "no_shared_event"
-              ? NO_MEET_TEXT
-              : "Не получилось — попробуй ещё раз"
-        );
+        const INVITE_ERR: Record<string, string> = {
+          event_unavailable: "Эта встреча уже закрыта — выбери другую",
+          event_full: "На этой встрече не осталось мест",
+          already_invited: `${person.name} уже приглашён на эту встречу — позвать можно один раз`,
+          already_member: `${person.name} уже идёт на эту встречу`,
+          invite_limit: `За сутки можно позвать не больше ${d.limit ?? 5} человек. Попробуй завтра`,
+          not_your_event: "Позвать можно только на свою встречу",
+          no_shared_event: NO_MEET_TEXT,
+        };
+        say(INVITE_ERR[d.error as string] ?? "Не получилось — попробуй ещё раз");
         return;
       }
       if (eventId) {
         setInviteOpen(false);
         setPick(null);
+        setInviteNote("");
         peek({ pose: "jump", text: `Позвал! ${person.name} получит приглашение в Telegram`, quick: true, low: true });
       } else router.push(`/chats/${d.conversationId}`);
     } finally {
@@ -469,6 +474,20 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             </div>
           </button>
         </div>
+        {(myEvents?.length ?? 0) > 0 && (
+          <label className="field gl ta">
+            <textarea
+              rows={2}
+              maxLength={300}
+              value={inviteNote}
+              onChange={(e) => setInviteNote(e.target.value)}
+              placeholder="Пару слов от тебя (необязательно)"
+            />
+          </label>
+        )}
+        <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>
+          Одного человека на встречу можно позвать один раз, всего — до 5 приглашений в сутки.
+        </p>
         <p className="safe">
           <Ic n="shield" c="xs" />
           Для безопасности первая встреча — в людном месте. Написать лично можно после общей встречи.
