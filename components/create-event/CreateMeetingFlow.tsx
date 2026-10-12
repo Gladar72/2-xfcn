@@ -7,6 +7,7 @@ import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocod
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
+import { coverFor, isPresetCover } from "@/lib/photos/preset-cover";
 import { showGuide } from "@/lib/mosya/guide";
 import { confetti } from "@/lib/mosya/confetti";
 import { peek, say } from "@/lib/mosya/peek";
@@ -261,9 +262,24 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         ? own || "Своё"
         : (categorySlug && SHORT[categorySlug]) || "встречи";
 
-  // Обложки от Моси — перерисовываются при смене категории и «Ещё варианты».
+  // Готовая фотообложка под категорию (Nano Banana). Для «Своё» её нет —
+  // там фото обязательно своё.
+  const presetCover = coverFor(categorySlug, trainingTypeSlug, business);
+
+  // Обложки от Моси — готовое фото категории; рисованные — только запасной вариант.
   useEffect(() => {
-    if (step !== 2 || !iconSrc) return;
+    if (step !== 2) return;
+    if (isOwn) {
+      setCovers([]);
+      if (photo !== ownPhoto) setPhoto(ownPhoto);
+      return;
+    }
+    if (presetCover) {
+      setCovers([presetCover]);
+      if (!ownPhoto || photo !== ownPhoto) setPhoto(presetCover);
+      return;
+    }
+    if (!iconSrc) return;
     let cancelled = false;
     setCovers([]);
     drawCovers(iconSrc, coverShift).then((list) => {
@@ -275,7 +291,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, iconSrc, coverShift]);
+  }, [step, iconSrc, coverShift, presetCover, isOwn]);
 
   // «Мося рекомендует» — места под категорию (кинотеатры для «Кино»…).
   useEffect(() => {
@@ -347,6 +363,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       if (isOwn && own.trim().length < 2) return "Напиши одним-двумя словами, чем займёмся — например «сапы». Так встречу найдут поиском";
     }
     if (step === 2 && title.trim().length < 3) return "Придумай название — хотя бы 3 буквы.";
+    if (step === 2 && isOwn && (!ownPhoto || photo !== ownPhoto))
+      return "Для своей встречи нужно своё фото — загрузи его, чтобы люди поняли, куда зовёшь.";
     if (step === 3) {
       if (duration < 60) return "Встреча должна длиться хотя бы час.";
       if (placeName.trim().length < 2 || latitude === undefined || longitude === undefined) return "Выбери место из подсказок или отметь точку на карте.";
@@ -409,7 +427,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           isBusiness: business,
           isAnonymous: business ? false : isAnonymous,
           // при правке фото отправляем, только если его поменяли (новый data:URL)
-          photoBase64: editId ? (photo?.startsWith("data:") ? photo : undefined) : photo,
+          photoBase64: editId ? (photo?.startsWith("data:") || isPresetCover(photo) ? photo : undefined) : photo,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -511,7 +529,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               {invited && inviteName ? `Приглашение для ${inviteName} уже отправлено. ` : ""}
               {isAnonymous
                 ? "Встреча анонимная: имя, фото и адрес увидят только те, кого ты примешь."
-                : `${photo !== ownPhoto ? "Обложку нарисовал Мося — поменять можно в редактировании. " : ""}Её уже видят люди рядом. Заявки придут сюда и в Telegram — ты сам решаешь, кого принять.`}
+                : `${photo !== ownPhoto ? "Обложку подобрал Мося — поменять можно в редактировании. " : ""}Её уже видят люди рядом. Заявки придут сюда и в Telegram — ты сам решаешь, кого принять.`}
             </p>
           </div>
         </div>
@@ -653,19 +671,35 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 <span className="lbl" style={{ margin: 0 }}>
                   Обложка
                 </span>
-                <span className={`aitag ${covers.length ? "" : "run"}`}>{covers.length ? (title.trim() ? `✦ Нарисовано под «${title.trim()}»` : "✦ Мося нарисовал") : "✦ Мося рисует…"}</span>
+                {!isOwn && (
+                  <span className={`aitag ${covers.length ? "" : "run"}`}>
+                    {covers.length ? (presetCover ? `✦ Мося подобрал для «${catLabel}»` : title.trim() ? `✦ Нарисовано под «${title.trim()}»` : "✦ Мося нарисовал") : "✦ Мося рисует…"}
+                  </span>
+                )}
               </div>
+              {isOwn && (
+                <p className="muted" style={{ fontSize: 13.5, margin: "2px 2px 8px", lineHeight: 1.45 }}>
+                  Для своей встречи готовой обложки нет — загрузи своё фото. Мы проверим его автоматически: без пошлости и чужой рекламы.
+                </p>
+              )}
+              {!isOwn && (
               <div className="covers">
                 {covers.length === 0
                   ? [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "1", borderRadius: 18 }} />)
                   : covers.map((c, i) => (
-                      <button key={c.slice(-40) + i} className={`aic ${photo === c ? "on" : ""}`} style={{ animationDelay: `${i * 0.08}s` }} onClick={() => setPhoto(c)}>
+                      <button
+                        key={c.slice(-40) + i}
+                        className={`aic ${photo === c ? "on" : ""}`}
+                        style={{ animationDelay: `${i * 0.08}s`, ...(isPresetCover(c) ? { gridColumn: "1 / -1", aspectRatio: "1.5" } : {}) }}
+                        onClick={() => setPhoto(c)}
+                      >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img className="cv" src={c} alt={`Обложка ${i + 1}`} />
                         <span className="aib">✦ Мося</span>
                       </button>
                     ))}
               </div>
+              )}
               <div className="covers" style={{ marginTop: 8 }}>
                 <button className="up gl" onClick={() => fileRef.current?.click()}>
                   <Ic n="camera" />
@@ -677,14 +711,18 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                     <img src={ownPhoto} alt="" />
                   </button>
                 )}
-                <button className="up gl" onClick={() => setCoverShift((s) => s + 1)}>
-                  ↻<br />
-                  Ещё варианты
-                </button>
+                {!isOwn && !presetCover && (
+                  <button className="up gl" onClick={() => setCoverShift((s) => s + 1)}>
+                    ↻<br />
+                    Ещё варианты
+                  </button>
+                )}
               </div>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
               <p className="muted" style={{ fontSize: 13, margin: "10px 2px 0", lineHeight: 1.45 }}>
-                Фото можно загрузить к любой встрече. Не загрузишь — Мося нарисует обложку сам, у каждой встречи будет картинка.
+                {isOwn
+                  ? "Фото обязательно: без него встречу не опубликовать."
+                  : "Своё фото можно загрузить к любой встрече. Не загрузишь — будет обложка, которую подобрал Мося."}
               </p>
               <span className="lbl">
                 Описание <small className="muted">необязательно</small>
