@@ -3,6 +3,7 @@ import { ANONYMOUS_ORGANIZER_NAME, fuzzCoordinate } from "@/lib/events/anonymity
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { eventTiming, eventUtcOffsetHours } from "@/lib/events/timing";
+import { geocodeCityEvents, upcomingCityEvents } from "@/lib/city-events";
 import { cachedFeed } from "@/lib/data/feed-cache";
 
 /**
@@ -200,6 +201,37 @@ export async function GET(req: NextRequest) {
       return { name: o.name ?? "", avatarUrl: o.avatar_url };
     })(),
   }));
+
+  // Карта заведений — ещё и одобренные события города («Что ещё в городе»).
+  if (businessOnly) {
+    await geocodeCityEvents(admin).catch(() => {});
+    const cityItems = (await upcomingCityEvents(admin, city, 40))
+      .filter((c) => c.latitude != null && c.longitude != null)
+      .map((c) => {
+        const t = eventTiming({ event_date: c.eventDate, event_time: c.eventTime ?? "19:00:00", event_end_time: null, city, longitude: c.longitude });
+        return {
+          id: `city:${c.id}`,
+          title: c.title,
+          eventDate: c.eventDate,
+          eventTime: c.eventTime ?? "19:00:00",
+          latitude: c.latitude as number,
+          longitude: c.longitude as number,
+          placeName: c.placeName,
+          address: c.address,
+          isAnonymous: false,
+          organizerHidden: false,
+          seatsLeft: 999,
+          category: { slug: c.category, name: "", emoji: null },
+          isBusiness: true,
+          isCity: true,
+          startsAt: t.start.toISOString(),
+          endsAt: t.end.toISOString(),
+          utcOffset: eventUtcOffsetHours({ city, longitude: c.longitude }),
+          organizer: { name: c.placeName ?? "", avatarUrl: c.photoUrl },
+        };
+      });
+    return NextResponse.json({ items: [...items, ...cityItems], city });
+  }
 
   return NextResponse.json({ items, city });
 }

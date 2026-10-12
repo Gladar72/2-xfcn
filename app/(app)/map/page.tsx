@@ -256,7 +256,7 @@ function MapPageContent() {
 
       <div className="mcar">
         {carousel.map((e) => (
-          <Link key={e.id} className="mcard gl" href={`/events/${e.id}`}>
+          <Link key={e.id} className="mcard gl" href={e.id.startsWith("city:") ? `/city/${e.id.slice(5)}` : `/events/${e.id}`}>
             {e.organizer?.avatarUrl && !e.organizerHidden ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={photoThumb(e.organizer.avatarUrl, 144)} alt="" />
@@ -272,7 +272,7 @@ function MapPageContent() {
                 {eventTimeLabel(e).live ? "идёт сейчас" : `${dayShort(e.eventDate)}, ${e.eventTime.slice(0, 5)}`} ·{" "}
                 {e.organizerHidden ? "анонимно · место после одобрения" : e.placeName ?? e.address?.replace(/^Россия,\s*/, "") ?? ""}
               </span>
-              <span>{e.seatsLeft > 0 ? `свободно ${e.seatsLeft}` : "мест нет"}</span>
+              <span>{e.id.startsWith("city:") ? "событие города" : e.seatsLeft > 0 ? `свободно ${e.seatsLeft}` : "мест нет"}</span>
             </div>
             {!e.organizerHidden && (
               <span
