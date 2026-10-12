@@ -114,8 +114,13 @@ export async function syncCityCovers(admin: Admin, limit = 20): Promise<number> 
     try {
       const url = new URL(r.cover_src as string);
       if (url.protocol !== "https:") continue;
-      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
-      if (!res.ok) continue;
+      // Сайты афиш часто не отдают картинки серверам — тогда показываем
+      // афишу напрямую с сайта (в браузере телефона она открывается).
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) }).catch(() => null);
+      if (!res || !res.ok) {
+        await admin.from("city_events").update({ photo_url: url.href }).eq("id", r.id);
+        continue;
+      }
       const type = res.headers.get("content-type") ?? "image/png";
       if (!type.startsWith("image/")) continue;
       const buf = Buffer.from(await res.arrayBuffer());
@@ -132,4 +137,43 @@ export async function syncCityCovers(admin: Admin, limit = 20): Promise<number> 
     }
   }
   return done;
+}
+
+/**
+ * Координаты для карты заведений: Яндекс Геокодер по адресу или названию
+ * площадки. Каждое событие пробуем один раз (geo_tried_at).
+ */
+export async function geocodeCityEvents(admin: Admin, limit = 8): Promise<void> {
+  const key = process.env.YANDEX_GEOCODER_API_KEY;
+  if (!key) return;
+  const { data } = await admin
+    .from("city_events")
+    .select("id, city, place_name, address")
+    .is("latitude", null)
+    .is("geo_tried_at", null)
+    .neq("status", "rejected")
+    .limit(limit);
+  for (const r of data ?? []) {
+    const q = (r.address as string | null) ?? (r.place_name as string | null);
+    let lat: number | null = null;
+    let lon: number | null = null;
+    if (q) {
+      try {
+        const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${key}&geocode=${encodeURIComponent(`${r.city as string}, ${q}`)}&format=json&results=1&lang=ru_RU`;
+        const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+        const j = await res.json();
+        const pos = j?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject?.Point?.pos as string | undefined;
+        if (pos) {
+          const [lo, la] = pos.split(" ").map(Number);
+          if (Number.isFinite(la) && Number.isFinite(lo)) {
+            lat = la ?? null;
+            lon = lo ?? null;
+          }
+        }
+      } catch {
+        /* попробуем при следующем добавлении адреса */
+      }
+    }
+    await admin.from("city_events").update({ latitude: lat, longitude: lon, geo_tried_at: new Date().toISOString() }).eq("id", r.id);
+  }
 }

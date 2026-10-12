@@ -6,11 +6,14 @@ import { useRouter } from "next/navigation";
 import { useGuide } from "@/lib/mosya/guide";
 import { EmptyIll, HeroCard, Ic, Overlay, Screen, type HeroEvent } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
+import { Cover } from "@/components/proto/ui";
+import { KIND_LABEL, cityEventIcon, type CityEvent } from "@/lib/city-events";
 
 /** «Для бизнеса» (SCR.business прототипа): как это работает + ближайшие события. */
 export default function BusinessPage() {
   const router = useRouter();
   const [events, setEvents] = useState<HeroEvent[] | null>(null);
+  const [cityEv, setCityEv] = useState<CityEvent[]>([]);
   useGuide("business");
 
   useEffect(() => {
@@ -18,6 +21,10 @@ export default function BusinessPage() {
       .then((r) => r.json())
       .then((d) => setEvents((d.items ?? []).filter((e: HeroEvent) => e.isBusiness)))
       .catch(() => setEvents([]));
+    fetch("/api/city-events")
+      .then((r) => r.json())
+      .then((d) => setCityEv(d.items ?? []))
+      .catch(() => {});
   }, []);
 
   return (
@@ -68,6 +75,30 @@ export default function BusinessPage() {
           </div>
         )}
       </div>
+      {cityEv.length > 0 && (
+        <>
+          <div className="sec">
+            <b>Что ещё в городе</b>
+            <span>{cityEv.length}</span>
+          </div>
+          <div style={{ display: "grid", gap: 10 }}>
+            {cityEv.map((c) => (
+              <Link key={c.id} href={`/city/${c.id}`} className="gl cityrow">
+                <Cover photoUrl={c.photoUrl} icon={cityEventIcon(c.kind)} cls="cr-ph" thumb={200} />
+                <div className="cr-i">
+                  <small>{KIND_LABEL[c.kind ?? ""] ?? "Событие"}</small>
+                  <b>{c.title}</b>
+                  <span>
+                    {cityDay(c)}
+                    {c.placeName ? ` · ${c.placeName}` : ""}
+                  </span>
+                </div>
+                {c.priceText && <span className="cr-p">{c.priceText}</span>}
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
       <div style={{ height: 90 }} />
       {/* Как на главной — по центру внизу: карта только с событиями заведений. */}
       <Overlay>
@@ -78,4 +109,11 @@ export default function BusinessPage() {
       </Overlay>
     </Screen>
   );
+}
+
+function cityDay(c: CityEvent) {
+  const today = new Date().toISOString().slice(0, 10);
+  const f = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+  if (c.endDate && c.eventDate <= today) return `идёт · до ${f(c.endDate)}`;
+  return `${f(c.eventDate)}${c.eventTime ? `, ${c.eventTime.slice(0, 5)}` : ""}`;
 }
