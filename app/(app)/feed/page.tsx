@@ -15,6 +15,7 @@ import type { ApplicationStatus } from "@/components/applications/ApplicationSta
 import { goBack } from "@/lib/nav/back";
 import { CityWheel } from "@/components/proto/pickers";
 import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
+import { KIND_LABEL, cityEventIcon } from "@/lib/city-events";
 
 interface Category {
   id: string;
@@ -82,6 +83,7 @@ function HomeScreen() {
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
   const [events, setEvents] = useState<FeedEvent[] | null>(null);
   const [biz, setBiz] = useState<FeedEvent[]>([]);
+  const [cityEv, setCityEv] = useState<CityEvent[]>([]);
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [plan, setPlan] = useState<{ ev: MyEvent; label: string } | null>(null);
   const [unreadChats, setUnreadChats] = useState(0);
@@ -132,6 +134,10 @@ function HomeScreen() {
     fetch(`/api/events?business=true&city=${encodeURIComponent(city)}`)
       .then((r) => r.json())
       .then((d) => setBiz((d.items ?? []).filter((e: FeedEvent) => e.isBusiness)))
+      .catch(() => {});
+    fetch(`/api/city-events?city=${encodeURIComponent(city)}`)
+      .then((r) => r.json())
+      .then((d) => setCityEv(d.items ?? []))
       .catch(() => {});
   }, [city]);
 
@@ -343,11 +349,36 @@ function HomeScreen() {
               </div>
             </Link>
           ))}
-          {biz.length === 0 && (
-            <Link className="acard" href="/business" style={{ background: "rgba(255,255,255,.1)", display: "grid", placeItems: "center" }}>
-              <div style={{ position: "static", padding: 16 }}>
-                <b>Скоро здесь афиша</b>
-                <span>Концерты, дегустации, мастер-классы — или создай своё событие</span>
+          {/* «Что ещё в городе»: события из открытых источников (после одобрения). */}
+          {cityEv.map((c) => (
+            <Link key={c.id} className="acard city" href={`/city/${c.id}`}>
+              <Cover photoUrl={c.photoUrl} icon={cityEventIcon(c.kind)} thumb={480} />
+              <span className="pill glass">
+                {KIND_LABEL[c.kind ?? ""] ?? "В городе"}
+              </span>
+              <div className="acb">
+                <b>{c.title}</b>
+                <p>
+                  <span className="ach">
+                    <Ic n="cal" c="xs" />
+                    {cityWhen(c)}
+                  </span>
+                </p>
+                <p>
+                  {c.placeName && <span className="ach">{c.placeName}</span>}
+                  {c.priceText && <span className="ach pr">{c.priceText}</span>}
+                </p>
+              </div>
+            </Link>
+          ))}
+          {/* Пока событий мало — приглашаем заведения разместить своё. */}
+          {biz.length < 4 && (
+            <Link className="acard invite" href="/business">
+              <div>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/brand/cat3d/i_biz.webp" alt="" />
+                <b>Здесь может быть ваше событие</b>
+                <span>Бесплатно для заведений: концерты, квизы, дегустации</span>
               </div>
             </Link>
           )}
@@ -553,6 +584,29 @@ function whenText(dateIso: string, time: string) {
   );
   const day = diff === 0 ? "сегодня" : diff === 1 ? "завтра" : d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
   return `${day}, ${time.slice(0, 5)}`;
+}
+
+interface CityEvent {
+  id: string;
+  title: string;
+  eventDate: string;
+  eventTime: string | null;
+  endDate: string | null;
+  placeName: string | null;
+  priceText: string | null;
+  category: string;
+  kind: string | null;
+  photoUrl: string | null;
+}
+
+/** «17 окт · 19:00» или «до 25 ноя» для выставок, которые идут несколько дней. */
+function cityWhen(c: CityEvent) {
+  const today = new Date().toISOString().slice(0, 10);
+  if (c.endDate && c.eventDate <= today) {
+    const d = new Date(c.endDate);
+    return `идёт · до ${d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}`;
+  }
+  return c.eventTime ? whenShort(c.eventDate, c.eventTime) : new Date(c.eventDate).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
 }
 
 function whenShort(dateIso: string, time: string) {

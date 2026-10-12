@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
 import { escapeHtml } from "@/lib/outreach/assistant";
+import { sendPendingCityEvents } from "@/lib/telegram/city-events-review";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -36,6 +37,8 @@ export async function GET(req: NextRequest) {
       await api.sendMessage(adminId, `⏰ Напоминание\n\n${r.text}`).catch((err) => console.error("admin reminder failed:", err));
       await admin.from("admin_reminders").update({ sent_at: new Date().toISOString() }).eq("id", r.id);
     }
+    // Найденные события города — на одобрение владельцу.
+    await sendPendingCityEvents(api, adminId).catch((err) => console.error("city events review failed:", err));
     // Ежедневная пачка «кому написать про рекламу» ОТКЛЮЧЕНА по просьбе
     // владельца — с пабликами и блогерами он общается сам. Вручную её
     // по-прежнему можно получить командой /outreach.

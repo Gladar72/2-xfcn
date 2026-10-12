@@ -186,6 +186,37 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       .catch(() => {});
   }, []);
 
+  // «Найти компанию» на событие из городской афиши — подставляем название, дату и место.
+  const fromCity = searchParams.get("fromCity");
+  useEffect(() => {
+    if (!fromCity || editId) return;
+    fetch(`/api/city-events/${fromCity}`)
+      .then((r) => r.json())
+      .then((c) => {
+        if (c.error) return;
+        setTitle(`Пойдём вместе: ${c.title}`.slice(0, 80));
+        const d = new Date(`${c.eventDate}T00:00:00`);
+        const t0 = new Date();
+        t0.setHours(0, 0, 0, 0);
+        const days = Math.round((d.getTime() - t0.getTime()) / 864e5);
+        if (days >= 0) setDi(Math.min(N_DAYS - 1, days));
+        if (c.eventTime) {
+          const [h = 19, m = 0] = String(c.eventTime).split(":").map(Number);
+          setHh(h);
+          setMi(Math.round(m / 5) % 12);
+        }
+        if (c.placeName) setPlaceName(c.placeName);
+        if (c.address) setAddress(c.address);
+        if (c.latitude != null && c.longitude != null) {
+          setLatitude(c.latitude);
+          setLongitude(c.longitude);
+          setExternalCoords({ latitude: c.latitude, longitude: c.longitude });
+        }
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromCity]);
+
   // Правка встречи: заполняем шаги данными с сервера.
   useEffect(() => {
     if (!editId) return;
