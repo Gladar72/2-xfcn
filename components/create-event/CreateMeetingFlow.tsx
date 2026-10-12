@@ -7,7 +7,7 @@ import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocod
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
-import { coverFor, isPresetCover } from "@/lib/photos/preset-cover";
+import { coverFor, coverForText, isPresetCover } from "@/lib/photos/preset-cover";
 import { showGuide } from "@/lib/mosya/guide";
 import { confetti } from "@/lib/mosya/confetti";
 import { peek, say } from "@/lib/mosya/peek";
@@ -262,14 +262,14 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         ? own || "Своё"
         : (categorySlug && SHORT[categorySlug]) || "встречи";
 
-  // Готовая фотообложка под категорию (Nano Banana). Для «Своё» её нет —
-  // там фото обязательно своё.
-  const presetCover = coverFor(categorySlug, trainingTypeSlug, business);
+  // Готовая фотообложка под категорию (Nano Banana). Для «Своё» Мося
+  // подбирает её по словам организатора; не подошло — нужно своё фото.
+  const presetCover = isOwn ? coverForText(`${own} ${title}`) : coverFor(categorySlug, trainingTypeSlug, business);
 
   // Обложки от Моси — готовое фото категории; рисованные — только запасной вариант.
   useEffect(() => {
     if (step !== 2) return;
-    if (isOwn) {
+    if (isOwn && !presetCover) {
       setCovers([]);
       if (photo !== ownPhoto) setPhoto(ownPhoto);
       return;
@@ -363,8 +363,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       if (isOwn && own.trim().length < 2) return "Напиши одним-двумя словами, чем займёмся — например «сапы». Так встречу найдут поиском";
     }
     if (step === 2 && title.trim().length < 3) return "Придумай название — хотя бы 3 буквы.";
-    if (step === 2 && isOwn && (!ownPhoto || photo !== ownPhoto))
-      return "Для своей встречи нужно своё фото — загрузи его, чтобы люди поняли, куда зовёшь.";
+    if (step === 2 && isOwn && !presetCover && (!ownPhoto || photo !== ownPhoto))
+      return "Мося не нашёл обложку под твою встречу — загрузи своё фото, чтобы люди поняли, куда зовёшь.";
     if (step === 3) {
       if (duration < 60) return "Встреча должна длиться хотя бы час.";
       if (placeName.trim().length < 2 || latitude === undefined || longitude === undefined) return "Выбери место из подсказок или отметь точку на карте.";
@@ -671,18 +671,18 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 <span className="lbl" style={{ margin: 0 }}>
                   Обложка
                 </span>
-                {!isOwn && (
+                {(!isOwn || presetCover) && (
                   <span className={`aitag ${covers.length ? "" : "run"}`}>
                     {covers.length ? (presetCover ? `✦ Мося подобрал для «${catLabel}»` : title.trim() ? `✦ Нарисовано под «${title.trim()}»` : "✦ Мося нарисовал") : "✦ Мося рисует…"}
                   </span>
                 )}
               </div>
-              {isOwn && (
+              {isOwn && !presetCover && (
                 <p className="muted" style={{ fontSize: 13.5, margin: "2px 2px 8px", lineHeight: 1.45 }}>
-                  Для своей встречи готовой обложки нет — загрузи своё фото. Мы проверим его автоматически: без пошлости и чужой рекламы.
+                  Под «{own.trim() || title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото. Мы проверим его автоматически: без пошлости и чужой рекламы.
                 </p>
               )}
-              {!isOwn && (
+              {(!isOwn || presetCover) && (
               <div className="covers">
                 {covers.length === 0
                   ? [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "1", borderRadius: 18 }} />)
@@ -720,7 +720,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               </div>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
               <p className="muted" style={{ fontSize: 13, margin: "10px 2px 0", lineHeight: 1.45 }}>
-                {isOwn
+                {isOwn && !presetCover
                   ? "Фото обязательно: без него встречу не опубликовать."
                   : "Своё фото можно загрузить к любой встрече. Не загрузишь — будет обложка, которую подобрал Мося."}
               </p>
