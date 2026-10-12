@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { activateSubscription } from "@/lib/subscriptions/server";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import { handleRsvpAnswer } from "@/lib/telegram/event-reminders";
+import { respondToInvite } from "@/lib/invites/respond";
 import { EVENT_START_PREFIX, buildEventCard } from "@/lib/telegram/event-card";
 import type { Plan } from "@/lib/subscriptions/limits";
 import {
@@ -588,6 +589,30 @@ export function getBot(): Bot {
     const originalText = sourceMessage && "text" in sourceMessage ? sourceMessage.text ?? "" : "";
     await ctx
       .editMessageText(`${originalText}\n\n${result.text}`, { reply_markup: undefined })
+      .catch(() => {});
+  });
+
+  // Кнопки «✅ Пойду» / «Не смогу» под приглашением от организатора
+  // (см. app/api/conversations/direct/route.ts).
+  bot.callbackQuery(/^inv:(y|n):([0-9a-f-]{36})$/, async (ctx) => {
+    const match = ctx.match as RegExpMatchArray;
+    const result = await respondToInvite(createAdminClient(), {
+      inviteId: match[2] ?? "",
+      answer: match[1] === "y" ? "accept" : "decline",
+      telegramId: ctx.from.id,
+    });
+    await ctx.answerCallbackQuery({ text: result.ok ? undefined : result.text });
+    if (!result.ok && result.error === "forbidden") return;
+
+    const appUrl = process.env.APP_URL;
+    const keyboard =
+      result.ok && result.status === "accepted" && appUrl
+        ? new InlineKeyboard().webApp("Открыть встречу", `${appUrl}?goto=event_${result.eventId}`)
+        : undefined;
+    const sourceMessage = ctx.callbackQuery.message;
+    const originalText = sourceMessage && "text" in sourceMessage ? sourceMessage.text ?? "" : "";
+    await ctx
+      .editMessageText(`${originalText}\n\n${result.text}`, { reply_markup: keyboard })
       .catch(() => {});
   });
 
