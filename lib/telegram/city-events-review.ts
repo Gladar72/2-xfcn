@@ -1,6 +1,7 @@
 import { InlineKeyboard, type Bot } from "grammy";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
+import { syncCityCovers } from "@/lib/city-events";
 
 /**
  * Модерация «Что ещё в городе» прямо в Telegram: бот присылает админу
@@ -40,19 +41,24 @@ export function registerCityEventReview(bot: Bot) {
       .select("title")
       .maybeSingle();
     await ctx.answerCallbackQuery({ text: status === "approved" ? "Добавил в ленту" : "Пропустил" });
-    const base = ctx.callbackQuery.message && "text" in ctx.callbackQuery.message ? ctx.callbackQuery.message.text : data?.title ?? "";
-    await ctx
-      .editMessageText(`${esc(base ?? "")}\n\n${status === "approved" ? "✅ В ленте" : "❌ Пропущено"}`, { parse_mode: "HTML" })
-      .catch(() => {});
+    const msg = ctx.callbackQuery.message;
+    const mark = status === "approved" ? "✅ В ленте" : "❌ Пропущено";
+    if (msg && "photo" in msg && msg.photo) {
+      await ctx.editMessageCaption({ caption: `${esc(msg.caption ?? data?.title ?? "")}\n\n${mark}`, parse_mode: "HTML" }).catch(() => {});
+    } else {
+      const base = msg && "text" in msg ? msg.text : data?.title ?? "";
+      await ctx.editMessageText(`${esc(base ?? "")}\n\n${mark}`, { parse_mode: "HTML" }).catch(() => {});
+    }
   });
 }
 
 /** Разослать админу ещё не показанные найденные события (раз в утро, из крона). */
 export async function sendPendingCityEvents(api: Bot["api"], adminId: number): Promise<number> {
   const admin = createAdminClient();
+  await syncCityCovers(admin).catch(() => 0);
   const { data } = await admin
     .from("city_events")
-    .select("id, title, event_date, event_time, end_date, place_name, address, price_text, source, source_url")
+    .select("id, title, event_date, event_time, end_date, place_name, address, price_text, source, source_url, photo_url")
     .eq("status", "pending")
     .is("notified_at", null)
     .gte("event_date", new Date(Date.now() - 864e5).toISOString().slice(0, 10))
@@ -65,13 +71,11 @@ export async function sendPendingCityEvents(api: Bot["api"], adminId: number): P
     `🔎 Мося нашёл ${list.length} событий для «Что ещё в городе». Посмотри и отметь, что ставить в ленту 👇`
   );
   for (const e of list) {
-    await api
-      .sendMessage(adminId, cityEventCardText(e), {
-        parse_mode: "HTML",
-        reply_markup: reviewKeyboard(e.id as string, e.source_url as string),
-        link_preview_options: { is_disabled: true },
-      })
-      .catch((err) => console.error("city event card failed:", err));
+    const markup = reviewKeyboard(e.id as string, e.source_url as string);
+    const sent = e.photo_url
+      ? api.sendPhoto(adminId, e.photo_url as string, { caption: cityEventCardText(e), parse_mode: "HTML", reply_markup: markup })
+      : api.sendMessage(adminId, cityEventCardText(e), { parse_mode: "HTML", reply_markup: markup, link_preview_options: { is_disabled: true } });
+    await sent.catch((err) => console.error("city event card failed:", err));
     await admin.from("city_events").update({ notified_at: new Date().toISOString() }).eq("id", e.id);
   }
   return list.length;

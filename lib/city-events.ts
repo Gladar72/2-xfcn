@@ -19,10 +19,11 @@ export interface CityEvent {
   description: string | null;
   source: string;
   sourceUrl: string;
+  photoUrl: string | null;
 }
 
 export const CITY_EVENT_COLS =
-  "id, city, title, event_date, event_time, end_date, place_name, address, latitude, longitude, price_text, category, kind, description, source, source_url";
+  "id, city, title, event_date, event_time, end_date, place_name, address, latitude, longitude, price_text, category, kind, description, source, source_url, photo_url";
 
 export function mapCityEvent(r: Record<string, unknown>): CityEvent {
   return {
@@ -42,6 +43,7 @@ export function mapCityEvent(r: Record<string, unknown>): CityEvent {
     description: (r.description as string | null) ?? null,
     source: r.source as string,
     sourceUrl: r.source_url as string,
+    photoUrl: (r.photo_url as string | null) ?? null,
   };
 }
 
@@ -99,3 +101,36 @@ export const KIND_LABEL: Record<string, string> = {
   kids: "Для детей",
   karaoke: "Караоке",
 };
+
+const COVER_HOSTS = /(^|\.)(cloudfront\.net|higgsfield\.ai)$/;
+
+/**
+ * Перекладывает нарисованные обложки (cover_src) в наше хранилище и
+ * записывает photo_url. Берём только с известных адресов генератора.
+ */
+export async function syncCityCovers(admin: Admin, limit = 20): Promise<number> {
+  const { data } = await admin.from("city_events").select("id, cover_src").not("cover_src", "is", null).is("photo_url", null).limit(limit);
+  let done = 0;
+  for (const r of data ?? []) {
+    try {
+      const url = new URL(r.cover_src as string);
+      if (url.protocol !== "https:" || !COVER_HOSTS.test(url.hostname)) continue;
+      const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+      if (!res.ok) continue;
+      const type = res.headers.get("content-type") ?? "image/png";
+      if (!type.startsWith("image/")) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.byteLength > 8 * 1024 * 1024) continue;
+      const ext = type.includes("webp") ? "webp" : type.includes("jpeg") ? "jpg" : "png";
+      const path = `city/${r.id as string}.${ext}`;
+      const { error } = await admin.storage.from("event-photos").upload(path, buf, { contentType: type, upsert: true });
+      if (error) continue;
+      const { data: pub } = admin.storage.from("event-photos").getPublicUrl(path);
+      await admin.from("city_events").update({ photo_url: pub.publicUrl }).eq("id", r.id);
+      done++;
+    } catch (err) {
+      console.error("city cover sync failed:", err);
+    }
+  }
+  return done;
+}

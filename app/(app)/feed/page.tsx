@@ -352,7 +352,7 @@ function HomeScreen() {
           {/* «Что ещё в городе»: события из открытых источников (после одобрения). */}
           {cityEv.map((c) => (
             <Link key={c.id} className="acard city" href={`/city/${c.id}`}>
-              <Cover photoUrl={null} icon={cityEventIcon(c.kind)} />
+              <Cover photoUrl={c.photoUrl} icon={cityEventIcon(c.kind)} thumb={480} />
               <span className="pill glass">
                 {KIND_LABEL[c.kind ?? ""] ?? "В городе"}
               </span>
@@ -596,6 +596,7 @@ interface CityEvent {
   priceText: string | null;
   category: string;
   kind: string | null;
+  photoUrl: string | null;
 }
 
 /** «17 окт · 19:00» или «до 25 ноя» для выставок, которые идут несколько дней. */

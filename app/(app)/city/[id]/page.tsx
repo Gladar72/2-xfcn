@@ -68,7 +68,7 @@ export default function CityEventPage({ params }: { params: { id: string } }) {
 
   return (
     <section className="scr ev aurora in" data-id="city-event">
-      <Cover photoUrl={null} icon={cityEventIcon(e.kind)} />
+      <Cover photoUrl={e.photoUrl} icon={cityEventIcon(e.kind)} thumb={900} />
       <div className="ph-sh" />
       <div className="hb">
         <button className="rb glass" onClick={() => goBack(router, "/feed")} aria-label="Назад">
