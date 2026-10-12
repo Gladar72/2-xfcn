@@ -102,11 +102,10 @@ export const KIND_LABEL: Record<string, string> = {
   karaoke: "Караоке",
 };
 
-const COVER_HOSTS = /(^|\.)(cloudfront\.net|higgsfield\.ai)$/;
-
 /**
- * Перекладывает нарисованные обложки (cover_src) в наше хранилище и
- * записывает photo_url. Берём только с известных адресов генератора.
+ * Перекладывает обложки (cover_src — афиша события с сайта-источника или
+ * нарисованная Мосей) в наше хранилище и записывает photo_url.
+ * cover_src заполняет только админ, поэтому адрес — любой https.
  */
 export async function syncCityCovers(admin: Admin, limit = 20): Promise<number> {
   const { data } = await admin.from("city_events").select("id, cover_src").not("cover_src", "is", null).is("photo_url", null).limit(limit);
@@ -114,7 +113,7 @@ export async function syncCityCovers(admin: Admin, limit = 20): Promise<number> 
   for (const r of data ?? []) {
     try {
       const url = new URL(r.cover_src as string);
-      if (url.protocol !== "https:" || !COVER_HOSTS.test(url.hostname)) continue;
+      if (url.protocol !== "https:") continue;
       const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
       if (!res.ok) continue;
       const type = res.headers.get("content-type") ?? "image/png";
