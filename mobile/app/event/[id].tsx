@@ -107,7 +107,14 @@ export default function EventScreen() {
       load();
     } catch (e) {
       const err = e as ApiError;
-      Alert.alert("Не получилось", APPLY_ERRORS[err.code] ?? err.message);
+      if (err.code === "applications_limit_reached") {
+        Alert.alert("Лимит заявок", "На твоём тарифе заявки закончились. Перейди на тариф побольше — и откликайся дальше.", [
+          { text: "Позже", style: "cancel" },
+          { text: "Тарифы", onPress: () => router.push("/subscription") },
+        ]);
+      } else {
+        Alert.alert("Не получилось", APPLY_ERRORS[err.code] ?? err.message);
+      }
     } finally {
       setBusy(false);
     }
