@@ -10,7 +10,7 @@ import { grantPartnerPremiumIfPartner, recordReferralForUser } from "@/lib/subsc
 
 /**
  * POST /api/auth/mobile/register  { ticket, profile }
- * Регистрация из мобильного приложения. ticket — из phone/verify или telegram,
+ * Регистрация из мобильного приложения. ticket — из email/verify, phone/verify, telegram или apple,
  * profile — та же анкета, что в мини-приложении (lib/validation/onboarding.ts).
  * refCode (необязательно) — код партнёра из ссылки mesto-go.ru/r/<code>.
  */
@@ -34,10 +34,19 @@ export async function POST(req: NextRequest) {
       ? await admin.from("users").select("id, telegram_id").eq("phone", ticket.phone).maybeSingle()
       : ticket.kind === "email"
         ? await admin.from("users").select("id, telegram_id").eq("email", ticket.email).maybeSingle()
-        : await admin.from("users").select("id, telegram_id").eq("telegram_id", ticket.telegramId).maybeSingle();
+        : ticket.kind === "apple"
+          ? await admin.from("users").select("id, telegram_id").eq("apple_sub", ticket.sub).maybeSingle()
+          : await admin.from("users").select("id, telegram_id").eq("telegram_id", ticket.telegramId).maybeSingle();
   if (existing.data) {
     // Уже зарегистрирован (двойное нажатие) — просто входим.
     return NextResponse.json(await mobileSessionPayload(admin, existing.data));
+  }
+
+  // Почта от Apple (настоящая или «скрытая» @privaterelay) — сохраняем, если её нет у другого профиля.
+  let appleEmail: string | null = null;
+  if (ticket.kind === "apple" && ticket.email) {
+    const { data: owner } = await admin.from("users").select("id").eq("email", ticket.email).maybeSingle();
+    if (!owner) appleEmail = ticket.email;
   }
 
   const { data: created, error } = await admin
@@ -46,7 +55,8 @@ export async function POST(req: NextRequest) {
       telegram_id: ticket.kind === "telegram" ? ticket.telegramId : null,
       telegram_username: ticket.kind === "telegram" ? ticket.username : null,
       phone: ticket.kind === "phone" ? ticket.phone : null,
-      email: ticket.kind === "email" ? ticket.email : null,
+      email: ticket.kind === "email" ? ticket.email : appleEmail,
+      apple_sub: ticket.kind === "apple" ? ticket.sub : null,
       name: profile.name,
       birth_date: profile.birthDate,
       gender: profile.gender,
