@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser, shortTitle } from "@/lib/notify/user";
+import { eventTiming } from "@/lib/events/timing";
 
 /**
  * GET /api/events/[id]/ticket
@@ -81,12 +82,13 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
   const { data: event } = await admin
     .from("events")
-    .select("id, title, organizer_id, event_date, event_time")
+    .select("id, title, organizer_id, event_date, event_time, event_end_time, city, longitude")
     .eq("id", eventId)
     .maybeSingle();
   if (!event) return NextResponse.json({ error: "event_not_found" }, { status: 404 });
 
-  const eventStartsAt = new Date(`${event.event_date}T${event.event_time}`);
+  // Начало — по часовому поясу города встречи, а не по UTC сервера.
+  const eventStartsAt = eventTiming(event).start;
   if (eventStartsAt.getTime() <= Date.now()) {
     return NextResponse.json({ error: "event_already_started" }, { status: 422 });
   }
