@@ -1,0 +1,39 @@
+# Сайт «Места» + Caddy (HTTPS) на сервере Yandex Cloud.
+name: mesto
+# Supabase (база, фото, чат) запускается отдельно из /opt/supabase/docker — см. remote.sh.
+# Запуск: docker compose --env-file /opt/mesto/.env -f deploy/yandex/docker-compose.yml up -d --build
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_TELEGRAM_BOT_USERNAME: ${NEXT_PUBLIC_TELEGRAM_BOT_USERNAME:-Mesto_people_bot}
+        NEXT_PUBLIC_YANDEX_MAPS_API_KEY: ${NEXT_PUBLIC_YANDEX_MAPS_API_KEY:-}
+    image: mesto-app:latest
+    env_file: /opt/mesto/.env
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options: { max-size: "20m", max-file: "5" }
+
+  caddy:
+    image: caddy:2.8
+    network_mode: host
+    environment:
+      APP_HOSTS: ${APP_HOSTS:-new.mesto-go.ru}
+      API_HOST: ${API_HOST:-db.mesto-go.ru}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}

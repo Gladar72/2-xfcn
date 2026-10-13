@@ -1,0 +1,166 @@
+#!/usr/bin/env bash
+# Управление сервером «Места» в Yandex Cloud. Запускается из GitHub Actions
+# (.github/workflows/yandex.yml) по SSH: ssh deploy@host 'bash -s' -- <task> < remote.sh
+#   bootstrap — один раз: Docker, swap, код из GitHub
+#   supabase  — поднять свой Supabase (база, фото, чат) с теми же ключами, что в Supabase Cloud
+#   migrate   — перенести базу и фото из Supabase Cloud (повторять можно: данные перезаписываются)
+#   deploy    — собрать и перезапустить сайт (+ фоновые задачи)
+#   status    — что запущено, место на диске, память
+#   logs      — последние логи сайта и Supabase
+set -euo pipefail
+TASK="${1:-status}"
+ROOT=/opt/mesto
+APP=$ROOT/app
+SB=/opt/supabase
+OLD_SUPABASE_URL="https://cawrwvafbcmcxsjxgwxi.supabase.co"
+log() { echo "==> $*"; }
+envget() { grep -E "^$1=" "$ROOT/.env" | tail -1 | cut -d= -f2- | sed -e 's/^"//' -e 's/"$//'; }
+DC() { sudo docker compose "$@"; }
+
+bootstrap() {
+  log "packages"
+  sudo apt-get update -y -q
+  sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q docker.io docker-compose-v2 git python3-yaml curl jq cron
+  sudo mkdir -p /etc/docker
+  # Docker Hub из России работает с перебоями — тянем образы через зеркала.
+  echo '{"registry-mirrors":["https://mirror.gcr.io","https://dockerhub.timeweb.cloud"],"log-driver":"json-file","log-opts":{"max-size":"20m","max-file":"3"}}' | sudo tee /etc/docker/daemon.json >/dev/null
+  sudo systemctl enable --now docker cron
+  sudo systemctl restart docker
+  if ! sudo swapon --show | grep -q .; then
+    log "swap 2G"
+    sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab >/dev/null
+  fi
+  sudo mkdir -p "$ROOT" /opt/backups && sudo chown -R "$USER" "$ROOT" /opt/backups
+  [ -d "$APP/.git" ] || git clone --depth 1 https://github.com/Gladar72/2-xfcn.git "$APP"
+  log "done: $(sudo docker --version), $(sudo docker compose version)"
+}
+
+update_code() {
+  cd "$APP"
+  git fetch --depth 1 origin main -q
+  git reset --hard -q origin/main
+  log "code at $(git log --oneline -1)"
+}
+
+setenv() { # setenv FILE KEY VALUE — заменить или добавить строку KEY=VALUE
+  local f="$1" k="$2" v="$3"
+  if grep -qE "^$k=" "$f"; then
+    python3 - "$f" "$k" "$v" <<'PY'
+import sys
+f, k, v = sys.argv[1:]
+lines = open(f).read().splitlines()
+lines = [f"{k}={v}" if l.startswith(k + "=") else l for l in lines]
+open(f, "w").write("\n".join(lines) + "\n")
+PY
+  else
+    echo "$k=$v" >>"$f"
+  fi
+}
+rand() { tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$1"; }
+
+supabase() {
+  update_code
+  if [ ! -d "$SB/.git" ]; then
+    log "clone supabase/docker"
+    sudo mkdir -p "$SB" && sudo chown "$USER" "$SB"
+    git clone --depth 1 --filter=blob:none --sparse https://github.com/supabase/supabase "$SB"
+    (cd "$SB" && git sparse-checkout set docker)
+  fi
+  cd "$SB/docker"
+  [ -f .env ] || cp .env.example .env
+  [ -f docker-compose.yml.orig ] || cp docker-compose.yml docker-compose.yml.orig
+  cp docker-compose.yml.orig docker-compose.yml
+  python3 "$APP/deploy/yandex/slim-supabase.py" docker-compose.yml
+  # Те же ключи, что у Supabase Cloud: приложению меняется только адрес.
+  setenv .env JWT_SECRET "$(envget SUPABASE_JWT_SECRET)"
+  setenv .env ANON_KEY "$(envget NEXT_PUBLIC_SUPABASE_ANON_KEY)"
+  setenv .env SERVICE_ROLE_KEY "$(envget SUPABASE_SERVICE_ROLE_KEY)"
+  local api; api="https://$(envget API_HOST)"
+  setenv .env API_EXTERNAL_URL "$api"
+  setenv .env SUPABASE_PUBLIC_URL "$api"
+  setenv .env SITE_URL "$(envget APP_URL)"
+  # Свои внутренние пароли — генерируем один раз и храним в .env на сервере.
+  if [ ! -f .generated ]; then
+    setenv .env POSTGRES_PASSWORD "$(rand 32)"
+    setenv .env DASHBOARD_PASSWORD "$(rand 24)"
+    setenv .env SECRET_KEY_BASE "$(rand 64)"
+    setenv .env VAULT_ENC_KEY "$(rand 32)"
+    setenv .env PG_META_CRYPTO_KEY "$(rand 32)"
+    setenv .env LOGFLARE_PUBLIC_ACCESS_TOKEN "$(rand 32)"
+    setenv .env LOGFLARE_PRIVATE_ACCESS_TOKEN "$(rand 32)"
+    touch .generated
+  fi
+  chmod 600 .env
+  log "supabase up"
+  DC pull -q || true
+  DC up -d
+  sleep 15
+  DC ps
+}
+
+migrate() {
+  local OLD_DB_URL; OLD_DB_URL="$(grep -E '^OLD_DB_URL=' "$ROOT/migrate.env" | cut -d= -f2-)"
+  [ -n "$OLD_DB_URL" ] || { echo "нет OLD_DB_URL в $ROOT/migrate.env"; exit 1; }
+  mkdir -p "$ROOT/migrate"
+  log "dump public schema from Supabase Cloud"
+  sudo docker run --rm -e PGCONNECT_TIMEOUT=20 postgres:17 \
+    pg_dump "$OLD_DB_URL" --schema=public --no-owner --no-comments >"$ROOT/migrate/public.sql"
+  log "dump size: $(du -h "$ROOT/migrate/public.sql" | cut -f1)"
+  log "restore into own Supabase"
+  sudo docker exec -i supabase-db psql -U supabase_admin -d postgres -q <<'SQL'
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public AUTHORIZATION postgres;
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON SCHEMA public TO postgres, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON FUNCTIONS TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES FOR ROLE postgres IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
+SQL
+  # Строки, которых нет в PostgreSQL 15 (transaction_timeout и т.п.), пропускаем — данные от этого не зависят.
+  grep -v -E '^SET transaction_timeout' "$ROOT/migrate/public.sql" |
+    sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 2>"$ROOT/migrate/restore-errors.log" || true
+  log "restore warnings: $(grep -c ERROR "$ROOT/migrate/restore-errors.log" || true) (см. $ROOT/migrate/restore-errors.log)"
+  grep ERROR "$ROOT/migrate/restore-errors.log" | head -20 || true
+  sudo docker exec supabase-db psql -U postgres -d postgres -tAc "NOTIFY pgrst, 'reload schema'" >/dev/null || true
+  sudo docker exec supabase-db psql -U postgres -d postgres -tAc \
+    "select 'users='||(select count(*) from public.users)||' events='||(select count(*) from public.events)||' messages='||(select count(*) from public.messages)"
+  log "copy storage files"
+  sudo docker run --rm --network host -v "$APP/deploy/yandex:/w:ro" -e SERVICE_ROLE_KEY="$(envget SUPABASE_SERVICE_ROLE_KEY)" node:20-bookworm-slim \
+    node /w/copy-storage.mjs "$OLD_SUPABASE_URL" "http://127.0.0.1:8000"
+  log "rewrite photo URLs"
+  { echo "SET mesto.old = '$OLD_SUPABASE_URL/storage/v1/'; SET mesto.new = 'https://$(envget API_HOST)/storage/v1/';"; cat "$APP/deploy/yandex/rewrite-urls.sql"; } |
+    sudo docker exec -i supabase-db psql -U postgres -d postgres -q
+}
+
+deploy() {
+  update_code
+  cd "$APP/deploy/yandex"
+  log "build & start app"
+  DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
+  crontab "$APP/deploy/yandex/crontab"
+  sudo docker image prune -f >/dev/null
+  sleep 5
+  curl -fsS -o /dev/null -w "local app: %{http_code}\n" http://127.0.0.1:3000/ || true
+}
+
+status() {
+  sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
+  df -h / | tail -1
+  free -m | head -2
+  curl -fsS -o /dev/null -w "app: %{http_code}\n" http://127.0.0.1:3000/ || echo "app: down"
+  curl -fsS -o /dev/null -w "supabase rest: %{http_code}\n" -H "apikey: $(envget NEXT_PUBLIC_SUPABASE_ANON_KEY)" http://127.0.0.1:8000/rest/v1/categories?select=slug\&limit=1 || echo "supabase: down"
+  tail -5 "$ROOT/cron.log" 2>/dev/null || true
+}
+
+logs() {
+  sudo docker logs --tail 80 mesto-app-1 2>&1 | tail -80 || true
+  for c in supabase-kong supabase-rest supabase-storage realtime-dev.supabase-realtime supabase-db; do
+    echo "--- $c"; sudo docker logs --tail 25 "$c" 2>&1 | tail -25 || true
+  done
+}
+
+case "$TASK" in
+  bootstrap | supabase | migrate | deploy | status | logs) "$TASK" ;;
+  *) echo "unknown task $TASK"; exit 1 ;;
+esac

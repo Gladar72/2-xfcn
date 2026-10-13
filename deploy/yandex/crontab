@@ -1,0 +1,11 @@
+# Фоновые задачи «Места» (раньше — vercel.json → crons). Время — UTC, как на Vercel.
+CRON_TZ=UTC
+*/5 * * * *  bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/complete-events
+10 0 * * *   bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/schedule-morning-reminders
+*/5 * * * *  bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/send-morning-reminders
+*/5 * * * *  bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/event-reminders
+17 * * * *   bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/subscriptions
+52 4 * * *   bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/outreach
+33 21 * * *  bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/places
+# Резервная копия базы каждую ночь (хранится 14 дней в /opt/backups).
+40 23 * * *  bash /opt/mesto/app/deploy/yandex/backup.sh

@@ -1,0 +1,17 @@
+# HTTPS-сертификаты Caddy получает сам (Let's Encrypt), как только домен смотрит на сервер.
+{
+	email {$ACME_EMAIL}
+}
+
+# Сайт и мини-приложение: сначала new.mesto-go.ru (проверка), при переезде —
+# APP_HOSTS="mesto-go.ru, www.mesto-go.ru, new.mesto-go.ru" в /opt/mesto/.env.
+{$APP_HOSTS} {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:3000
+}
+
+# Supabase API (база, фото, чат) — Kong из /opt/supabase/docker.
+{$API_HOST} {
+	encode zstd gzip
+	reverse_proxy 127.0.0.1:8000
+}
