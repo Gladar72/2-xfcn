@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { runInBackground } from "@/lib/server/background";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { InlineKeyboard } from "grammy";
@@ -6,8 +7,77 @@ import { getBot } from "@/lib/telegram/bot";
 import { broadcastToConversation } from "@/lib/supabase/broadcast";
 import { uploadChatPhoto } from "@/lib/photos/upload-chat-photo";
 import { sendPushPersonal } from "@/lib/push/expo";
+import { parseSticker } from "@/lib/chat/invite";
 
 const MESSAGE_HISTORY_LIMIT = 50;
+const MAX_PAGE = 100;
+
+const MESSAGE_COLS = "id, sender_id, content, image_url, created_at, reply_to_id, edited_at, deleted_at";
+
+interface RawMessage {
+  id: string;
+  sender_id: string;
+  content: string | null;
+  image_url: string | null;
+  created_at: string;
+  reply_to_id: string | null;
+  edited_at: string | null;
+  deleted_at: string | null;
+}
+
+/**
+ * Сообщения → формат для клиента: ответ (цитата), правка, удаление, реакции.
+ * Удалённое сообщение отдаём без текста и фото — только отметку «удалено».
+ */
+async function shapeMessages(admin: ReturnType<typeof createAdminClient>, rows: RawMessage[], viewerId: string) {
+  const ids = rows.map((m) => m.id);
+  const replyIds = [...new Set(rows.map((m) => m.reply_to_id).filter((x): x is string => !!x))];
+  const [{ data: reactionRows }, { data: replyRows }] = await Promise.all([
+    ids.length
+      ? admin.from("message_reactions").select("message_id, user_id, emoji").in("message_id", ids)
+      : Promise.resolve({ data: [] as { message_id: string; user_id: string; emoji: string }[] }),
+    replyIds.length
+      ? admin.from("messages").select("id, sender_id, content, image_url, deleted_at").in("id", replyIds)
+      : Promise.resolve({ data: [] as { id: string; sender_id: string; content: string | null; image_url: string | null; deleted_at: string | null }[] }),
+  ]);
+  const reactionsByMessage = new Map<string, { emoji: string; userIds: string[] }[]>();
+  for (const r of reactionRows ?? []) {
+    const list = reactionsByMessage.get(r.message_id as string) ?? [];
+    const found = list.find((x) => x.emoji === r.emoji);
+    if (found) found.userIds.push(r.user_id as string);
+    else list.push({ emoji: r.emoji as string, userIds: [r.user_id as string] });
+    reactionsByMessage.set(r.message_id as string, list);
+  }
+  const replies = new Map((replyRows ?? []).map((r) => [r.id as string, r]));
+  return rows.map((m) => {
+    const deleted = !!m.deleted_at;
+    const reply = m.reply_to_id ? replies.get(m.reply_to_id) : undefined;
+    return {
+      id: m.id,
+      senderId: m.sender_id,
+      content: deleted ? "" : m.content ?? "",
+      imageUrl: deleted ? null : m.image_url ?? null,
+      createdAt: m.created_at,
+      editedAt: m.edited_at,
+      deleted,
+      replyTo: reply
+        ? {
+            id: reply.id as string,
+            senderId: reply.sender_id as string,
+            content: reply.deleted_at ? "" : ((reply.content as string | null) ?? "").slice(0, 200),
+            imageUrl: reply.deleted_at ? null : (reply.image_url as string | null),
+            deleted: !!reply.deleted_at,
+          }
+        : null,
+      reactions: (reactionsByMessage.get(m.id) ?? []).map((r) => ({
+        emoji: r.emoji,
+        count: r.userIds.length,
+        mine: r.userIds.includes(viewerId),
+        userIds: r.userIds,
+      })),
+    };
+  });
+}
 
 async function assertMembership(
   admin: ReturnType<typeof createAdminClient>,
@@ -44,7 +114,7 @@ function calcAge(birthDate: string | null): number | null {
  * организатор, возраст, пол и число посещённых встреч каждого участника
  * (для раскрывающегося списка "Участники события", см. запрос пользователя).
  */
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id: conversationId } = await params;
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -62,17 +132,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .eq("id", conversationId)
     .maybeSingle();
   const eventCheckStatus = (eventCheckRow?.events as unknown as { status: string } | null)?.status;
-  if (eventCheckStatus === "completed" || eventCheckStatus === "cancelled") {
+  // ?readonly=1 — мобильное приложение показывает архив закрытых чатов (только чтение).
+  const readonly = req.nextUrl.searchParams.get("readonly") === "1";
+  if (!readonly && (eventCheckStatus === "completed" || eventCheckStatus === "cancelled")) {
     return NextResponse.json({ error: "event_closed" }, { status: 403 });
   }
 
+  // Подгрузка старых сообщений при прокрутке вверх: ?before=<createdAt>&limit=50.
+  const before = req.nextUrl.searchParams.get("before");
+  const limitParam = Number(req.nextUrl.searchParams.get("limit"));
+  const limit = Number.isFinite(limitParam) && limitParam > 0 ? Math.min(MAX_PAGE, Math.floor(limitParam)) : MESSAGE_HISTORY_LIMIT;
+  let messagesQuery = admin
+    .from("messages")
+    .select(MESSAGE_COLS)
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: false })
+    .limit(limit + 1);
+  if (before && !Number.isNaN(Date.parse(before))) messagesQuery = messagesQuery.lt("created_at", new Date(before).toISOString());
+
   const [{ data: messages, error }, { data: otherMemberRows }, { data: conversationRow }] = await Promise.all([
-    admin
-      .from("messages")
-      .select("id, sender_id, content, image_url, created_at")
-      .eq("conversation_id", conversationId)
-      .order("created_at", { ascending: false })
-      .limit(MESSAGE_HISTORY_LIMIT),
+    messagesQuery,
     // Все ОСТАЛЬНЫЕ участники (не только один, как раньше) — имя, фото,
     // возраст, пол и число посещённых встреч для списка "Участники
     // события", last_read_at каждого для галочек "прочитано" (сообщение
@@ -80,7 +159,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // увидели — логично для группового чата).
     admin
       .from("conversation_members")
-      .select("last_read_at, user:users(id, name, avatar_url, birth_date, gender, completed_meetings_count)")
+      .select("last_read_at, user:users(id, name, avatar_url, birth_date, gender, completed_meetings_count, last_active_at)")
       .eq("conversation_id", conversationId)
       .neq("user_id", currentUser.userId),
     admin
@@ -99,6 +178,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     birth_date: string | null;
     gender: string | null;
     completed_meetings_count: number | null;
+    last_active_at: string | null;
   }
 
   const members = (otherMemberRows ?? [])
@@ -113,6 +193,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         gender: user.gender,
         completedMeetingsCount: user.completed_meetings_count ?? 0,
         lastReadAt: row.last_read_at as string | null,
+        lastActiveAt: user.last_active_at ?? null,
       };
     })
     .filter((m): m is NonNullable<typeof m> => !!m);
@@ -130,6 +211,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     category: { slug: string; name: string; emoji: string | null } | null;
   } | null;
 
+  const rawRows = (messages ?? []) as unknown as RawMessage[];
+  const hasMore = rawRows.length > limit;
+  const page = rawRows.slice(0, limit).reverse();
+  const shaped = await shapeMessages(admin, page, currentUser.userId);
+
   return NextResponse.json({
     // ВАЖНО: преобразуем snake_case из базы (sender_id, created_at) в
     // camelCase (senderId, createdAt), который ждёт фронтенд — раньше эта
@@ -137,15 +223,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // парсились ("Invalid Date") и определение "моё/чужое" сообщение
     // всегда давало false (senderId был undefined) — все сообщения
     // выглядели одинаково.
-    messages: (messages ?? [])
-      .reverse()
-      .map((m) => ({
-        id: m.id,
-        senderId: m.sender_id,
-        content: m.content,
-        imageUrl: m.image_url ?? null,
-        createdAt: m.created_at,
-      })),
+    messages: shaped,
+    hasMore,
     eventTitle: eventInfo?.title ?? null,
     eventStatus: eventInfo?.status ?? null,
     category: eventInfo?.category ?? null,
@@ -177,6 +256,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Фото (необязательно) — data URL, уже ужатый телефоном; с ним текст
   // можно не писать (подпись к фото необязательна, как в Telegram).
   const imageDataUrl = typeof body?.image === "string" ? body.image : null;
+  const replyToId = typeof body?.replyToId === "string" && /^[0-9a-f-]{36}$/i.test(body.replyToId) ? body.replyToId : null;
   if (!content && !imageDataUrl) return NextResponse.json({ error: "empty_message" }, { status: 400 });
   if (content.length > 2000) return NextResponse.json({ error: "message_too_long" }, { status: 422 });
 
@@ -206,9 +286,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     imageUrl = upload.publicUrl;
   }
 
+  // Ответ — только на сообщение из этого же чата.
+  let replyTo: { id: string; senderId: string; content: string; imageUrl: string | null; deleted: boolean } | null = null;
+  if (replyToId) {
+    const { data: orig } = await admin
+      .from("messages")
+      .select("id, sender_id, content, image_url, deleted_at")
+      .eq("id", replyToId)
+      .eq("conversation_id", conversationId)
+      .maybeSingle();
+    if (orig) {
+      replyTo = {
+        id: orig.id as string,
+        senderId: orig.sender_id as string,
+        content: orig.deleted_at ? "" : ((orig.content as string | null) ?? "").slice(0, 200),
+        imageUrl: orig.deleted_at ? null : (orig.image_url as string | null),
+        deleted: !!orig.deleted_at,
+      };
+    }
+  }
+
   const { data: message, error } = await admin
     .from("messages")
-    .insert({ conversation_id: conversationId, sender_id: currentUser.userId, content, image_url: imageUrl })
+    .insert({ conversation_id: conversationId, sender_id: currentUser.userId, content, image_url: imageUrl, reply_to_id: replyTo?.id ?? null })
     .select("id, created_at")
     .single();
 
@@ -223,6 +323,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       content,
       imageUrl,
       createdAt: message.created_at,
+      replyTo,
+      editedAt: null,
+      deleted: false,
+      reactions: [],
     }),
     admin.rpc("increment_conversation_unread", {
       p_conversation_id: conversationId,
@@ -230,102 +334,107 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }),
   ]);
 
-  // Уведомляем остальных участников диалога о новом сообщении (кроме
-  // отправителя) — иначе у людей нет способа узнать о непрочитанном,
-  // кроме как самим зайти в чат.
-  const { data: otherMembers } = await admin
-    .from("conversation_members")
-    .select("user_id, is_blocked, last_read_at, users(telegram_id)")
-    .eq("conversation_id", conversationId)
-    .neq("user_id", currentUser.userId);
+  // Уведомления (push, Telegram) — фоном ПОСЛЕ ответа: отправитель сразу
+  // получает id сообщения, и галочка «отправлено» не ждёт рассылки.
+  await runInBackground(async () => {
+    // Уведомляем остальных участников диалога о новом сообщении (кроме
+    // отправителя) — иначе у людей нет способа узнать о непрочитанном,
+    // кроме как самим зайти в чат.
+    const { data: otherMembers } = await admin
+      .from("conversation_members")
+      .select("user_id, is_blocked, last_read_at, users(telegram_id)")
+      .eq("conversation_id", conversationId)
+      .neq("user_id", currentUser.userId);
 
-  if (otherMembers && otherMembers.length > 0) {
-    await admin.from("notifications").insert(
-      otherMembers.map((m) => ({
-        user_id: m.user_id,
-        type: "new_message",
-        payload: { conversationId },
-      }))
-    );
+    if (otherMembers && otherMembers.length > 0) {
+      await admin.from("notifications").insert(
+        otherMembers.map((m) => ({
+          user_id: m.user_id,
+          type: "new_message",
+          payload: { conversationId },
+        }))
+      );
 
-    // Уведомление в Telegram с кнопкой «Открыть чат»: от организатора — с
-    // именем и текстом, от остальных — «Новое сообщение в чате». Не шлём тем, кто заблокировал чат, и тем, у
-    // кого чат открыт прямо сейчас (отметил прочитанным за последние 20 с).
-    const [{ data: sender }, { data: conv }] = await Promise.all([
-      admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
-      admin.from("conversations").select("events(title, organizer_id)").eq("id", conversationId).maybeSingle(),
-    ]);
-    const senderName = (sender?.name as string | undefined)?.trim() || "Участник";
-    const convEvent = conv?.events as unknown as { title: string; organizer_id: string } | null;
-    const chatTitle = convEvent?.title ?? null;
-    // Текст сообщения показываем, только если пишет организатор встречи.
-    // Сообщения остальных участников — просто «Новое сообщение в чате».
-    const fromOrganizer = !!convEvent && convEvent.organizer_id === currentUser.userId;
-    const preview = content
-      ? content.length > 600
-        ? `${content.slice(0, 597)}…`
-        : content
-      : "📷 Фото";
-    const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const text = !convEvent
-      ? // Личный чат: имя и текст, как в обычном мессенджере.
-        `💬 <b>${esc(senderName)}</b>\n\n${esc(preview)}`
-      : fromOrganizer
-      ? `📣 <b>${esc(senderName)}</b> (организатор)` +
-        (chatTitle ? ` · ${esc(chatTitle)}` : "") +
-        `\n\n${esc(preview)}` +
-        (content && imageUrl ? "\n📷 + фото" : "")
-      : `💬 Новое сообщение в чате${chatTitle ? ` «${esc(chatTitle)}»` : ""}`;
-    const appUrl = process.env.APP_URL;
-    const keyboard = appUrl
-      ? new InlineKeyboard().webApp("💬 Открыть чат", `${appUrl}?goto=chat_${conversationId}`)
-      : undefined;
-    const now = Date.now();
+      // Уведомление в Telegram с кнопкой «Открыть чат»: от организатора — с
+      // именем и текстом, от остальных — «Новое сообщение в чате». Не шлём тем, кто заблокировал чат, и тем, у
+      // кого чат открыт прямо сейчас (отметил прочитанным за последние 20 с).
+      const [{ data: sender }, { data: conv }] = await Promise.all([
+        admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
+        admin.from("conversations").select("events(title, organizer_id)").eq("id", conversationId).maybeSingle(),
+      ]);
+      const senderName = (sender?.name as string | undefined)?.trim() || "Участник";
+      const convEvent = conv?.events as unknown as { title: string; organizer_id: string } | null;
+      const chatTitle = convEvent?.title ?? null;
+      // Текст сообщения показываем, только если пишет организатор встречи.
+      // Сообщения остальных участников — просто «Новое сообщение в чате».
+      const fromOrganizer = !!convEvent && convEvent.organizer_id === currentUser.userId;
+      const base = parseSticker(content) ? "Стикер" : content;
+      const preview = base
+        ? base.length > 600
+          ? `${base.slice(0, 597)}…`
+          : base
+        : "📷 Фото";
+      const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const text = !convEvent
+        ? // Личный чат: имя и текст, как в обычном мессенджере.
+          `💬 <b>${esc(senderName)}</b>\n\n${esc(preview)}`
+        : fromOrganizer
+        ? `📣 <b>${esc(senderName)}</b> (организатор)` +
+          (chatTitle ? ` · ${esc(chatTitle)}` : "") +
+          `\n\n${esc(preview)}` +
+          (content && imageUrl ? "\n📷 + фото" : "")
+        : `💬 Новое сообщение в чате${chatTitle ? ` «${esc(chatTitle)}»` : ""}`;
+      const appUrl = process.env.APP_URL;
+      const keyboard = appUrl
+        ? new InlineKeyboard().webApp("💬 Открыть чат", `${appUrl}?goto=chat_${conversationId}`)
+        : undefined;
+      const now = Date.now();
 
-    // Push в мобильное приложение — тем же получателям, что и Telegram
-    // (не заблокировавшим чат и не читающим его прямо сейчас). Один запрос
-    // токенов на всех получателей + пачка в Expo.
-    const shortPreview = preview.length > 150 ? `${preview.slice(0, 149)}…` : preview;
-    const pushTitle = !convEvent ? senderName : chatTitle ?? "Чат встречи";
-    const pushBody = !convEvent
-      ? shortPreview
-      : fromOrganizer
-      ? `${senderName} (организатор): ${shortPreview}`
-      : `Новое сообщение от ${senderName}`;
-    const pushRecipients = otherMembers
-      .filter((m) => !m.is_blocked)
-      .filter((m) => !(m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000))
-      .map((m) => m.user_id as string);
-    const pushPromise = sendPushPersonal(
-      admin,
-      pushRecipients.map((userId) => ({
-        userId,
-        message: {
-          title: pushTitle,
-          body: pushBody,
-          data: { url: `/chat/${conversationId}`, type: "new_message", conversationId },
-        },
-      }))
-    );
+      // Push в мобильное приложение — тем же получателям, что и Telegram
+      // (не заблокировавшим чат и не читающим его прямо сейчас). Один запрос
+      // токенов на всех получателей + пачка в Expo.
+      const shortPreview = preview.length > 150 ? `${preview.slice(0, 149)}…` : preview;
+      const pushTitle = !convEvent ? senderName : chatTitle ?? "Чат встречи";
+      const pushBody = !convEvent
+        ? shortPreview
+        : fromOrganizer
+        ? `${senderName} (организатор): ${shortPreview}`
+        : `Новое сообщение от ${senderName}`;
+      const pushRecipients = otherMembers
+        .filter((m) => !m.is_blocked)
+        .filter((m) => !(m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000))
+        .map((m) => m.user_id as string);
+      const pushPromise = sendPushPersonal(
+        admin,
+        pushRecipients.map((userId) => ({
+          userId,
+          message: {
+            title: pushTitle,
+            body: pushBody,
+            data: { url: `/chat/${conversationId}`, type: "new_message", conversationId },
+          },
+        }))
+      );
 
-    await Promise.all([
-      pushPromise,
-      ...otherMembers.map(async (m) => {
-        const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
-        if (!telegramId || m.is_blocked) return;
-        if (m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000) return;
-        try {
-          await getBot().api.sendMessage(telegramId, text, {
-            parse_mode: "HTML",
-            reply_markup: keyboard,
-            link_preview_options: { is_disabled: true },
-          });
-        } catch (err) {
-          console.error(`chat notify — не удалось отправить ${telegramId}:`, err);
-        }
-      }),
-    ]);
-  }
+      await Promise.all([
+        pushPromise,
+        ...otherMembers.map(async (m) => {
+          const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
+          if (!telegramId || m.is_blocked) return;
+          if (m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000) return;
+          try {
+            await getBot().api.sendMessage(telegramId, text, {
+              parse_mode: "HTML",
+              reply_markup: keyboard,
+              link_preview_options: { is_disabled: true },
+            });
+          } catch (err) {
+            console.error(`chat notify — не удалось отправить ${telegramId}:`, err);
+          }
+        }),
+      ]);
+    }
+  });
 
   return NextResponse.json({ status: "sent", messageId: message.id, createdAt: message.created_at, imageUrl });
 }
