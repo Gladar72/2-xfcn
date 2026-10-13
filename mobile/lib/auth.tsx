@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, getToken, setToken, setUnauthorizedHandler } from "./api";
+import { resetMyId } from "./me";
 
 /**
  * Состояние входа. После проверки телефона или Telegram сервер отвечает либо
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await setToken(null);
+    resetMyId();
     setTicket(null);
     setTicketKind(null);
     setSignedIn(false);

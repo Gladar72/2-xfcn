@@ -51,6 +51,9 @@ export interface PersonCard {
   avatarUrl: string | null;
   sharedInterests: string[];
   sharedCount: number;
+  ratingAvg?: number;
+  completedMeetingsCount?: number;
+  distanceKm?: number | null;
 }
 
 export interface EventDetail extends Omit<FeedEvent, "isHighlighted" | "isMine" | "myApplicationStatus"> {
@@ -94,4 +97,9 @@ export interface MyProfile {
   eventsAttendedCount: number;
   phone: string | null;
   email: string | null;
+  photos?: string[];
+  interests?: { id: string; name: string }[];
+  morningRemindersEnabled?: boolean;
+  receiptContact?: string | null;
+  memberSince?: string;
 }
