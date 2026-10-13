@@ -120,10 +120,10 @@ export default function RegisterScreen() {
         <Title plain="Расскажи " em="о себе" size={30} />
         <Text style={styles.sub}>Так люди поймут, с кем идут на встречу</Text>
 
-        {ticketKind === "phone" || ticketKind === "email" ? (
+        {ticketKind === "phone" || ticketKind === "email" || ticketKind === "apple" ? (
           <Glass strong style={styles.tgBox}>
             <Text style={styles.tgTitle}>Уже есть профиль в «Место» в Telegram?</Text>
-            <Text style={styles.tgText}>Войди через Telegram — почта привяжется к твоему профилю, встречи и чаты сохранятся.</Text>
+            <Text style={styles.tgText}>{ticketKind === "apple" ? "Войди через Telegram — Apple ID привяжется к твоему профилю, встречи и чаты сохранятся." : "Войди через Telegram — почта привяжется к твоему профилю, встречи и чаты сохранятся."}</Text>
             <Button title="Войти через Telegram" variant="telegram" onPress={useExistingTelegramProfile} loading={tgBusy} />
             <ErrorText>{tgError}</ErrorText>
           </Glass>
