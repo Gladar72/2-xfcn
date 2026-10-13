@@ -12,7 +12,7 @@
  */
 export async function broadcastToConversation(
   conversationId: string,
-  event: "message" | "read",
+  event: "message" | "read" | "edit" | "delete" | "reaction" | "typing",
   payload: Record<string, unknown>
 ): Promise<void> {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
