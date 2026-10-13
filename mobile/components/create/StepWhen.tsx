@@ -8,6 +8,7 @@ import { api } from "@/lib/api";
 import { colors, FONT } from "@/lib/theme";
 import { type AddressSuggestion, dayChip, dayLong, DURS, type Form, hhmm, nextDays, type PlaceSuggestion, type SetForm } from "./model";
 import { ChipRow, Label, Muted, StepTitle, Stepper } from "./parts";
+import { qs } from "@/lib/format";
 
 const clampStart = (m: number) => ((m % 1440) + 1440) % 1440;
 const clampDur = (m: number) => Math.max(60, Math.min(23 * 60 + 45, m));
@@ -28,9 +29,7 @@ export function StepWhen({ form, set, catLabel, city }: { form: Form; set: SetFo
 
   // «Мося рекомендует» — места под категорию (кинотеатры для «Кино»…).
   useEffect(() => {
-    const p = new URLSearchParams();
-    if (form.categorySlug) p.set("category", form.categorySlug);
-    if (form.trainingTypeSlug) p.set("type", form.trainingTypeSlug);
+    const p = qs({ category: form.categorySlug, type: form.trainingTypeSlug });
     api<{ items?: PlaceSuggestion[] }>(`/api/places?${p}`)
       .then((d) => setRecs(Array.isArray(d.items) ? d.items.slice(0, 4) : []))
       .catch(() => setRecs([]));
@@ -48,13 +47,11 @@ export function StepWhen({ form, set, catLabel, city }: { form: Form; set: SetFo
     let cancelled = false;
     setSearching(true);
     const t = setTimeout(() => {
-      const p = new URLSearchParams({ q });
-      if (form.categorySlug) p.set("category", form.categorySlug);
+      const p = qs({ q, category: form.categorySlug });
       const places = api<{ items?: PlaceSuggestion[] }>(`/api/places?${p}`)
         .then((d) => !cancelled && setDrop(Array.isArray(d.items) ? d.items.slice(0, 4) : []))
         .catch(() => !cancelled && setDrop([]));
-      const g = new URLSearchParams({ query: q });
-      if (city) g.set("city", city);
+      const g = qs({ query: q, city });
       const addrs =
         q.length >= 3
           ? api<{ suggestions?: AddressSuggestion[] }>(`/api/geocode?${g}`)
