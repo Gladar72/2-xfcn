@@ -16,6 +16,7 @@ import { costShort, formatEventDate, seatsLeft } from "@/lib/format";
 import { openRoute } from "@/lib/route";
 import { CATEGORY_SHORT, colors, eventIcon, FONT } from "@/lib/theme";
 import type { EventDetail } from "@/lib/types";
+import { useGuide } from "@/lib/guide";
 
 const APPLY_ERRORS: Record<string, string> = {
   event_full: "Мест больше нет",
@@ -45,6 +46,7 @@ type Detail = EventDetail & {
 };
 
 export default function EventScreen() {
+  useGuide("event");
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const [event, setEvent] = useState<Detail | null>(null);
