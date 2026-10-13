@@ -1,4 +1,6 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
+import { sendPushPersonal } from "@/lib/push/expo";
+import { shortTitle } from "@/lib/notify/user";
 import { eventTiming } from "@/lib/events/timing";
 
 export interface DueReviewItem {
@@ -112,6 +114,25 @@ export async function finalizeCompletedEvents(
         .map((m) => (m.users as unknown as { id: string } | null)?.id)
         .filter((id): id is string => !!id)
         .map((userId) => ({ user_id: userId, type: "review_request", payload: { eventId: event.id } }))
+    )
+  );
+
+  // Push в мобильное приложение — попросить оценить встречу.
+  await sendPushPersonal(
+    admin,
+    toNotify.flatMap((event) =>
+      (members ?? [])
+        .filter((m) => m.event_id === event.id)
+        .map((m) => (m.users as unknown as { id: string } | null)?.id)
+        .filter((id): id is string => !!id)
+        .map((userId) => ({
+          userId,
+          message: {
+            title: "Как прошла встреча?",
+            body: `Оцени «${shortTitle(event.title)}» — это займёт пару секунд`,
+            data: { url: `/event/${event.id}`, type: "review_request", eventId: event.id },
+          },
+        }))
     )
   );
 

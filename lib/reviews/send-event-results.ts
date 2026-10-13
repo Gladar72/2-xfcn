@@ -1,5 +1,7 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { sendPushToUsers } from "@/lib/push/expo";
+import { shortTitle } from "@/lib/notify/user";
 import { eventTiming } from "@/lib/events/timing";
 
 /**
@@ -27,7 +29,7 @@ export async function sendEventResultsNow(admin: ReturnType<typeof createAdminCl
       .from("reviews")
       .select("rating, arrived_on_time, pleasant_communication, would_meet_again")
       .eq("event_id", eventId),
-    admin.from("event_members").select("users(telegram_id)").eq("event_id", eventId),
+    admin.from("event_members").select("user_id, users(telegram_id)").eq("event_id", eventId),
   ]);
 
   if (!event || !reviews || reviews.length === 0) return;
@@ -39,7 +41,9 @@ export async function sendEventResultsNow(admin: ReturnType<typeof createAdminCl
     .map((m) => (m.users as unknown as { telegram_id: number } | null)?.telegram_id)
     .filter((id): id is number => typeof id === "number");
 
-  if (recipients.length === 0) return;
+  const memberUserIds = (members ?? []).map((m) => m.user_id as string).filter(Boolean);
+
+  if (recipients.length === 0 && memberUserIds.length === 0) return;
 
   const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
   const onTimePct = Math.round((reviews.filter((r) => r.arrived_on_time).length / reviews.length) * 100);
@@ -57,6 +61,12 @@ export async function sendEventResultsNow(admin: ReturnType<typeof createAdminCl
   for (const telegramId of recipients) {
     await notifyTelegram(telegramId, text);
   }
+
+  await sendPushToUsers(admin, memberUserIds, {
+    title: `Итоги: ${shortTitle(event.title)}`,
+    body: `${avgRating.toFixed(1)} из 5 · ${reviews.length} ${pluralizeReviews(reviews.length)} · встретились бы снова: ${meetAgainPct}%`,
+    data: { url: `/event/${eventId}`, type: "event_results", eventId },
+  });
 }
 
 /**
@@ -121,7 +131,6 @@ export async function sendDueBusinessResults(admin: ReturnType<typeof createAdmi
     ]);
 
     const telegramId = organizer?.telegram_id;
-    if (!telegramId) continue;
 
     const list = reviews ?? [];
     let text: string;
@@ -140,7 +149,15 @@ export async function sendDueBusinessResults(admin: ReturnType<typeof createAdmi
         `Приятная атмосфера: ${pct((r) => r.pleasant_communication)}%\n` +
         `Придут снова: ${pct((r) => r.would_meet_again)}%`;
     }
-    await notifyTelegram(telegramId, text);
+    if (telegramId) await notifyTelegram(telegramId, text);
+    await sendPushToUsers(admin, [event.organizer_id as string], {
+      title: `Итоги события «${shortTitle(event.title)}»`,
+      body:
+        list.length === 0
+          ? `Гостей: ${guests ?? 0}. Оценок пока нет`
+          : `${(list.reduce((sum, r) => sum + r.rating, 0) / list.length).toFixed(1)} из 5 · ${list.length} ${pluralizeReviews(list.length)} · гостей: ${guests ?? 0}`,
+      data: { url: `/event/${event.id}`, type: "business_results", eventId: event.id },
+    });
     sent++;
   }
   return sent;
