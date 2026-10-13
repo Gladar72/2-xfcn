@@ -13,7 +13,7 @@ import {
   applyForPartnership,
   formatAmounts,
   getPartnerById,
-  getPartnerByTelegramId,
+  getPartnerForTelegram,
   getPartnerStats,
   markPayoutPaid,
   recordReferralCommission,
@@ -23,9 +23,12 @@ import {
   savePayoutDetails,
   setAwaitingPayoutDetails,
   setPartnerStatus,
-  grantPartnerPremium,
   type ReferralPartner,
+  grantPartnerPremiumForPartner,
+  appReferralLink,
 } from "@/lib/subscriptions/referrals";
+import { notifyUser } from "@/lib/notify/user";
+import { deliverAdminReply, parseTicketTag, ticketTag } from "@/lib/support/tickets";
 import {
   applyOutreachAction,
   escapeHtml as escapeOutreachHtml,
@@ -683,7 +686,7 @@ export function getBot(): Bot {
     const from = ctx.from;
     if (!from) return;
     const admin = createAdminClient();
-    const partner = await getPartnerByTelegramId(admin, from.id);
+    const partner = await getPartnerForTelegram(admin, from.id);
 
     if (!partner) {
       await ctx.reply(
@@ -718,7 +721,7 @@ export function getBot(): Bot {
   }
 
   async function requireApprovedPartner(ctx: Context): Promise<ReferralPartner | null> {
-    const partner = ctx.from ? await getPartnerByTelegramId(createAdminClient(), ctx.from.id) : null;
+    const partner = ctx.from ? await getPartnerForTelegram(createAdminClient(), ctx.from.id) : null;
     if (!partner || partner.status !== "approved") {
       await sendPartnerMenu(ctx);
       return null;
@@ -728,7 +731,8 @@ export function getBot(): Bot {
 
   function partnerTitle(p: ReferralPartner) {
     const name = p.first_name ?? "Без имени";
-    return p.telegram_username ? `${name} (@${p.telegram_username})` : `${name} (id ${p.telegram_id})`;
+    if (p.telegram_username) return `${name} (@${p.telegram_username})`;
+    return p.telegram_id ? `${name} (id ${p.telegram_id})` : `${name} (из приложения)`;
   }
 
   bot.command("partner", sendPartnerMenu);
@@ -851,12 +855,15 @@ export function getBot(): Bot {
       const result = await markPayoutPaid(admin, id);
       await ctx.editMessageText(`${originalText}\n\n✅ Выплачено`).catch(() => {});
       if (result) {
-        await ctx.api
-          .sendMessage(
-            Number(result.partner.telegram_id),
-            `💸 Выплата ${formatAmounts({ RUB: result.amountRub, XTR: result.amountStars })} отправлена на твои реквизиты. Спасибо, что ты с МЕСТО!`
-          )
-          .catch(() => {});
+        const sum = formatAmounts({ RUB: result.amountRub, XTR: result.amountStars });
+        if (result.partner.telegram_id) {
+          await ctx.api
+            .sendMessage(Number(result.partner.telegram_id), `💸 Выплата ${sum} отправлена на твои реквизиты. Спасибо, что ты с МЕСТО!`)
+            .catch(() => {});
+        }
+        if (result.partner.user_id) {
+          await notifyUser(admin, result.partner.user_id, { title: "Выплата отправлена 💸", body: `${sum} — на твои реквизиты. Спасибо, что ты с МЕСТО!`, url: "/partner" });
+        }
       }
       return;
     }
@@ -871,20 +878,34 @@ export function getBot(): Bot {
       const link = referralLink(ctx.me.username, partner.code);
       // Партнёрам-блогерам — бесплатный Премиум (если уже зарегистрированы в
       // приложении; иначе включится при регистрации).
-      const premiumOn = await grantPartnerPremium(admin, Number(partner.telegram_id)).catch(() => false);
+      const premiumOn = await grantPartnerPremiumForPartner(admin, partner).catch(() => false);
       const premiumLine = premiumOn
         ? "🎁 Тебе включён бесплатный тариф «Премиум» — все функции приложения без ограничений."
         : "🎁 Тебе положен бесплатный тариф «Премиум» — он включится сразу, как зарегистрируешься в приложении.";
-      await ctx.api
-        .sendMessage(Number(partner.telegram_id), `🎉 Заявка одобрена! Добро пожаловать в партнёры МЕСТО.\n\n${premiumLine}\n\n${PROJECT_BRIEF}\n\n${PARTNER_AUDIENCE}\n\n${PARTNER_TERMS}\n\n${approvedPartnerText(link)}`, {
-          reply_markup: partnerMenuKeyboard(link),
-          link_preview_options: { is_disabled: true },
-        })
-        .catch(() => {});
+      if (partner.telegram_id) {
+        await ctx.api
+          .sendMessage(Number(partner.telegram_id), `🎉 Заявка одобрена! Добро пожаловать в партнёры МЕСТО.\n\n${premiumLine}\n\n${PROJECT_BRIEF}\n\n${PARTNER_AUDIENCE}\n\n${PARTNER_TERMS}\n\n${approvedPartnerText(link)}`, {
+            reply_markup: partnerMenuKeyboard(link),
+            link_preview_options: { is_disabled: true },
+          })
+          .catch(() => {});
+      }
+      if (partner.user_id) {
+        await notifyUser(admin, partner.user_id, {
+          title: "Ты партнёр МЕСТО! 🎉",
+          body: `Заявка одобрена. Твоя ссылка: ${appReferralLink(partner.code)} — 30% с каждой оплаты приведённых людей.`,
+          url: "/partner",
+        });
+      }
     } else {
-      await ctx.api
-        .sendMessage(Number(partner.telegram_id), "К сожалению, заявка в партнёрскую программу отклонена.")
-        .catch(() => {});
+      if (partner.telegram_id) {
+        await ctx.api
+          .sendMessage(Number(partner.telegram_id), "К сожалению, заявка в партнёрскую программу отклонена.")
+          .catch(() => {});
+      }
+      if (partner.user_id) {
+        await notifyUser(admin, partner.user_id, { title: "Партнёрская программа", body: "К сожалению, заявка отклонена. Вопросы — в поддержке.", url: "/partner" });
+      }
     }
   });
 
@@ -893,6 +914,28 @@ export function getBot(): Bot {
   // и не вызывают next(), так что сюда попадают только обычные сообщения.
   bot.on("message:text", async (ctx) => {
     const userMessage = ctx.message.text;
+
+    // Админ ответил (reply) на пересланное обращение с меткой #t:<id> —
+    // это ответ человеку: доставляем в приложение (push) и/или в бот.
+    const repliedTo = ctx.message.reply_to_message;
+    const repliedText = repliedTo && "text" in repliedTo ? repliedTo.text : null;
+    const ticketId = parseTicketTag(repliedText);
+    if (ticketId && isAdminTelegramId(ctx.from.id)) {
+      const res = await deliverAdminReply(createAdminClient(), ticketId, userMessage).catch((err) => {
+        console.error("deliverAdminReply failed:", err);
+        return "error" as const;
+      });
+      await ctx.reply(
+        res === "delivered"
+          ? "✅ Ответ отправлен пользователю."
+          : res === "saved"
+            ? "💾 Ответ сохранён: человек увидит его в приложении в «Помощи» (уведомления у него не включены)."
+            : res === "missing"
+              ? "Не нашёл обращение — ответ не отправлен."
+              : "Не получилось отправить ответ — попробуй ещё раз."
+      );
+      return;
+    }
 
     if (userMessage === PARTNER_BUTTON) {
       await sendPartnerMenu(ctx);
@@ -905,7 +948,7 @@ export function getBot(): Bot {
 
     // Партнёр нажал «Реквизиты» / «Запросить выплату» и теперь присылает
     // реквизиты — сохраняем их, а не отправляем в поддержку.
-    const partner = await getPartnerByTelegramId(createAdminClient(), ctx.from.id).catch(() => null);
+    const partner = await getPartnerForTelegram(createAdminClient(), ctx.from.id).catch(() => null);
     if (partner?.awaiting_payout_details) {
       await savePayoutDetails(createAdminClient(), partner.id, userMessage);
       await ctx.reply("✅ Реквизиты сохранены.", {
@@ -931,19 +974,30 @@ export function getBot(): Bot {
     const { reply, needsHuman } = await getSupportAiReply(userMessage, history);
     await ctx.reply(reply);
 
+    let ticketIdForAdmin: string | null = null;
     // Сохраняем обращение — его разбирает дежурный (плановая задача Claude).
     // Ошибка записи не должна мешать ответу пользователю.
     try {
-      const { error: ticketError } = await createAdminClient()
+      const { data: ticketRow, error: ticketError } = await createAdminClient()
         .from("support_tickets")
         .insert({
           telegram_id: ctx.from.id,
+          user_id: await createAdminClient()
+            .from("users")
+            .select("id")
+            .eq("telegram_id", ctx.from.id)
+            .maybeSingle()
+            .then((r) => (r.data?.id as string | undefined) ?? null, () => null),
           username: ctx.from.username ?? null,
           first_name: ctx.from.first_name ?? null,
           message: userMessage,
           bot_reply: reply,
-        });
+          source: "bot",
+        })
+        .select("id")
+        .single();
       if (ticketError) console.error("Не удалось сохранить обращение в поддержку:", ticketError);
+      ticketIdForAdmin = (ticketRow?.id as string | undefined) ?? null;
     } catch (err) {
       console.error("Не удалось сохранить обращение в поддержку:", err);
     }
@@ -955,7 +1009,8 @@ export function getBot(): Bot {
       await ctx.api
         .sendMessage(
           adminId,
-          `📩 Вопрос в поддержку от ${who} (id ${from?.id}):\n\n${userMessage}\n\n— Ответ бота: ${reply}`
+          `📩 Вопрос в поддержку от ${who} (id ${from?.id}):\n\n${userMessage}\n\n— Ответ бота: ${reply}` +
+            (ticketIdForAdmin ? `\n\n↩️ Ответь на это сообщение, чтобы написать человеку. ${ticketTag(ticketIdForAdmin)}` : "")
         )
         .catch((err) => console.error("Не удалось переслать вопрос админу:", err));
     }
