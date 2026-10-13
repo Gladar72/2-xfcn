@@ -59,8 +59,16 @@ export function getTelegramWebApp(): TelegramWebApp | null {
 /** Возвращает сырую initData-строку для отправки на backend, либо null вне Telegram. */
 export function getInitData(): string | null {
   const webApp = getTelegramWebApp();
-  if (!webApp || !webApp.initData) return null;
-  return webApp.initData;
+  if (webApp?.initData) return webApp.initData;
+  // Запасной путь: если скрипт Telegram не загрузился, initData всё равно
+  // лежит в адресе страницы (#tgWebAppData=...), куда его кладёт сам Telegram.
+  if (typeof window === "undefined") return null;
+  try {
+    const fromHash = new URLSearchParams(window.location.hash.slice(1)).get("tgWebAppData");
+    return fromHash || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
