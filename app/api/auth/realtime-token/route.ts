@@ -17,5 +17,11 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  return NextResponse.json({ token: user.sessionJwt });
+  // url и anonKey — публичные (те же NEXT_PUBLIC_*, что видит браузер): мобильному
+  // приложению они нужны, чтобы самому подключиться к каналу чата.
+  return NextResponse.json({
+    token: user.sessionJwt,
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL ?? null,
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? null,
+  });
 }
