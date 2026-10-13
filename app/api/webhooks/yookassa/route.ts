@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getYooKassaPayment } from "@/lib/payments/yookassa";
 import { activateSubscription } from "@/lib/subscriptions/server";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { notifyUser } from "@/lib/notify/user";
 import type { Plan } from "@/lib/subscriptions/limits";
 import { recordReferralCommission } from "@/lib/subscriptions/referrals";
 
@@ -87,11 +88,14 @@ export async function POST(req: Request) {
     .select("telegram_id")
     .eq("id", paymentRow.user_id)
     .maybeSingle();
-  if (user) {
-    notifyTelegram(user.telegram_id, `✅ Оплата прошла — подписка «${plan.toUpperCase()}» активирована на 30 дней.`).catch(
-      () => {}
-    );
-  }
+  await notifyUser(admin, paymentRow.user_id, {
+    title: "Оплата прошла ✅",
+    body: `Подписка «${plan.toUpperCase()}» активирована на 30 дней`,
+    url: "/profile",
+    data: { type: "payment_succeeded" },
+    telegramText: `✅ Оплата прошла — подписка «${plan.toUpperCase()}» активирована на 30 дней.`,
+    telegramId: user?.telegram_id ?? null,
+  });
 
   return NextResponse.json({ status: "activated" });
 }
