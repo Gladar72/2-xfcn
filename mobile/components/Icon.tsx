@@ -237,6 +237,31 @@ const IC = {
       <Path d="M13.5 3.5V8h4.5M9 12.5h6M9 16h6" />
     </>
   ),
+  smile: (
+    <>
+      <Circle cx="12" cy="12" r="8.5" />
+      <Path d="M8.5 14.2c.9 1.3 2.1 2 3.5 2s2.6-.7 3.5-2" />
+      <Path d="M9.2 9.8v.4M14.8 9.8v.4" />
+    </>
+  ),
+  reply: (
+    <>
+      <Path d="M10 6 4.5 11.5 10 17" />
+      <Path d="M4.5 11.5H14a5.5 5.5 0 0 1 5.5 5.5v1" />
+    </>
+  ),
+  trash: (
+    <>
+      <Path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5a1.5 1.5 0 0 0 1.5 1.4h6a1.5 1.5 0 0 0 1.5-1.4l1-12.5" />
+      <Path d="M10 11v6M14 11v6" />
+    </>
+  ),
+  keyboard: (
+    <>
+      <Rect x="3" y="6.5" width="18" height="11" rx="2.5" />
+      <Path d="M7 10h.01M10.5 10h.01M14 10h.01M17.5 10h.01M8 14h8" />
+    </>
+  ),
 } as const;
 
 export type IconName = keyof typeof IC;
