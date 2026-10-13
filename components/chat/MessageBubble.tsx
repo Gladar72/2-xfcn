@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { parseInvite } from "@/lib/chat/invite";
+import { parseInvite, parseSticker } from "@/lib/chat/invite";
 import clsx from "clsx";
 import { ReadTicks } from "./ReadTicks";
 import { photoThumb } from "@/lib/photos/thumb";
@@ -36,6 +36,7 @@ interface MessageBubbleProps {
 export function MessageBubble({ message, isOwn, sender, showSender, onSenderPress, readStatus, readCaption, onOwnPress }: MessageBubbleProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const inviteId = parseInvite(message.content);
+  const sticker = parseSticker(message.content);
   const hasImage = !!message.imageUrl;
 
   return (
@@ -66,7 +67,16 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
               <img src={photoThumb(message.imageUrl, 240)} alt="Фото" style={message.uploading ? { opacity: 0.6 } : undefined} />
             </button>
           )}
-          {inviteId ? (
+          {(message as { deleted?: boolean }).deleted ? (
+            <span style={{ fontStyle: "italic", opacity: 0.7 }}>Сообщение удалено</span>
+          ) : sticker ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={sticker.startsWith("i_") ? `/brand/cat3d/${sticker}.webp` : `/brand/stickers/${sticker}.webp`}
+              alt="Стикер"
+              style={{ width: 140, height: 140, objectFit: "contain", display: "block" }}
+            />
+          ) : inviteId ? (
             <a href={`/events/${inviteId}`} className="minv">
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
