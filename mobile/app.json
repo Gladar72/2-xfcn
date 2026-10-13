@@ -63,6 +63,7 @@
       "expo-secure-store",
       "expo-web-browser",
       "expo-apple-authentication",
+      "expo-iap",
       [
         "expo-location",
         {
