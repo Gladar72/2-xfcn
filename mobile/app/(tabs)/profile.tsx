@@ -128,6 +128,8 @@ export default function ProfileScreen() {
           <Row icon="bell" label="Уведомления" onPress={() => router.push("/notifications")} />
           <Row icon="star" label="Отзывы после встреч" onPress={() => router.push("/reviews")} />
           <Row icon="heart" label="Мои интересы" onPress={() => router.push("/interests")} />
+          <Row icon="gift" label="Партнёрская программа" onPress={() => router.push("/partner")} />
+          <Row icon="help" label="Помощь" onPress={() => router.push("/support")} />
           <Row icon="gear" label="Настройки" onPress={() => router.push("/settings")} last />
         </Glass>
       </ScrollView>
