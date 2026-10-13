@@ -16,6 +16,7 @@
     "ios": {
       "bundleIdentifier": "ru.mesto.app",
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Чтобы показать встречи рядом с тобой на карте.",
         "NSPhotoLibraryUsageDescription": "Чтобы выбрать фото для профиля и встречи.",
@@ -42,6 +43,7 @@
       "expo-router",
       "expo-secure-store",
       "expo-web-browser",
+      "expo-apple-authentication",
       [
         "expo-location",
         {
@@ -69,7 +71,7 @@
       "eas": {
         "projectId": ""
       },
-      "appleLogin": false
+      "appleLogin": true
     }
   }
 }
