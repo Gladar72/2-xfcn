@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Aurora, Glass, Mosya, Pill, RoundBtn, SectionHead, Title } from "@/components/brand";
@@ -21,6 +21,7 @@ export default function HomeScreen() {
   const [biz, setBiz] = useState<FeedEvent[]>([]);
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [unread, setUnread] = useState(0);
+  const [notifUnread, setNotifUnread] = useState(0);
   const [q, setQ] = useState("");
   const [refreshing, setRefreshing] = useState(false);
 
@@ -47,6 +48,16 @@ export default function HomeScreen() {
     load();
   }, [load]);
 
+  // Непрочитанные уведомления — при каждом возвращении на ленту
+  // (после экрана уведомлений счётчик должен обнулиться).
+  useFocusEffect(
+    useCallback(() => {
+      api<{ items: { isRead: boolean }[] }>("/api/notifications")
+        .then((r) => setNotifUnread((r.items ?? []).filter((n) => !n.isRead).length))
+        .catch(() => {});
+    }, [])
+  );
+
   const list = useMemo(() => {
     const all = (events ?? []).filter((e) => !e.isBusiness);
     const needle = q.trim().toLowerCase();
@@ -71,14 +82,24 @@ export default function HomeScreen() {
               <Icon name="down" size={18} />
             </View>
           </View>
-          <RoundBtn onPress={() => router.navigate("/(tabs)/chats")}>
-            <Icon name="chat" />
-            {unread > 0 ? (
-              <View style={styles.cnt}>
-                <Text style={styles.cntText}>{unread > 9 ? "9+" : unread}</Text>
-              </View>
-            ) : null}
-          </RoundBtn>
+          <View style={styles.topBtns}>
+            <RoundBtn onPress={() => router.push("/notifications")}>
+              <Icon name="bell" />
+              {notifUnread > 0 ? (
+                <View style={styles.cnt}>
+                  <Text style={styles.cntText}>{notifUnread > 9 ? "9+" : notifUnread}</Text>
+                </View>
+              ) : null}
+            </RoundBtn>
+            <RoundBtn onPress={() => router.navigate("/(tabs)/chats")}>
+              <Icon name="chat" />
+              {unread > 0 ? (
+                <View style={styles.cnt}>
+                  <Text style={styles.cntText}>{unread > 9 ? "9+" : unread}</Text>
+                </View>
+              ) : null}
+            </RoundBtn>
+          </View>
         </View>
 
         <View style={styles.ttl}>
@@ -224,6 +245,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  topBtns: { flexDirection: "row", gap: 8 },
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   locSmall: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
   locRow: { flexDirection: "row", alignItems: "center", gap: 4 },
