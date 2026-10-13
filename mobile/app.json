@@ -17,6 +17,7 @@
       "bundleIdentifier": "ru.mesto.app",
       "supportsTablet": false,
       "usesAppleSignIn": true,
+      "associatedDomains": ["applinks:mesto-go.ru", "applinks:www.mesto-go.ru", "webcredentials:mesto-go.ru"],
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Чтобы показать встречи рядом с тобой на карте.",
         "NSPhotoLibraryUsageDescription": "Чтобы выбрать фото для профиля и встречи.",
@@ -29,6 +30,24 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F6F2FF"
       },
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/e/" },
+            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/r/" },
+            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/events/" },
+            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/people" },
+            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/chats" },
+            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/city/" },
+            { "scheme": "https", "host": "mesto-go.ru", "path": "/my-events" },
+            { "scheme": "https", "host": "mesto-go.ru", "path": "/notifications" },
+            { "scheme": "https", "host": "www.mesto-go.ru" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ],
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
