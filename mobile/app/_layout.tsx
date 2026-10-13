@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Stack, router, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { StyleSheet, Text, View } from "react-native";
+import { AppState, StyleSheet, Text, View } from "react-native";
 import * as Font from "expo-font";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { registerForPush, useNotificationTaps } from "@/lib/push";
+import { api } from "@/lib/api";
 import { Aurora, Grad, Mosya, Wordmark } from "@/components/brand";
 import { brand, colors, FONT } from "@/lib/theme";
 
@@ -40,6 +41,25 @@ function Splash() {
   );
 }
 
+/** «В сети»: пока приложение открыто, раз в минуту отмечаемся на сервере (/api/me/ping). */
+function usePresencePing(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled) return;
+    const ping = () => {
+      if (AppState.currentState === "active") api("/api/me/ping", { method: "POST" }).catch(() => {});
+    };
+    ping();
+    const t = setInterval(ping, 60_000);
+    const sub = AppState.addEventListener("change", (st) => {
+      if (st === "active") ping();
+    });
+    return () => {
+      clearInterval(t);
+      sub.remove();
+    };
+  }, [enabled]);
+}
+
 function Gate() {
   const { ready, signedIn, ticket } = useAuth();
   const segments = useSegments();
@@ -56,6 +76,8 @@ function Gate() {
   useEffect(() => {
     if (signedIn) registerForPush().catch(() => {});
   }, [signedIn]);
+
+  usePresencePing(ready && signedIn);
 
   // Тап по push-уведомлению открывает нужный экран (встреча, чат, уведомления).
   useNotificationTaps(ready && fontReady && signedIn);
