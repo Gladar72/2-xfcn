@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
@@ -29,7 +29,6 @@ import { qs } from "@/lib/format";
  * публикации сразу позвать человека.
  */
 
-const TG_BOT = "https://t.me/Mesto_people_bot";
 /** Ошибки про тариф — тарифы пока покупаются в боте. */
 const PLAN_ERRORS = ["subscription_required", "events_limit_reached", "group_size_exceeds_plan"];
 /** Поле из ответа сервера → шаг, где его поправить. */
@@ -330,13 +329,7 @@ export default function CreateScreen() {
                 <View style={{ flex: 1, gap: 10 }}>
                   <Text style={st.bannerText}>{banner.text}</Text>
                   {banner.plan ? (
-                    <Btn
-                      kind="tg"
-                      title="Выбрать тариф в Telegram"
-                      icon={<Icon name="tg" color="#fff" size={18} />}
-                      onPress={() => Linking.openURL(TG_BOT)}
-                      style={{ height: 44 }}
-                    />
+                    <Btn kind="v" title="Выбрать тариф" onPress={() => router.push("/subscription")} style={{ height: 44 }} />
                   ) : null}
                 </View>
                 <Pressable onPress={() => setBanner(null)} hitSlop={10}>

@@ -6,6 +6,7 @@ import { AppState, StyleSheet, Text, View } from "react-native";
 import * as Font from "expo-font";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { registerForPush, useNotificationTaps } from "@/lib/push";
+import { startAppleWatcher, stopAppleWatcher } from "@/lib/iap";
 import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
 import { Aurora, Grad, Mosya, Wordmark } from "@/components/brand";
@@ -77,8 +78,13 @@ function Gate() {
   }, [ready, signedIn, ticket, segments]);
 
   useEffect(() => {
-    if (!signedIn) return;
+    if (!signedIn) {
+      stopAppleWatcher();
+      return;
+    }
     registerForPush().catch(() => {});
+    // iPhone: продления и прерванные покупки App Store — на сервер и закрыть.
+    startAppleWatcher();
     // Открывал ссылку партнёра до входа в существующий аккаунт — применяем код.
     applyPendingRef().catch(() => {});
   }, [signedIn]);
@@ -110,6 +116,8 @@ function Gate() {
       <Stack.Screen name="business" />
       <Stack.Screen name="city/[id]" />
       <Stack.Screen name="privacy" />
+      {/* Один экран тарифов: возврат из оплаты (mesto://subscription?paid=1) не открывает второй поверх. */}
+      <Stack.Screen name="subscription" getId={() => "subscription"} />
       <Stack.Screen name="create" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack>
   );
