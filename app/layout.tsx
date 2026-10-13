@@ -37,8 +37,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ru" className={`${golos.variable} ${onest.variable}`}>
       <head>
-        {/* Официальный скрипт Telegram Mini Apps — инжектит window.Telegram.WebApp */}
-        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
+        {/* Официальный скрипт Telegram Mini Apps — инжектит window.Telegram.WebApp.
+            Отдаём с нашего домена (app/tg/telegram-web-app.js): telegram.org
+            у части российских провайдеров не грузится → белый экран. */}
+        <Script src="/tg/telegram-web-app.js" strategy="beforeInteractive" />
       </head>
       <body className="text-ink-900 antialiased font-sans">
         {/* Неподвижный фон-«аврора» редизайна 2026: мягкие пятна фиолетового,
