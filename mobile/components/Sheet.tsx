@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Animated, Easing, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Dimensions, Easing, KeyboardAvoidingView, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Btn } from "@/components/brand";
 import { colors, FONT } from "@/lib/theme";
@@ -31,20 +31,22 @@ export function Sheet({ visible, onClose, children }: { visible: boolean; onClos
 
   if (!mounted) return null;
   return (
-    <Modal transparent visible animationType="none" statusBarTranslucent onRequestClose={onClose}>
+    <Modal transparent visible animationType="none" statusBarTranslucent navigationBarTranslucent onRequestClose={onClose}>
       <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: fade }]}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
+      <KeyboardAvoidingView behavior="padding" style={styles.kav} pointerEvents="box-none">
       <Animated.View
         style={[
           styles.panel,
           { paddingBottom: Math.max(insets.bottom, 16) + 8 },
-          { transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, 480] }) }] },
+          { transform: [{ translateY: slide.interpolate({ inputRange: [0, 1], outputRange: [0, Dimensions.get("window").height] }) }] },
         ]}
       >
         <View style={styles.grip} />
         {children}
       </Animated.View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -91,11 +93,9 @@ export function ConfirmSheet({
 
 const styles = StyleSheet.create({
   backdrop: { backgroundColor: "rgba(22,18,31,0.45)" },
+  kav: { flex: 1, justifyContent: "flex-end" },
   panel: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
+    maxHeight: "88%",
     backgroundColor: colors.milk,
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
