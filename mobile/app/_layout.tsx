@@ -5,7 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StyleSheet, Text, View } from "react-native";
 import * as Font from "expo-font";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { registerForPush } from "@/lib/push";
+import { registerForPush, useNotificationTaps } from "@/lib/push";
 import { Aurora, Grad, Mosya, Wordmark } from "@/components/brand";
 import { brand, colors, FONT } from "@/lib/theme";
 
@@ -57,6 +57,9 @@ function Gate() {
     if (signedIn) registerForPush().catch(() => {});
   }, [signedIn]);
 
+  // Тап по push-уведомлению открывает нужный экран (встреча, чат, уведомления).
+  useNotificationTaps(ready && fontReady && signedIn);
+
   if (!ready || !fontReady) return <Splash />;
 
   return (
@@ -64,6 +67,7 @@ function Gate() {
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="event/[id]" />
+      <Stack.Screen name="notifications" />
       <Stack.Screen name="create" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack>
   );
