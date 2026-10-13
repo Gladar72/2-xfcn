@@ -2,6 +2,8 @@ import { InlineKeyboard, type Api } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { CITY_UTC_OFFSET } from "@/lib/data/city-timezones";
 import { estimateRussiaUtcOffsetHours } from "@/lib/reviews/timezone";
+import { sendPushPersonal, sendPushToUsers } from "@/lib/push/expo";
+import { shortTitle } from "@/lib/notify/user";
 
 /**
  * Напоминание за 2 часа до встречи с подтверждением «Иду / Не смогу».
@@ -43,7 +45,7 @@ interface EventRow {
 
 interface MemberUser {
   id: string;
-  telegram_id: number;
+  telegram_id: number | null;
   name: string;
 }
 
@@ -169,9 +171,36 @@ export async function sendDueEventReminders(
           .insert(inserted.map((row) => ({ user_id: row.user_id, type: "event_soon", payload: { eventId: event.id } })));
       }
 
+      // Push в мобильное приложение: участнику — с просьбой подтвердить
+      // (ответ — на экране встречи, POST /api/events/[id]/rsvp), организатору — напоминание.
+      if (inserted && inserted.length > 0) {
+        const when = inHowLong(minutesLeft);
+        const time = event.event_time.slice(0, 5);
+        const place = [event.place_name, event.address?.replace(/^Россия,\s*/, "")].filter(Boolean).join(", ");
+        await sendPushPersonal(
+          admin,
+          inserted.map((row) => ({
+            userId: row.user_id as string,
+            message:
+              row.role === "organizer"
+                ? {
+                    title: `⏰ ${when[0]?.toUpperCase()}${when.slice(1)} твоя встреча`,
+                    body: `«${shortTitle(event.title)}» в ${time}. Участникам отправлено напоминание`,
+                    data: { url: `/event/${event.id}`, type: "event_soon", eventId: event.id },
+                  }
+                : {
+                    title: `⏰ Встреча ${when}`,
+                    body: `«${shortTitle(event.title)}» в ${time}${place ? ` · ${place}` : ""}. Ты идёшь? Подтверди`,
+                    data: { url: `/event/${event.id}`, type: "event_soon", eventId: event.id, rsvpId: row.id },
+                  },
+          }))
+        );
+      }
+
       for (const row of inserted ?? []) {
         const member = members.find((m) => m.user.id === row.user_id);
         if (!member) continue;
+        if (!member.user.telegram_id) continue; // без Telegram — только push выше
         const when = inHowLong(minutesLeft);
         const time = event.event_time.slice(0, 5);
         try {
@@ -223,6 +252,12 @@ export async function sendDueEventReminders(
           .eq("status", "sent")
           .select("id");
         if (!claimed || claimed.length === 0) continue;
+        await sendPushToUsers(admin, [member.user.id], {
+          title: `⏰ Встреча ${inHowLong(minutesLeft)}`,
+          body: `«${shortTitle(event.title)}» в ${event.event_time.slice(0, 5)}. Ты так и не ответил(а) — идёшь?`,
+          data: { url: `/event/${event.id}`, type: "event_soon", eventId: event.id, rsvpId: r.id },
+        });
+        if (!member.user.telegram_id) continue;
         try {
           await api.sendMessage(
             member.user.telegram_id,
@@ -256,7 +291,7 @@ export type RsvpAnswerResult =
 export async function handleRsvpAnswer(
   admin: Admin,
   api: Api,
-  params: { rsvpId: string; answer: "going" | "not_going"; fromTelegramId: number }
+  params: { rsvpId: string; answer: "going" | "not_going"; fromTelegramId?: number; fromUserId?: string }
 ): Promise<RsvpAnswerResult> {
   const { data: rsvp } = await admin
     .from("event_rsvps")
@@ -264,8 +299,17 @@ export async function handleRsvpAnswer(
     .eq("id", params.rsvpId)
     .maybeSingle();
 
-  const rsvpUser = rsvp?.user as unknown as { telegram_id: number; name: string } | null;
-  if (!rsvp || !rsvpUser || Number(rsvpUser.telegram_id) !== params.fromTelegramId) {
+  const rsvpUser = rsvp?.user as unknown as { telegram_id: number | null; name: string } | null;
+  // Ответ из Telegram (кнопка под напоминанием) — сверяем telegram_id,
+  // из мобильного приложения (POST /api/events/[id]/rsvp) — id пользователя.
+  const isMine =
+    !!rsvp &&
+    !!rsvpUser &&
+    ((params.fromUserId !== undefined && rsvp.user_id === params.fromUserId) ||
+      (params.fromTelegramId !== undefined &&
+        rsvpUser.telegram_id !== null &&
+        Number(rsvpUser.telegram_id) === params.fromTelegramId));
+  if (!rsvp || !rsvpUser || !isMine) {
     return { ok: false, text: "Это напоминание уже неактуально." };
   }
   if (rsvp.status === "going" || rsvp.status === "not_going") {
@@ -345,6 +389,11 @@ export async function handleRsvpAnswer(
       )
       .catch((err) => console.error("rsvp: не удалось уведомить организатора", err));
   }
+  await sendPushToUsers(admin, [event.organizer_id as string], {
+    title: "Участник не придёт",
+    body: `${rsvpUser.name} не сможет прийти на «${shortTitle(event.title)}». Место снова свободно`,
+    data: { url: `/event/${event.id}`, type: "rsvp_not_going", eventId: event.id },
+  });
 
   return {
     ok: true,
