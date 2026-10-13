@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidN8nRequest } from "@/lib/n8n/auth";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { sendPushPersonal } from "@/lib/push/expo";
+import { shortTitle } from "@/lib/notify/user";
 import { buildNotificationText } from "@/lib/notifications/text";
 
 const LOOKAHEAD_HOURS = 24;
@@ -44,8 +46,9 @@ export async function GET(req: NextRequest) {
     (alreadyNotified ?? []).map((n) => (n.payload as { eventId?: string } | null)?.eventId).filter(Boolean)
   );
 
-  const items = dueSoonLowAttendance
-    .filter((e) => !alreadyNotifiedEventIds.has(e.id))
+  const fresh = dueSoonLowAttendance.filter((e) => !alreadyNotifiedEventIds.has(e.id));
+
+  const items = fresh
     .map((e) => ({
       eventId: e.id,
       title: e.title,
@@ -55,15 +58,15 @@ export async function GET(req: NextRequest) {
     }))
     .filter((item) => Boolean(item.organizerTelegramId));
 
-  if (items.length > 0) {
+  // Организаторы без Telegram (вошли в мобильное приложение по телефону)
+  // тоже получают подсказку — уведомлением в приложении и push.
+  if (fresh.length > 0) {
     await admin.from("notifications").insert(
-      dueSoonLowAttendance
-        .filter((e) => items.some((i) => i.eventId === e.id))
-        .map((e) => ({
-          user_id: e.organizer_id,
-          type: "boost_suggestion",
-          payload: { eventId: e.id },
-        }))
+      fresh.map((e) => ({
+        user_id: e.organizer_id,
+        type: "boost_suggestion",
+        payload: { eventId: e.id },
+      }))
     );
 
     // Отправляем напрямую через бота — та же логика, что и в due-reminders:
@@ -72,6 +75,18 @@ export async function GET(req: NextRequest) {
       items.map((item) =>
         notifyTelegram(item.organizerTelegramId!, buildNotificationText("boost_suggestion", item.title))
       )
+    );
+
+    await sendPushPersonal(
+      admin,
+      fresh.map((e) => ({
+        userId: e.organizer_id as string,
+        message: {
+          title: "Мало откликов",
+          body: `На «${shortTitle(e.title)}» пока ${e.seats_taken} из ${e.seats_total} — можно поднять встречу в ленте`,
+          data: { url: `/event/${e.id}`, type: "boost_suggestion", eventId: e.id },
+        },
+      }))
     );
   }
 
