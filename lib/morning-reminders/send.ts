@@ -1,6 +1,7 @@
 import { GrammyError } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
+import { sendPushPersonal, type PushMessage } from "@/lib/push/expo";
 import { pickNextMessage, type ReminderHistoryEntry } from "@/lib/morning-reminders/pick-message";
 
 // Сколько времени после запланированного момента ещё можно отправить
@@ -32,7 +33,7 @@ interface DueReminder {
 
 interface ReminderUser {
   id: string;
-  telegram_id: number;
+  telegram_id: number | null;
   morning_reminders_enabled: boolean;
   moderation_status: string;
 }
@@ -152,17 +153,21 @@ export async function sendDueMorningReminders(admin: Admin): Promise<{ sent: num
         return { sent, skipped };
       }
 
+      // Push собираем со всей порции и отправляем одним запросом токенов +
+      // одной пачкой в Expo, а не по запросу на каждого пользователя.
+      const pushes: { userId: string; message: PushMessage }[] = [];
       const results = await Promise.all(
         slice.map(async (row) => {
           const user = userById.get(row.user_id);
           if (!user) return "skipped" as const;
-          return sendOne(admin, row.id, user);
+          return sendOne(admin, row.id, user, pushes);
         })
       );
       for (const r of results) {
         if (r === "sent") sent++;
         else skipped++;
       }
+      await sendPushPersonal(admin, pushes);
 
       const elapsed = Date.now() - tickStart;
       if (elapsed < 1000) await sleep(1000 - elapsed);
@@ -172,7 +177,12 @@ export async function sendDueMorningReminders(admin: Admin): Promise<{ sent: num
   return { sent, skipped };
 }
 
-async function sendOne(admin: Admin, reminderId: string, user: ReminderUser): Promise<"sent" | "skipped"> {
+async function sendOne(
+  admin: Admin,
+  reminderId: string,
+  user: ReminderUser,
+  pushes: { userId: string; message: PushMessage }[]
+): Promise<"sent" | "skipped"> {
   const { data: historyRows } = await admin
     .from("morning_reminders")
     .select("message_id, topic, greeting_key, sent_at")
@@ -188,7 +198,8 @@ async function sendOne(admin: Admin, reminderId: string, user: ReminderUser): Pr
   const message = pickNextMessage(history);
 
   try {
-    await sendReminderMessage(user.telegram_id, message.text);
+    // У пользователей мобильного приложения без Telegram — только push.
+    if (user.telegram_id) await sendReminderMessage(user.telegram_id, message.text);
     await admin
       .from("morning_reminders")
       .update({
@@ -199,6 +210,17 @@ async function sendOne(admin: Admin, reminderId: string, user: ReminderUser): Pr
         sent_at: new Date().toISOString(),
       })
       .eq("id", reminderId);
+    // Push — после того как напоминание отмечено отправленным, чтобы при
+    // повторе (временная ошибка Telegram) не прислать его дважды. Сама
+    // отправка — пачкой на всю порцию (см. sendDueMorningReminders).
+    pushes.push({
+      userId: user.id,
+      message: {
+        title: "Доброе утро от МЕСТА ☀️",
+        body: message.text,
+        data: { url: "/", type: "morning_reminder" },
+      },
+    });
     return "sent";
   } catch (err) {
     const blocked = err instanceof GrammyError && err.error_code === 403;
