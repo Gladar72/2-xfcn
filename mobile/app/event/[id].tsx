@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, Share, StyleSheet, Text, View } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
+import { useCallback, useState } from "react";
+import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { useLocalSearchParams, useFocusEffect, router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
@@ -8,6 +8,9 @@ import MapView, { Marker } from "react-native-maps";
 import { Aurora, Btn, Glass, Grad, Pill, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { Avatar } from "@/components/ui";
+import { ConfirmSheet } from "@/components/Sheet";
+import { OrganizerPanel } from "@/components/event/OrganizerPanel";
+import { manageErrorText, tapOk, tapWarn } from "@/lib/feedback";
 import { api, type ApiError } from "@/lib/api";
 import { costShort, formatEventDate, seatsLeft } from "@/lib/format";
 import { openRoute } from "@/lib/route";
@@ -29,6 +32,16 @@ type Detail = EventDetail & {
   myInvite?: { id: string; status: string; message: string | null } | null;
   /** Напоминание за 2 часа «Идёшь?» (POST /api/events/:id/rsvp). status: sent | going | not_going. */
   myRsvp?: { id: string; status: string } | null;
+  /** Только организатору: кого он позвал и что ответили. */
+  invites?: { id: string; status: string; user: { id: string; name: string; avatarUrl: string | null } }[];
+  autoCompleteAt?: string;
+  /** Своя заявка в ожидании — чтобы её можно было отозвать. */
+  myApplicationId?: string | null;
+  pendingApplicationsCount?: number;
+  /** Номер билета (бизнес-встреча, участник принят). */
+  ticketCode?: string | null;
+  /** Чат встречи — для организатора и принятых участников. */
+  conversationId?: string | null;
 };
 
 export default function EventScreen() {
@@ -37,11 +50,46 @@ export default function EventScreen() {
   const [event, setEvent] = useState<Detail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState<null | "withdraw" | "leave">(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
 
   const load = useCallback(() => {
     api<Detail>(`/api/events/${id}`).then(setEvent).catch((e) => setError((e as Error).message));
   }, [id]);
-  useEffect(load, [load]);
+  // Перезагружаем при каждом возвращении на экран (после редактирования, заявок, чата).
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  /** «Отозвать заявку» (pending) или «Не смогу пойти» (уже участник). */
+  async function runConfirm() {
+    if (!event || !confirm) return;
+    setConfirmBusy(true);
+    try {
+      if (confirm === "withdraw") {
+        if (!event.myApplicationId) throw new Error("Обнови экран и попробуй ещё раз");
+        await api(`/api/applications/${event.myApplicationId}`, { method: "PATCH", body: { action: "cancel" } });
+      } else {
+        await api(`/api/events/${event.id}/ticket`, { method: "DELETE" });
+      }
+      tapOk();
+      setConfirm(null);
+      load();
+    } catch (e) {
+      tapWarn();
+      setConfirm(null);
+      Alert.alert("Не получилось", manageErrorText(e));
+    } finally {
+      setConfirmBusy(false);
+    }
+  }
+
+  function openChat() {
+    if (event?.conversationId) router.push(`/chat/${event.conversationId}` as Href);
+    else router.navigate("/(tabs)/chats");
+  }
 
   // «Поделиться»: ссылка ведёт в бота, он присылает карточку встречи с кнопкой «Открыть».
   async function share() {
@@ -110,28 +158,42 @@ export default function EventScreen() {
   const hasCoords = event.latitude != null && event.longitude != null && !event.organizerHidden;
   const full = event.seatsTaken >= event.seatsTotal;
   const open = event.status === "published" || event.status === "closed";
+  const started = Date.now() >= new Date(event.startsAt).getTime();
   const live = Date.now() >= new Date(event.startsAt).getTime() && Date.now() < new Date(event.endsAt).getTime();
   const catLabel = event.isBusiness ? "Для бизнеса" : event.trainingType?.name ?? (event.category ? CATEGORY_SHORT[event.category.slug] ?? event.category.name : "Встреча");
 
   const action = (() => {
+    if (event.status === "completed") return <Btn kind="o" title="Встреча завершена" disabled />;
+    if (event.status === "cancelled") return <Btn kind="o" title="Встреча отменена" disabled />;
     switch (event.viewerStatus) {
       case "organizer":
         return open ? (
-          <Btn
-            kind="o"
-            title="Изменить встречу"
-            icon={<Icon name="edit" size={20} color={colors.ink} />}
-            onPress={() => router.push({ pathname: "/create", params: { id: event.id } })}
-          />
+          event.hasChat && event.conversationId ? (
+            <Btn kind="k" title="Чат встречи" icon={<Icon name="chat" color="#fff" size={20} />} onPress={openChat} />
+          ) : (
+            <Btn
+              kind="o"
+              title="Изменить встречу"
+              icon={<Icon name="edit" size={20} color={colors.ink} />}
+              onPress={() => router.push({ pathname: "/create", params: { id: event.id } })}
+            />
+          )
         ) : (
           <Btn kind="o" title="Это твоя встреча" disabled />
         );
       case "accepted":
-        return <Btn kind="k" title="Открыть чат встречи" icon={<Icon name="chat" color="#fff" size={20} />} onPress={() => router.navigate("/(tabs)/chats")} />;
+        if (event.isBusiness && event.ticketCode) {
+          return <Btn title="Открыть билет" icon={<Icon name="doc" color="#fff" size={20} />} onPress={() => router.push(`/ticket/${event.id}` as Href)} />;
+        }
+        return event.hasChat ? (
+          <Btn kind="k" title="Ты в деле · открыть чат" icon={<Icon name="chat" color="#fff" size={20} />} onPress={openChat} />
+        ) : (
+          <Btn kind="ok" title="Ты в деле!" icon={<Icon name="check" color="#fff" size={20} />} />
+        );
       case "pending":
         return <Btn kind="o" title="Заявка отправлена — ждём ответа" disabled />;
       case "rejected":
-        return <Btn kind="o" title="Заявку не подтвердили" disabled />;
+        return <Btn kind="o" title="Не в этот раз" disabled />;
       default:
         return <Btn title={full ? "Мест нет" : "Я иду"} onPress={apply} loading={busy} disabled={full || !open} />;
     }
@@ -254,7 +316,9 @@ export default function EventScreen() {
             </Glass>
           ) : null}
 
-          {event.participants.length > 0 ? (
+          {event.viewerStatus === "organizer" ? (
+            <OrganizerPanel event={event} onChanged={load} />
+          ) : event.participants.length > 0 ? (
             <View style={{ gap: 10 }}>
               <Text style={styles.section}>Уже идут</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
@@ -269,8 +333,46 @@ export default function EventScreen() {
               </View>
             </View>
           ) : null}
+
+          {event.viewerStatus === "pending" && open && event.myApplicationId ? (
+            <Pressable onPress={() => setConfirm("withdraw")} style={styles.quietLink} hitSlop={6}>
+              <Text style={styles.quietText}>Отозвать заявку</Text>
+            </Pressable>
+          ) : null}
+          {event.viewerStatus === "accepted" && open && !started ? (
+            <Pressable onPress={() => setConfirm("leave")} style={styles.quietLink} hitSlop={6}>
+              <Text style={styles.quietText}>{event.isBusiness ? "Отменить участие" : "Не смогу пойти"}</Text>
+            </Pressable>
+          ) : null}
         </View>
       </ScrollView>
+
+      <ConfirmSheet
+        visible={confirm === "withdraw"}
+        title="Отозвать заявку?"
+        text="Организатор её больше не увидит. Подать заново можно в любой момент, пока есть места."
+        confirm="Да, отозвать"
+        busyText="Отзываем…"
+        danger
+        busy={confirmBusy}
+        onConfirm={runConfirm}
+        onClose={() => setConfirm(null)}
+      />
+      <ConfirmSheet
+        visible={confirm === "leave"}
+        title={event.isBusiness ? "Отменить участие?" : "Точно не сможешь?"}
+        text={
+          event.isBusiness
+            ? "Билет перестанет действовать, место освободится для других гостей."
+            : "Тебя уберут из встречи и чата, а место освободится. Организатор получит уведомление."
+        }
+        confirm={event.isBusiness ? "Да, отменить" : "Не смогу"}
+        busyText="Секунду…"
+        danger
+        busy={confirmBusy}
+        onConfirm={runConfirm}
+        onClose={() => setConfirm(null)}
+      />
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>{action}</View>
     </View>
@@ -314,5 +416,7 @@ const styles = StyleSheet.create({
   bannerTitle: { flex: 1, fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink, letterSpacing: -0.3 },
   bannerText: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.ink2 },
   bannerBtns: { flexDirection: "row", gap: 10, marginTop: 2 },
+  quietLink: { alignSelf: "center", paddingVertical: 10 },
+  quietText: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.danger },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
 });
