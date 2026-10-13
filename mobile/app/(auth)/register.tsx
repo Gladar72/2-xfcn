@@ -10,6 +10,8 @@ import { useAuth, type AuthResult } from "@/lib/auth";
 import { loginWithTelegram } from "@/lib/telegramLogin";
 import { Aurora, Glass, Title } from "@/components/brand";
 import { colors, FONT } from "@/lib/theme";
+import { CitySheet } from "@/components/CitySheet";
+import { Icon } from "@/components/Icon";
 
 const POPULAR_CITIES = ["Тюмень", "Москва", "Санкт-Петербург", "Екатеринбург", "Новосибирск", "Казань"];
 
@@ -29,6 +31,7 @@ export default function RegisterScreen() {
   const [year, setYear] = useState("");
   const [gender, setGender] = useState<"male" | "female" | null>(null);
   const [city, setCity] = useState("Тюмень");
+  const [cityOpen, setCityOpen] = useState(false);
   const [bio, setBio] = useState("");
   const [photo, setPhoto] = useState<{ uri: string; base64: string } | null>(null);
   const [interests, setInterests] = useState<Interest[]>([]);
@@ -145,7 +148,11 @@ export default function RegisterScreen() {
           <Chip label="Женский" active={gender === "female"} onPress={() => setGender("female")} />
         </View>
 
-        <Field label="Город" value={city} onChangeText={setCity} />
+        <Text style={styles.label}>Город</Text>
+        <Pressable onPress={() => setCityOpen(true)} style={styles.cityBtn}>
+          <Text style={styles.cityText}>{city}</Text>
+          <Icon name="down" size={18} color={colors.grey} />
+        </Pressable>
         <View style={styles.wrapRow}>
           {POPULAR_CITIES.map((c) => (
             <Chip key={c} label={c} active={city === c} onPress={() => setCity(c)} />
@@ -181,6 +188,15 @@ export default function RegisterScreen() {
         <Button title="Готово" onPress={submit} loading={busy} disabled={name.trim().length < 2} />
         <Button title="Войти по-другому" variant="ghost" onPress={signOut} />
       </ScrollView>
+      <CitySheet
+        visible={cityOpen}
+        value={city}
+        onPick={(c) => {
+          setCity(c);
+          setCityOpen(false);
+        }}
+        onClose={() => setCityOpen(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -189,6 +205,8 @@ const styles = StyleSheet.create({
   wrap: { padding: 20, gap: 12, paddingBottom: 40 },
   sub: { fontFamily: FONT, fontSize: 15, color: colors.grey, marginBottom: 8 },
   label: { fontFamily: FONT, fontSize: 13.5, color: colors.grey, fontWeight: "500", marginLeft: 6 },
+  cityBtn: { height: 54, borderRadius: 18, backgroundColor: "#fff", paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  cityText: { fontFamily: FONT, fontSize: 16, color: colors.ink },
   wrapRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   photo: {
     width: 116,
