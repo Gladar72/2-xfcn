@@ -1,6 +1,7 @@
 import { InlineKeyboard, type Api } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { grantPartnerPremium } from "@/lib/subscriptions/referrals";
+import { sendPushToUsers } from "@/lib/push/expo";
 import type { Plan } from "@/lib/subscriptions/limits";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -104,6 +105,11 @@ export async function processSubscriptionExpiry(
           )
           .catch((err) => console.error("subscription reminder failed", err));
       }
+      await sendPushToUsers(admin, [sub.user_id], {
+        title: "Подписка скоро закончится",
+        body: `«${PLAN_TITLE[sub.plan]}» действует до ${formatDate(sub.current_period_end)}. Продли заранее`,
+        data: { url: "/profile", type: "subscription_expiring" },
+      });
       reminded++;
     }
   }
@@ -134,6 +140,11 @@ export async function processSubscriptionExpiry(
         )
         .catch((err) => console.error("subscription expired notice failed", err));
     }
+    await sendPushToUsers(admin, [sub.user_id], {
+      title: "Подписка закончилась",
+      body: `«${PLAN_TITLE[sub.plan]}» больше не действует — продли, чтобы создавать встречи без ограничений`,
+      data: { url: "/profile", type: "subscription_expired" },
+    });
   }
 
   return { renewedPartners, reminded, expired };
