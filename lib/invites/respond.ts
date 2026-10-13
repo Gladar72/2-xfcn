@@ -1,5 +1,5 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
-import { notifyTelegram } from "@/lib/telegram/notify";
+import { notifyUser, shortTitle } from "@/lib/notify/user";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -55,7 +55,14 @@ export async function respondToInvite(
 
   if (params.answer === "decline") {
     await admin.from("event_invites").update({ status: "declined", responded_at: now }).eq("id", invite.id);
-    notifyTelegram(organizer?.telegram_id, `${name} не сможет прийти на «${event.title}». Можно позвать кого-то ещё.`).catch(() => {});
+    await notifyUser(admin, event.organizer_id, {
+      title: "Приглашение отклонено",
+      body: `${name} не сможет прийти на «${shortTitle(event.title)}». Можно позвать кого-то ещё`,
+      url: `/event/${event.id}`,
+      data: { type: "invite_declined", eventId: event.id },
+      telegramText: `${name} не сможет прийти на «${event.title}». Можно позвать кого-то ещё.`,
+      telegramId: organizer?.telegram_id ?? null,
+    });
     return { ok: true, status: "declined", eventId: event.id, text: "Понял, передам организатору. Может, в следующий раз!" };
   }
 
@@ -104,7 +111,14 @@ export async function respondToInvite(
     type: "application_accepted",
     payload: { eventId: event.id },
   });
-  notifyTelegram(organizer?.telegram_id, `${name} принял(а) твоё приглашение на «${event.title}» — уже в участниках и в чате встречи.`).catch(() => {});
+  await notifyUser(admin, event.organizer_id, {
+    title: "Приглашение принято 🎉",
+    body: `${name} идёт на «${shortTitle(event.title)}» — уже в участниках и в чате`,
+    url: `/event/${event.id}`,
+    data: { type: "invite_accepted", eventId: event.id },
+    telegramText: `${name} принял(а) твоё приглашение на «${event.title}» — уже в участниках и в чате встречи.`,
+    telegramId: organizer?.telegram_id ?? null,
+  });
 
   return { ok: true, status: "accepted", eventId: event.id, text: "Отлично, ты в списке! Организатор уже знает. Чат встречи открыт в приложении." };
 }
