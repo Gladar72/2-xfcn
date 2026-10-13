@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Glass, Grad } from "@/components/brand";
 import { Icon, type IconName } from "@/components/Icon";
 import { FONT } from "@/lib/theme";
+import { PendingReviews } from "@/components/reviews/PendingReviews";
 
 const TABS: Record<string, { label: string; icon: IconName }> = {
   index: { label: "Главная", icon: "home" },
@@ -57,12 +58,15 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
 
 export default function TabsLayout() {
   return (
-    <Tabs screenOptions={{ headerShown: false }} tabBar={(p) => <TabBar {...p} />}>
-      <Tabs.Screen name="index" />
-      <Tabs.Screen name="map" />
-      <Tabs.Screen name="chats" />
-      <Tabs.Screen name="profile" />
-    </Tabs>
+    <>
+      <Tabs screenOptions={{ headerShown: false }} tabBar={(p) => <TabBar {...p} />}>
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="map" />
+        <Tabs.Screen name="chats" />
+        <Tabs.Screen name="profile" />
+      </Tabs>
+      <PendingReviews />
+    </>
   );
 }
 

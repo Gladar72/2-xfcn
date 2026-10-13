@@ -126,6 +126,7 @@ export default function ProfileScreen() {
           <Row icon="cal" label="Мои встречи" onPress={() => router.push("/my-events")} />
           <Row icon="people" label="Люди рядом" onPress={() => router.push("/people")} />
           <Row icon="bell" label="Уведомления" onPress={() => router.push("/notifications")} />
+          <Row icon="star" label="Отзывы после встреч" onPress={() => router.push("/reviews")} />
           <Row icon="heart" label="Мои интересы" onPress={() => router.push("/interests")} />
           <Row icon="gear" label="Настройки" onPress={() => router.push("/settings")} last />
         </Glass>
