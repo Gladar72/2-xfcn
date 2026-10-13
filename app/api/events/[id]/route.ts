@@ -59,16 +59,18 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   });
 
   let viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none" = "none";
+  let myApplicationId: string | null = null;
   if (currentUser) {
     if (event.organizer_id === currentUser.userId) {
       viewerStatus = "organizer";
     } else {
       const { data: application } = await admin
         .from("applications")
-        .select("status")
+        .select("id, status")
         .eq("event_id", eventId)
         .eq("user_id", currentUser.userId)
         .maybeSingle();
+      myApplicationId = (application?.id as string | undefined) ?? null;
       if (application?.status === "accepted") viewerStatus = "accepted";
       else if (application?.status === "pending") viewerStatus = "pending";
       else if (application?.status === "rejected") viewerStatus = "rejected";
@@ -110,6 +112,33 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       .eq("user_id", currentUser.userId)
       .maybeSingle();
     if (rsvpRow) myRsvp = { id: rsvpRow.id as string, status: rsvpRow.status as string };
+  }
+
+  // Для приложения: сколько новых заявок ждёт организатора, номер билета
+  // участника и id чата встречи (чтобы открыть его одной кнопкой).
+  let pendingApplicationsCount = 0;
+  let ticketCode: string | null = null;
+  let conversationId: string | null = null;
+  if (currentUser && viewerStatus === "organizer") {
+    const { count } = await admin
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("event_id", eventId)
+      .eq("status", "pending");
+    pendingApplicationsCount = count ?? 0;
+  }
+  if (currentUser && viewerStatus === "accepted" && event.is_business) {
+    const { data: member } = await admin
+      .from("event_members")
+      .select("ticket_code")
+      .eq("event_id", eventId)
+      .eq("user_id", currentUser.userId)
+      .maybeSingle();
+    ticketCode = (member?.ticket_code as string | null | undefined) ?? null;
+  }
+  if (currentUser && (viewerStatus === "organizer" || viewerStatus === "accepted") && event.has_chat) {
+    const { data: conv } = await admin.from("conversations").select("id").eq("event_id", eventId).maybeSingle();
+    conversationId = (conv?.id as string | undefined) ?? null;
   }
 
   // Когда встреча началась и когда закроется сама (окончание + 30 минут) —
@@ -166,6 +195,10 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     myInvite,
     myRsvp,
     invites,
+    myApplicationId: viewerStatus === "pending" ? myApplicationId : null,
+    pendingApplicationsCount,
+    ticketCode,
+    conversationId,
   });
 }
 
