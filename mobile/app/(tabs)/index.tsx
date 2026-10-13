@@ -159,10 +159,14 @@ export default function HomeScreen() {
 
         {people.length > 0 && !cat ? (
           <>
-            <SectionHead title="Люди с похожими интересами" />
+            <SectionHead title="Люди с похожими интересами" action="Листать" onAction={() => router.push("/people")} />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railOut} contentContainerStyle={styles.rail}>
               {people.map((p) => (
-                <View key={p.id} style={styles.pcard}>
+                <Pressable
+                  key={p.id}
+                  onPress={() => router.push({ pathname: "/people", params: { start: p.id } })}
+                  style={({ pressed }) => [styles.pcard, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
+                >
                   {p.avatarUrl ? (
                     <Image source={{ uri: p.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                   ) : (
@@ -186,7 +190,7 @@ export default function HomeScreen() {
                       {p.sharedInterests.slice(0, 2).join(" · ")}
                     </Text>
                   </View>
-                </View>
+                </Pressable>
               ))}
             </ScrollView>
           </>
