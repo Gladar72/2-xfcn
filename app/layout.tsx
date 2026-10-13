@@ -23,7 +23,27 @@ const onest = localFont({
   variable: "--font-onest",
   display: "swap",
   weight: "100 900",
+  // Запасной шрифт — не грузим заранее (≈100 КБ, мешали первому запуску на медленной сети).
+  preload: false,
 });
+
+/**
+ * Белый экран при первом открытии в Telegram: Telegram держит свою белую
+ * заглушку, пока приложение не скажет «готово» (web_app_ready). Раньше это
+ * происходило только после загрузки всего JS — на медленной сети/холодном
+ * старте это секунды белого экрана, повторное открытие (уже из кэша) — быстрое.
+ * Теперь сообщаем Telegram «готово» сразу, как только нарисована заставка
+ * (инлайн-скрипт в конце body выполняется после загрузки CSS), без
+ * ожидания telegram-web-app.js и бандла.
+ */
+const EARLY_READY = `(function(){function p(t){try{var w=window,d='{}';if(w.TelegramWebviewProxy&&w.TelegramWebviewProxy.postEvent){w.TelegramWebviewProxy.postEvent(t,d);return}if(w.external&&'notify' in w.external){w.external.notify(JSON.stringify({eventType:t,eventData:{}}));return}if(w.parent&&w.parent!==w){w.parent.postMessage(JSON.stringify({eventType:t,eventData:{}}),'*')}}catch(e){}}p('web_app_ready');p('web_app_expand')})();`;
+
+/**
+ * После обновления сайта у кого-то в кэше может остаться старая страница со
+ * ссылками на уже несуществующие куски JS — приложение не оживает и висит.
+ * Если кусок /_next/static не загрузился — один раз перезагружаем страницу.
+ */
+const CHUNK_RELOAD = `window.addEventListener('error',function(e){var t=e.target;if(t&&t.tagName==='SCRIPT'&&/\/_next\/static\//.test(t.src||'')){try{if(!sessionStorage.getItem('mesto_chunk_reload')){sessionStorage.setItem('mesto_chunk_reload','1');location.reload()}}catch(_){}}},true);`;
 
 export const metadata: Metadata = {
   title: "Место",
@@ -41,6 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Отдаём с нашего домена (app/tg/telegram-web-app.js): telegram.org
             у части российских провайдеров не грузится → белый экран. */}
         <Script src="/tg/telegram-web-app.js" strategy="beforeInteractive" />
+        <script dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD }} />
       </head>
       <body className="text-ink-900 antialiased font-sans">
         {/* Неподвижный фон-«аврора» редизайна 2026: мягкие пятна фиолетового,
@@ -50,6 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <TelegramInit />
         <ScreenTransitions />
         {children}
+        <script dangerouslySetInnerHTML={{ __html: EARLY_READY }} />
       </body>
     </html>
   );
