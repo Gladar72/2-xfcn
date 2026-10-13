@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
+import { maxGroupSize } from "@/lib/subscriptions/limits";
+import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { eventTiming } from "@/lib/events/timing";
@@ -230,7 +232,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const { data: event } = await admin
     .from("events")
-    .select("id, organizer_id, status, seats_taken, is_business, category:categories(slug)")
+    .select("id, organizer_id, status, seats_taken, seats_total, is_business, category:categories(slug)")
     .eq("id", eventId)
     .maybeSingle();
 
@@ -339,6 +341,36 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     if (!eventTime || !eventEndTime) return invalid("eventTime", "Укажи время начала и окончания.");
     if (!Number.isFinite(seatsTotal) || seatsTotal < 1) {
       return invalid("seatsTotal", "Нужен хотя бы 1 участник кроме тебя.");
+    }
+    if (!Number.isInteger(seatsTotal)) {
+      return invalid("seatsTotal", "Количество участников — целое число.");
+    }
+    // Те же потолки, что при создании (lib/validation/create-event.ts и
+    // проверка тарифа в app/api/events/route.ts). Раньше при редактировании
+    // их не было — можно было поставить любое число участников.
+    const hardMax = event.is_business ? 500 : 30;
+    if (seatsTotal > hardMax) {
+      return invalid(
+        "seatsTotal",
+        event.is_business ? "Слишком много участников — максимум 500." : "В обычной встрече — максимум 30 участников."
+      );
+    }
+    // Лимит тарифа проверяем только при увеличении — уже сохранённое число
+    // не ломаем, даже если тариф с тех пор сменился.
+    if (seatsTotal > (event.seats_total ?? 0) && !isAdminTelegramId(currentUser.telegramId)) {
+      const sub = await getActiveSubscriptionInfo(admin, currentUser.userId);
+      const groupMax = maxGroupSize(sub?.plan ?? "start", !!event.is_business);
+      if (groupMax !== null && seatsTotal > groupMax) {
+        return NextResponse.json(
+          {
+            error: "group_size_exceeds_plan",
+            groupMax,
+            field: "seatsTotal",
+            message: `Твой тариф позволяет группу максимум из ${groupMax} человек. Уменьши число участников или перейди на тариф выше.`,
+          },
+          { status: 422 }
+        );
+      }
     }
 
     // Нельзя установить лимит меньше уже подтверждённых участников — см.
