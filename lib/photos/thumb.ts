@@ -18,7 +18,8 @@
 // (imageSizes + deviceSizes) — другие ширины он отвергает с ошибкой 400.
 const ALLOWED_WIDTHS = [16, 32, 48, 64, 96, 128, 256, 384, 640, 750, 828, 1080, 1200, 1920, 2048, 3840];
 
-const SUPABASE_URL = /^https:\/\/[^/]+\.supabase\.co\//;
+// Хранилище фото: Supabase Cloud или свой Supabase на сервере в России (db.mesto-go.ru).
+const SUPABASE_URL = /^https:\/\/([^/]+\.supabase\.co|db\.mesto-go\.ru)\//;
 
 /**
  * @param url      исходный адрес фото
