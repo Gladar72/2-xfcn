@@ -5,6 +5,7 @@ import { InlineKeyboard } from "grammy";
 import { getBot } from "@/lib/telegram/bot";
 import { broadcastToConversation } from "@/lib/supabase/broadcast";
 import { uploadChatPhoto } from "@/lib/photos/upload-chat-photo";
+import { sendPushPersonal } from "@/lib/push/expo";
 
 const MESSAGE_HISTORY_LIMIT = 50;
 
@@ -281,8 +282,35 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       : undefined;
     const now = Date.now();
 
-    await Promise.all(
-      otherMembers.map(async (m) => {
+    // Push в мобильное приложение — тем же получателям, что и Telegram
+    // (не заблокировавшим чат и не читающим его прямо сейчас). Один запрос
+    // токенов на всех получателей + пачка в Expo.
+    const shortPreview = preview.length > 150 ? `${preview.slice(0, 149)}…` : preview;
+    const pushTitle = !convEvent ? senderName : chatTitle ?? "Чат встречи";
+    const pushBody = !convEvent
+      ? shortPreview
+      : fromOrganizer
+      ? `${senderName} (организатор): ${shortPreview}`
+      : `Новое сообщение от ${senderName}`;
+    const pushRecipients = otherMembers
+      .filter((m) => !m.is_blocked)
+      .filter((m) => !(m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000))
+      .map((m) => m.user_id as string);
+    const pushPromise = sendPushPersonal(
+      admin,
+      pushRecipients.map((userId) => ({
+        userId,
+        message: {
+          title: pushTitle,
+          body: pushBody,
+          data: { url: `/chat/${conversationId}`, type: "new_message", conversationId },
+        },
+      }))
+    );
+
+    await Promise.all([
+      pushPromise,
+      ...otherMembers.map(async (m) => {
         const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
         if (!telegramId || m.is_blocked) return;
         if (m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000) return;
@@ -295,8 +323,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         } catch (err) {
           console.error(`chat notify — не удалось отправить ${telegramId}:`, err);
         }
-      })
-    );
+      }),
+    ]);
   }
 
   return NextResponse.json({ status: "sent", messageId: message.id, createdAt: message.created_at, imageUrl });
