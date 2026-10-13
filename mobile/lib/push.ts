@@ -49,8 +49,10 @@ function openFromResponse(response: Notifications.NotificationResponse | null | 
   const id = response.notification.request.identifier;
   if (handled.has(id)) return;
   handled.add(id);
-  const data = response.notification.request.content.data as { url?: unknown } | undefined;
-  const url = typeof data?.url === "string" ? data.url : "/notifications";
+  const data = response.notification.request.content.data as { url?: unknown; type?: unknown; eventId?: unknown } | undefined;
+  let url = typeof data?.url === "string" ? data.url : "/notifications";
+  // «Оцени встречу» — сразу на оценку, а не на страницу встречи.
+  if (data?.type === "review_request" && typeof data.eventId === "string") url = `/reviews?event=${data.eventId}`;
   if (!url.startsWith("/")) return;
   // Небольшая пауза — чтобы навигатор успел смонтироваться при холодном старте.
   setTimeout(() => {

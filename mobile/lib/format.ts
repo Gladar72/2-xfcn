@@ -80,3 +80,11 @@ export function plural(n: number, one: string, few: string, many: string): strin
   if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
   return many;
 }
+
+/** Строка запроса без URLSearchParams (в React Native он реализован не полностью). Пустые значения пропускаются. */
+export function qs(params: Record<string, string | number | null | undefined>): string {
+  return Object.entries(params)
+    .filter(([, v]) => v !== undefined && v !== null && v !== "")
+    .map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`)
+    .join("&");
+}
