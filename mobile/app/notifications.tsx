@@ -8,6 +8,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { Chip } from "@/components/ui";
 import { api } from "@/lib/api";
 import { colors, FONT } from "@/lib/theme";
+import { useGuide } from "@/lib/guide";
 
 /** Ответ GET /api/notifications (app/api/notifications/route.ts). */
 interface NotificationItem {
@@ -92,6 +93,7 @@ function targetOf(item: NotificationItem): string {
 type Row = { kind: "label"; key: string; label: string } | { kind: "item"; key: string; item: NotificationItem };
 
 export default function NotificationsScreen() {
+  useGuide("notifications");
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loaded, setLoaded] = useState(false);

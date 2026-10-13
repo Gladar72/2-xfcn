@@ -16,6 +16,7 @@ import { stickerUrl } from "@/lib/stickers";
 import { STORE } from "@/lib/store";
 import { PLAN_FEATURES, PLAN_NAME, PLAN_PRICE_RUB, untilLabel, type Plan, type Subscription } from "@/lib/subscription";
 import { colors, FONT } from "@/lib/theme";
+import { useGuide } from "@/lib/guide";
 
 /**
  * Тарифы. Оплата зависит от магазина (lib/store.ts):
@@ -28,6 +29,7 @@ const APPLE_TERMS = "https://www.apple.com/legal/internet-services/itunes/dev/st
 const MANAGE_APPLE = "https://apps.apple.com/account/subscriptions";
 
 export default function SubscriptionScreen() {
+  useGuide("subscription");
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ paid?: string }>();
   const [sub, setSub] = useState<Subscription | null>(null);

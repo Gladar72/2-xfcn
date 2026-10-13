@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { animateNext } from "@/lib/feedback";
 import { colors, FONT } from "@/lib/theme";
 import type { PersonCard } from "@/lib/types";
+import { useGuide } from "@/lib/guide";
 
 const { width: W } = Dimensions.get("window");
 
@@ -21,6 +22,7 @@ type Page = { kind: "person"; p: PersonCard } | { kind: "end" };
  * карточки и соседних.
  */
 export default function PeopleScreen() {
+  useGuide("people");
   const { start } = useLocalSearchParams<{ start?: string }>();
   const insets = useSafeAreaInsets();
   const [items, setItems] = useState<PersonCard[] | null>(null);

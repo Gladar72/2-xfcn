@@ -7,6 +7,7 @@ import * as Font from "expo-font";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { registerForPush, useNotificationTaps } from "@/lib/push";
 import { startAppleWatcher, stopAppleWatcher } from "@/lib/iap";
+import { MosyaPeekHost } from "@/components/MosyaPeek";
 import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
 import { Aurora, Grad, Mosya, Wordmark } from "@/components/brand";
@@ -129,6 +130,8 @@ export default function RootLayout() {
       <AuthProvider>
         <StatusBar style="dark" />
         <Gate />
+        {/* Мося-гид: подсказки разделов после регистрации (lib/guide.ts). */}
+        <MosyaPeekHost />
       </AuthProvider>
     </SafeAreaProvider>
   );

@@ -12,6 +12,7 @@ import { animateNext, tapLight } from "@/lib/feedback";
 import { fetchReviewable, toTargets, type ReviewTarget } from "@/lib/reviews";
 import { ReviewSheet } from "@/components/reviews/ReviewSheet";
 import { colors, eventIcon, FONT } from "@/lib/theme";
+import { useGuide } from "@/lib/guide";
 
 /** Ответ GET /api/me/events (app/api/me/events/route.ts). */
 interface MyEvent {
@@ -43,6 +44,7 @@ const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart
 
 /** «Мои встречи» — созданные и те, куда идёшь (app/(app)/my-events). */
 export default function MyEventsScreen() {
+  useGuide("myEvents");
   const insets = useSafeAreaInsets();
   const [scope, setScope] = useState<Scope>("upcoming");
   const [items, setItems] = useState<Record<Scope, MyEvent[] | null>>({ upcoming: null, archive: null });

@@ -15,9 +15,11 @@ import { tapLight, tapOk, tapWarn } from "@/lib/feedback";
 import { PLAN_NAME, untilLabel, type Subscription } from "@/lib/subscription";
 import { colors, FONT } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
+import { useGuide } from "@/lib/guide";
 
 /** «Настройки» (app/(app)/settings в мини-приложении). */
 export default function SettingsScreen() {
+  useGuide("settings");
   const insets = useSafeAreaInsets();
   const { signOut } = useAuth();
   const [me, setMe] = useState<MyProfile | null>(null);

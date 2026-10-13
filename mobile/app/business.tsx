@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { cityEventIcon, cityWhen, KIND_LABEL, type CityEvent } from "@/lib/cityEvents";
 import { colors, FONT } from "@/lib/theme";
 import type { FeedEvent } from "@/lib/types";
+import { useGuide } from "@/lib/guide";
 
 const STEPS: [string, string][] = [
   ["Создаёте событие", "с фото, временем и ценой билета"],
@@ -19,6 +20,7 @@ const STEPS: [string, string][] = [
 
 /** «Для бизнеса» (app/(app)/business): события заведений и городская афиша. */
 export default function BusinessScreen() {
+  useGuide("business");
   const insets = useSafeAreaInsets();
   const [biz, setBiz] = useState<FeedEvent[] | null>(null);
   const [city, setCity] = useState<CityEvent[]>([]);
