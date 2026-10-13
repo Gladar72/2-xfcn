@@ -226,7 +226,7 @@ export default function CreateScreen() {
           .catch(() => false);
         Alert.alert(
           sent ? "Готово!" : "Встреча готова",
-          sent ? `${params.inviteName ?? "Человек"} получит приглашение в Telegram` : "Приглашение не ушло — позови из профиля ещё раз"
+          sent ? `${params.inviteName ?? "Человек"} получит приглашение` : "Приглашение не ушло — позови из профиля ещё раз"
         );
       }
       router.replace(`/event/${res.eventId}`);

@@ -72,6 +72,11 @@ function Gate() {
       <Stack.Screen name="tickets/[id]" />
       <Stack.Screen name="ticket/[id]" />
       <Stack.Screen name="my-events" />
+      <Stack.Screen name="people" options={{ animation: "fade_from_bottom" }} />
+      <Stack.Screen name="person/[id]" />
+      <Stack.Screen name="profile-edit" />
+      <Stack.Screen name="interests" />
+      <Stack.Screen name="settings" />
       <Stack.Screen name="create" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack>
   );
