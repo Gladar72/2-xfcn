@@ -100,7 +100,8 @@ export default function SettingsScreen() {
             </View>
             <Switch value={morning} onValueChange={toggleMorning} trackColor={{ true: colors.violet, false: "rgba(22,18,31,0.15)" }} thumbColor="#fff" />
           </View>
-          <Row icon="bell" label="Уведомления" onPress={() => router.push("/notifications")} last />
+          <Row icon="bell" label="Уведомления" onPress={() => router.push("/notifications")} />
+          <Row icon="mask" label="Приватность и анонимность" onPress={() => router.push("/privacy")} last />
         </Glass>
 
         <Text style={styles.section}>Вход</Text>

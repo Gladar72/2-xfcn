@@ -77,6 +77,11 @@ function Gate() {
       <Stack.Screen name="profile-edit" />
       <Stack.Screen name="interests" />
       <Stack.Screen name="settings" />
+      <Stack.Screen name="reviews" />
+      <Stack.Screen name="search" />
+      <Stack.Screen name="business" />
+      <Stack.Screen name="city/[id]" />
+      <Stack.Screen name="privacy" />
       <Stack.Screen name="create" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack>
   );

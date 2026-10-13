@@ -82,6 +82,7 @@ function timeAgo(iso: string): string {
 /** Куда ведёт тап — как на веб-экране уведомлений, но по маршрутам приложения. */
 function targetOf(item: NotificationItem): string {
   if (item.type === "subscription_expiring" || item.type === "subscription_expired") return "/profile";
+  if (item.type === "review_request") return item.linkEventId ? `/reviews?event=${item.linkEventId}` : "/reviews";
   if (item.type === "new_message") return item.linkConversationId ? `/chat/${item.linkConversationId}` : "/chats";
   if (item.linkEventId) return `/event/${item.linkEventId}`;
   if (item.linkConversationId) return `/chat/${item.linkConversationId}`;

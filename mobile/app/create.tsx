@@ -9,11 +9,14 @@ import { api, ApiError } from "@/lib/api";
 import { coverFor, coverForText, coverUri } from "@/lib/covers";
 import { catIcon, CATEGORY_SHORT, colors, eventIcon, FONT } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
-import { type Category, type Form, formFromEvent, hhmm, initialForm, isPast, type TrainingType } from "@/components/create/model";
+import { type Category, type Form, formFromEvent, hhmm, initialForm, isPast, nextDays, type TrainingType } from "@/components/create/model";
+import { getAnonDefault } from "@/lib/prefs";
+import type { CityEvent } from "@/lib/cityEvents";
 import { StepWhat } from "@/components/create/StepWhat";
 import { StepCover } from "@/components/create/StepCover";
 import { StepWhen } from "@/components/create/StepWhen";
 import { StepWho } from "@/components/create/StepWho";
+import { qs } from "@/lib/format";
 
 /**
  * Создание (и правка) встречи в 4 шага — как CreateMeetingFlow в мини-приложении:
@@ -47,7 +50,7 @@ const FIELD_STEP: Record<string, number> = {
   isAnonymous: 4,
 };
 
-type Params = { id?: string; business?: string; category?: string; type?: string; invite?: string; inviteName?: string };
+type Params = { id?: string; business?: string; category?: string; type?: string; invite?: string; inviteName?: string; fromCity?: string };
 
 export default function CreateScreen() {
   const params = useLocalSearchParams<Params>();
@@ -79,6 +82,37 @@ export default function CreateScreen() {
       .then((p) => setMe({ name: p.name ?? "Ты", avatarUrl: p.avatarUrl ?? null, city: p.city ?? null }))
       .catch(() => {});
   }, []);
+
+  // «Анонимно по умолчанию» из настроек приватности — только для новой обычной встречи.
+  useEffect(() => {
+    if (editId || form.business) return;
+    getAnonDefault().then((v) => v && set({ isAnonymous: true }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // «Найти компанию» на событие из городской афиши — подставляем название, дату и место.
+  useEffect(() => {
+    if (!params.fromCity || editId) return;
+    api<CityEvent>(`/api/city-events/${params.fromCity}`)
+      .then((c) => {
+        const title = `Пойдём вместе: ${c.title}`.slice(0, 80);
+        const days = nextDays(14);
+        const patch: Partial<Form> = { title, placeName: c.placeName ?? "", address: c.address ?? "" };
+        if (form.categorySlug === "custom" || !form.categorySlug) patch.own = c.title.slice(0, 60);
+        if (days.includes(c.eventDate)) patch.dayIso = c.eventDate;
+        if (c.eventTime) {
+          const [h = 19, m = 0] = c.eventTime.split(":").map(Number);
+          patch.startMin = h * 60 + Math.min(55, Math.round(m / 5) * 5);
+        }
+        if (c.latitude != null && c.longitude != null) {
+          patch.latitude = c.latitude;
+          patch.longitude = c.longitude;
+        }
+        set(patch);
+      })
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.fromCity]);
 
   // Правка встречи: заполняем шаги данными с сервера.
   useEffect(() => {
@@ -136,8 +170,7 @@ export default function CreateScreen() {
     if (form.latitude !== undefined && form.longitude !== undefined) return true;
     const q = (form.address.trim() || form.placeName.trim()).trim();
     if (q.length >= 3) {
-      const p = new URLSearchParams({ query: q });
-      if (me?.city) p.set("city", me.city);
+      const p = qs({ query: q, city: me?.city });
       const r = await api<{ suggestions?: { address: string; latitude: number; longitude: number }[] }>(`/api/geocode?${p}`).catch(() => null);
       const hit = r?.suggestions?.[0];
       if (hit) {
