@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { sendPushToUsers } from "@/lib/push/expo";
+import { shortTitle } from "@/lib/notify/user";
 import { buildNotificationText } from "@/lib/notifications/text";
 
 type Action = "accept" | "reject" | "cancel";
@@ -80,6 +82,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         () => {}
       );
     }
+    await sendPushToUsers(admin, [application.user_id], {
+      title: "Заявка не подтверждена",
+      body: `Организатор не подтвердил заявку на «${shortTitle(eventTitle)}». Посмотри другие встречи`,
+      data: { url: `/event/${application.event_id}`, type: "application_rejected", eventId: application.event_id },
+    });
 
     return NextResponse.json({ status: "rejected" });
   }
@@ -170,6 +177,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       () => {}
     );
   }
+  await sendPushToUsers(admin, [application.user_id], {
+    title: "Ты в деле! 🎉",
+    body: `Организатор подтвердил заявку на «${shortTitle(eventTitle)}»${ticketCode ? ` · билет ${ticketCode}` : ""}`,
+    data: { url: `/event/${application.event_id}`, type: "application_accepted", eventId: application.event_id },
+  });
 
   return NextResponse.json({ status: "accepted" });
 }
