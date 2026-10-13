@@ -5,6 +5,8 @@ import { inviteContent } from "@/lib/chat/invite";
 import { InlineKeyboard } from "grammy";
 import { getBot } from "@/lib/telegram/bot";
 import { findDirectConversation, haveSharedEvent } from "@/lib/chat/can-direct";
+import { sendPushToUsers } from "@/lib/push/expo";
+import { shortTitle } from "@/lib/notify/user";
 import { INVITES_PER_DAY } from "@/lib/invites/respond";
 
 /**
@@ -165,6 +167,14 @@ export async function POST(req: NextRequest) {
         console.error("invite notify failed:", err);
       }
     }
+
+    // Push в мобильное приложение: тап открывает встречу с баннером «Пойду / Не смогу».
+    const senderName = ((sender?.name as string | undefined) ?? "").trim() || "Кто-то";
+    await sendPushToUsers(admin, [otherId], {
+      title: `${senderName} зовёт тебя на встречу`,
+      body: `«${shortTitle(event.title as string)}»${inviteMessage ? ` — ${shortTitle(inviteMessage, 80)}` : ""}`,
+      data: { url: `/event/${eventId}`, type: "event_invite", eventId, inviteId, conversationId },
+    });
   }
 
   return NextResponse.json({ conversationId });
