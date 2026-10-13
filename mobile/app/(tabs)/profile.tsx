@@ -53,6 +53,7 @@ export default function ProfileScreen() {
         </View>
 
         <Glass strong style={styles.list}>
+          <Row icon="cal" label="Мои встречи" onPress={() => router.push("/my-events")} />
           <Row icon="mail" label={me?.email ? `Почта: ${me.email}` : "Привязать почту для входа"} onPress={() => router.push("/link-email")} />
           <Row icon="tg" label="Открыть «Место» в Telegram" onPress={() => Linking.openURL("https://t.me/Mesto_people_bot")} />
           <Row icon="doc" label="Оферта" onPress={() => Linking.openURL(`${API_URL}/legal/offer`)} />
