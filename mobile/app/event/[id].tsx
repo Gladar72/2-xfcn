@@ -91,10 +91,11 @@ export default function EventScreen() {
     else router.navigate("/(tabs)/chats");
   }
 
-  // «Поделиться»: ссылка ведёт в бота, он присылает карточку встречи с кнопкой «Открыть».
+  // «Поделиться»: mesto-go.ru/e/<id> — у кого есть приложение, встреча откроется сразу в нём,
+  // у остальных — страница встречи с кнопками «Открыть в приложении» и «Открыть в Telegram».
   async function share() {
     if (!event) return;
-    const link = `https://t.me/Mesto_people_bot?start=e_${event.id}`;
+    const link = `https://mesto-go.ru/e/${event.id}`;
     const when = formatEventDate(event.eventDate, event.eventTime);
     await Share.share({ message: `${event.title} — ${when}. Пойдёшь со мной? 🙌\n${link}` }).catch(() => {});
   }
