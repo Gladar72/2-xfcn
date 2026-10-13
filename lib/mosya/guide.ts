@@ -9,8 +9,15 @@ import { peek } from "./peek";
  * объясняет, что здесь. При повторных заходах не появляется — только
  * когда человек регистрируется заново (startGuideTour() из анкеты).
  */
-export const GUIDE: Record<string, [MosyaPose, string]> = {
-  feed: ["wave", "Привет! Это главная. Выбери, чем хочешь заняться, ниже — встречи рядом. Жми «Я иду» — организатор получит заявку"],
+type Tip = [MosyaPose, string];
+
+/** Раздел → одна подсказка или несколько подряд (Мося показывает их по очереди). */
+export const GUIDE: Record<string, Tip | Tip[]> = {
+  feed: [
+    ["wave", "Привет! Я Мося 👋 Сверху — кнопка, где ты создаёшь свою встречу: кофе, спорт, кино, прогулка — что угодно"],
+    ["glasses", "Чуть ниже — «Для бизнеса»: тут кафе, бары и студии размещают афишу своих событий. Есть своё дело — создай событие и для него"],
+    ["phone", "А ещё ниже — встречи рядом. Жми «Я иду» — организатор получит заявку"],
+  ],
   map: ["phone", "Это карта: все встречи рядом. Приближай — метки рассыпаются, отдаляй — собираются в цифру"],
   search: ["think", "Здесь все встречи списком. Пиши, что хочешь — кофе, бег, кино, — и сужай фильтрами"],
   chats: ["phone", "Тут чаты встреч. Они появляются, когда организатор принимает твою заявку"],
@@ -69,7 +76,16 @@ export function showGuide(id: string, opts?: { low?: boolean; delay?: number; fo
   if (!g || !st || (!st.active && !opts?.force) || st.seen.includes(id)) return false;
   st.seen.push(id);
   write(st);
-  setTimeout(() => peek({ pose: g[0], text: g[1], low: opts?.low, ms: Math.max(5000, g[1].length * 62) }), opts?.delay ?? 750);
+  const tips: Tip[] = Array.isArray(g[0]) ? (g as Tip[]) : [g as Tip];
+  // Подсказки по очереди: следующая — когда Мося спрятался после предыдущей.
+  let at = opts?.delay ?? 750;
+  const path = window.location.pathname;
+  for (const [pose, text] of tips) {
+    const ms = Math.max(5000, text.length * 62);
+    // Ушёл с экрана — остальные подсказки этого раздела не показываем.
+    setTimeout(() => window.location.pathname === path && peek({ pose, text, low: opts?.low, ms }), at);
+    at += ms + 900;
+  }
   return true;
 }
 
