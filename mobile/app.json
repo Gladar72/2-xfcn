@@ -87,7 +87,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "https://2-xfcn.vercel.app",
+      "apiUrl": "https://mesto-go.ru",
       "eas": {
         "projectId": ""
       },
