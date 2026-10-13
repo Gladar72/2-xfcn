@@ -101,7 +101,7 @@ export function InviteSheet({
   return (
     <Sheet visible={visible} onClose={onClose}>
       <Text style={styles.title}>Позвать {person.name}</Text>
-      <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 12, paddingBottom: 6 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 12, paddingBottom: 6 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {tip ? (
           <View style={styles.mosya}>
             <View style={styles.mosyaHead}>
