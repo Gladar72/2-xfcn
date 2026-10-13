@@ -297,6 +297,7 @@ export default function EventScreen() {
           ) : null}
 
           {event.organizer ? (
+            <Pressable disabled={event.organizerHidden} onPress={() => router.push(`/person/${event.organizer!.id}` as Href)} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}>
             <Glass strong style={[styles.card, styles.org]}>
               {event.organizerHidden ? (
                 <View style={styles.maskAva}>
@@ -314,6 +315,7 @@ export default function EventScreen() {
                 </Text>
               </View>
             </Glass>
+            </Pressable>
           ) : null}
 
           {event.viewerStatus === "organizer" ? (
@@ -323,12 +325,12 @@ export default function EventScreen() {
               <Text style={styles.section}>Уже идут</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
                 {event.participants.map((p) => (
-                  <View key={p.id} style={{ alignItems: "center", width: 62, gap: 4 }}>
+                  <Pressable key={p.id} onPress={() => router.push(`/person/${p.id}` as Href)} style={{ alignItems: "center", width: 62, gap: 4 }}>
                     <Avatar uri={p.avatarUrl} name={p.name} size={52} />
                     <Text numberOfLines={1} style={styles.pName}>
                       {p.name}
                     </Text>
-                  </View>
+                  </Pressable>
                 ))}
               </View>
             </View>
