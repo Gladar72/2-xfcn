@@ -99,6 +99,9 @@ async function verifySession(token: string | undefined): Promise<string | null> 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   // Файлы для универсальных ссылок (Apple/Google проверяют их своими роботами).
+  if (pathname === "/.well-known/assetlinks.json") {
+    return NextResponse.rewrite(new URL("/.well-known/assetlinks", req.url));
+  }
   if (pathname.startsWith("/.well-known/")) return NextResponse.next();
   const isService = SERVICE_PREFIXES.some((p) => pathname.startsWith(p));
   const ua = req.headers.get("user-agent") ?? "";
