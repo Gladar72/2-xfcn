@@ -11,6 +11,8 @@ import { createEventSchema, type CreateEventInput } from "@/lib/validation/creat
 import { describeValidationError } from "@/lib/validation/describe-error";
 import { notifyN8n } from "@/lib/n8n/notify";
 import { notifyTelegram } from "@/lib/telegram/notify";
+import { sendPushToUsers } from "@/lib/push/expo";
+import { shortTitle } from "@/lib/notify/user";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { moderateImage } from "@/lib/photos/moderate-image";
@@ -735,13 +737,14 @@ export async function POST(req: NextRequest) {
     // зависит от того, настроен ли n8n, и было принято и для уведомления
     // организатора чуть выше.
     const cityUsersQuery = isRepost
-      ? { data: [] as { telegram_id: number }[] }
+      ? { data: [] as { id: string; telegram_id: number }[] }
       : await admin
       .from("users")
-      .select("telegram_id")
+      .select("id, telegram_id")
       .eq("city", organizerProfile?.city ?? "")
       .neq("id", currentUser.userId);
-    const cityTelegramIds = (cityUsersQuery.data ?? []).map((u) => u.telegram_id);
+    const cityTelegramIds = (cityUsersQuery.data ?? []).map((u) => u.telegram_id).filter(Boolean);
+    const cityUserIds = (cityUsersQuery.data ?? []).map((u) => u.id as string);
     // НЕ await — при большом числе пользователей в городе рассылка может
     // занять несколько секунд (каждое сообщение — отдельный запрос к
     // Bot API), и ждать её целиком перед ответом клиенту ощущалось бы
@@ -754,6 +757,15 @@ export async function POST(req: NextRequest) {
     await runInBackground(() =>
       sendInBatches(cityTelegramIds as number[], (telegramId) => notifyTelegram(telegramId, broadcastText))
     );
+    if (cityUserIds.length > 0) {
+      await runInBackground(() =>
+        sendPushToUsers(admin, cityUserIds, {
+          title: "Новое событие в городе",
+          body: shortTitle(input.title, 100),
+          data: { url: `/event/${createdEvent.id}`, type: "business_event", eventId: createdEvent.id },
+        })
+      );
+    }
   }
 
   // Если у админа нет реальной подписки (типичный случай при тестировании),
@@ -818,24 +830,31 @@ async function notifyRelevantUsers(
     (blocks ?? []).map((b) => (b.blocker_id === params.organizerId ? b.blocked_id : b.blocker_id))
   );
 
-  const recipients = Array.from(
-    new Map(
-      (candidateRows ?? [])
-        .map((r) => r.users as unknown as { id: string; telegram_id: number; city: string } | null)
-        .filter(
-          (u): u is { id: string; telegram_id: number; city: string } =>
-            !!u && u.id !== params.organizerId && u.city === params.city && !blockedIds.has(u.id)
-        )
-        .map((u) => [u.id, u.telegram_id])
-    ).values()
+  // Map user_id → telegram_id (дедупликация по пользователю).
+  const recipients = new Map<string, number>(
+    (candidateRows ?? [])
+      .map((r) => r.users as unknown as { id: string; telegram_id: number; city: string } | null)
+      .filter(
+        (u): u is { id: string; telegram_id: number; city: string } =>
+          !!u && u.id !== params.organizerId && u.city === params.city && !blockedIds.has(u.id)
+      )
+      .map((u) => [u.id, u.telegram_id] as const)
   );
+  const recipientUserIds = Array.from(recipients.keys());
 
-  if (recipients.length === 0) return;
+  if (recipientUserIds.length === 0) return;
+
+  // Push в мобильное приложение — тем же людям, что и рассылка n8n в Telegram.
+  await sendPushToUsers(admin, recipientUserIds, {
+    title: "Новая встреча по твоим интересам",
+    body: shortTitle(params.title, 100) || "Загляни — вдруг тебе подойдёт",
+    data: { url: `/event/${params.eventId}`, type: "event_created", eventId: params.eventId },
+  });
 
   await notifyN8n("event-created", {
     eventId: params.eventId,
     title: params.title,
-    telegramIds: recipients,
+    telegramIds: Array.from(recipients.values()),
   });
 }
 
