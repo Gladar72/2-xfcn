@@ -15,6 +15,12 @@ import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
  */
 export function TelegramInit() {
   useEffect(() => {
+    // Приложение ожило — сбрасываем флаг разовой перезагрузки (app/layout.tsx, CHUNK_RELOAD).
+    try {
+      sessionStorage.removeItem("mesto_chunk_reload");
+    } catch {
+      /* нет хранилища */
+    }
     const webApp = getTelegramWebApp();
     if (!webApp) return;
     webApp.ready();
