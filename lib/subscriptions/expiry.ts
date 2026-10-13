@@ -1,6 +1,6 @@
 import { InlineKeyboard, type Api } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
-import { grantPartnerPremium } from "@/lib/subscriptions/referrals";
+import { grantPartnerPremium, grantPartnerPremiumToUser } from "@/lib/subscriptions/referrals";
 import { sendPushToUsers } from "@/lib/push/expo";
 import type { Plan } from "@/lib/subscriptions/limits";
 
@@ -59,11 +59,20 @@ export async function processSubscriptionExpiry(
     ? await admin.from("referral_partners").select("telegram_id").eq("status", "approved").in("telegram_id", telegramIds)
     : { data: [] as { telegram_id: number }[] };
   const partnerIds = new Set((partners ?? []).map((p) => Number(p.telegram_id)));
+  // Партнёры из мобильного приложения (без Telegram) — по аккаунту.
+  const { data: userPartners } = await admin
+    .from("referral_partners")
+    .select("user_id")
+    .eq("status", "approved")
+    .in("user_id", ending.map((s) => s.user_id));
+  const partnerUserIds = new Set((userPartners ?? []).map((p) => p.user_id as string));
 
   const rest: SubRow[] = [];
   for (const sub of ending) {
-    const tg = sub.user ? Number(sub.user.telegram_id) : null;
-    if (tg !== null && partnerIds.has(tg)) {
+    const tg = sub.user?.telegram_id ? Number(sub.user.telegram_id) : null;
+    if (partnerUserIds.has(sub.user_id)) {
+      if (await grantPartnerPremiumToUser(admin, sub.user_id).catch(() => false)) renewedPartners++;
+    } else if (tg !== null && partnerIds.has(tg)) {
       if (await grantPartnerPremium(admin, tg).catch(() => false)) renewedPartners++;
     } else {
       rest.push(sub);
