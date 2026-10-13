@@ -17,6 +17,7 @@ import { ShareSheet } from "@/components/proto/ShareSheet";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { PhotoCropModal } from "./PhotoCropModal";
 import { goBack } from "@/lib/nav/back";
+import { maxGroupSize, type Plan } from "@/lib/subscriptions/limits";
 
 /**
  * Создание встречи в 4 шага — разметка и анимации из прототипа (SCR.create):
@@ -157,6 +158,18 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [addrDrop, setAddrDrop] = useState<AddressSuggestion[]>([]);
 
   const [seatsTotal, setSeatsTotal] = useState(3);
+  // Тариф организатора — чтобы счётчик участников не давал вписать больше,
+  // чем разрешает подписка (раньше можно было ввести до 500 на любом тарифе,
+  // а отказ приходил только при публикации). Сервер проверяет то же самое.
+  const [plan, setPlan] = useState<Plan | null>(null);
+  // При редактировании уже сохранённое число не урезаем, даже если тариф сменился.
+  const [savedSeats, setSavedSeats] = useState(0);
+  const hardMax = business ? 500 : 30;
+  const planMax = plan ? maxGroupSize(plan, business) : null;
+  const seatsCap = Math.max(Math.min(hardMax, planMax ?? hardMax), savedSeats);
+  useEffect(() => {
+    setSeatsTotal((n) => Math.min(n, seatsCap));
+  }, [seatsCap]);
   const [costType, setCostType] = useState<CostType>("each_pays");
   // Бизнес-событие: билет / бесплатно / свои условия (оплата — организатору лично).
   const [bizPricing, setBizPricing] = useState<"ticket" | "free" | "custom">("ticket");
@@ -183,6 +196,12 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     fetch("/api/me/profile")
       .then((r) => r.json())
       .then((d) => setMe({ name: d.name ?? "Ты", avatarUrl: d.avatarUrl ?? null }))
+      .catch(() => {});
+    fetch("/api/subscriptions")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.active && (d.plan === "start" || d.plan === "medium" || d.plan === "premium")) setPlan(d.plan);
+      })
       .catch(() => {});
   }, []);
 
@@ -254,6 +273,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           setExternalCoords({ latitude: e.latitude, longitude: e.longitude });
         }
         setSeatsTotal(e.seatsTotal ?? 3);
+        setSavedSeats(e.seatsTotal ?? 0);
         setMinSeats(Math.max(1, e.seatsTaken ?? 1));
         if (e.costType) setCostType(e.costType);
         setIsAnonymous(!!e.isAnonymous);
@@ -937,12 +957,19 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   type="number"
                   inputMode="numeric"
                   min={1}
-                  max={business ? 500 : 30}
+                  max={seatsCap}
                   value={seatsTotal}
-                  onChange={(e) => setSeatsTotal(Math.max(minSeats, Math.min(business ? 500 : 30, Number(e.target.value || 1))))}
+                  onChange={(e) => {
+                    const v = Math.floor(Number(e.target.value || 1));
+                    if (v > seatsCap) say(`На твоём тарифе — максимум ${seatsCap}`, "think");
+                    setSeatsTotal(Math.max(minSeats, Math.min(seatsCap, Number.isFinite(v) ? v : 1)));
+                  }}
                   aria-label="Количество человек"
                 />
-                <button className="gl" onClick={() => setSeatsTotal((n) => Math.min(business ? 500 : 30, n + 1))} aria-label="Больше">
+                <button className="gl" onClick={() => {
+                    if (seatsTotal >= seatsCap) say(`На твоём тарифе — максимум ${seatsCap}`, "think");
+                    setSeatsTotal((n) => Math.min(seatsCap, n + 1));
+                  }} aria-label="Больше">
                   +
                 </button>
               </div>
