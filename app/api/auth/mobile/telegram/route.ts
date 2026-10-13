@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { issueRegistrationTicket, verifyRegistrationTicket, verifyTelegramLogin } from "@/lib/mobile/auth";
-import { attachEmail, attachPhone } from "@/lib/mobile/otp";
+import { attachAppleId, attachEmail, attachPhone } from "@/lib/mobile/otp";
 import { mobileSessionPayload } from "@/lib/mobile/session-response";
 
 /**
@@ -59,5 +59,13 @@ export async function POST(req: NextRequest) {
     else phoneError = attached.message;
   }
 
-  return NextResponse.json({ ...(await mobileSessionPayload(admin, user)), phoneLinked, emailLinked, phoneError });
+  // Вошёл через Apple, но профиль уже есть в Telegram-версии — привязываем Apple ID к нему.
+  let appleLinked = false;
+  if (emailTicket?.kind === "apple") {
+    const attached = await attachAppleId(admin, user.id, emailTicket.sub);
+    if (attached.ok) appleLinked = true;
+    else phoneError = attached.message;
+  }
+
+  return NextResponse.json({ ...(await mobileSessionPayload(admin, user)), phoneLinked, emailLinked, appleLinked, phoneError });
 }
