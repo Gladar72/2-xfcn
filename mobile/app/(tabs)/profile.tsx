@@ -105,7 +105,7 @@ export default function ProfileScreen() {
         </View>
 
         {sub ? (
-          <Pressable onPress={() => router.push("/settings")}>
+          <Pressable onPress={() => router.push("/subscription")}>
             <Glass strong style={styles.sub}>
               <View style={[styles.rowIc, { backgroundColor: sub.active ? "rgba(34,181,115,0.14)" : colors.lav }]}>
                 <Icon name="wallet" size={19} color={sub.active ? colors.ok : colors.violet} />
