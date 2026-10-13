@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseInvite } from "@/lib/chat/invite";
+import { previewText } from "@/lib/chat/invite";
 
 /**
  * GET /api/conversations
@@ -34,25 +34,23 @@ export async function GET() {
   const [{ data: otherMembers }, { data: lastMessages }] = await Promise.all([
     admin
       .from("conversation_members")
-      .select("conversation_id, last_read_at, users(id, name, avatar_url)")
+      .select("conversation_id, last_read_at, users(id, name, avatar_url, last_active_at)")
       .in("conversation_id", conversationIds)
       .neq("user_id", currentUser.userId),
-    admin
-      .from("messages")
-      .select("conversation_id, content, created_at, sender_id")
-      .in("conversation_id", conversationIds)
-      .order("created_at", { ascending: false }),
+    // Только последнее сообщение каждого чата (DISTINCT ON в функции БД) —
+    // раньше сюда грузилась вся история всех чатов пользователя.
+    admin.rpc("last_messages", { p_conversation_ids: conversationIds }),
   ]);
 
   const otherMembersByConversation = new Map<
     string,
-    { id: string; name: string; avatarUrl: string | null; lastReadAt: string | null }[]
+    { id: string; name: string; avatarUrl: string | null; lastReadAt: string | null; lastActiveAt: string | null }[]
   >();
   for (const m of otherMembers ?? []) {
-    const user = m.users as unknown as { id: string; name: string; avatar_url: string | null } | null;
+    const user = m.users as unknown as { id: string; name: string; avatar_url: string | null; last_active_at: string | null } | null;
     if (!user) continue;
     const list = otherMembersByConversation.get(m.conversation_id) ?? [];
-    list.push({ id: user.id, name: user.name, avatarUrl: user.avatar_url, lastReadAt: m.last_read_at as string | null });
+    list.push({ id: user.id, name: user.name, avatarUrl: user.avatar_url, lastReadAt: m.last_read_at as string | null, lastActiveAt: user.last_active_at });
     otherMembersByConversation.set(m.conversation_id, list);
   }
 
@@ -72,7 +70,7 @@ export async function GET() {
     if (!lastMessageByConversation.has(msg.conversation_id)) {
       lastMessageByConversation.set(msg.conversation_id, {
         // Сообщение «только фото» — в списке чатов показываем как в Telegram.
-        content: parseInvite(msg.content) ? "📅 Приглашение на встречу" : msg.content || "📷 Фото",
+        content: previewText(msg.content, { deleted: !!msg.deleted_at, hasImage: !!msg.image_url }),
         createdAt: msg.created_at,
         isMine: msg.sender_id === currentUser.userId,
         senderId: msg.sender_id,
