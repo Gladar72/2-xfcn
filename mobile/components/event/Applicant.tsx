@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { router, type Href } from "expo-router";
 import { Avatar } from "@/components/ui";
 import { colors, FONT } from "@/lib/theme";
 import { plural } from "@/lib/format";
@@ -63,7 +64,7 @@ export function ApplicantRow({
 
   return (
     <View style={styles.row}>
-      <View style={styles.head}>
+      <Pressable style={styles.head} onPress={() => router.push(`/person/${a.id}` as Href)}>
         <Avatar uri={a.avatarUrl} name={a.name} size={48} />
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>
@@ -77,7 +78,7 @@ export function ApplicantRow({
             <Text style={[styles.badgeText, { color: st.color }]}>{st.label}</Text>
           </View>
         ) : null}
-      </View>
+      </Pressable>
       {a.bio && app.status === "pending" ? (
         <Text style={styles.bio} numberOfLines={3}>
           {a.bio}

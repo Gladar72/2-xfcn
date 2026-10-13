@@ -181,10 +181,12 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
           <Glass strong style={styles.list}>
             {event.participants.map((p, idx) => (
               <View key={p.id} style={[styles.person, idx > 0 && styles.sep]}>
-                <Avatar uri={p.avatarUrl} name={p.name} size={40} />
-                <Text style={styles.personName} numberOfLines={1}>
-                  {p.name}
-                </Text>
+                <Pressable onPress={() => router.push(`/person/${p.id}` as Href)} style={styles.personTap}>
+                  <Avatar uri={p.avatarUrl} name={p.name} size={40} />
+                  <Text style={styles.personName} numberOfLines={1}>
+                    {p.name}
+                  </Text>
+                </Pressable>
                 {active && !started ? (
                   <Pressable hitSlop={8} onPress={() => setConfirm({ remove: { id: p.id, name: p.name } })}>
                     <Text style={styles.remove}>Убрать</Text>
@@ -309,6 +311,7 @@ const styles = StyleSheet.create({
   list: { borderRadius: 22, paddingHorizontal: 12 },
   person: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(108,59,255,0.15)" },
+  personTap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
   personName: { flex: 1, fontFamily: FONT, fontSize: 15.5, color: colors.ink },
   status: { fontFamily: FONT, fontSize: 13, fontWeight: "600" },
   remove: { fontFamily: FONT, fontSize: 14, fontWeight: "600", color: colors.danger },
