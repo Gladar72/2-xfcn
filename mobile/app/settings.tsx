@@ -1,9 +1,11 @@
 import { useCallback, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Constants from "expo-constants";
-import { Aurora, Glass, RoundBtn, Title, Wordmark } from "@/components/brand";
+import { Aurora, Btn, Glass, RoundBtn, Title, Wordmark } from "@/components/brand";
+import { Sheet } from "@/components/Sheet";
+import { applyReferralCode } from "@/lib/referral";
 import { CitySheet } from "@/components/CitySheet";
 import { Icon, type IconName } from "@/components/Icon";
 import { api } from "@/lib/api";
@@ -22,6 +24,24 @@ export default function SettingsScreen() {
   const [sub, setSub] = useState<Subscription | null>(null);
   const [morning, setMorning] = useState(true);
   const [cityOpen, setCityOpen] = useState(false);
+  const [refOpen, setRefOpen] = useState(false);
+  const [refCode, setRefCode] = useState("");
+  const [refBusy, setRefBusy] = useState(false);
+  const [refMsg, setRefMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function submitRef() {
+    setRefBusy(true);
+    const err = await applyReferralCode(refCode);
+    setRefBusy(false);
+    if (err) {
+      tapWarn();
+      setRefMsg({ ok: false, text: err });
+    } else {
+      tapOk();
+      setRefMsg({ ok: true, text: "Готово! Код партнёра применён" });
+      setTimeout(() => setRefOpen(false), 1200);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -104,6 +124,23 @@ export default function SettingsScreen() {
           <Row icon="mask" label="Приватность и анонимность" onPress={() => router.push("/privacy")} last />
         </Glass>
 
+        <Text style={styles.section}>Помощь</Text>
+        <Glass strong style={styles.list}>
+          <Row icon="help" label="Помощь и поддержка" sub="Мося ответит сразу, команда — в течение дня" onPress={() => router.push("/support")} />
+          <Row icon="gift" label="Партнёрская программа" sub="30% с каждой оплаты приведённых людей" onPress={() => router.push("/partner")} />
+          <Row
+            icon="star"
+            label="Ввести код приглашения"
+            sub="Если тебя позвал блогер или друг"
+            onPress={() => {
+              setRefCode("");
+              setRefMsg(null);
+              setRefOpen(true);
+            }}
+            last
+          />
+        </Glass>
+
         <Text style={styles.section}>Вход</Text>
         <Glass strong style={styles.list}>
           <Row icon="mail" label="Почта" sub={me?.email ?? "не привязана"} onPress={() => router.push("/link-email")} />
@@ -131,6 +168,24 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <CitySheet visible={cityOpen} value={me?.city} onPick={pickCity} onClose={() => setCityOpen(false)} />
+      <Sheet visible={refOpen} onClose={() => setRefOpen(false)}>
+        <Text style={styles.sheetTitle}>Код приглашения</Text>
+        <Text style={styles.sub}>Код из ссылки партнёра — например, mesto-go.ru/r/abcd2345. Ввести можно в первые 30 дней после регистрации.</Text>
+        <Glass strong style={styles.refInput}>
+          <TextInput
+            value={refCode}
+            onChangeText={(t) => setRefCode(t.replace(/[^a-zA-Z0-9]/g, "").toLowerCase())}
+            placeholder="код"
+            placeholderTextColor={colors.grey}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={32}
+            style={styles.refText}
+          />
+        </Glass>
+        {refMsg ? <Text style={[styles.sub, { color: refMsg.ok ? colors.ok : colors.danger, marginBottom: 8 }]}>{refMsg.text}</Text> : null}
+        <Btn kind="v" title={refBusy ? "Проверяем…" : "Применить"} onPress={submitRef} disabled={refBusy || refCode.length < 4} />
+      </Sheet>
     </View>
   );
 }
@@ -166,4 +221,7 @@ const styles = StyleSheet.create({
   logoutText: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.danger },
   about: { alignItems: "center", gap: 6, marginTop: 4 },
   tagline: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
+  sheetTitle: { fontFamily: FONT, fontSize: 19, fontWeight: "600", color: colors.ink, marginBottom: 4 },
+  refInput: { borderRadius: 18, paddingHorizontal: 16, marginVertical: 12 },
+  refText: { fontFamily: FONT, fontSize: 20, letterSpacing: 2, color: colors.ink, paddingVertical: 12, textAlign: "center" },
 });

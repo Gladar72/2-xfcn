@@ -7,6 +7,7 @@ import * as Font from "expo-font";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { registerForPush, useNotificationTaps } from "@/lib/push";
 import { api } from "@/lib/api";
+import { applyPendingRef } from "@/lib/referral";
 import { Aurora, Grad, Mosya, Wordmark } from "@/components/brand";
 import { brand, colors, FONT } from "@/lib/theme";
 
@@ -67,6 +68,8 @@ function Gate() {
 
   useEffect(() => {
     if (!ready) return;
+    // Ссылка партнёра сама решает, куда вести (сначала сохраняет код).
+    if ((segments[0] as string) === "r") return;
     const inAuth = segments[0] === "(auth)";
     if (!signedIn && ticket && segments[1] !== "register") router.replace("/(auth)/register");
     else if (!signedIn && !ticket && !inAuth) router.replace("/(auth)/login");
@@ -74,7 +77,10 @@ function Gate() {
   }, [ready, signedIn, ticket, segments]);
 
   useEffect(() => {
-    if (signedIn) registerForPush().catch(() => {});
+    if (!signedIn) return;
+    registerForPush().catch(() => {});
+    // Открывал ссылку партнёра до входа в существующий аккаунт — применяем код.
+    applyPendingRef().catch(() => {});
   }, [signedIn]);
 
   usePresencePing(ready && signedIn);
