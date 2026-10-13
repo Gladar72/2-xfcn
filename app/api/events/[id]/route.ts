@@ -5,6 +5,8 @@ import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { eventTiming } from "@/lib/events/timing";
+import { sendPushToUsers } from "@/lib/push/expo";
+import { shortTitle } from "@/lib/notify/user";
 import { finalizeCompletedEvents } from "@/lib/reviews/complete-due-events";
 import { clearFeedCache } from "@/lib/data/feed-cache";
 import { ANONYMOUS_ORGANIZER_NAME, canSeeAnonymousDetails, fuzzCoordinate } from "@/lib/events/anonymity";
@@ -97,6 +99,19 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     if (row) myInvite = { id: row.id as string, status: row.status as string, message: (row.message as string | null) ?? null };
   }
 
+  // Напоминание за 2 часа «Идёшь?» — чтобы приложение могло показать
+  // кнопки «Иду / Не смогу» (POST /api/events/[id]/rsvp). status: sent | going | not_going.
+  let myRsvp: { id: string; status: string } | null = null;
+  if (currentUser && viewerStatus === "accepted") {
+    const { data: rsvpRow } = await admin
+      .from("event_rsvps")
+      .select("id, status")
+      .eq("event_id", eventId)
+      .eq("user_id", currentUser.userId)
+      .maybeSingle();
+    if (rsvpRow) myRsvp = { id: rsvpRow.id as string, status: rsvpRow.status as string };
+  }
+
   // Когда встреча началась и когда закроется сама (окончание + 30 минут) —
   // чтобы организатор видел «Завершить встречу» и время автозакрытия.
   const timing = eventTiming(event);
@@ -149,6 +164,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     participants,
     viewerStatus,
     myInvite,
+    myRsvp,
     invites,
   });
 }
@@ -200,6 +216,23 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     await admin.from("events").update({ status: "cancelled" }).eq("id", eventId);
+
+    // Push участникам в мобильное приложение (в Telegram об отмене раньше не писали).
+    const { data: cancelMembers } = await admin
+      .from("event_members")
+      .select("user_id")
+      .eq("event_id", eventId)
+      .eq("role", "participant");
+    const { data: cancelledEvent } = await admin.from("events").select("title").eq("id", eventId).maybeSingle();
+    await sendPushToUsers(
+      admin,
+      (cancelMembers ?? []).map((m) => m.user_id as string),
+      {
+        title: "Встреча отменена",
+        body: `Организатор отменил «${shortTitle(cancelledEvent?.title as string | undefined)}»`,
+        data: { url: `/event/${eventId}`, type: "event_cancelled", eventId },
+      }
+    );
 
     const subscriptionInfo = await getActiveSubscriptionInfo(admin, currentUser.userId);
     if (subscriptionInfo) {
@@ -440,6 +473,18 @@ async function notifyParticipantsOfChange(
     .select("user_id, users(telegram_id)")
     .eq("event_id", eventId)
     .eq("role", "participant");
+
+  // Push в мобильное приложение — всем участникам, есть общий чат или нет.
+  const { data: changedEvent } = await admin.from("events").select("title").eq("id", eventId).maybeSingle();
+  await sendPushToUsers(
+    admin,
+    (memberRows ?? []).map((m) => m.user_id as string),
+    {
+      title: `Изменения: ${shortTitle(changedEvent?.title as string | undefined)}`,
+      body: parts.slice(1).join(" · ") || "Организатор изменил детали встречи",
+      data: { url: `/event/${eventId}`, type: "event_changed", eventId },
+    }
+  );
 
   if (conversation) {
     const { data: event } = await admin.from("events").select("organizer_id").eq("id", eventId).maybeSingle();
