@@ -6,12 +6,13 @@ import { verifyRegistrationTicket } from "@/lib/mobile/auth";
 import { mobileSessionPayload } from "@/lib/mobile/session-response";
 import { uploadAvatar } from "@/lib/photos/upload-avatar";
 import { applyPendingGifts } from "@/lib/gifts/channel-gift";
-import { grantPartnerPremiumIfPartner } from "@/lib/subscriptions/referrals";
+import { grantPartnerPremiumIfPartner, recordReferralForUser } from "@/lib/subscriptions/referrals";
 
 /**
  * POST /api/auth/mobile/register  { ticket, profile }
  * Регистрация из мобильного приложения. ticket — из phone/verify или telegram,
  * profile — та же анкета, что в мини-приложении (lib/validation/onboarding.ts).
+ * refCode (необязательно) — код партнёра из ссылки mesto-go.ru/r/<code>.
  */
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -74,6 +75,10 @@ export async function POST(req: NextRequest) {
   }
   if (profile.interestIds.length > 0) {
     await admin.from("user_interests").insert(profile.interestIds.map((interest_id) => ({ user_id: userId, interest_id })));
+  }
+  const refCode = typeof body?.refCode === "string" ? body.refCode.trim().slice(0, 32) : "";
+  if (refCode) {
+    await recordReferralForUser(admin, userId, refCode).catch((e) => console.error("mobile/register referral:", e));
   }
   if (ticket.kind === "telegram") {
     await applyPendingGifts(admin, ticket.telegramId, userId).catch((e) => console.error("mobile/register gifts:", e));
