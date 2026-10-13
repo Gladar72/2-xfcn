@@ -21,7 +21,15 @@ const APPLY_ERRORS: Record<string, string> = {
   blocked: "Нельзя записаться на эту встречу",
 };
 
-type Detail = EventDetail & { isAnonymous?: boolean; organizerHidden?: boolean; isBusiness: boolean };
+type Detail = EventDetail & {
+  isAnonymous?: boolean;
+  organizerHidden?: boolean;
+  isBusiness: boolean;
+  /** Приглашение от организатора (POST /api/invites/:id). */
+  myInvite?: { id: string; status: string; message: string | null } | null;
+  /** Напоминание за 2 часа «Идёшь?» (POST /api/events/:id/rsvp). status: sent | going | not_going. */
+  myRsvp?: { id: string; status: string } | null;
+};
 
 export default function EventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -54,6 +62,40 @@ export default function EventScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function answerInvite(action: "accept" | "decline") {
+    if (!event?.myInvite) return;
+    setBusy(true);
+    try {
+      const r = await api<{ message?: string }>(`/api/invites/${event.myInvite.id}`, { body: { action } });
+      if (r.message) Alert.alert(action === "accept" ? "Готово" : "Понял", r.message);
+    } catch (e) {
+      Alert.alert("Не получилось", (e as Error).message);
+    } finally {
+      setBusy(false);
+      load();
+    }
+  }
+
+  async function answerRsvp(answer: "going" | "not_going") {
+    setBusy(true);
+    try {
+      const r = await api<{ message?: string }>(`/api/events/${id}/rsvp`, { body: { answer } });
+      if (r.message) Alert.alert(answer === "going" ? "Отлично" : "Понял", r.message);
+    } catch (e) {
+      Alert.alert("Не получилось", (e as Error).message);
+    } finally {
+      setBusy(false);
+      load();
+    }
+  }
+
+  function confirmNotGoing() {
+    Alert.alert("Точно не сможешь?", "Тебя уберут из встречи и чата, а место освободится.", [
+      { text: "Отмена", style: "cancel" },
+      { text: "Не смогу", style: "destructive", onPress: () => answerRsvp("not_going") },
+    ]);
   }
 
   if (!event) {
@@ -142,6 +184,39 @@ export default function EventScreen() {
             {event.isAnonymous ? <Pill kind="dark" label="Анонимно" icon={<Icon name="mask" size={14} color="#fff" />} /> : null}
           </View>
           <Text style={styles.title}>{event.title}</Text>
+
+          {event.myInvite?.status === "pending" && event.viewerStatus !== "accepted" && event.viewerStatus !== "organizer" && open ? (
+            <Glass strong style={styles.banner}>
+              <View style={styles.bannerHead}>
+                <View style={styles.infoIc}>
+                  <Icon name="gift" size={18} color={colors.violet} />
+                </View>
+                <Text style={styles.bannerTitle}>Тебя пригласили на эту встречу</Text>
+              </View>
+              {event.myInvite.message ? <Text style={styles.bannerText}>«{event.myInvite.message}»</Text> : null}
+              <Text style={styles.bannerText}>Примешь — сразу попадёшь в участники и чат встречи, без заявки.</Text>
+              <View style={styles.bannerBtns}>
+                <Btn title="Пойду" onPress={() => answerInvite("accept")} loading={busy} style={{ flex: 1 }} />
+                <Btn kind="o" title="Не смогу" onPress={() => answerInvite("decline")} disabled={busy} style={{ flex: 1 }} />
+              </View>
+            </Glass>
+          ) : null}
+
+          {event.myRsvp?.status === "sent" && event.viewerStatus === "accepted" && open ? (
+            <Glass strong style={styles.banner}>
+              <View style={styles.bannerHead}>
+                <View style={styles.infoIc}>
+                  <Icon name="clock" size={18} color={colors.violet} />
+                </View>
+                <Text style={styles.bannerTitle}>Встреча совсем скоро — ты идёшь?</Text>
+              </View>
+              <Text style={styles.bannerText}>Организатору важно знать, сколько человек придёт.</Text>
+              <View style={styles.bannerBtns}>
+                <Btn title="Иду" onPress={() => answerRsvp("going")} loading={busy} style={{ flex: 1 }} />
+                <Btn kind="o" title="Не смогу" onPress={confirmNotGoing} disabled={busy} style={{ flex: 1 }} />
+              </View>
+            </Glass>
+          ) : null}
 
           <Glass strong style={styles.info}>
             <InfoRow icon="cal" text={`${formatEventDate(event.eventDate, event.eventTime)}${event.eventEndTime ? ` – ${event.eventEndTime.slice(0, 5)}` : ""}`} />
@@ -234,5 +309,10 @@ const styles = StyleSheet.create({
   muted: { fontFamily: FONT, fontSize: 13, color: colors.grey, marginTop: 2 },
   section: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink, letterSpacing: -0.4 },
   pName: { fontFamily: FONT, fontSize: 12, color: colors.ink2 },
+  banner: { borderRadius: 26, padding: 16, gap: 10 },
+  bannerHead: { flexDirection: "row", alignItems: "center", gap: 12 },
+  bannerTitle: { flex: 1, fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink, letterSpacing: -0.3 },
+  bannerText: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.ink2 },
+  bannerBtns: { flexDirection: "row", gap: 10, marginTop: 2 },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
 });
