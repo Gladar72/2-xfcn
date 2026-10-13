@@ -16,10 +16,12 @@ import { StepWhat } from "@/components/create/StepWhat";
 import { StepCover } from "@/components/create/StepCover";
 import { StepWhen } from "@/components/create/StepWhen";
 import { StepWho } from "@/components/create/StepWho";
+import { type Kind, StepKind } from "@/components/create/StepKind";
 import { qs } from "@/lib/format";
 
 /**
- * Создание (и правка) встречи в 4 шага — как CreateMeetingFlow в мини-приложении:
+ * Создание (и правка) встречи в 4 шага — как CreateMeetingFlow в мини-приложении.
+ * Перед шагами (только для новой) — «Что создаём?»: открытая, анонимная или событие для бизнеса.
  *   1. Что планируем — категория, вид тренировки, «Своё предложение»
  *   2. Название и обложка — обложку подбирает Мося, можно своё фото
  *   3. Когда и где — день, время, длительность, место
@@ -63,6 +65,14 @@ export default function CreateScreen() {
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
   const [minSeats, setMinSeats] = useState(1);
   const [step, setStep] = useState(1);
+  // «Что создаём?» — пропускаем при правке, «Найти компанию» из афиши и приглашении человека.
+  const skipKind = !!editId || !!params.fromCity || !!params.invite;
+  const [chosen, setChosen] = useState(skipKind);
+  const kind: Kind = form.business ? "business" : form.isAnonymous ? "anon" : "open";
+  function pickKind(k: Kind) {
+    set({ business: k === "business", isAnonymous: k === "anon" });
+    setTimeout(() => setChosen(true), 220);
+  }
   const [categories, setCategories] = useState<Category[]>([]);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
   const [me, setMe] = useState<{ name: string; avatarUrl: string | null; city: string | null } | null>(null);
@@ -209,6 +219,7 @@ export default function CreateScreen() {
   function back() {
     setBanner(null);
     if (step > 1) setStep(step - 1);
+    else if (chosen && !skipKind) setChosen(false);
     else router.back();
   }
 
@@ -283,14 +294,14 @@ export default function CreateScreen() {
       <Aurora />
       <View style={[st.head, { paddingTop: insets.top + 10 }]}>
         <RoundBtn onPress={back}>
-          <Icon name={step > 1 ? "back" : "close"} />
+          <Icon name={step > 1 || (chosen && !skipKind) ? "back" : "close"} />
         </RoundBtn>
         <View style={st.prog}>
           {[1, 2, 3, 4].map((i) => (
-            <View key={i} style={[st.dot, i <= step && st.dotOn]} />
+            <View key={i} style={[st.dot, chosen && i <= step && st.dotOn]} />
           ))}
         </View>
-        <Text style={st.count}>{`${label}${step}/4`}</Text>
+        <Text style={st.count}>{chosen ? `${label}${step}/4` : ""}</Text>
       </View>
 
       {loading ? (
@@ -305,10 +316,11 @@ export default function CreateScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            {step === 1 ? <StepWhat form={form} set={set} categories={categories} trainingTypes={trainingTypes} /> : null}
-            {step === 2 ? <StepCover form={form} set={set} presetCover={presetCover} catLabel={catLabel} /> : null}
-            {step === 3 ? <StepWhen form={form} set={set} catLabel={catLabel} city={me?.city ?? null} /> : null}
-            {step === 4 ? (
+            {!chosen ? <StepKind value={kind} onPick={pickKind} /> : null}
+            {chosen && step === 1 ? <StepWhat form={form} set={set} categories={categories} trainingTypes={trainingTypes} /> : null}
+            {chosen && step === 2 ? <StepCover form={form} set={set} presetCover={presetCover} catLabel={catLabel} /> : null}
+            {chosen && step === 3 ? <StepWhen form={form} set={set} catLabel={catLabel} city={me?.city ?? null} /> : null}
+            {chosen && step === 4 ? (
               <StepWho
                 form={form}
                 set={set}
@@ -337,6 +349,7 @@ export default function CreateScreen() {
                 </Pressable>
               </Glass>
             ) : null}
+            {chosen ? (
             <Btn
               kind={step === 4 ? "v" : "k"}
               title={busy && step === 4 ? (editId ? "Сохраняем…" : "Публикуем…") : cta}
@@ -344,6 +357,7 @@ export default function CreateScreen() {
               disabled={busy}
               onPress={next}
             />
+            ) : null}
           </View>
         </KeyboardAvoidingView>
       )}
