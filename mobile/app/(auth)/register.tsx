@@ -12,6 +12,7 @@ import { Aurora, Glass, Title } from "@/components/brand";
 import { colors, FONT } from "@/lib/theme";
 import { CitySheet } from "@/components/CitySheet";
 import { Icon } from "@/components/Icon";
+import { startGuideTour } from "@/lib/guide";
 import { clearPendingRef, getPendingRef } from "@/lib/referral";
 
 const POPULAR_CITIES = ["Тюмень", "Москва", "Санкт-Петербург", "Екатеринбург", "Новосибирск", "Казань"];
@@ -105,6 +106,8 @@ export default function RegisterScreen() {
         },
       });
       await clearPendingRef();
+      // Новый человек — Мося проведёт по разделам.
+      if (r.status === "authenticated") startGuideTour();
       await handleAuthResult(r);
     } catch (e) {
       setError((e as ApiError).message);
