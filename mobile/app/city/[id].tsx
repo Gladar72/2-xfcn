@@ -10,9 +10,11 @@ import { api } from "@/lib/api";
 import { cityEventIcon, cityTiles, hostOf, KIND_LABEL, type CityEvent } from "@/lib/cityEvents";
 import { openRoute } from "@/lib/route";
 import { colors, FONT } from "@/lib/theme";
+import { useGuide } from "@/lib/guide";
 
 /** Событие из городской афиши (app/(app)/city/[id]). «Найти компанию» — создать встречу с подставленными данными. */
 export default function CityEventScreen() {
+  useGuide("city");
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const [e, setE] = useState<CityEvent | null>(null);
