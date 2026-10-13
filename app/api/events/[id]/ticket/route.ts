@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyTelegram } from "@/lib/telegram/notify";
+import { notifyUser, shortTitle } from "@/lib/notify/user";
 
 /**
  * GET /api/events/[id]/ticket
@@ -125,12 +125,14 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     admin.from("users").select("telegram_id").eq("id", event.organizer_id).maybeSingle(),
     admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
   ]);
-  if (organizer) {
-    await notifyTelegram(
-      organizer.telegram_id,
-      `😔 ${me?.name ?? "Участник"} отменил(а) участие в «${event.title}». Место снова свободно.`
-    ).catch(() => {});
-  }
+  await notifyUser(admin, event.organizer_id, {
+    title: "Участник не придёт",
+    body: `${me?.name ?? "Участник"} отменил(а) участие в «${shortTitle(event.title)}». Место снова свободно`,
+    url: `/event/${eventId}`,
+    data: { type: "participant_left", eventId },
+    telegramText: `😔 ${me?.name ?? "Участник"} отменил(а) участие в «${event.title}». Место снова свободно.`,
+    telegramId: organizer?.telegram_id ?? null,
+  });
 
   return NextResponse.json({ status: "cancelled" });
 }
