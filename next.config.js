@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // Сборка для своего сервера (Yandex Cloud, deploy/yandex): самодостаточный server.js.
+  // На Vercel переменная не задана — там сборка как раньше.
+  output: process.env.STANDALONE === "1" ? "standalone" : undefined,
   // Исходники (source maps) в браузер не отдаём — только сжатый код.
   productionBrowserSourceMaps: false,
   poweredByHeader: false,
@@ -16,6 +19,11 @@ const nextConfig = {
       {
         protocol: "https",
         hostname: "*.supabase.co",
+      },
+      // Своё хранилище фото после переезда в Россию (Supabase на сервере Yandex Cloud).
+      {
+        protocol: "https",
+        hostname: "db.mesto-go.ru",
       },
       {
         protocol: "https",

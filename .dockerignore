@@ -1,0 +1,8 @@
+node_modules
+.next
+.git
+mobile
+supabase
+deploy
+*.md
+.env*
