@@ -12,7 +12,7 @@ const PLAN_TITLES: Record<Plan, string> = {
 
 /**
  * POST /api/subscriptions/yookassa/create-payment
- * Body: { plan: "start" | "medium" | "premium", contact?: string }
+ * Body: { plan: "start" | "medium" | "premium", contact?: string, returnTo?: "app" }
  *
  * contact — email или телефон покупателя, куда уйдёт электронный чек
  * (54-ФЗ). Если не передан — берём ранее сохранённый (users.receipt_contact);
@@ -53,10 +53,11 @@ export async function POST(req: Request) {
   } else {
     const { data: existing } = await admin
       .from("users")
-      .select("receipt_contact")
+      .select("receipt_contact, email, phone")
       .eq("id", user.userId)
       .maybeSingle();
-    contact = existing?.receipt_contact ?? undefined;
+    // Чек — на сохранённый контакт, иначе на почту или телефон из профиля (вход в приложении).
+    contact = existing?.receipt_contact ?? existing?.email ?? existing?.phone ?? undefined;
   }
 
   if (!contact) {
@@ -69,7 +70,8 @@ export async function POST(req: Request) {
       plan,
       amountRub: limits.priceRub,
       description: `${PLAN_TITLES[plan]} на 30 дней`,
-      returnUrl: `${appUrl}/subscriptions?paid=1`,
+      // Из мобильного приложения — на страницу, которая возвращает человека в приложение.
+      returnUrl: body?.returnTo === "app" ? `${appUrl}/pay/return` : `${appUrl}/subscriptions?paid=1`,
       contact,
     });
 
