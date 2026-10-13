@@ -82,3 +82,18 @@ export async function attachPhone(
   if (error) return { ok: false, status: 500, error: "update_failed", message: "Не получилось сохранить номер" };
   return { ok: true };
 }
+
+/** Привязывает Apple ID (sub из токена Apple) к профилю, если он не занят другим профилем. */
+export async function attachAppleId(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  sub: string
+): Promise<{ ok: true } | { ok: false; status: number; error: string; message: string }> {
+  const { data: owner } = await admin.from("users").select("id").eq("apple_sub", sub).maybeSingle();
+  if (owner && owner.id !== userId) {
+    return { ok: false, status: 409, error: "apple_taken", message: "Этот Apple ID уже привязан к другому профилю «Место»" };
+  }
+  const { error } = await admin.from("users").update({ apple_sub: sub }).eq("id", userId);
+  if (error) return { ok: false, status: 500, error: "update_failed", message: "Не получилось привязать Apple ID" };
+  return { ok: true };
+}

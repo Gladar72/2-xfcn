@@ -113,11 +113,12 @@ export function verifyTelegramLogin(
   };
 }
 
-/** Короткоживущий «пропуск на регистрацию»: подтверждённый телефон или Telegram-аккаунт. */
+/** Короткоживущий «пропуск на регистрацию»: подтверждённый телефон, почта, Telegram или Apple ID. */
 export type RegistrationTicket =
   | { kind: "phone"; phone: string }
   | { kind: "email"; email: string }
-  | { kind: "telegram"; telegramId: number; username: string | null };
+  | { kind: "telegram"; telegramId: number; username: string | null }
+  | { kind: "apple"; sub: string; email: string | null };
 
 const TICKET_AUDIENCE = "mesto-mobile-registration";
 
@@ -133,6 +134,7 @@ export function verifyRegistrationTicket(token: string): RegistrationTicket | nu
     if (t?.kind === "phone" && typeof t.phone === "string") return t;
     if (t?.kind === "email" && typeof t.email === "string") return t;
     if (t?.kind === "telegram" && typeof t.telegramId === "number") return t;
+    if (t?.kind === "apple" && typeof t.sub === "string" && t.sub) return t;
     return null;
   } catch {
     return null;
