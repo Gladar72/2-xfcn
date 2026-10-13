@@ -12,6 +12,7 @@ import { Aurora, Glass, Title } from "@/components/brand";
 import { colors, FONT } from "@/lib/theme";
 import { CitySheet } from "@/components/CitySheet";
 import { Icon } from "@/components/Icon";
+import { clearPendingRef, getPendingRef } from "@/lib/referral";
 
 const POPULAR_CITIES = ["Тюмень", "Москва", "Санкт-Петербург", "Екатеринбург", "Новосибирск", "Казань"];
 
@@ -85,10 +86,12 @@ export default function RegisterScreen() {
     if (!agreed) return setError("Нужно принять условия оферты и политики конфиденциальности");
     setBusy(true);
     try {
+      const refCode = await getPendingRef();
       const r = await api<AuthResult>("/api/auth/mobile/register", {
         auth: false,
         body: {
           ticket,
+          refCode: refCode ?? undefined,
           profile: {
             name,
             birthDate,
@@ -101,6 +104,7 @@ export default function RegisterScreen() {
           },
         },
       });
+      await clearPendingRef();
       await handleAuthResult(r);
     } catch (e) {
       setError((e as ApiError).message);
