@@ -1,0 +1,59 @@
+# Сервер «Места» в Yandex Cloud: запуск задач по SSH (см. deploy/yandex/README.md).
+# Запускается вручную: Actions → «Yandex Cloud» → Run workflow → выбрать задачу.
+# Автодеплой при каждом коммите в main включается переменной репозитория YC_AUTODEPLOY=on.
+name: Yandex Cloud
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Задача"
+        required: true
+        default: status
+        type: choice
+        options: [status, bootstrap, supabase, migrate, deploy, logs]
+  push:
+    branches: [main]
+
+concurrency:
+  group: yandex-server
+  cancel-in-progress: false
+
+jobs:
+  run:
+    if: github.event_name == 'workflow_dispatch' || vars.YC_AUTODEPLOY == 'on'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      TASK: ${{ github.event.inputs.task || 'deploy' }}
+      HOST: ${{ secrets.YC_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: SSH key
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.YC_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -T 15 -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Upload settings (.env)
+        if: env.TASK != 'bootstrap'
+        env:
+          APP_ENV: ${{ secrets.YC_APP_ENV }}
+        run: |
+          printf '%s\n' "$APP_ENV" | ssh deploy@"$HOST" 'sudo mkdir -p /opt/mesto && sudo chown deploy /opt/mesto && umask 077 && cat > /opt/mesto/.env.new && if [ -s /opt/mesto/.env.new ]; then mv /opt/mesto/.env.new /opt/mesto/.env; else rm -f /opt/mesto/.env.new; fi'
+
+      - name: Upload migration settings
+        if: env.TASK == 'migrate'
+        env:
+          OLD_DB_URL: ${{ secrets.YC_OLD_DB_URL }}
+        run: |
+          printf 'OLD_DB_URL=%s\n' "$OLD_DB_URL" | ssh deploy@"$HOST" 'umask 077 && cat > /opt/mesto/migrate.env'
+
+      - name: Run ${{ env.TASK }}
+        run: ssh deploy@"$HOST" 'bash -s' -- "$TASK" < deploy/yandex/remote.sh
+
+      - name: Clean up migration settings
+        if: always() && env.TASK == 'migrate'
+        run: ssh deploy@"$HOST" 'rm -f /opt/mesto/migrate.env' || true
