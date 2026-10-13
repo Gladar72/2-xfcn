@@ -11,6 +11,7 @@ import { plural } from "@/lib/format";
 import { PLAN_NAME, untilLabel, type Subscription } from "@/lib/subscription";
 import { colors, FONT } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
+import { useGuide } from "@/lib/guide";
 
 /** Заполненность профиля — как в мини-приложении: 30 + 15 за фото (до 3) + 10 за «о себе» + 15 за 3+ интереса. */
 function completeness(me: MyProfile): { pct: number; tip: string } {
@@ -23,6 +24,7 @@ function completeness(me: MyProfile): { pct: number; tip: string } {
 }
 
 export default function ProfileScreen() {
+  useGuide("profile");
   const insets = useSafeAreaInsets();
   const [me, setMe] = useState<MyProfile | null>(null);
   const [sub, setSub] = useState<Subscription | null>(null);

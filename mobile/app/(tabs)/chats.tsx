@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { animateNext, tapLight } from "@/lib/feedback";
 import { plural } from "@/lib/format";
 import { colors, FONT } from "@/lib/theme";
+import { useGuide } from "@/lib/guide";
 
 interface ChatItem {
   conversationId: string;
@@ -65,6 +66,7 @@ function Ticks({ item }: { item: ChatItem }) {
 }
 
 export default function ChatsScreen() {
+  useGuide("chats");
   const [items, setItems] = useState<ChatItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [loaded, setLoaded] = useState(false);

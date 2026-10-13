@@ -15,6 +15,7 @@ import { tapOk } from "@/lib/feedback";
 import { catIcon, CATEGORY_SHORT, colors, eventIcon, FONT } from "@/lib/theme";
 import { costShort, dayShort, plural } from "@/lib/format";
 import type { Category, FeedEvent, MyProfile, PersonCard } from "@/lib/types";
+import { useGuide } from "@/lib/guide";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -22,6 +23,8 @@ export default function HomeScreen() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [cat, setCat] = useState<string | null>(null);
   const [events, setEvents] = useState<FeedEvent[] | null>(null);
+  // Мося-гид: после регистрации — где создать встречу, где «Для бизнеса», где встречи рядом.
+  useGuide("feed", events !== null);
   const [biz, setBiz] = useState<FeedEvent[]>([]);
   const [cityEvents, setCityEvents] = useState<CityEvent[]>([]);
   const [cityOpen, setCityOpen] = useState(false);

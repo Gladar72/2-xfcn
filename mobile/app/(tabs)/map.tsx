@@ -13,6 +13,7 @@ import { tapLight } from "@/lib/feedback";
 import { plural, qs, timePill } from "@/lib/format";
 import { colors, FONT, pinIcon } from "@/lib/theme";
 import type { MapEvent } from "@/lib/types";
+import { useGuide } from "@/lib/guide";
 
 const TYUMEN: Region = { latitude: 57.153, longitude: 65.534, latitudeDelta: 0.12, longitudeDelta: 0.12 };
 
@@ -29,6 +30,7 @@ const CHIPS: [DateChip, string][] = [
  * события заведений и городская афиша (как /map?business=only в мини-приложении).
  */
 export default function MapScreen() {
+  useGuide("map");
   const params = useLocalSearchParams<{ date?: string; business?: string; t?: string }>();
   const insets = useSafeAreaInsets();
   const map = useRef<MapView>(null);
