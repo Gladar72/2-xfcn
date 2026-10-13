@@ -68,6 +68,10 @@ function Gate() {
       <Stack.Screen name="(tabs)" />
       <Stack.Screen name="event/[id]" />
       <Stack.Screen name="notifications" />
+      <Stack.Screen name="applications/[id]" />
+      <Stack.Screen name="tickets/[id]" />
+      <Stack.Screen name="ticket/[id]" />
+      <Stack.Screen name="my-events" />
       <Stack.Screen name="create" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
     </Stack>
   );
