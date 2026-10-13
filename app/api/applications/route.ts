@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyTelegram } from "@/lib/telegram/notify";
+import { notifyUser, shortTitle } from "@/lib/notify/user";
 import { buildNotificationText } from "@/lib/notifications/text";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
@@ -100,9 +100,14 @@ export async function POST(req: NextRequest) {
     .select("telegram_id")
     .eq("id", event.organizer_id)
     .maybeSingle();
-  if (organizer) {
-    await notifyTelegram(organizer.telegram_id, buildNotificationText("new_application", event.title)).catch(() => {});
-  }
+  await notifyUser(admin, event.organizer_id, {
+    title: "Новый отклик",
+    body: `Кто-то хочет пойти на «${shortTitle(event.title)}» — посмотри заявку`,
+    url: `/event/${eventId}`,
+    data: { type: "new_application", eventId },
+    telegramText: buildNotificationText("new_application", event.title),
+    telegramId: organizer?.telegram_id ?? null,
+  });
 
   return NextResponse.json({ status: "created", applicationId: application.id });
 }
