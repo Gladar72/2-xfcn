@@ -111,7 +111,7 @@ const SUBSCRIPTION_PERIOD_DAYS = 30;
  * системы (Telegram после successful_payment, ЮKassa после проверки
  * статуса платежа через её API), никогда клиент.
  *
- * Общая для обоих способов оплаты (Stars и ЮKassa) — чтобы активация не
+ * Общая для всех способов оплаты (Stars, ЮKassa, App Store) — чтобы активация не
  * расходилась в двух местах. У пользователя может быть максимум одна
  * активная подписка (см. unique index subscriptions_one_active_per_user) —
  * если уже есть активная, продлеваем/меняем её тариф на месте, а не
@@ -120,19 +120,24 @@ const SUBSCRIPTION_PERIOD_DAYS = 30;
 export async function activateSubscription(
   admin: AdminClient,
   userId: string,
-  plan: Plan
+  plan: Plan,
+  /** Конец периода, если его задаёт магазин (App Store); по умолчанию — 30 дней от сейчас. */
+  periodEndAt?: Date
 ): Promise<{ subscriptionId: string; periodStart: string; periodEnd: string }> {
   const now = new Date();
-  const periodEnd = new Date(now.getTime() + SUBSCRIPTION_PERIOD_DAYS * 24 * 60 * 60 * 1000);
-  const periodStartIso = now.toISOString();
-  const periodEndIso = periodEnd.toISOString();
-
   const { data: existing } = await admin
     .from("subscriptions")
-    .select("id")
+    .select("id, plan, current_period_end")
     .eq("user_id", userId)
     .eq("status", "active")
     .maybeSingle();
+
+  // Досрочное продление того же тарифа — 30 дней добавляются к оставшимся, а не сгорают.
+  const existingEnd = existing ? new Date(existing.current_period_end as string).getTime() : 0;
+  const base = !periodEndAt && existing?.plan === plan && existingEnd > now.getTime() ? existingEnd : now.getTime();
+  const periodEnd = periodEndAt ?? new Date(base + SUBSCRIPTION_PERIOD_DAYS * 24 * 60 * 60 * 1000);
+  const periodStartIso = now.toISOString();
+  const periodEndIso = periodEnd.toISOString();
 
   if (existing) {
     await admin
