@@ -127,6 +127,10 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const inviteName = searchParams.get("inviteName");
   const [invited, setInvited] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  // «Что создаём?» — открытая, анонимная или событие для бизнеса. Пропускаем при правке,
+  // «Найти компанию» из городской афиши и приглашении конкретного человека.
+  const skipKind = !!editId || !!searchParams.get("fromCity") || !!inviteUserId;
+  const [chosen, setChosen] = useState(skipKind);
   const [me, setMe] = useState<{ name: string; avatarUrl: string | null } | null>(null);
 
   const [categorySlug, setCategorySlug] = useState<string | null>(searchParams.get("category"));
@@ -442,7 +446,19 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     if (step > 1) {
       setDir(-1);
       setStep(step - 1);
+    } else if (chosen && !skipKind) {
+      setDir(-1);
+      setChosen(false);
     } else goBack(router, "/feed");
+  }
+
+  type Kind = "open" | "anon" | "business";
+  const kind: Kind = business ? "business" : isAnonymous ? "anon" : "open";
+  function pickKind(k: Kind) {
+    setBusiness(k === "business");
+    setIsAnonymous(k === "anon");
+    setDir(1);
+    setTimeout(() => setChosen(true), 220);
   }
 
   async function publish() {
@@ -605,22 +621,48 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     <section className="scr cr aurora up" data-id="create">
       <div className="scroll" style={{ paddingBottom: 160 }}>
         <div className="head">
-          <button className="rb gl" onClick={back} aria-label={step > 1 ? "Назад" : "Закрыть"}>
-            <Ic n={step > 1 ? "back" : "close"} />
+          <button className="rb gl" onClick={back} aria-label={step > 1 || (chosen && !skipKind) ? "Назад" : "Закрыть"}>
+            <Ic n={step > 1 || (chosen && !skipKind) ? "back" : "close"} />
           </button>
           <span className="prog">
             {[1, 2, 3, 4].map((i) => (
-              <i key={i} className={i <= step ? "on" : ""} />
+              <i key={i} className={chosen && i <= step ? "on" : ""} />
             ))}
           </span>
           <span style={{ minWidth: 44, textAlign: "right", color: "var(--grey)", fontSize: 13 }}>
-            {editId ? "Правка " : business ? "Бизнес " : ""}
-            {step}/4
+            {chosen ? `${editId ? "Правка " : business ? "Бизнес " : ""}${step}/4` : ""}
           </span>
         </div>
 
-        <div key={step} className="crstep" style={{ ["--dir" as string]: dir } as React.CSSProperties}>
-          {step === 1 && (
+        <div key={chosen ? step : 0} className="crstep" style={{ ["--dir" as string]: dir } as React.CSSProperties}>
+          {!chosen && (
+            <>
+              <h1 className="t">
+                Что <em>создаём</em>?
+              </h1>
+              <p className="sub">Выбери формат — дальше всё подскажу по шагам.</p>
+              {(
+                [
+                  ["open", "mosya_wave", "Открытая встреча", "Кофе, спорт, кино, прогулка — все видят тебя и место встречи"],
+                  ["anon", "mosya_shy", "Анонимная встреча", "Имя, фото и точный адрес увидят только те, чью заявку ты примешь"],
+                  ["business", "mosya_glasses", "Событие для бизнеса", "Афиша для заведения или своего дела: концерт, квиз, мастер-класс. Гостей до 500, можно билеты"],
+                ] as [Kind, string, string, string][]
+              ).map(([k, sticker, name, text]) => (
+                <button key={k} className={`ownw gl ${kind === k ? "sel" : ""}`} onClick={() => pickKind(k)}>
+                  <span className="ck">
+                    <Ic n="check" />
+                  </span>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/brand/stickers/${sticker}.webp`} alt="" width={70} height={70} style={{ flex: "none", objectFit: "contain" }} />
+                  <div>
+                    <b>{name}</b>
+                    <span>{text}</span>
+                  </div>
+                </button>
+              ))}
+            </>
+          )}
+          {chosen && step === 1 && (
             <>
               {business ? (
                 <>
@@ -708,7 +750,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             </>
           )}
 
-          {step === 2 && (
+          {chosen && step === 2 && (
             <>
               <h1 className="t">
                 Название <em>и обложка</em>
@@ -784,7 +826,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             </>
           )}
 
-          {step === 3 && (
+          {chosen && step === 3 && (
             <>
               <h1 className="t">
                 Когда <em>и где</em>?
@@ -937,7 +979,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             </>
           )}
 
-          {step === 4 && (
+          {chosen && step === 4 && (
             <>
               <h1 className="t">
                 Кто <em>и сколько</em>?
@@ -1107,11 +1149,13 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           )}
         </div>
       </div>
-      <div className="foot">
-        <button className={`btn ${step === 4 ? "v" : "k"}`} onClick={next} disabled={submitting}>
-          {step === 4 ? (submitting ? (editId ? "Сохраняем…" : "Публикуем…") : editId ? "Сохранить изменения" : "Опубликовать") : "Дальше"}
-        </button>
-      </div>
+      {chosen && (
+        <div className="foot">
+          <button className={`btn ${step === 4 ? "v" : "k"}`} onClick={next} disabled={submitting}>
+            {step === 4 ? (submitting ? (editId ? "Сохраняем…" : "Публикуем…") : editId ? "Сохранить изменения" : "Опубликовать") : "Дальше"}
+          </button>
+        </div>
+      )}
 
       <CalendarSheet open={calOpen} onClose={() => setCalOpen(false)} dayIndex={di} maxDays={N_DAYS} onPick={(i) => setDi(i)} />
       <Toast text={toast} />
