@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useGuide } from "@/lib/mosya/guide";
 import type { ChatListItemData } from "@/components/chat/ChatListItem";
-import { parseInvite } from "@/lib/chat/invite";
+import { parseInvite, parseSticker } from "@/lib/chat/invite";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Screen, eventIcon } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
@@ -67,7 +67,7 @@ export default function ChatsPage() {
           const personal = c.eventTitle === null;
           const title = personal ? c.otherUser?.name ?? "Личный чат" : c.eventTitle!;
           const lm = c.lastMessage;
-          const content = lm ? (parseInvite(lm.content) ? "📅 Приглашение на встречу" : lm.content) : "Чат создан — напиши первым";
+          const content = lm ? (parseInvite(lm.content) ? "📅 Приглашение на встречу" : parseSticker(lm.content) ? "Стикер" : lm.content) : "Чат создан — напиши первым";
           const preview = lm && !personal ? `${lm.isMine ? "Вы" : (lm.senderName ?? "Участник").split(" ")[0]}: ${content}` : lm?.isMine ? `Вы: ${content}` : content;
           const img = personal ? c.otherUser?.avatarUrl : c.eventPhotoUrl;
           return (
