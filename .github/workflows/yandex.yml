@@ -37,12 +37,17 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -T 15 -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-      - name: Upload settings (.env)
+      - name: Upload settings
         if: env.TASK != 'bootstrap'
+        # Ключи Supabase, CRON_SECRET и секрет вебхука сервер создаёт сам (deploy/yandex/make-env.py).
+        # Отсюда передаются только токен бота, ID админов и необязательные доп. строки из YC_APP_ENV.
         env:
+          BOT_TOKEN: ${{ secrets.YC_BOT_TOKEN }}
+          ADMIN_IDS: ${{ vars.YC_ADMIN_IDS }}
           APP_ENV: ${{ secrets.YC_APP_ENV }}
         run: |
-          printf '%s\n' "$APP_ENV" | ssh deploy@"$HOST" 'sudo mkdir -p /opt/mesto && sudo chown deploy /opt/mesto && umask 077 && cat > /opt/mesto/.env.new && if [ -s /opt/mesto/.env.new ]; then mv /opt/mesto/.env.new /opt/mesto/.env; else rm -f /opt/mesto/.env.new; fi'
+          { printf 'TELEGRAM_BOT_TOKEN=%s\nADMIN_TELEGRAM_IDS=%s\n' "$BOT_TOKEN" "$ADMIN_IDS"; printf '%s\n' "$APP_ENV"; } |
+            ssh deploy@"$HOST" 'sudo mkdir -p /opt/mesto && sudo chown deploy /opt/mesto && umask 077 && cat > /opt/mesto/inputs.env'
 
       - name: Upload migration settings
         if: env.TASK == 'migrate'
