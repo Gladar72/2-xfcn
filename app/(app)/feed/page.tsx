@@ -86,6 +86,11 @@ function HomeScreen() {
   const [cityEv, setCityEv] = useState<CityEvent[]>([]);
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [plan, setPlan] = useState<{ ev: MyEvent; label: string } | null>(null);
+  // Новая заявка на мою встречу — плашка вместо «Ты в деле» (главнее).
+  const [req, setReq] = useState<{
+    count: number;
+    latest: { eventId: string; eventTitle: string; name: string; age: number | null; avatarUrl: string | null };
+  } | null>(null);
   const [unreadChats, setUnreadChats] = useState(0);
   const [unreadNotif, setUnreadNotif] = useState(false);
   const [trainOpen, setTrainOpen] = useState(false);
@@ -115,6 +120,12 @@ function HomeScreen() {
     fetch("/api/notifications")
       .then((r) => r.json())
       .then((d) => setUnreadNotif((d.items ?? []).some((n: { isRead?: boolean }) => !n.isRead)))
+      .catch(() => {});
+    fetch("/api/me/pending-applications")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.latest) setReq({ count: d.count ?? 1, latest: d.latest });
+      })
       .catch(() => {});
     fetch("/api/me/events?scope=upcoming")
       .then((r) => r.json())
@@ -205,7 +216,28 @@ function HomeScreen() {
         </span>
       </Link>
 
-      {plan && (
+      {req ? (
+        <Link className="plan" href={`/events/${req.latest.eventId}`} aria-label="Открыть новую заявку">
+          <span style={{ position: "relative", flex: "none", display: "flex" }}>
+            {req.latest.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoThumb(req.latest.avatarUrl, 120)} alt="" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", border: "2px solid #fff" }} />
+            ) : (
+              <span style={{ width: 46, height: 46, borderRadius: "50%", border: "2px solid #fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 18, background: "rgba(255,255,255,.25)" }}>
+                {req.latest.name.slice(0, 1)}
+              </span>
+            )}
+            <span style={{ position: "absolute", right: -7, bottom: -4, background: "#fff", color: "#6C3BFF", fontSize: 11, fontWeight: 800, borderRadius: 99, padding: "1px 5px" }}>
+              +{req.count}
+            </span>
+          </span>
+          <div>
+            <span>{`Новая заявка · «${req.latest.eventTitle.length > 14 ? `${req.latest.eventTitle.slice(0, 13).trim()}…` : req.latest.eventTitle}»`}</span>
+            <b>{`${req.latest.name}${req.latest.age ? `, ${req.latest.age}` : ""} хочет пойти`}</b>
+          </div>
+          <Ic n="chev" c="s" />
+        </Link>
+      ) : plan && (
         <Link className="plan" href={`/events/${plan.ev.id}`}>
           <Cover photoUrl={plan.ev.photoUrl} icon={eventIcon(plan.ev)} cls="" thumb={120} />
           <div>
