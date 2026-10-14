@@ -98,7 +98,7 @@ export async function sendDueShareNudges(admin: Admin, api: Api): Promise<{ nudg
         "Поделись событием — так его увидят друзья и друзья друзей. Сторис для Instagram и Telegram Мося уже собрал 👇";
       try {
         if (appUrl) {
-          await api.sendPhoto(tgId, `${appUrl}/api/events/${e.id}/story.png`, { caption: text, parse_mode: "HTML", reply_markup: kb });
+          await api.sendPhoto(tgId, `${appUrl}/api/events/${e.id}/story.png?v=${Date.now().toString(36)}`, { caption: text, parse_mode: "HTML", reply_markup: kb });
         } else {
           await api.sendMessage(tgId, text, { parse_mode: "HTML", reply_markup: kb });
         }

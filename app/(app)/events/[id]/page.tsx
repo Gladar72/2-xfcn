@@ -916,7 +916,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         </div>
       )}
 
-      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} when={shareWhen} />
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} when={shareWhen} version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`} />
 
       <Sheet open={anonOpen} onClose={() => setAnonOpen(false)}>
         <div className="anonbox">

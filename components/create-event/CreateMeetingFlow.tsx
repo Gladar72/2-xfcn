@@ -609,7 +609,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             Мои встречи
           </button>
         </div>
-        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={publishedId} title={title} when={sumTxt} />
+        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={publishedId} title={title} when={sumTxt} version={photo ?? ""} />
       </section>
     );
   }
