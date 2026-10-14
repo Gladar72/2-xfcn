@@ -7,6 +7,7 @@
 
 Запуск: python3 slim-supabase.py /opt/supabase/docker/docker-compose.yml
 """
+import re
 import sys
 import yaml
 
@@ -45,8 +46,9 @@ for name, svc in services.items():
         fixed = []
         for p in ports:
             if isinstance(p, str):
-                parts = p.split(":")
-                fixed.append("127.0.0.1:" + ":".join(parts[-2:]) if len(parts) >= 2 else "127.0.0.1:" + p + ":" + p.split("/")[0])
+                # "[ip:]host:container[/proto]", host может быть "${VAR:-8000}"
+                m = re.match(r"^(?:\d+\.\d+\.\d+\.\d+:)?(\$\{[^}]*\}|[^:]+):(.+)$", p)
+                fixed.append(f"127.0.0.1:{m.group(1)}:{m.group(2)}" if m else f"127.0.0.1:{p}:{p.split('/')[0]}")
             elif isinstance(p, dict):
                 p["host_ip"] = "127.0.0.1"
                 fixed.append(p)
