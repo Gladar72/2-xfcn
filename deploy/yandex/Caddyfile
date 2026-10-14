@@ -1,7 +1,5 @@
 # HTTPS-сертификаты Caddy получает сам (Let's Encrypt), как только домен смотрит на сервер.
-{
-	email {$ACME_EMAIL}
-}
+# (Глобальный блок с email не ставим: пустой ACME_EMAIL ломает конфиг.)
 
 # Сайт и мини-приложение: сначала new.mesto-go.ru (проверка), при переезде —
 # APP_HOSTS="mesto-go.ru, www.mesto-go.ru, new.mesto-go.ru" в /opt/mesto/.env.

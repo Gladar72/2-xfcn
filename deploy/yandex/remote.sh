@@ -155,6 +155,7 @@ deploy() {
   # Caddy (HTTPS для db.mesto-go.ru) поднимаем до сборки: при сборке страницы читают базу.
   log "start caddy"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d caddy
+  DC --env-file "$ROOT/.env" -f docker-compose.yml restart caddy  # перечитать Caddyfile
   sleep 10
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
@@ -168,7 +169,12 @@ status() {
   sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
   df -h / | tail -1
   free -m | head -2
-  curl -fsS -o /dev/null -w "app: %{http_code}\n" http://127.0.0.1:3000/ || echo "app: down"
+  local UA="Mozilla/5.0 (status check)"
+  curl -sS -A "$UA" -o /dev/null -w "app: %{http_code}\n" http://127.0.0.1:3000/ || echo "app: down"
+  for h in $(envget APP_HOSTS | tr ',' ' ') $(envget API_HOST); do
+    curl -sS -A "$UA" -o /dev/null -m 15 --resolve "$h:443:127.0.0.1" -w "https $h: %{http_code}\n" "https://$h/" || echo "https $h: fail"
+  done
+  echo "--- caddy"; sudo docker logs --tail 15 mesto-caddy-1 2>&1 | cut -c1-300 || true
   curl -fsS -o /dev/null -w "supabase rest: %{http_code}\n" -H "apikey: $(envget NEXT_PUBLIC_SUPABASE_ANON_KEY)" http://127.0.0.1:8000/rest/v1/categories?select=slug\&limit=1 || echo "supabase: down"
   tail -5 "$ROOT/cron.log" 2>/dev/null || true
 }
