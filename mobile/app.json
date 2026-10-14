@@ -28,7 +28,7 @@
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#F6F2FF"
+        "backgroundColor": "#A8B6E5"
       },
       "intentFilters": [
         {
