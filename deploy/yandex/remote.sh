@@ -152,6 +152,10 @@ SQL
 deploy() {
   prepare_env
   cd "$APP/deploy/yandex"
+  # Caddy (HTTPS для db.mesto-go.ru) поднимаем до сборки: при сборке страницы читают базу.
+  log "start caddy"
+  DC --env-file "$ROOT/.env" -f docker-compose.yml up -d caddy
+  sleep 10
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
