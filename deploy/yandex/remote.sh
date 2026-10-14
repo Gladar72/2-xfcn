@@ -2,7 +2,7 @@
 # Управление сервером «Места» в Yandex Cloud. Запускается из GitHub Actions
 # (.github/workflows/yandex.yml) по SSH: ssh deploy@host 'bash -s' -- <task> < remote.sh
 #   bootstrap — один раз: Docker, swap, код из GitHub
-#   supabase  — поднять свой Supabase (база, фото, чат) с теми же ключами, что в Supabase Cloud
+#   supabase  — поднять свой Supabase (база, фото, чат); ключи сервер создаёт сам (make-env.py)
 #   migrate   — перенести базу и фото из Supabase Cloud (повторять можно: данные перезаписываются)
 #   deploy    — собрать и перезапустить сайт (+ фоновые задачи)
 #   status    — что запущено, место на диске, память
@@ -36,6 +36,13 @@ bootstrap() {
   log "done: $(sudo docker --version), $(sudo docker compose version)"
 }
 
+# .env собирается на сервере: свои ключи + то, что пришло из GitHub (inputs.env).
+prepare_env() {
+  update_code
+  python3 "$APP/deploy/yandex/make-env.py" "$ROOT/.env" "$ROOT/inputs.env"
+  rm -f "$ROOT/inputs.env"
+}
+
 update_code() {
   cd "$APP"
   git fetch --depth 1 origin main -q
@@ -60,7 +67,7 @@ PY
 rand() { tr -dc 'A-Za-z0-9' </dev/urandom | head -c "$1"; }
 
 supabase() {
-  update_code
+  prepare_env
   if [ ! -d "$SB/.git" ]; then
     log "clone supabase/docker"
     sudo mkdir -p "$SB" && sudo chown "$USER" "$SB"
@@ -100,6 +107,7 @@ supabase() {
 }
 
 migrate() {
+  prepare_env
   local OLD_DB_URL; OLD_DB_URL="$(grep -E '^OLD_DB_URL=' "$ROOT/migrate.env" | cut -d= -f2-)"
   [ -n "$OLD_DB_URL" ] || { echo "нет OLD_DB_URL в $ROOT/migrate.env"; exit 1; }
   mkdir -p "$ROOT/migrate"
@@ -125,16 +133,24 @@ SQL
   sudo docker exec supabase-db psql -U postgres -d postgres -tAc "NOTIFY pgrst, 'reload schema'" >/dev/null || true
   sudo docker exec supabase-db psql -U postgres -d postgres -tAc \
     "select 'users='||(select count(*) from public.users)||' events='||(select count(*) from public.events)||' messages='||(select count(*) from public.messages)"
-  log "copy storage files"
-  sudo docker run --rm --network host -v "$APP/deploy/yandex:/w:ro" -e SERVICE_ROLE_KEY="$(envget SUPABASE_SERVICE_ROLE_KEY)" node:20-bookworm-slim \
-    node /w/copy-storage.mjs "$OLD_SUPABASE_URL" "http://127.0.0.1:8000"
+  log "list storage files in Supabase Cloud"
+  sudo docker run --rm -e PGCONNECT_TIMEOUT=20 postgres:17 psql "$OLD_DB_URL" -tAc \
+    "select coalesce(json_agg(json_build_object('id',id,'name',name,'public',public,'file_size_limit',file_size_limit,'allowed_mime_types',allowed_mime_types)),'[]') from storage.buckets" \
+    >"$ROOT/migrate/buckets.json"
+  sudo docker run --rm -e PGCONNECT_TIMEOUT=20 postgres:17 psql "$OLD_DB_URL" -tA -F $'\t' -c \
+    "select bucket_id, name, coalesce(metadata->>'mimetype','') from storage.objects where name not like '%/.emptyFolderPlaceholder' order by 1,2" \
+    >"$ROOT/migrate/files.tsv"
+  log "copy storage files ($(wc -l <"$ROOT/migrate/files.tsv"))"
+  sudo docker run --rm --network host -v "$APP/deploy/yandex:/w:ro" -v "$ROOT/migrate:/m:ro" \
+    -e SERVICE_ROLE_KEY="$(envget SUPABASE_SERVICE_ROLE_KEY)" node:20-bookworm-slim \
+    node /w/copy-storage.mjs "$OLD_SUPABASE_URL" "http://127.0.0.1:8000" /m/buckets.json /m/files.tsv
   log "rewrite photo URLs"
   { echo "SET mesto.old = '$OLD_SUPABASE_URL/storage/v1/'; SET mesto.new = 'https://$(envget API_HOST)/storage/v1/';"; cat "$APP/deploy/yandex/rewrite-urls.sql"; } |
     sudo docker exec -i supabase-db psql -U postgres -d postgres -q
 }
 
 deploy() {
-  update_code
+  prepare_env
   cd "$APP/deploy/yandex"
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build

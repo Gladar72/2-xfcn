@@ -1,64 +1,71 @@
 // Копирует все файлы (аватары, фото встреч, фото чата, стикеры) из Supabase Cloud
 // в свой Supabase на сервере. Повторный запуск безопасен (перезаписывает).
-// node copy-storage.mjs <OLD_URL> <NEW_URL> ; ключ — env SERVICE_ROLE_KEY (одинаковый у обоих).
-const [OLD, NEW] = process.argv.slice(2);
+// Ключ старого проекта не нужен: список файлов берётся из старой базы (remote.sh),
+// а сами файлы скачиваются по публичным ссылкам (все бакеты «Места» публичные).
+//
+// node copy-storage.mjs OLD_URL NEW_URL buckets.json files.tsv
+//   env SERVICE_ROLE_KEY — ключ НОВОГО Supabase (создаётся на сервере сам)
+import { readFileSync } from "node:fs";
+
+const [OLD, NEW, bucketsFile, filesFile] = process.argv.slice(2);
 const KEY = process.env.SERVICE_ROLE_KEY;
-if (!OLD || !NEW || !KEY) {
-  console.error("usage: SERVICE_ROLE_KEY=... node copy-storage.mjs OLD_URL NEW_URL");
+if (!OLD || !NEW || !KEY || !bucketsFile || !filesFile) {
+  console.error("usage: SERVICE_ROLE_KEY=... node copy-storage.mjs OLD_URL NEW_URL buckets.json files.tsv");
   process.exit(1);
 }
 const H = { apikey: KEY, Authorization: `Bearer ${KEY}` };
 
-async function j(url, opts = {}) {
-  const r = await fetch(url, { ...opts, headers: { ...H, ...(opts.headers || {}) } });
-  const t = await r.text();
-  if (!r.ok) throw new Error(`${opts.method || "GET"} ${url} → ${r.status} ${t.slice(0, 200)}`);
-  return t ? JSON.parse(t) : null;
-}
-
-async function list(bucket, prefix = "") {
-  const out = [];
-  for (let offset = 0; ; offset += 1000) {
-    const items = await j(`${OLD}/storage/v1/object/list/${bucket}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ prefix, limit: 1000, offset, sortBy: { column: "name", order: "asc" } }),
-    });
-    for (const it of items) {
-      const p = prefix ? `${prefix}/${it.name}` : it.name;
-      if (it.id === null) out.push(...(await list(bucket, p))); // папка
-      else out.push({ path: p, type: it.metadata?.mimetype || "application/octet-stream" });
-    }
-    if (items.length < 1000) break;
-  }
-  return out;
-}
-
-const buckets = await j(`${OLD}/storage/v1/bucket`);
-let total = 0;
+const buckets = JSON.parse(readFileSync(bucketsFile, "utf8") || "[]");
 for (const b of buckets) {
-  await fetch(`${NEW}/storage/v1/bucket`, {
+  const r = await fetch(`${NEW}/storage/v1/bucket`, {
     method: "POST",
     headers: { ...H, "content-type": "application/json" },
-    body: JSON.stringify({ id: b.id, name: b.name, public: b.public, file_size_limit: b.file_size_limit, allowed_mime_types: b.allowed_mime_types }),
-  }); // уже есть — не страшно
-  const files = await list(b.id);
-  console.log(`bucket ${b.id}: ${files.length} files`);
-  for (const f of files) {
-    const enc = f.path.split("/").map(encodeURIComponent).join("/");
-    const src = await fetch(`${OLD}/storage/v1/object/${b.id}/${enc}`, { headers: H });
-    if (!src.ok) {
-      console.error(`skip ${b.id}/${f.path}: ${src.status}`);
-      continue;
-    }
-    const body = Buffer.from(await src.arrayBuffer());
-    const up = await fetch(`${NEW}/storage/v1/object/${b.id}/${enc}`, {
-      method: "POST",
-      headers: { ...H, "content-type": f.type, "x-upsert": "true", "cache-control": "max-age=31536000" },
-      body,
-    });
-    if (!up.ok) console.error(`fail ${b.id}/${f.path}: ${up.status} ${(await up.text()).slice(0, 150)}`);
-    else total++;
+    body: JSON.stringify({
+      id: b.id,
+      name: b.name,
+      public: b.public,
+      file_size_limit: b.file_size_limit,
+      allowed_mime_types: b.allowed_mime_types,
+    }),
+  });
+  console.log(`bucket ${b.id}: ${r.ok ? "created" : "exists/" + r.status}`);
+}
+
+const files = readFileSync(filesFile, "utf8")
+  .split("\n")
+  .filter(Boolean)
+  .map((l) => {
+    const [bucket, path, type] = l.split("\t");
+    return { bucket, path, type: type || "application/octet-stream" };
+  });
+console.log(`files: ${files.length}`);
+
+let ok = 0;
+let fail = 0;
+async function copy(f) {
+  const enc = f.path.split("/").map(encodeURIComponent).join("/");
+  const src = await fetch(`${OLD}/storage/v1/object/public/${f.bucket}/${enc}`);
+  if (!src.ok) {
+    fail++;
+    console.error(`skip ${f.bucket}/${f.path}: ${src.status}`);
+    return;
+  }
+  const body = Buffer.from(await src.arrayBuffer());
+  const up = await fetch(`${NEW}/storage/v1/object/${f.bucket}/${enc}`, {
+    method: "POST",
+    headers: { ...H, "content-type": f.type, "x-upsert": "true", "cache-control": "max-age=31536000" },
+    body,
+  });
+  if (up.ok) ok++;
+  else {
+    fail++;
+    console.error(`fail ${f.bucket}/${f.path}: ${up.status} ${(await up.text()).slice(0, 150)}`);
   }
 }
-console.log(`copied ${total} files`);
+
+// по 6 файлов параллельно
+for (let i = 0; i < files.length; i += 6) {
+  await Promise.all(files.slice(i, i + 6).map(copy));
+  if (i % 120 === 0) console.log(`… ${i}/${files.length}`);
+}
+console.log(`copied ${ok}, failed ${fail}`);

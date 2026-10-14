@@ -12,8 +12,8 @@
 | Кроны Vercel                 | cron на сервере (`deploy/yandex/crontab`)           |
 | Деплой при пуше в GitHub     | GitHub Actions → «Yandex Cloud» (по SSH)            |
 
-Ключи Supabase остаются прежними (тот же JWT secret, anon и service_role) — у приложения
-меняется только адрес базы. Сессии пользователей не слетают.
+Ключи Supabase на сервере новые (создаются автоматически), поэтому после переезда
+пользователи один раз заново входят — данные, встречи и подписки сохраняются.
 
 Размер на 13.10.2026: база 19 МБ, 617 файлов / 130 МБ, 722 пользователя.
 
@@ -31,11 +31,12 @@
    → `~/.ssh/mesto_yc.pub` вставить при создании ВМ, `~/.ssh/mesto_yc` — в GitHub-секрет `YC_SSH_KEY`.
 2. **ВМ** в консоли Yandex Cloud (параметры выше). Записать IP.
 3. **DNS** у reg.ru: `new.mesto-go.ru` и `db.mesto-go.ru` → A → IP сервера. (`mesto-go.ru` пока не трогаем.)
-4. **GitHub → Settings → Secrets and variables → Actions → Secrets**:
-   - `YC_HOST` — IP сервера
-   - `YC_SSH_KEY` — содержимое `~/.ssh/mesto_yc`
-   - `YC_APP_ENV` — заполненный `deploy/yandex/env.template`
-   - `YC_OLD_DB_URL` — Supabase → Connect → Session pooler (URI с паролем базы)
+4. **GitHub → Settings → Secrets and variables → Actions**:
+   - Secrets: `YC_HOST` (IP сервера), `YC_SSH_KEY` (`~/.ssh/mesto_yc`), `YC_OLD_DB_URL` (Supabase → Connect → Session pooler),
+     `YC_BOT_TOKEN` (токен бота из @BotFather), по желанию `YC_APP_ENV` — доп. строки из `env.template` (ЮKassa, Карты, почта…).
+   - Variables: `YC_ADMIN_IDS` — Telegram ID админов через запятую.
+   Ключи Supabase, `CRON_SECRET` и секрет вебхука сервер создаёт сам (`make-env.py`), копировать их не нужно.
+   После переезда все пользователи один раз заново входят (новые ключи) — данные не теряются.
 5. **GitHub → Actions → Yandex Cloud → Run workflow** по очереди:
    `bootstrap` → `supabase` → `migrate` → `deploy` → `status`.
 6. **Проверка** на `https://new.mesto-go.ru` (вход, лента, фото, чат, создание встречи).
