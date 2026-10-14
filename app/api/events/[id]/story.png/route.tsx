@@ -146,17 +146,19 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     .join(" · ");
 
   // Картинка — целиком, в своих пропорциях: ширина до 1020, высота — сколько остаётся.
-  const photoTop = 600;
-  const cardH = 360;
-  const reserveBottom = ig ? 440 : 200;
-  const maxH = 1920 - photoTop - 60 - cardH - reserveBottom;
+  // Снизу оставляем место под поле «Отправить сообщение» Instagram, в версии ig — ещё рамку под стикер.
+  const photoTop = 540;
+  const gap = 50;
+  const cardH = 330;
+  const frameH = 150;
+  const maxH = 1920 - 180 - photoTop - gap - cardH - (ig ? 40 + frameH : 0);
   let pw = 1020;
   let ph = cover ? pw / cover.ratio : 0;
   if (ph > maxH) {
     ph = maxH;
     pw = ph * (cover?.ratio ?? 1);
   }
-  const cardTop = cover ? photoTop + ph + 60 : 760;
+  const cardTop = cover ? photoTop + ph + gap : 760;
 
   return new ImageResponse(
     (
@@ -249,8 +251,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
               position: "absolute",
               left: 150,
               right: 150,
-              bottom: 200,
-              height: 160,
+              top: cardTop + cardH + 40,
+              height: frameH,
               border: "4px dashed rgba(255,255,255,0.6)",
               borderRadius: 40,
               display: "flex",
