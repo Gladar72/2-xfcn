@@ -30,7 +30,7 @@ function seatsWord(n: number): string {
 async function coverDataUrl(photoUrl: string | null): Promise<string | null> {
   if (!photoUrl) return null;
   try {
-    const preset = photoUrl.match(/^\/brand\/covers\/([a-z]+)\.webp$/);
+    const preset = photoUrl.match(/\/brand\/covers\/([a-z]+)\.webp(?:\?.*)?$/);
     if (preset) {
       const buf = await readFile(join(process.cwd(), "public/brand/covers-jpg", `${preset[1]}.jpg`));
       return `data:image/jpeg;base64,${buf.toString("base64")}`;
