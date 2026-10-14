@@ -42,6 +42,7 @@ const MEETING_TYPES = new Set([
   "event_soon",
   "review_request",
   "boost_suggestion",
+  "share_nudge",
 ]);
 
 /** Короткий заголовок карточки по типу — сам текст приходит с сервера. */
@@ -53,6 +54,7 @@ const TYPE_META: Record<string, { label: string; icon: IconName }> = {
   event_soon: { label: "Встречаемся через 2 часа", icon: "clock" },
   review_request: { label: "Оцени встречу", icon: "star" },
   boost_suggestion: { label: "Мало откликов", icon: "up" },
+  share_nudge: { label: "Поделись событием", icon: "up" },
   subscription_expiring: { label: "Подписка", icon: "wallet" },
   subscription_expired: { label: "Подписка", icon: "wallet" },
   new_message: { label: "Сообщение", icon: "chat" },

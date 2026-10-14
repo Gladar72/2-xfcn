@@ -25,6 +25,12 @@ interface TelegramWebApp {
   themeParams: Record<string, string>;
   openInvoice: (url: string, callback: (status: "paid" | "cancelled" | "failed" | "pending") => void) => void;
   openLink: (url: string, options?: { try_instant_view?: boolean }) => void;
+  openTelegramLink?: (url: string) => void;
+  isVersionAtLeast?: (version: string) => boolean;
+  /** Bot API 7.8+: сторис в Telegram с картинкой по ссылке (+ ссылка-виджет для Premium). */
+  shareToStory?: (mediaUrl: string, params?: { text?: string; widget_link?: { url: string; name?: string } }) => void;
+  /** Bot API 8.0+: скачать файл (картинку) на устройство через окно Telegram. */
+  downloadFile?: (params: { url: string; file_name: string }, callback?: (accepted: boolean) => void) => void;
   close: () => void;
   // viewportHeight — реальная видимая высота окна Mini App, которую Telegram
   // сам пересчитывает при появлении/скрытии клавиатуры. Обычный CSS

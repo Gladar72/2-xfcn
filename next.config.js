@@ -13,6 +13,10 @@ const nextConfig = {
   // при апгрейде Next.js).
   experimental: {
     serverComponentsExternalPackages: ["grammy"],
+    // Шрифты, Мося и jpg-обложки для картинки-сторис (app/api/events/[id]/story.png).
+    outputFileTracingIncludes: {
+      "/api/events/[id]/story.png": ["./assets/og/**", "./public/brand/covers-jpg/**"],
+    },
   },
   images: {
     remotePatterns: [

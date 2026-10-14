@@ -19,6 +19,8 @@ export function buildNotificationText(type: string, eventTitle: string | undefin
       return `Встречаемся через 2 часа — ${title}`;
     case "review_request":
       return `Оцени, как прошла ${title}`;
+    case "share_nudge":
+      return `Пока никто не откликнулся на ${title} — поделись в сторис или в чате`;
     case "boost_suggestion":
       return `Мало откликов на ${title} — можно поднять её в ленте`;
     case "subscription_expiring":
