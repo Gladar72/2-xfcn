@@ -70,7 +70,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const date = new Date(`${e.event_date}T00:00:00Z`);
   const weekday = date.toLocaleDateString("ru-RU", { weekday: "long", timeZone: "UTC" });
   const dayNum = date.getUTCDate();
-  const month = date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" }).replace(/^\d+\s*/, "");
   const time = String(e.event_time).slice(0, 5);
   const address = (e.address ?? "").replace(/^Россия,\s*/i, "").replace(new RegExp(`^${e.city ?? "—"},\\s*`, "i"), "");
   const place = e.is_anonymous
@@ -122,7 +121,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
           style={{
             position: "absolute",
             right: 66,
-            top: 860,
+            top: ig ? 720 : 860,
             width: 312,
             height: 312,
             borderRadius: 312,
@@ -138,7 +137,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         >
           <div style={{ fontSize: 38, fontWeight: 500, color: "#6B6585", display: "flex" }}>{weekday}</div>
           <div style={{ fontSize: 120, fontWeight: 700, lineHeight: 1, display: "flex" }}>{String(dayNum)}</div>
-          <div style={{ fontSize: 38, fontWeight: 700, color: "#6C3BFF", display: "flex" }}>{`${month} · ${time}`}</div>
+          <div style={{ fontSize: 44, fontWeight: 700, color: "#6C3BFF", display: "flex" }}>{time}</div>
         </div>
         <div
           style={{
