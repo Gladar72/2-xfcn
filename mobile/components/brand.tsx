@@ -207,7 +207,7 @@ export function Wordmark({ height = 28, color = colors.ink, gradientM }: { heigh
           </SvgLinear>
         </Defs>
       ) : null}
-      <G transform="scale(1,-1)">
+      <G>
         <Path d={LOGO_M} fill={gradientM ? "url(#wm)" : color} />
         <G fill={color}>
           {LOGO_LETTERS.map((l, i) => (

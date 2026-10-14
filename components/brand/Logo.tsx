@@ -40,7 +40,7 @@ export function Wordmark({ height = 28, color = "currentColor", gradientM = fals
           </linearGradient>
         </defs>
       )}
-      <g transform="scale(1,-1)">
+      <g>
         <path d={LOGO_M} fill={gradientM ? `url(#${id})` : color} />
         <g fill={color}>
           {LOGO_LETTERS.map((l, i) => (
@@ -73,7 +73,7 @@ export function MarkM({ height = 28, color = "currentColor", gradientM = false, 
           </linearGradient>
         </defs>
       )}
-      <g transform="scale(1,-1)">
+      <g>
         <path d={LOGO_M} fill={gradientM ? `url(#${id})` : color} />
       </g>
     </svg>
