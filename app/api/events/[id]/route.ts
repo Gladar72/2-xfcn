@@ -29,7 +29,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       `
       id, title, description, city, latitude, longitude, place_name, address,
       event_date, event_time, event_end_time, seats_total, seats_taken, status, organizer_id,
-      cost_type, is_business, business_pricing_type, business_pricing_details, has_chat, photo_url, is_anonymous,
+      cost_type, is_business, business_pricing_type, business_pricing_details, has_chat, photo_url, is_anonymous, created_at,
       category:categories(slug, name, emoji),
       training_type:training_types(slug, name, emoji),
       organizer:users(id, name, avatar_url, birth_date, rating_avg, completed_meetings_count)
@@ -159,6 +159,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     title: event.title,
     description: event.description,
     startsAt: timing.start.toISOString(),
+    createdAt: event.created_at,
     endsAt: timing.end.toISOString(),
     autoCompleteAt: timing.autoCompleteAt.toISOString(),
     category: event.category,

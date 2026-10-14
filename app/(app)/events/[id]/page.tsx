@@ -15,6 +15,7 @@ import { JoinFlow } from "@/components/events/JoinFlow";
 import { Chr, Cover, Ic, MiniMap, Sheet, Toast, costShort, dayLong, eventIcon } from "@/components/proto/ui";
 import { ShareSheet } from "@/components/proto/ShareSheet";
 import { goBack } from "@/lib/nav/back";
+import { shareNudgeDue } from "@/lib/events/share-nudge";
 
 interface EventDetails {
   id: string;
@@ -31,6 +32,7 @@ interface EventDetails {
   eventEndTime: string | null;
   /** UTC-моменты с сервера (с учётом часового пояса города встречи). */
   startsAt?: string;
+  createdAt?: string;
   endsAt?: string;
   autoCompleteAt?: string;
   seatsTotal: number;
@@ -247,6 +249,27 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   }
 
   const [shareOpen, setShareOpen] = useState(false);
+  // Кнопка «Сторис» в напоминании бота открывает событие с ?share=1 — сразу показываем «Поделиться».
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("share") === "1") setShareOpen(true);
+  }, []);
+  const nudgeKey = `mesto_share_nudge_${eventId}`;
+  const [nudgeHidden, setNudgeHidden] = useState(true);
+  useEffect(() => {
+    try {
+      setNudgeHidden(localStorage.getItem(nudgeKey) === "1");
+    } catch {
+      setNudgeHidden(false);
+    }
+  }, [nudgeKey]);
+  function hideNudge() {
+    setNudgeHidden(true);
+    try {
+      localStorage.setItem(nudgeKey, "1");
+    } catch {
+      /* без хранилища — просто скрываем до перезахода */
+    }
+  }
   const [chatId, setChatId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [anonOpen, setAnonOpen] = useState(false);
@@ -376,6 +399,16 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     : COST_FULL[event.costType ?? ""] ?? "Каждый за себя";
   const shareWhen = `${dayLong(event.eventDate)}, ${event.eventTime.slice(0, 5)}`;
   const organizer = event.organizer;
+  // «Пока никто не откликнулся» — организатору, за 10 ч до начала (или через 2 ч после создания).
+  const showNudge =
+    canManage &&
+    !hasStarted &&
+    !nudgeHidden &&
+    event.seatsTaken === 0 &&
+    pendingApplicants.length === 0 &&
+    !!event.startsAt &&
+    shareNudgeDue(new Date(event.startsAt).getTime(), event.createdAt ? new Date(event.createdAt).getTime() : null);
+  const hoursLeft = event.startsAt ? Math.max(1, Math.round((new Date(event.startsAt).getTime() - Date.now()) / 3600000)) : 0;
   const pendingWithUser = pendingApplicants.flatMap((a) => (a.applicant ? [{ ...a, applicant: a.applicant }] : []));
 
   const invitePending = !mine && active && event.myInvite?.status === "pending" && st !== "accepted";
@@ -485,7 +518,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               <img src={icon} alt="" style={{ width: 26, height: 26, marginLeft: -8 }} />
               {catName}
             </span>
-            <span className="pill gl">{event.isBusiness ? "Бизнес событие" : event.isAnonymous ? "Анонимно" : "Открытая встреча"}</span>
+            {!event.isBusiness && <span className="pill gl">{event.isAnonymous ? "Анонимно" : "Открытая встреча"}</span>}
             {isLive && (
               <span className="pill gl">
                 <span className="live">
@@ -861,6 +894,27 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         </div>
         {ctaBtn}
       </div>
+
+      {showNudge && !shareOpen && (
+        <div style={{ position: "fixed", left: 14, right: 14, bottom: 112, zIndex: 40 }}>
+          <div className="gl" style={{ background: "#fff", borderRadius: 24, padding: 16, boxShadow: "0 20px 50px rgba(90,40,180,.25)", display: "grid", gap: 12, marginRight: 86 }}>
+            <b style={{ fontSize: 16, lineHeight: 1.3 }}>Пока никто не откликнулся</b>
+            <span className="muted" style={{ fontSize: 14, lineHeight: 1.45 }}>
+              {`До начала ${hoursLeft} ч. Поделись событием в сторис или в чате — его увидят друзья и друзья друзей.`}
+            </span>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button className="btn v" style={{ flex: 1, height: 42, minHeight: 42, fontSize: 14.5 }} onClick={() => { hideNudge(); setShareOpen(true); }}>
+                Поделиться
+              </button>
+              <button className="btn o" style={{ width: "auto", height: 42, minHeight: 42, padding: "0 16px", fontSize: 14 }} onClick={hideNudge}>
+                Позже
+              </button>
+            </div>
+          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/brand/stickers/mosya_sad.webp" alt="" width={92} height={92} style={{ position: "absolute", right: -4, bottom: -8, width: 92, height: 92, objectFit: "contain", pointerEvents: "none" }} />
+        </div>
+      )}
 
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} when={shareWhen} />
 

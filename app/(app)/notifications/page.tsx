@@ -40,6 +40,7 @@ const MEETING_TYPES = new Set([
   "application_rejected",
   "review_request",
   "boost_suggestion",
+  "share_nudge",
 ]);
 
 const TYPE_ICON: Record<string, string> = {
@@ -52,6 +53,7 @@ const TYPE_ICON: Record<string, string> = {
   subscription_expired: "/brand/mosya/mosya_glasses.webp",
   review_request: "/brand/mosya/mosya_wave.webp",
   boost_suggestion: "/brand/mosya/mosya_jump.webp",
+  share_nudge: "/brand/stickers/mosya_sad.webp",
   new_message: "/brand/mosya/mosya_phone.webp",
 };
 
