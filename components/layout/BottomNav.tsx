@@ -24,6 +24,15 @@ export function BottomNav() {
   const isTab = (pathname === "/feed" && !sp.get("category")) || ["/map", "/my-events", "/profile"].includes(pathname);
   const navRef = useRef<HTMLElement>(null);
   const [ind, setInd] = useState<{ x: number; on: boolean }>({ x: 0, on: false });
+  // Цифра на «Встречи» — сколько новых заявок ждут ответа на мои встречи.
+  const [pending, setPending] = useState(0);
+  useEffect(() => {
+    if (!isTab) return;
+    fetch("/api/me/pending-applications")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setPending(typeof d?.count === "number" ? d.count : 0))
+      .catch(() => {});
+  }, [pathname, isTab]);
 
   useEffect(() => {
     const on = navRef.current?.querySelector<HTMLElement>(".tab.on");
@@ -39,8 +48,22 @@ export function BottomNav() {
             <Ic n="plus" />
           </Link>
         ) : (
-          <Link key={t.href} href={t.href} className={`tab ${pathname === t.href ? "on" : ""}`} aria-current={pathname === t.href ? "page" : undefined}>
+          <Link
+            key={t.href}
+            href={t.href}
+            className={`tab ${pathname === t.href ? "on" : ""}`}
+            aria-current={pathname === t.href ? "page" : undefined}
+            style={{ position: "relative" }}
+          >
             <Ic n={t.icon} />
+            {t.href === "/my-events" && pending > 0 && (
+              <span
+                aria-label={`Новых заявок: ${pending}`}
+                style={{ position: "absolute", top: 4, left: "58%", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 99, background: "#FF3B6B", color: "#fff", fontSize: 11, fontWeight: 700, lineHeight: "18px", textAlign: "center", boxShadow: "0 0 0 2px rgba(22,18,31,.85)" }}
+              >
+                {pending > 9 ? "9+" : pending}
+              </span>
+            )}
             <span className="lb">{t.label}</span>
           </Link>
         )
