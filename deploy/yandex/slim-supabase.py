@@ -39,8 +39,18 @@ for name, svc in services.items():
         env["ENABLE_IMAGE_TRANSFORMATION"] = "false"
         env.pop("IMGPROXY_URL", None)
     # Kong слушает только локально — наружу его отдаёт Caddy по HTTPS.
-    if name == "kong" and isinstance(svc.get("ports"), list):
-        svc["ports"] = ["127.0.0.1:8000:8000/tcp"]
+    # Все порты — только на 127.0.0.1 (в новых версиях шлюз называется api-gw, а не kong).
+    ports = svc.get("ports")
+    if isinstance(ports, list):
+        fixed = []
+        for p in ports:
+            if isinstance(p, str):
+                parts = p.split(":")
+                fixed.append("127.0.0.1:" + ":".join(parts[-2:]) if len(parts) >= 2 else "127.0.0.1:" + p + ":" + p.split("/")[0])
+            elif isinstance(p, dict):
+                p["host_ip"] = "127.0.0.1"
+                fixed.append(p)
+        svc["ports"] = fixed
 
 with open(path, "w") as f:
     yaml.safe_dump(doc, f, sort_keys=False, allow_unicode=True)
