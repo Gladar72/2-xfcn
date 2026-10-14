@@ -60,26 +60,24 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     .maybeSingle();
   if (!e || !["published", "closed"].includes(e.status)) return new Response("not found", { status: 404 });
 
-  const [bold, medium, mosya, wordmark, cover] = await Promise.all([
+  const [bold, medium, wordmark, cover] = await Promise.all([
     asset("GolosText-Bold.ttf"),
     asset("GolosText-Medium.ttf"),
-    asset("mosya_party.png"),
-    asset("wordmark-white.svg"),
+    asset("wordmark-dark.svg"),
     coverDataUrl(e.photo_url),
   ]);
 
-  const day = new Date(`${e.event_date}T00:00:00Z`).toLocaleDateString("ru-RU", {
-    weekday: "short",
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  });
-  const when = `${day} · ${String(e.event_time).slice(0, 5)}`;
+  const date = new Date(`${e.event_date}T00:00:00Z`);
+  const weekday = date.toLocaleDateString("ru-RU", { weekday: "long", timeZone: "UTC" });
+  const dayNum = date.getUTCDate();
+  const month = date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" }).replace(/^\d+\s*/, "");
+  const time = String(e.event_time).slice(0, 5);
   const address = (e.address ?? "").replace(/^Россия,\s*/i, "").replace(new RegExp(`^${e.city ?? "—"},\\s*`, "i"), "");
   const place = e.is_anonymous
     ? "Место откроется после одобрения заявки"
     : [e.place_name?.trim(), address].filter(Boolean).join(", ");
   const free = Math.max(0, (e.seats_total ?? 0) - (e.seats_taken ?? 0));
+  const going = (e.seats_taken ?? 0) + (e.is_business ? 0 : 1); // организатор встречи тоже идёт
   const price = e.is_business
     ? e.business_pricing_type === "free"
       ? "Вход свободный"
@@ -88,17 +86,22 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       ? "Бесплатно"
       : null;
   const title: string = e.title ?? "";
-  const titleSize = title.length <= 18 ? 108 : title.length <= 34 ? 86 : 68;
-  const chip = e.is_business ? "Ждём тебя в «Месте»" : "Ищу компанию";
+  const titleSize = title.length <= 12 ? 150 : title.length <= 24 ? 118 : title.length <= 40 ? 92 : 74;
+  const kicker = e.is_business ? "Ждём тебя" : "Ищу компанию";
+  const people = [going > 0 ? `${going} ${going === 1 ? "идёт" : "идут"}` : null, free > 0 ? `свободно ${free} ${seatsWord(free)}` : "мест нет"]
+    .filter(Boolean)
+    .join(" · ");
+  // Карточка снизу: в версии для Instagram под ней остаётся рамка под стикер «Ссылка».
+  const cardBottom = ig ? 470 : 300;
 
   return new ImageResponse(
     (
       <div style={{ width: 1080, height: 1920, display: "flex", position: "relative", background: "#1B1230", color: "#fff", fontFamily: "Golos" }}>
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt="" width={1080} height={1344} style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1344, objectFit: "cover" }} />
+          <img src={cover} alt="" width={1080} height={1920} style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1920, objectFit: "cover" }} />
         ) : (
-          <div style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1344, display: "flex", background: "linear-gradient(135deg,#6C3BFF,#A24DFF 50%,#FF6FA0)" }} />
+          <div style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1920, display: "flex", background: "linear-gradient(135deg,#6C3BFF,#A24DFF 50%,#FF6FA0)" }} />
         )}
         <div
           style={{
@@ -108,68 +111,81 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             width: 1080,
             height: 1920,
             display: "flex",
-            background: "linear-gradient(180deg, rgba(27,18,48,0) 30%, rgba(27,18,48,0.85) 58%, #1B1230 72%)",
+            background: "linear-gradient(180deg, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 34%, rgba(0,0,0,0) 52%, rgba(0,0,0,0.5) 100%)",
           }}
         />
+        <div style={{ position: "absolute", left: 66, right: 66, top: 250, display: "flex", flexDirection: "column" }}>
+          <div style={{ fontSize: 44, fontWeight: 500, letterSpacing: 7, textTransform: "uppercase", opacity: 0.92, display: "flex" }}>{kicker}</div>
+          <div style={{ fontSize: titleSize, fontWeight: 700, lineHeight: 1, marginTop: 24, letterSpacing: -2, display: "flex" }}>{title}</div>
+        </div>
         <div
           style={{
             position: "absolute",
-            left: 60,
-            top: 228,
+            right: 66,
+            top: 860,
+            width: 312,
+            height: 312,
+            borderRadius: 312,
+            background: "#fff",
+            color: "#16121F",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            background: "rgba(255,255,255,0.2)",
-            padding: "18px 36px",
-            borderRadius: 99,
-            fontSize: 36,
-            fontWeight: 500,
+            justifyContent: "center",
+            transform: "rotate(8deg)",
+            boxShadow: "0 30px 90px rgba(0,0,0,0.35)",
           }}
         >
-          <div style={{ width: 22, height: 22, borderRadius: 22, background: "#5BE38F", marginRight: 18, display: "flex" }} />
-          {chip}
+          <div style={{ fontSize: 38, fontWeight: 500, color: "#6B6585", display: "flex" }}>{weekday}</div>
+          <div style={{ fontSize: 120, fontWeight: 700, lineHeight: 1, display: "flex" }}>{String(dayNum)}</div>
+          <div style={{ fontSize: 38, fontWeight: 700, color: "#6C3BFF", display: "flex" }}>{`${month} · ${time}`}</div>
         </div>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`data:image/png;base64,${mosya.toString("base64")}`} alt="" width={312} height={312} style={{ position: "absolute", right: 18, top: 680 }} />
-        <div style={{ position: "absolute", left: 60, right: 60, top: 990, display: "flex", flexDirection: "column" }}>
-          <div style={{ fontSize: titleSize, fontWeight: 700, lineHeight: 1.04, letterSpacing: -1, display: "flex" }}>{title}</div>
-          <div style={{ fontSize: 45, fontWeight: 500, color: "#E4D9FF", marginTop: 36, display: "flex" }}>{when}</div>
-          {place ? <div style={{ fontSize: 42, fontWeight: 500, color: "#E4D9FF", marginTop: 10, display: "flex" }}>{place}</div> : null}
-          <div style={{ display: "flex", marginTop: 40 }}>
-            {free > 0 ? (
-              <div style={{ display: "flex", background: "#fff", color: "#1B1230", fontWeight: 700, fontSize: 39, padding: "20px 36px", borderRadius: 99, marginRight: 24 }}>
-                {`Свободно ${free} ${seatsWord(free)}`}
-              </div>
-            ) : null}
-            {price ? (
-              <div style={{ display: "flex", background: "rgba(255,255,255,0.16)", fontWeight: 500, fontSize: 39, padding: "20px 36px", borderRadius: 99 }}>{price}</div>
-            ) : null}
+        <div
+          style={{
+            position: "absolute",
+            left: 48,
+            right: 48,
+            bottom: cardBottom,
+            background: "#fff",
+            borderRadius: 72,
+            padding: "48px 54px",
+            color: "#16121F",
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: "0 48px 120px rgba(0,0,0,0.3)",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", fontSize: 45, fontWeight: 700 }}>
+            <div style={{ width: 24, height: 24, borderRadius: 24, background: free > 0 ? "#2BB673" : "#C9B6FF", marginRight: 20, display: "flex" }} />
+            {people}
+          </div>
+          {place ? <div style={{ fontSize: 40, fontWeight: 500, color: "#6B6585", marginTop: 18, display: "flex" }}>{place}</div> : null}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 34 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={`data:image/svg+xml;base64,${wordmark.toString("base64")}`} alt="" width={232} height={49} />
+            <div style={{ fontSize: 36, fontWeight: 500, color: "#8A84A0", display: "flex" }}>{price ?? `@${BOT}`}</div>
           </div>
         </div>
         {ig ? (
           <div
             style={{
               position: "absolute",
-              left: 60,
-              right: 60,
-              bottom: 192,
-              height: 162,
-              border: "4px dashed rgba(255,255,255,0.35)",
-              borderRadius: 42,
+              left: 150,
+              right: 150,
+              bottom: 250,
+              height: 160,
+              border: "4px dashed rgba(255,255,255,0.6)",
+              borderRadius: 40,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               fontSize: 36,
-              color: "rgba(255,255,255,0.55)",
+              color: "rgba(255,255,255,0.8)",
             }}
           >
             сюда — стикер «Ссылка»
           </div>
         ) : null}
-        <div style={{ position: "absolute", left: 60, right: 60, bottom: 66, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`data:image/svg+xml;base64,${wordmark.toString("base64")}`} alt="" width={228} height={54} />
-          <div style={{ fontSize: 33, color: "#C9B6FF", display: "flex" }}>{`@${BOT}`}</div>
-        </div>
       </div>
     ),
     {
