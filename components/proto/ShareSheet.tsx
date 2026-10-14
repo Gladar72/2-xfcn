@@ -32,6 +32,13 @@ function Glyph({ k }: { k: Target }) {
   return <svg {...s}><path d="M3.5 7.5h3c.5 3 2 5 3.5 5.5v-5.5h2.8v3.3c1.5-.3 3-2 3.5-3.3h2.8c-.5 2-2.3 4-3.6 4.7 1.3.6 3.3 2.3 4 4.3H16.4c-.6-1.5-2-2.8-3.6-3v3H11.5C7 16.5 4 13 3.5 7.5z" /></svg>;
 }
 
+/** Короткий ключ версии картинки (djb2) — новый при любой правке события. */
+function hashKey(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+
 function openExternal(url: string) {
   const tg = getTelegramWebApp();
   if (tg?.openLink) tg.openLink(url);
@@ -44,12 +51,15 @@ export function ShareSheet({
   eventId,
   title,
   when,
+  version = "",
 }: {
   open: boolean;
   onClose: () => void;
   eventId: string;
   title: string;
   when: string;
+  /** Обложка/название/время — меняются при правке; от них зависит адрес картинки, чтобы не брать старую из кэша. */
+  version?: string;
 }) {
   const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<"list" | "ig">("list");
@@ -63,8 +73,9 @@ export function ShareSheet({
     const tg = getTelegramWebApp();
     setStoryOk(!!tg?.shareToStory && (tg.isVersionAtLeast?.("7.8") ?? false));
   }, [open]);
-  const storyUrl = `${origin}/api/events/${eventId}/story.png`;
-  const igUrl = `${storyUrl}?ig=1`;
+  const v = hashKey(`${version}|${title}|${when}`);
+  const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
+  const igUrl = `${storyUrl}&ig=1`;
 
   async function copyLink(withText = true): Promise<boolean> {
     try {
