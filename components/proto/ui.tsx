@@ -12,6 +12,7 @@ import { Icon, type IconName } from "@/components/brand/Icon";
 import { characterSvg, type Face, type Palette, type Shape } from "@/components/brand/characters";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { photoThumb } from "@/lib/photos/thumb";
+import { distanceShort } from "@/lib/geo/approx-distance";
 
 /** Иконка прототипа: <svg class="ic s"> — размер и толщина задаются CSS. */
 export function Ic({ n, c }: { n: IconName; c?: "s" | "xs" | string }) {
@@ -124,6 +125,8 @@ export interface HeroEvent {
   trainingType?: { slug: string; name?: string } | null;
   goingPreview?: Person[];
   organizer?: { name: string } | null;
+  /** Сколько до места от моей примерной точки (метры; null — неизвестно). */
+  distanceM?: number | null;
 }
 
 /** Карточка «Популярное сегодня» (heroCard прототипа). */
@@ -180,6 +183,7 @@ export function HeroCard({ e, full }: { e: HeroEvent; full?: boolean }) {
           <span>
             <Ic n="pin" c="xs" />
             {e.organizerHidden ? "место — после одобрения" : e.placeName ?? "место уточняется"}
+            {distanceShort(e.distanceM) ? ` · ${distanceShort(e.distanceM)}` : ""}
           </span>
         </div>
         <span className="price">{costShort(e)}</span>
@@ -214,6 +218,7 @@ export function RowCard({
             <img className="ci2" src={eventIcon(e)} alt="" />
           )}
           {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}
+          {distanceShort(e.distanceM) ? ` · ${distanceShort(e.distanceM)}` : ""}
           {e.isAnonymous && e.organizerHidden ? " · анонимно" : ""}
         </span>
         <span>
