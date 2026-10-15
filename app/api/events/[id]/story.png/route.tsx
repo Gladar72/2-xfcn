@@ -211,9 +211,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   }
   const cardTop = cover ? photoTop + ph + gap : 760;
 
+  const S = X & 8 ? 720 / 1080 : 1;
   return new ImageResponse(
     (
-      <div style={{ width: 1080, height: 1920, display: "flex", position: "relative", background: "#1B1230", color: "#fff", fontFamily: "Golos" }}>
+      <div style={{ width: Math.round(1080 * S), height: Math.round(1920 * S), display: "flex", overflow: "hidden" }}>
+      <div style={{ width: 1080, height: 1920, display: "flex", position: "relative", background: "#1B1230", color: "#fff", fontFamily: "Golos", flex: "none", transform: S === 1 ? undefined : `scale(${S})`, transformOrigin: "top left" }}>
         {blur ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={blur} alt="" width={1080} height={1920} style={{ position: "absolute", left: -60, top: -60, width: 1200, height: 2040, objectFit: "cover" }} />
@@ -317,10 +319,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
           </div>
         ) : null}
       </div>
+      </div>
     ),
     {
-      width: 1080,
-      height: 1920,
+      width: Math.round(1080 * S),
+      height: Math.round(1920 * S),
       fonts: [
         { name: "Golos", data: medium, weight: 500, style: "normal" },
         { name: "Golos", data: bold, weight: 700, style: "normal" },
