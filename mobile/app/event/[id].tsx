@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useFocusEffect, router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -10,6 +10,7 @@ import { Icon } from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { ConfirmSheet } from "@/components/Sheet";
 import { OrganizerPanel } from "@/components/event/OrganizerPanel";
+import { ShareSheet } from "@/components/event/ShareSheet";
 import { manageErrorText, tapOk, tapWarn } from "@/lib/feedback";
 import { api, type ApiError } from "@/lib/api";
 import { costShort, formatEventDate, seatsLeft } from "@/lib/format";
@@ -53,6 +54,7 @@ export default function EventScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<null | "withdraw" | "leave">(null);
+  const [shareOpen, setShareOpen] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -93,13 +95,10 @@ export default function EventScreen() {
     else router.navigate("/(tabs)/chats");
   }
 
-  // «Поделиться»: mesto-go.ru/e/<id> — у кого есть приложение, встреча откроется сразу в нём,
-  // у остальных — страница встречи с кнопками «Открыть в приложении» и «Открыть в Telegram».
-  async function share() {
-    if (!event) return;
-    const link = `https://mesto-go.ru/e/${event.id}`;
-    const when = formatEventDate(event.eventDate, event.eventTime);
-    await Share.share({ message: `${event.title} — ${when}. Пойдёшь со мной? 🙌\n${link}` }).catch(() => {});
+  // «Поделиться»: шторка со сторис-картинкой, Telegram, Instagram, WhatsApp, VK.
+  // Ссылка mesto-go.ru/e/<id> — у кого есть приложение, встреча откроется сразу в нём.
+  function share() {
+    if (event) setShareOpen(true);
   }
 
   async function apply() {
@@ -384,6 +383,15 @@ export default function EventScreen() {
         busy={confirmBusy}
         onConfirm={runConfirm}
         onClose={() => setConfirm(null)}
+      />
+
+      <ShareSheet
+        visible={shareOpen}
+        onClose={() => setShareOpen(false)}
+        eventId={event.id}
+        title={event.title}
+        when={formatEventDate(event.eventDate, event.eventTime)}
+        version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`}
       />
 
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>{action}</View>
