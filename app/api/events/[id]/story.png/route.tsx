@@ -117,6 +117,20 @@ async function blurDataUrl(src: { url: string } | null, origin: string): Promise
   return img ? `data:${img.type};base64,${img.buf.toString("base64")}` : null;
 }
 
+/**
+ * Цветная тень под фото — своя у каждой картинки: крошечная копия обложки (её цвета),
+ * растянутая и обрезанная мягкой маской. Без гауссова размытия — рисуется быстро.
+ */
+function glowSvg(blur: string, mask: string, w: number, h: number, sat: number): string {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">` +
+    `<defs><mask id="m" mask-type="alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="${w}" height="${h}">` +
+    `<image href="${mask}" xlink:href="${mask}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none"/></mask>` +
+    `<filter id="s" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="${sat}"/></filter></defs>` +
+    `<g mask="url(#m)"><image href="${blur}" xlink:href="${blur}" x="0" y="0" width="${w}" height="${h}" preserveAspectRatio="none" filter="url(#s)"/></g></svg>`;
+  return `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}`;
+}
+
 export async function GET(req: Request, { params }: { params: { id: string } }) {
   if (!/^[0-9a-f-]{36}$/.test(params.id)) return new Response("not found", { status: 404 });
   const reqUrl = new URL(req.url);
@@ -138,12 +152,13 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const tDb = Date.now() - t0;
   // Обложка и её размытая копия — параллельно, а не одна за другой.
   const src = coverSource(e.photo_url, origin);
-  const [bold, medium, wordmark, shRect, shRound, cover, blurRaw] = await Promise.all([
+  const [bold, medium, wordmark, shRect, shRound, glowMaskBuf, cover, blurRaw] = await Promise.all([
     asset("GolosText-Bold.ttf"),
     asset("GolosText-Medium.ttf"),
     asset("wordmark-dark.svg"),
     asset("shadow-rect.png"),
     asset("shadow-round.png"),
+    asset("glow-mask.png"),
     loadCover(src, origin),
     blurDataUrl(src, origin),
   ]);
@@ -152,6 +167,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   // размытием Satori/resvg считает ~6 секунд на 1080×1920 — главная причина долгой загрузки.
   const shadowRect = `data:image/png;base64,${shRect.toString("base64")}`;
   const shadowRound = `data:image/png;base64,${shRound.toString("base64")}`;
+  const glowMask = `data:image/png;base64,${glowMaskBuf.toString("base64")}`;
   const Shade = ({ src, x, y, w, h }: { src: string; x: number; y: number; w: number; h: number }) => (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt="" width={Math.round(w * 1.5)} height={Math.round(h * 1.5)} style={{ position: "absolute", left: Math.round(x - w * 0.25), top: Math.round(y - h * 0.25), width: Math.round(w * 1.5), height: Math.round(h * 1.5) }} />
@@ -261,22 +277,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         </div>
 
         {cover && blur && glow ? (
-          // Своя тень у каждой картинки: размытая копия самой обложки под фото, мягкие края — маской.
+          // Своя тень у каждой картинки: цвета самой обложки, мягкие края.
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={blur}
+            src={glowSvg(blur, glowMask, Math.round(pw * 1.5), Math.round(ph * 1.5), glow === "2" ? 2.2 : 1.6)}
             alt=""
-            width={Math.round(pw * 1.3)}
-            height={Math.round(ph * 1.3)}
-            style={{
-              position: "absolute",
-              left: Math.round((1080 - pw * 1.3) / 2),
-              top: Math.round(photoTop + 46 - ph * 0.15),
-              width: Math.round(pw * 1.3),
-              height: Math.round(ph * 1.3),
-              opacity: glow === "2" ? 0.75 : 1,
-              maskImage: "radial-gradient(closest-side, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 100%)",
-            }}
+            width={Math.round(pw * 1.5)}
+            height={Math.round(ph * 1.5)}
+            style={{ position: "absolute", left: Math.round((1080 - pw * 1.5) / 2), top: Math.round(photoTop + 44 - ph * 0.25), width: Math.round(pw * 1.5), height: Math.round(ph * 1.5) }}
           />
         ) : cover ? (
           <Shade src={shadowRect} x={(1080 - pw) / 2} y={photoTop + 40} w={pw} h={ph} />
