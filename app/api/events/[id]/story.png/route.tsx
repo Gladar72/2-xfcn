@@ -123,6 +123,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const ig = reqUrl.searchParams.get("ig") === "1";
   const origin = process.env.APP_URL?.replace(/\/$/, "") || reqUrl.origin;
 
+  const t0 = Date.now();
   const admin = createAdminClient();
   const { data: e } = await admin
     .from("events")
@@ -133,6 +134,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     .maybeSingle();
   if (!e || !["published", "closed"].includes(e.status)) return new Response("not found", { status: 404 });
 
+  const tDb = Date.now() - t0;
   // Обложка и её размытая копия — параллельно, а не одна за другой.
   const src = coverSource(e.photo_url, origin);
   const [bold, medium, wordmark, cover, blurRaw] = await Promise.all([
@@ -143,6 +145,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     blurDataUrl(src, origin),
   ]);
   const blur = cover ? blurRaw : null;
+  const tImg = Date.now() - t0 - tDb;
 
   const date = new Date(`${e.event_date}T00:00:00Z`);
   const weekday = date.toLocaleDateString("ru-RU", { weekday: "long", timeZone: "UTC" });
@@ -323,7 +326,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       ],
       // Адрес картинки содержит ?v=<хэш обложки/названия/времени/мест> — при правке он меняется,
       // поэтому готовую картинку можно долго держать в CDN и в браузере.
-      headers: { "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400" },
+      headers: { "Server-Timing": `db;dur=${tDb}, img;dur=${tImg}`, "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400" },
     }
   );
 }
