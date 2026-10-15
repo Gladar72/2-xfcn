@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Tabs, router } from "expo-router";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
@@ -6,6 +7,7 @@ import { Glass, Grad } from "@/components/brand";
 import { Icon, type IconName } from "@/components/Icon";
 import { FONT } from "@/lib/theme";
 import { PendingReviews } from "@/components/reviews/PendingReviews";
+import { fetchPendingApplications } from "@/lib/pending";
 
 const TABS: Record<string, { label: string; icon: IconName }> = {
   index: { label: "Главная", icon: "home" },
@@ -20,6 +22,11 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
   const routes = state.routes.filter((r) => TABS[r.name]);
   const left = routes.slice(0, 2);
   const right = routes.slice(2);
+  // Цифра на «Профиле» (там «Мои встречи») — сколько новых заявок ждут ответа на мои встречи.
+  const [pending, setPending] = useState(0);
+  useEffect(() => {
+    fetchPendingApplications().then((r) => setPending(r.count));
+  }, [state.index]);
 
   const item = (r: (typeof routes)[number]) => {
     const t = TABS[r.name]!;
@@ -34,6 +41,11 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
         style={[styles.tab, on && styles.tabOn]}
       >
         <Icon name={t.icon} color={on ? "#fff" : "rgba(255,255,255,0.55)"} size={22} />
+        {r.name === "profile" && pending > 0 ? (
+          <View style={styles.badge} accessibilityLabel={`Новых заявок: ${pending}`}>
+            <Text style={styles.badgeText}>{pending > 9 ? "9+" : pending}</Text>
+          </View>
+        ) : null}
         <Text style={[styles.label, { color: on ? "#fff" : "rgba(255,255,255,0.55)" }]}>{t.label}</Text>
       </Pressable>
     );
@@ -77,6 +89,21 @@ const styles = StyleSheet.create({
   tab: { width: 62, height: 54, borderRadius: 999, alignItems: "center", justifyContent: "center", gap: 3 },
   tabOn: { backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
   label: { fontFamily: FONT, fontSize: 10.5, fontWeight: "500" },
+  badge: {
+    position: "absolute",
+    top: 3,
+    left: "56%",
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    backgroundColor: "#FF3B6B",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "rgba(22,18,31,0.85)",
+  },
+  badgeText: { fontFamily: FONT, color: "#fff", fontSize: 10.5, fontWeight: "700" },
   plusRing: { width: 68, height: 68, borderRadius: 34, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center", marginTop: -2 },
   plus: {
     width: 56,

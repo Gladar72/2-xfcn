@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Aurora, Glass, Mosya, Pill, RoundBtn, SectionHead, Title } from "@/components/brand";
+import { Aurora, Glass, Grad, Mosya, Pill, RoundBtn, SectionHead, Title } from "@/components/brand";
 import { EventCard } from "@/components/EventCard";
 import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
@@ -16,6 +16,7 @@ import { catIcon, CATEGORY_SHORT, colors, eventIcon, FONT } from "@/lib/theme";
 import { costShort, dayShort, plural } from "@/lib/format";
 import type { Category, FeedEvent, MyProfile, PersonCard } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
+import { fetchPendingApplications, type PendingApplications } from "@/lib/pending";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -31,6 +32,8 @@ export default function HomeScreen() {
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [unread, setUnread] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
+  // Новая заявка на мою встречу — плашка над категориями, как в мини-приложении.
+  const [req, setReq] = useState<PendingApplications | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -64,6 +67,7 @@ export default function HomeScreen() {
       api<{ items: { isRead: boolean }[] }>("/api/notifications")
         .then((r) => setNotifUnread((r.items ?? []).filter((n) => !n.isRead).length))
         .catch(() => {});
+      fetchPendingApplications().then((r) => setReq(r.latest ? r : null));
     }, [])
   );
 
@@ -138,6 +142,38 @@ export default function HomeScreen() {
             <Icon name="filter" color="#fff" />
           </RoundBtn>
         </View>
+
+        {req?.latest ? (
+          <Pressable
+            onPress={() => router.push(`/applications/${req.latest!.eventId}` as Href)}
+            accessibilityLabel="Открыть новую заявку"
+            style={({ pressed }) => [styles.reqWrap, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+          >
+            <Grad style={styles.req}>
+              <View>
+                {req.latest.avatarUrl ? (
+                  <Image source={{ uri: req.latest.avatarUrl }} style={styles.reqAva} contentFit="cover" />
+                ) : (
+                  <View style={[styles.reqAva, styles.reqAvaEmpty]}>
+                    <Text style={styles.reqAvaText}>{req.latest.name.slice(0, 1)}</Text>
+                  </View>
+                )}
+                <View style={styles.reqCnt}>
+                  <Text style={styles.reqCntText}>+{req.count}</Text>
+                </View>
+              </View>
+              <View style={{ flex: 1, gap: 2 }}>
+                <Text style={styles.reqSmall} numberOfLines={1}>
+                  {`Новая заявка · «${req.latest.eventTitle}»`}
+                </Text>
+                <Text style={styles.reqBig} numberOfLines={1}>
+                  {`${req.latest.name}${req.latest.age ? `, ${req.latest.age}` : ""} хочет пойти`}
+                </Text>
+              </View>
+              <Icon name="chev" color="#fff" size={20} />
+            </Grad>
+          </Pressable>
+        ) : null}
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railOut} contentContainerStyle={styles.cats}>
           {categories.map((c) => {
@@ -330,6 +366,15 @@ const styles = StyleSheet.create({
   cnt: { position: "absolute", top: 3, right: 3, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.pink, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   cntText: { fontFamily: FONT, color: "#fff", fontSize: 10.5, fontWeight: "600" },
   ttl: { marginTop: 18 },
+  reqWrap: { marginTop: 16 },
+  req: { borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingLeft: 12, paddingRight: 14 },
+  reqAva: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: "#fff" },
+  reqAvaEmpty: { backgroundColor: "rgba(255,255,255,0.25)", alignItems: "center", justifyContent: "center" },
+  reqAvaText: { fontFamily: FONT, color: "#fff", fontSize: 18, fontWeight: "700" },
+  reqCnt: { position: "absolute", right: -7, bottom: -4, backgroundColor: "#fff", borderRadius: 99, paddingHorizontal: 5, paddingVertical: 1 },
+  reqCntText: { fontFamily: FONT, color: colors.violet, fontSize: 11, fontWeight: "800" },
+  reqSmall: { fontFamily: FONT, color: "rgba(255,255,255,0.85)", fontSize: 12.5 },
+  reqBig: { fontFamily: FONT, color: "#fff", fontSize: 15.5, fontWeight: "600" },
   search: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
   sfield: { flex: 1, height: 50, borderRadius: 999, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16 },
   sinput: { flex: 1, fontFamily: FONT, fontSize: 15, color: colors.ink, height: 50 },
