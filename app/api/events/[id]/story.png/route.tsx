@@ -111,9 +111,9 @@ async function loadCover(src: { preset: string | null; url: string } | null, ori
 }
 
 /** Крошечная (32 px) копия картинки — растянутая на весь фон, она выглядит размытой. */
-async function blurDataUrl(src: { url: string } | null, origin: string): Promise<string | null> {
+async function blurDataUrl(src: { url: string } | null, origin: string, w = 32): Promise<string | null> {
   if (!src) return null;
-  const img = await fetchImage(`${origin}/_next/image?url=${encodeURIComponent(src.url)}&w=32&q=50`, 4000);
+  const img = await fetchImage(`${origin}/_next/image?url=${encodeURIComponent(src.url)}&w=${w}&q=50`, 4000);
   return img ? `data:${img.type};base64,${img.buf.toString("base64")}` : null;
 }
 
@@ -143,7 +143,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     asset("GolosText-Medium.ttf"),
     asset("wordmark-dark.svg"),
     loadCover(src, origin),
-    blurDataUrl(src, origin),
+    blurDataUrl(src, origin, X & 16 ? 256 : 32),
   ]);
   const blur = cover && !(X & 2) ? blurRaw : null;
   const tImg = Date.now() - t0 - tDb;
@@ -244,7 +244,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             alignItems: "center",
             justifyContent: "center",
             transform: "rotate(8deg)",
-            ...(X & 1 ? {} : { boxShadow: "0 30px 90px rgba(0,0,0,0.3)" }),
+            ...(X & 1 ? {} : { boxShadow: X & 32 ? "0 16px 40px rgba(0,0,0,0.3)" : "0 30px 90px rgba(0,0,0,0.3)" }),
           }}
         >
           <div style={{ fontSize: weekday.length > 8 ? 29 : 36, fontWeight: 500, color: "#6B6585", display: "flex" }}>{weekday}</div>
@@ -266,7 +266,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
               width: Math.round(pw),
               height: Math.round(ph),
               borderRadius: 60,
-              ...(X & 1 ? {} : { boxShadow: "0 40px 120px rgba(0,0,0,0.45)" }),
+              ...(X & 1 ? {} : { boxShadow: X & 32 ? "0 16px 40px rgba(0,0,0,0.3)" : "0 40px 120px rgba(0,0,0,0.45)" }),
             }}
           />
         ) : null}
@@ -283,7 +283,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             color: "#16121F",
             display: "flex",
             flexDirection: "column",
-            ...(X & 1 ? {} : { boxShadow: "0 48px 120px rgba(0,0,0,0.3)" }),
+            ...(X & 1 ? {} : { boxShadow: X & 32 ? "0 16px 40px rgba(0,0,0,0.3)" : "0 48px 120px rgba(0,0,0,0.3)" }),
           }}
         >
           <div style={{ display: "flex", alignItems: "center", fontSize: 45, fontWeight: 700 }}>
