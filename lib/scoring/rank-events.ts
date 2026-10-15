@@ -32,6 +32,8 @@ export interface RankingContext {
   viewerLongitude?: number | null;
   /** slugs категорий/типов тренировок, которые нравятся зрителю (из его интересов) */
   viewerInterestSlugs?: string[];
+  /** Случайная добавка к баллу (0 — порядок стабильный). Главная перемешивает верх ленты. */
+  jitter?: number;
 }
 
 const WEIGHTS = {
@@ -110,7 +112,9 @@ export function scoreEvent(event: EventForScoring, ctx: RankingContext): number 
 }
 
 export function rankEvents<T extends EventForScoring>(events: T[], ctx: RankingContext): T[] {
-  return [...events].sort((a, b) => scoreEvent(b, ctx) - scoreEvent(a, ctx));
+  // Балл считаем один раз на встречу (в т.ч. случайную добавку — иначе сортировка «прыгает»).
+  const scores = new Map<T, number>(events.map((e) => [e, scoreEvent(e, ctx) + (ctx.jitter ? Math.random() * ctx.jitter : 0)]));
+  return [...events].sort((a, b) => scores.get(b)! - scores.get(a)!);
 }
 
 function hoursSince(isoDate: string, now: Date): number {
