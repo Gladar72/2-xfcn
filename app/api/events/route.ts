@@ -18,6 +18,7 @@ import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { moderateImage } from "@/lib/photos/moderate-image";
 import { cachedFeed, clearFeedCache } from "@/lib/data/feed-cache";
 import { eventTiming } from "@/lib/events/timing";
+import { freshPoint, pointDistanceM, roundDistanceM } from "@/lib/geo/approx-distance";
 
 // Рассылки после создания (бизнес-событие — всему городу) идут фоном после ответа — даём им время.
 export const maxDuration = 60;
@@ -54,6 +55,9 @@ export async function GET(req: NextRequest) {
   // "Для бизнеса" — отдельный раздел (/business), НЕ показывается в обычной
   // ленте/поиске и наоборот: businesss=true показывает ТОЛЬКО такие события.
   const businessOnly = searchParams.get("business") === "true";
+  // Главная просит ?shuffle=1 — верх ленты немного перемешивается при каждом заходе,
+  // чтобы «Популярное» не было одним и тем же (сильные встречи всё равно наверху).
+  const shuffle = searchParams.get("shuffle") === "1" && page === 0;
 
   const currentUser = await getCurrentUser();
   const admin = createAdminClient();
@@ -71,7 +75,11 @@ export async function GET(req: NextRequest) {
 
   if (currentUser) {
     const [{ data: profile }, { data: interestRows }, { data: blockRows }] = await Promise.all([
-      admin.from("users").select("city").eq("id", currentUser.userId).maybeSingle(),
+      admin
+        .from("users")
+        .select("city, approx_lat, approx_lon, approx_location_at, show_distance")
+        .eq("id", currentUser.userId)
+        .maybeSingle(),
       admin
         .from("user_interests")
         .select("interests(name)")
@@ -83,6 +91,13 @@ export async function GET(req: NextRequest) {
     ]);
 
     if (!city && profile?.city) city = profile.city;
+    // Примерная (огрублённая до ~500 м) точка человека — для «рядом» в ранжировании
+    // и подписи «700 м» на карточке. Нет свежей точки — расстояние просто не показываем.
+    const point = freshPoint(profile);
+    if (point) {
+      viewerLatitude = point.lat;
+      viewerLongitude = point.lon;
+    }
     viewerInterestSlugs =
       interestRows?.map((r) => (r.interests as unknown as { name: string } | null)?.name).filter(
         (v): v is string => Boolean(v)
@@ -305,6 +320,7 @@ export async function GET(req: NextRequest) {
     viewerLatitude,
     viewerLongitude,
     viewerInterestSlugs,
+    jitter: shuffle ? 6 : 0,
   });
 
   // Заполненные встречи — в конце ленты: сначала те, куда ещё можно пойти.
@@ -345,6 +361,11 @@ export async function GET(req: NextRequest) {
       photoUrl: _row.photo_url,
       isAnonymous: !!_row.is_anonymous,
       isLive: liveIds.has(_row.id),
+      // Сколько до места встречи от моей примерной точки. У анонимных место скрыто — не показываем.
+      distanceM:
+        viewerLatitude != null && viewerLongitude != null && _row.latitude != null && _row.longitude != null && !_row.is_anonymous
+          ? roundDistanceM(pointDistanceM(viewerLatitude, viewerLongitude, Number(_row.latitude), Number(_row.longitude)))
+          : null,
       // «Поднято» на карточке — поднятие за последние сутки.
       isBoosted: !!_row.boosted_at && Date.now() - new Date(_row.boosted_at as string).getTime() < 24 * 3600 * 1000,
       // Лёгкое визуальное выделение карточки — привилегия тарифов
