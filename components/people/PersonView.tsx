@@ -68,6 +68,73 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   const [toast, setToast] = useState<string | null>(null);
   const [pick, setPick] = useState<string | null>(null);
   const [inviteNote, setInviteNote] = useState("");
+  // «Сердечко»: поставил ли я, взаимно ли; вспышка сердца и экран «Это взаимно!».
+  const [liked, setLiked] = useState(false);
+  const [burst, setBurst] = useState(false);
+  const [matchOpen, setMatchOpen] = useState(false);
+  const [meAvatar, setMeAvatar] = useState<string | null>(null);
+  useEffect(() => {
+    if (!person?.id) return;
+    setLiked(false);
+    fetch(`/api/likes?userId=${person.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setLiked(!!d.liked))
+      .catch(() => {});
+  }, [person?.id]);
+  // Подсказка Моси про сердечко — один раз, на втором человеке в колоде (первый — общий гид).
+  const seenInDeck = useRef(0);
+  useEffect(() => {
+    if (!deck || !person?.id) return;
+    seenInDeck.current += 1;
+    if (seenInDeck.current !== 2) return;
+    try {
+      if (localStorage.getItem("mesto_heart_tip") === "1") return;
+      localStorage.setItem("mesto_heart_tip", "1");
+    } catch {
+      return;
+    }
+    const t = setTimeout(() => peek({ pose: "wave", text: `Нравится человек? Поставь сердечко — ${person.name} узнает. Взаимно — сразу скажу 💜`, ms: 6000 }), 900);
+    return () => clearTimeout(t);
+  }, [deck, person?.id, person?.name]);
+  async function heart() {
+    if (!person) return;
+    if (liked) {
+      say(`Сердечко у ${person.name} уже есть. Ответит взаимностью — скажу`);
+      return;
+    }
+    setLiked(true);
+    setBurst(true);
+    setTimeout(() => setBurst(false), 900);
+    try {
+      const res = await fetch("/api/likes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: person.id, kind: "heart" }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 429) {
+        setLiked(false);
+        say("Сегодня сердечки закончились — завтра будут новые", "think");
+        return;
+      }
+      if (!res.ok) {
+        setLiked(false);
+        return;
+      }
+      if (d.mutual) {
+        fetch("/api/me/profile")
+          .then((r) => r.json())
+          .then((p) => setMeAvatar(p?.avatarUrl ?? null))
+          .catch(() => {});
+        setMatchOpen(true);
+      } else {
+        setToast(`Сердечко у ${person.name}. Ответит взаимностью — Мося сразу скажет`);
+        setTimeout(() => setToast(null), 2600);
+      }
+    } catch {
+      setLiked(false);
+    }
+  }
   useGuide(deck ? "deck" : "person", { when: person !== null, force: !!deck });
 
   // Колода сначала даёт короткую карточку (имя, фото), потом полный профиль —
@@ -404,11 +471,88 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         >
           <Ic n="chat" />
         </button>
+        <button
+          className="rb gl"
+          onClick={heart}
+          aria-label={liked ? "Сердечко поставлено" : "Поставить сердечко"}
+          aria-pressed={liked}
+          style={{
+            width: 56,
+            height: 56,
+            flex: "none",
+            ...(liked ? { background: "linear-gradient(135deg,#FF8FB5,#FF4F8B)", boxShadow: "0 10px 26px rgba(255,79,139,.5)" } : {}),
+          }}
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill={liked ? "#fff" : "none"} stroke={liked ? "#fff" : "currentColor"} strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+          </svg>
+        </button>
         <button className="btn v" onClick={openInvite}>
           <Ic n="cal" />
           Позвать на встречу
         </button>
       </div>
+
+      {burst && (
+        <div aria-hidden style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none", zIndex: 60 }}>
+          <svg width="150" height="150" viewBox="0 0 24 24" style={{ animation: "mHeart .9s ease-out forwards", filter: "drop-shadow(0 18px 40px rgba(255,79,139,.6))" }}>
+            <defs>
+              <linearGradient id="mhg" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#FF9EC0" />
+                <stop offset="1" stopColor="#FF3F80" />
+              </linearGradient>
+            </defs>
+            <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="url(#mhg)" stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" />
+          </svg>
+          <style>{`@keyframes mHeart{0%{transform:scale(.3);opacity:0}30%{transform:scale(1.1);opacity:1}60%{transform:scale(.95)}100%{transform:scale(1.25);opacity:0}}`}</style>
+        </div>
+      )}
+
+      <Sheet open={matchOpen} onClose={() => setMatchOpen(false)}>
+        <div style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center", marginTop: 6 }}>
+          {[meAvatar, photos[0] ?? person.avatarUrl].map((src, i) =>
+            src ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img key={i} src={photoThumb(src, 240)} alt="" style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", border: "4px solid #fff", boxShadow: "0 14px 30px rgba(80,40,170,.3)", transform: `rotate(${i ? 8 : -8}deg)`, margin: i ? "0 0 0 -16px" : "0 -16px 0 0", zIndex: i ? 2 : 1 }} />
+            ) : (
+              <span key={i} style={{ width: 96, height: 96, borderRadius: "50%", background: "#EFE8FF", border: "4px solid #fff", margin: i ? "0 0 0 -16px" : "0 -16px 0 0" }} />
+            )
+          )}
+          <span style={{ position: "absolute", width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg,#FF8FB5,#FF4F8B)", display: "grid", placeItems: "center", border: "4px solid #fff", zIndex: 3 }}>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
+              <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+            </svg>
+          </span>
+        </div>
+        <h2 className="t" style={{ textAlign: "center" }}>
+          Это <em>взаимно!</em>
+        </h2>
+        <p className="muted" style={{ margin: "-6px 4px 0", textAlign: "center", fontSize: 15, lineHeight: 1.45 }}>
+          {`${person.name} тоже поставил(а) тебе сердечко.`}
+          {common.length ? ` Общее: ${common.slice(0, 3).join(", ").toLowerCase()}.` : ""}
+        </p>
+        <button
+          className="btn v"
+          onClick={() => {
+            setMatchOpen(false);
+            openInvite();
+          }}
+        >
+          <Ic n="cal" />
+          Позвать на встречу
+        </button>
+        <button
+          className="btn o"
+          onClick={() => {
+            setMatchOpen(false);
+            if (person.canMessage === false) say(NO_MEET_TEXT);
+            else openDirect();
+          }}
+        >
+          <Ic n="chat" />
+          Написать
+        </button>
+      </Sheet>
 
       <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)}>
         <h2 className="t">

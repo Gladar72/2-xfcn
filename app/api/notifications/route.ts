@@ -91,17 +91,33 @@ export async function GET() {
     for (const c of conversations ?? []) if (memberOf.has(c.event_id)) conversationIds.set(c.event_id, c.id);
   }
 
+  // Сердечки и намёки: имя того, кто поставил.
+  const fromIds = Array.from(
+    new Set(
+      items
+        .map((n) => (n.payload as Record<string, unknown>)?.fromUserId)
+        .filter((id): id is string => typeof id === "string")
+    )
+  );
+  const fromNames = new Map<string, string>();
+  if (fromIds.length > 0) {
+    const { data: senders } = await admin.from("users").select("id, name").in("id", fromIds);
+    for (const u of senders ?? []) fromNames.set(u.id as string, ((u.name as string | null) ?? "").trim());
+  }
+
   const result = items.map((n) => {
     const payload = n.payload as Record<string, unknown>;
     const eventId = typeof payload?.eventId === "string" ? payload.eventId : null;
     const eventTitle = eventId ? eventTitles.get(eventId) : undefined;
+    const fromId = typeof payload?.fromUserId === "string" ? payload.fromUserId : null;
 
     return {
       id: n.id,
       type: n.type,
       isRead: n.is_read,
       createdAt: n.created_at,
-      text: buildNotificationText(n.type, eventTitle),
+      text: buildNotificationText(n.type, eventTitle, fromId ? fromNames.get(fromId) : undefined),
+      linkUserId: fromId,
       linkEventId: eventId,
       linkConversationId: typeof payload?.conversationId === "string" ? payload.conversationId : null,
       event: eventId ? eventCards.get(eventId) ?? null : null,
