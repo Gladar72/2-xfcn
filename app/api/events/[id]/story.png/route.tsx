@@ -139,7 +139,31 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       ? "Бесплатно"
       : null;
   const title: string = e.title ?? "";
-  const titleSize = title.length <= 10 ? 128 : title.length <= 20 ? 100 : title.length <= 36 ? 80 : 64;
+  // Название переносится по словам в колонке шириной 654 px (справа круг с датой).
+  // Считаем строки заранее и опускаем картинку под последнюю строку — текст не заходит на фото.
+  const TITLE_W = 654;
+  const titleLines = (size: number) => {
+    const perLine = Math.max(1, Math.floor(TITLE_W / (size * 0.6)));
+    let lines = 1;
+    let cur = 0;
+    for (const w of title.split(/\s+/).filter(Boolean)) {
+      const len = w.length;
+      if (cur === 0) cur = len;
+      else if (cur + 1 + len <= perLine) cur += 1 + len;
+      else {
+        lines += 1;
+        cur = len;
+      }
+      while (cur > perLine) {
+        lines += 1;
+        cur -= perLine;
+      }
+    }
+    return lines;
+  };
+  let titleSize = title.length <= 10 ? 128 : title.length <= 20 ? 100 : title.length <= 36 ? 84 : 68;
+  while (titleSize > 60 && titleLines(titleSize) > 3) titleSize -= 8;
+  const titleBottom = 250 + 42 + 20 + titleLines(titleSize) * titleSize;
   const kicker = e.is_business ? "Ждём тебя" : "Ищу компанию";
   const people = [going > 0 ? `${going} ${going === 1 ? "идёт" : "идут"}` : null, free > 0 ? `свободно ${free} ${seatsWord(free)}` : "мест нет"]
     .filter(Boolean)
@@ -147,7 +171,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
   // Картинка — целиком, в своих пропорциях: ширина до 1020, высота — сколько остаётся.
   // Снизу оставляем место под поле «Отправить сообщение» Instagram, в версии ig — ещё рамку под стикер.
-  const photoTop = 540;
+  const photoTop = Math.max(540, titleBottom + 50);
   const gap = 50;
   const cardH = 330;
   const frameH = 150;
