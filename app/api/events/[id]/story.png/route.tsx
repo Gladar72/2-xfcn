@@ -69,10 +69,11 @@ interface Cover {
 }
 
 /** Откуда брать обложку: заготовки — из jpg-копий в репозитории, свои фото — по https. */
-function coverSource(photoUrl: string | null, origin: string): { preset: string | null; url: string } | null {
+function coverSource(photoUrl: string | null): { preset: string | null; url: string } | null {
   if (!photoUrl) return null;
   const preset = photoUrl.match(/\/brand\/covers\/([a-z]+)\.webp(?:\?.*)?$/);
-  if (preset) return { preset: preset[1]!, url: `${origin}/brand/covers-jpg/${preset[1]}.jpg` };
+  // Свой файл — относительным путём: оптимизатор картинок Next принимает так только локальные.
+  if (preset) return { preset: preset[1]!, url: `/brand/covers-jpg/${preset[1]}.jpg` };
   if (!/^https:\/\//.test(photoUrl)) return null;
   return { preset: null, url: photoUrl };
 }
@@ -151,7 +152,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
   const tDb = Date.now() - t0;
   // Обложка и её размытая копия — параллельно, а не одна за другой.
-  const src = coverSource(e.photo_url, origin);
+  const src = coverSource(e.photo_url);
   const [bold, medium, wordmark, shRect, shRound, glowMaskBuf, cover, blurRaw] = await Promise.all([
     asset("GolosText-Bold.ttf"),
     asset("GolosText-Medium.ttf"),
