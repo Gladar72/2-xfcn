@@ -121,6 +121,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!/^[0-9a-f-]{36}$/.test(params.id)) return new Response("not found", { status: 404 });
   const reqUrl = new URL(req.url);
   const ig = reqUrl.searchParams.get("ig") === "1";
+  const glow = reqUrl.searchParams.get("glow") ?? "";
   const origin = process.env.APP_URL?.replace(/\/$/, "") || reqUrl.origin;
 
   const t0 = Date.now();
@@ -259,7 +260,27 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
           <div style={{ fontSize: 42, fontWeight: 700, color: "#6C3BFF", display: "flex" }}>{time}</div>
         </div>
 
-        {cover ? <Shade src={shadowRect} x={(1080 - pw) / 2} y={photoTop + 40} w={pw} h={ph} /> : null}
+        {cover && blur && glow ? (
+          // Своя тень у каждой картинки: размытая копия самой обложки под фото, мягкие края — маской.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={blur}
+            alt=""
+            width={Math.round(pw * 1.3)}
+            height={Math.round(ph * 1.3)}
+            style={{
+              position: "absolute",
+              left: Math.round((1080 - pw * 1.3) / 2),
+              top: Math.round(photoTop + 46 - ph * 0.15),
+              width: Math.round(pw * 1.3),
+              height: Math.round(ph * 1.3),
+              opacity: glow === "2" ? 0.75 : 1,
+              maskImage: "radial-gradient(closest-side, rgba(0,0,0,1) 55%, rgba(0,0,0,0) 100%)",
+            }}
+          />
+        ) : cover ? (
+          <Shade src={shadowRect} x={(1080 - pw) / 2} y={photoTop + 40} w={pw} h={ph} />
+        ) : null}
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
