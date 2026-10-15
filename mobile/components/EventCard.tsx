@@ -10,6 +10,7 @@ import { Faces, Grad, Pill } from "./brand";
 import { Icon } from "./Icon";
 import { colors, eventIcon, FONT } from "@/lib/theme";
 import { costShort, dayShort } from "@/lib/format";
+import { distanceShort } from "@/lib/interests";
 import type { FeedEvent } from "@/lib/types";
 
 const STATUS_LABEL = { pending: "Заявка отправлена", accepted: "Ты идёшь", rejected: "Не подтвердили" } as const;
@@ -74,6 +75,7 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
             <Icon name="pin" size={15} color="#fff" />
             <Text style={styles.placeText} numberOfLines={1}>
               {e.organizerHidden ? "место — после одобрения" : e.placeName ?? "место уточняется"}
+              {distanceShort(e.distanceM) ? ` · ${distanceShort(e.distanceM)}` : ""}
             </Text>
           </View>
           <View style={styles.price}>
