@@ -1,15 +1,20 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { approxDistanceKm } from "@/lib/geo/approx-distance";
+import { approxDistanceKm, approxDistanceM, freshPoint } from "@/lib/geo/approx-distance";
 
 /**
  * GET /api/people
- * «Люди с похожими интересами» для главной: пользователи из того же
- * города, у которых больше всего общих интересов с текущим. Если у
- * человека ещё нет интересов — просто новые люди города с фото.
+ * «Люди рядом» для главной: пользователи из того же города — с общими
+ * интересами и те, кто сейчас поблизости (по огрублённой геопозиции).
+ * На главной подборка каждый раз немного перемешивается, чтобы лента
+ * не была одной и той же; ближе и с общими интересами — чаще наверху.
+ * ?deck=1 — колода «Люди рядом» (больше карточек, порядок стабильный).
  * Скрытые профили и заблокированные модерацией не показываются.
  */
+const USER_FIELDS =
+  "id, name, avatar_url, birth_date, rating_avg, completed_meetings_count, approx_lat, approx_lon, approx_location_at, show_distance";
+
 export async function GET(req: Request) {
   // Колода «Люди рядом» берёт больше карточек, чем лента на главной.
   const deck = new URL(req.url).searchParams.get("deck") === "1";
@@ -62,35 +67,84 @@ export async function GET(req: Request) {
 
   let query = admin
     .from("users")
-    .select("id, name, avatar_url, birth_date, rating_avg, completed_meetings_count, approx_lat, approx_lon, approx_location_at, show_distance")
+    .select(USER_FIELDS)
     .eq("city", me.city)
     .eq("is_profile_hidden", false)
     .eq("moderation_status", "active")
     .neq("id", currentUser.userId);
   query = candidateIds.length > 0 ? query.in("id", candidateIds) : query.not("avatar_url", "is", null).order("created_at", { ascending: false });
-  const { data: users } = await query.limit(60);
 
-  const items = (users ?? [])
-    .filter((u) => !blocked.has(u.id as string))
-    .map((u) => {
-      const sharedInterests = shared.get(u.id as string) ?? [];
-      return {
-        id: u.id as string,
-        name: u.name as string,
-        avatarUrl: (u.avatar_url as string | null) ?? null,
-        age: age(u.birth_date as string),
-        ratingAvg: Number(u.rating_avg ?? 0),
-        completedMeetingsCount: Number(u.completed_meetings_count ?? 0),
-        sharedInterests: sharedInterests.slice(0, 3),
-        sharedCount: sharedInterests.length,
-        distanceKm: approxDistanceKm(me, u),
-      };
-    })
+  // Кто поблизости прямо сейчас: свежая огрублённая точка в радиусе ~15 км (грубая рамка,
+  // точное расстояние считаем ниже). Только если у меня самого есть свежая точка.
+  const myPoint = freshPoint(me);
+  const nearQuery = myPoint
+    ? admin
+        .from("users")
+        .select(USER_FIELDS)
+        .eq("city", me.city)
+        .eq("is_profile_hidden", false)
+        .eq("moderation_status", "active")
+        .neq("id", currentUser.userId)
+        .not("avatar_url", "is", null)
+        // Кто скрыл расстояние — в «рядом» по геопозиции не попадает вовсе.
+        .or("show_distance.is.null,show_distance.eq.true")
+        .gte("approx_location_at", new Date(Date.now() - 14 * 864e5).toISOString())
+        .gte("approx_lat", myPoint.lat - 0.14)
+        .lte("approx_lat", myPoint.lat + 0.14)
+        .gte("approx_lon", myPoint.lon - 0.25)
+        .lte("approx_lon", myPoint.lon + 0.25)
+        .order("approx_location_at", { ascending: false })
+        .limit(60)
+    : null;
+  const [{ data: users }, near] = await Promise.all([query.limit(60), nearQuery]);
+
+  const seen = new Set<string>();
+  const pool = [...(users ?? []), ...(near?.data ?? [])].filter((u) => {
+    const id = u.id as string;
+    if (seen.has(id) || blocked.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+
+  const all = pool.map((u) => {
+    const sharedInterests = shared.get(u.id as string) ?? [];
+    const distanceM = approxDistanceM(me, u);
+    return {
+      id: u.id as string,
+      name: u.name as string,
+      avatarUrl: (u.avatar_url as string | null) ?? null,
+      age: age(u.birth_date as string),
+      ratingAvg: Number(u.rating_avg ?? 0),
+      completedMeetingsCount: Number(u.completed_meetings_count ?? 0),
+      sharedInterests: sharedInterests.slice(0, 3),
+      sharedCount: sharedInterests.length,
+      distanceKm: approxDistanceKm(me, u),
+      distanceM,
+    };
+  });
+
+  let items: typeof all;
+  if (deck) {
     // С фото — выше: в карточке человека фото главное.
-    .sort((a, b) => b.sharedCount - a.sharedCount || Number(!!b.avatarUrl) - Number(!!a.avatarUrl))
-    .slice(0, deck ? 40 : 12);
+    items = all
+      .sort((a, b) => b.sharedCount - a.sharedCount || Number(!!b.avatarUrl) - Number(!!a.avatarUrl))
+      .slice(0, 40);
+  } else {
+    // Главная: общие интересы + близость + фото, плюс случайная добавка —
+    // при каждом заходе подборка другая, но ближние и «свои» всплывают чаще.
+    const score = (p: (typeof all)[number]) =>
+      Math.min(p.sharedCount, 4) * 1.5 +
+      (p.distanceM == null ? 0 : p.distanceM <= 1000 ? 4 : p.distanceM <= 3000 ? 3 : p.distanceM <= 7000 ? 2 : 1) +
+      (p.avatarUrl ? 1.5 : 0) +
+      Math.random() * 4;
+    items = all
+      .map((p) => ({ p, s: score(p) }))
+      .sort((a, b) => b.s - a.s)
+      .slice(0, 12)
+      .map(({ p }) => p);
+  }
 
-  const meHasLocation = approxDistanceKm(me, me) !== null;
+  const meHasLocation = myPoint !== null;
   return NextResponse.json({ items, meHasLocation });
 }
 
