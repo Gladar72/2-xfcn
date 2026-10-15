@@ -111,9 +111,9 @@ async function loadCover(src: { preset: string | null; url: string } | null, ori
 }
 
 /** Крошечная (32 px) копия картинки — растянутая на весь фон, она выглядит размытой. */
-async function blurDataUrl(src: { url: string } | null, origin: string, w = 32): Promise<string | null> {
+async function blurDataUrl(src: { url: string } | null, origin: string): Promise<string | null> {
   if (!src) return null;
-  const img = await fetchImage(`${origin}/_next/image?url=${encodeURIComponent(src.url)}&w=${w}&q=50`, 4000);
+  const img = await fetchImage(`${origin}/_next/image?url=${encodeURIComponent(src.url)}&w=32&q=50`, 4000);
   return img ? `data:${img.type};base64,${img.buf.toString("base64")}` : null;
 }
 
@@ -121,7 +121,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!/^[0-9a-f-]{36}$/.test(params.id)) return new Response("not found", { status: 404 });
   const reqUrl = new URL(req.url);
   const ig = reqUrl.searchParams.get("ig") === "1";
-  const X = Number(reqUrl.searchParams.get("x") ?? 0); // временно: замер (1 без теней, 2 без фона, 4 без фото)
   const origin = process.env.APP_URL?.replace(/\/$/, "") || reqUrl.origin;
 
   const t0 = Date.now();
@@ -138,14 +137,24 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const tDb = Date.now() - t0;
   // Обложка и её размытая копия — параллельно, а не одна за другой.
   const src = coverSource(e.photo_url, origin);
-  const [bold, medium, wordmark, cover, blurRaw] = await Promise.all([
+  const [bold, medium, wordmark, shRect, shRound, cover, blurRaw] = await Promise.all([
     asset("GolosText-Bold.ttf"),
     asset("GolosText-Medium.ttf"),
     asset("wordmark-dark.svg"),
+    asset("shadow-rect.png"),
+    asset("shadow-round.png"),
     loadCover(src, origin),
-    blurDataUrl(src, origin, X & 16 ? 256 : 32),
+    blurDataUrl(src, origin),
   ]);
-  const blur = cover && !(X & 2) ? blurRaw : null;
+  const blur = cover ? blurRaw : null;
+  // Тени — готовые размытые PNG, растянутые под элемент. Настоящий boxShadow с большим
+  // размытием Satori/resvg считает ~6 секунд на 1080×1920 — главная причина долгой загрузки.
+  const shadowRect = `data:image/png;base64,${shRect.toString("base64")}`;
+  const shadowRound = `data:image/png;base64,${shRound.toString("base64")}`;
+  const Shade = ({ src, x, y, w, h }: { src: string; x: number; y: number; w: number; h: number }) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" width={Math.round(w * 1.5)} height={Math.round(h * 1.5)} style={{ position: "absolute", left: Math.round(x - w * 0.25), top: Math.round(y - h * 0.25), width: Math.round(w * 1.5), height: Math.round(h * 1.5) }} />
+  );
   const tImg = Date.now() - t0 - tDb;
 
   const date = new Date(`${e.event_date}T00:00:00Z`);
@@ -227,6 +236,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
           <div style={{ fontSize: titleSize, fontWeight: 700, lineHeight: 1, marginTop: 20, letterSpacing: -2, display: "flex" }}>{title}</div>
         </div>
 
+        <Shade src={shadowRound} x={750} y={240} w={276} h={276} />
         <div
           style={{
             position: "absolute",
@@ -242,7 +252,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             alignItems: "center",
             justifyContent: "center",
             transform: "rotate(8deg)",
-            ...(X & 1 ? {} : { boxShadow: X & 32 ? "0 16px 40px rgba(0,0,0,0.3)" : "0 30px 90px rgba(0,0,0,0.3)" }),
           }}
         >
           <div style={{ fontSize: weekday.length > 8 ? 29 : 36, fontWeight: 500, color: "#6B6585", display: "flex" }}>{weekday}</div>
@@ -250,7 +259,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
           <div style={{ fontSize: 42, fontWeight: 700, color: "#6C3BFF", display: "flex" }}>{time}</div>
         </div>
 
-        {cover && !(X & 4) ? (
+        {cover ? <Shade src={shadowRect} x={(1080 - pw) / 2} y={photoTop + 40} w={pw} h={ph} /> : null}
+        {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={cover.dataUrl}
@@ -264,11 +274,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
               width: Math.round(pw),
               height: Math.round(ph),
               borderRadius: 60,
-              ...(X & 1 ? {} : { boxShadow: X & 32 ? "0 16px 40px rgba(0,0,0,0.3)" : "0 40px 120px rgba(0,0,0,0.45)" }),
             }}
           />
         ) : null}
 
+        <Shade src={shadowRect} x={48} y={cardTop + 48} w={984} h={330} />
         <div
           style={{
             position: "absolute",
@@ -281,7 +291,6 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             color: "#16121F",
             display: "flex",
             flexDirection: "column",
-            ...(X & 1 ? {} : { boxShadow: X & 32 ? "0 16px 40px rgba(0,0,0,0.3)" : "0 48px 120px rgba(0,0,0,0.3)" }),
           }}
         >
           <div style={{ display: "flex", alignItems: "center", fontSize: 45, fontWeight: 700 }}>
