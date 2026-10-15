@@ -242,7 +242,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             alignItems: "center",
             justifyContent: "center",
             transform: "rotate(8deg)",
-            boxShadow: X & 1 ? undefined : "0 30px 90px rgba(0,0,0,0.3)",
+            ...(X & 1 ? {} : { boxShadow: "0 30px 90px rgba(0,0,0,0.3)" }),
           }}
         >
           <div style={{ fontSize: weekday.length > 8 ? 29 : 36, fontWeight: 500, color: "#6B6585", display: "flex" }}>{weekday}</div>
@@ -264,7 +264,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
               width: Math.round(pw),
               height: Math.round(ph),
               borderRadius: 60,
-              boxShadow: X & 1 ? undefined : "0 40px 120px rgba(0,0,0,0.45)",
+              ...(X & 1 ? {} : { boxShadow: "0 40px 120px rgba(0,0,0,0.45)" }),
             }}
           />
         ) : null}
@@ -281,7 +281,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             color: "#16121F",
             display: "flex",
             flexDirection: "column",
-            boxShadow: X & 1 ? undefined : "0 48px 120px rgba(0,0,0,0.3)",
+            ...(X & 1 ? {} : { boxShadow: "0 48px 120px rgba(0,0,0,0.3)" }),
           }}
         >
           <div style={{ display: "flex", alignItems: "center", fontSize: 45, fontWeight: 700 }}>
