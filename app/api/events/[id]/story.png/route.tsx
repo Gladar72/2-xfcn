@@ -218,7 +218,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             boxShadow: "0 30px 90px rgba(0,0,0,0.3)",
           }}
         >
-          <div style={{ fontSize: 36, fontWeight: 500, color: "#6B6585", display: "flex" }}>{weekday}</div>
+          <div style={{ fontSize: weekday.length > 8 ? 29 : 36, fontWeight: 500, color: "#6B6585", display: "flex" }}>{weekday}</div>
           <div style={{ fontSize: 108, fontWeight: 700, lineHeight: 1, display: "flex" }}>{String(dayNum)}</div>
           <div style={{ fontSize: 42, fontWeight: 700, color: "#6C3BFF", display: "flex" }}>{time}</div>
         </div>
