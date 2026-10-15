@@ -42,6 +42,8 @@ export interface FeedEvent {
   goingPreview?: { id: string; name: string; avatarUrl: string | null }[];
   businessPricingType?: "ticket" | "free" | "custom" | null;
   businessPricingDetails?: string | null;
+  /** Сколько до места от моей примерной точки (метры; null — неизвестно). */
+  distanceM?: number | null;
 }
 
 export interface PersonCard {
@@ -54,6 +56,7 @@ export interface PersonCard {
   ratingAvg?: number;
   completedMeetingsCount?: number;
   distanceKm?: number | null;
+  distanceM?: number | null;
 }
 
 export interface EventDetail extends Omit<FeedEvent, "isHighlighted" | "isMine" | "myApplicationStatus"> {

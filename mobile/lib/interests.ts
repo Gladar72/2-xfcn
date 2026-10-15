@@ -148,6 +148,15 @@ export function suggestMeet(interests: string[], common: string[]): Suggestion |
   return { text: `Я изучил профиль — ${about}. Позови ${offer}, встречу создам за минуту 😉`, ideas };
 }
 
+/** Коротко для карточек: «рядом», «700 м», «1,4 км», «12 км» (lib/geo/approx-distance.ts). */
+export function distanceShort(m: number | null | undefined): string | null {
+  if (m == null) return null;
+  if (m <= 0) return "рядом";
+  if (m < 1000) return `${m} м`;
+  if (m < 10_000) return `${(m / 1000).toFixed(1).replace(".", ",").replace(",0", "")} км`;
+  return `${Math.round(m / 1000)} км`;
+}
+
 /** «меньше 1 км от тебя» / «≈ N км от тебя» (lib/geo/approx-distance.ts). */
 export function distanceLabel(km: number | null | undefined): string | null {
   if (km == null) return null;
