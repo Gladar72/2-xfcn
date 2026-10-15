@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useGuide } from "@/lib/mosya/guide";
@@ -16,6 +16,8 @@ import { goBack } from "@/lib/nav/back";
 import { CityWheel } from "@/components/proto/pickers";
 import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 import { KIND_LABEL, cityEventIcon } from "@/lib/city-events";
+import { distanceShort } from "@/lib/geo/approx-distance";
+import { refreshLocationSilently, sendMyLocation } from "@/lib/geo/client-location";
 
 interface Category {
   id: string;
@@ -35,6 +37,7 @@ interface PersonCard {
   avatarUrl: string | null;
   sharedInterests: string[];
   sharedCount: number;
+  distanceM?: number | null;
 }
 interface MyEvent {
   id: string;
@@ -85,6 +88,9 @@ function HomeScreen() {
   const [biz, setBiz] = useState<FeedEvent[]>([]);
   const [cityEv, setCityEv] = useState<CityEvent[]>([]);
   const [people, setPeople] = useState<PersonCard[]>([]);
+  // Есть ли у меня свежая примерная точка — иначе предлагаем «Показать, кто рядом».
+  const [meHasLoc, setMeHasLoc] = useState(true);
+  const [geoBusy, setGeoBusy] = useState(false);
   const [plan, setPlan] = useState<{ ev: MyEvent; label: string } | null>(null);
   // Новая заявка на мою встречу — плашка вместо «Ты в деле» (главнее).
   const [req, setReq] = useState<{
@@ -96,6 +102,57 @@ function HomeScreen() {
   const [trainOpen, setTrainOpen] = useState(false);
   const [empty, setEmpty] = useState<{ slug: string; name: string; type?: string } | null>(null);
   useGuide("feed", { when: events !== null });
+
+  // «Люди рядом» и «Популярное» каждый раз приходят немного перемешанными (?shuffle=1 и
+  // случайная добавка в /api/people) — лента живая, а не одни и те же карточки.
+  const loadPeople = useCallback(() => {
+    return fetch("/api/people")
+      .then((r) => r.json())
+      .then((d) => {
+        setPeople(Array.isArray(d.items) ? d.items : []);
+        setMeHasLoc(d.meHasLocation !== false);
+      })
+      .catch(() => {});
+  }, []);
+  const loadEvents = useCallback((c: string) => {
+    return fetch(`/api/events?page=0&shuffle=1&city=${encodeURIComponent(c)}`)
+      .then((r) => r.json())
+      .then((d) => setEvents(d.items ?? []))
+      .catch(() => setEvents((prev) => prev ?? []));
+  }, []);
+  const cityRef = useRef<string | null>(null);
+  cityRef.current = city;
+
+  // Свежая геопозиция (если разрешение уже дано) → расстояния и «рядом» точнее.
+  useEffect(() => {
+    refreshLocationSilently().then((ok) => {
+      if (!ok) return;
+      loadPeople();
+      if (cityRef.current) loadEvents(cityRef.current);
+    });
+  }, [loadPeople, loadEvents]);
+
+  // Пока главная открыта — раз в 2 минуты подтягиваем новые подборки.
+  useEffect(() => {
+    const t = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      loadPeople();
+      if (cityRef.current) loadEvents(cityRef.current);
+    }, 120e3);
+    return () => clearInterval(t);
+  }, [loadPeople, loadEvents]);
+
+  async function allowGeo() {
+    setGeoBusy(true);
+    const ok = await sendMyLocation();
+    setGeoBusy(false);
+    if (ok) {
+      loadPeople();
+      if (city) loadEvents(city);
+    } else {
+      say("Не получилось узнать, где ты. Разреши геопозицию в настройках — и я покажу, кто рядом");
+    }
+  }
 
   useEffect(() => {
     fetch("/api/me/profile")
@@ -109,10 +166,7 @@ function HomeScreen() {
         setTrainingTypes(d.trainingTypes ?? []);
       })
       .catch(() => {});
-    fetch("/api/people")
-      .then((r) => r.json())
-      .then((d) => setPeople(Array.isArray(d.items) ? d.items : []))
-      .catch(() => {});
+    loadPeople();
     fetch("/api/conversations")
       .then((r) => r.json())
       .then((d) => setUnreadChats((d.items ?? []).reduce((s: number, i: { unreadCount?: number }) => s + (i.unreadCount || 0), 0)))
@@ -138,10 +192,7 @@ function HomeScreen() {
 
   useEffect(() => {
     if (!city) return;
-    fetch(`/api/events?page=0&city=${encodeURIComponent(city)}`)
-      .then((r) => r.json())
-      .then((d) => setEvents(d.items ?? []))
-      .catch(() => setEvents([]));
+    loadEvents(city);
     fetch(`/api/events?business=true&city=${encodeURIComponent(city)}`)
       .then((r) => r.json())
       .then((d) => setBiz((d.items ?? []).filter((e: FeedEvent) => e.isBusiness)))
@@ -297,9 +348,21 @@ function HomeScreen() {
       {people.length > 0 && (
         <>
           <div className="sec">
-            <b>Люди с похожими интересами</b>
+            <b>{people.some((q) => q.distanceM != null) ? "Люди рядом" : "Люди с похожими интересами"}</b>
             <Link href="/people">Листать →</Link>
           </div>
+          {!meHasLoc && (
+            <button className="nearb gl" onClick={allowGeo} disabled={geoBusy} style={{ width: "100%", marginTop: 0, marginBottom: 10, textAlign: "left", font: "inherit", color: "inherit", border: 0 }}>
+              <span className="rb k" style={{ width: 42, height: 42, flex: "none", color: "#fff" }}>
+                <Ic n="pin" c="s" />
+              </span>
+              <div>
+                <b>{geoBusy ? "Ищем, кто рядом…" : "Показать, кто рядом"}</b>
+                <span>Увидишь, сколько до людей и встреч — точный адрес никто не узнает</span>
+              </div>
+              <Ic n="chev" c="s" />
+            </button>
+          )}
           <div className="rail">
             {people.map((q) => (
               <Link key={q.id} className="pcard" href={`/people?start=${q.id}`}>
@@ -319,6 +382,12 @@ function HomeScreen() {
                   </span>
                 )}
                 <div>
+                  {q.distanceM != null && (
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, marginBottom: 4, padding: "2px 8px 2px 5px", borderRadius: 99, background: "rgba(255,255,255,.25)", backdropFilter: "blur(10px)", fontSize: 11.5, fontWeight: 600, opacity: 1 }}>
+                      <Ic n="pin" c="xs" />
+                      {distanceShort(q.distanceM)}
+                    </span>
+                  )}
                   <b>
                     {q.name}, {q.age}
                   </b>
