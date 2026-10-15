@@ -121,6 +121,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!/^[0-9a-f-]{36}$/.test(params.id)) return new Response("not found", { status: 404 });
   const reqUrl = new URL(req.url);
   const ig = reqUrl.searchParams.get("ig") === "1";
+  const X = Number(reqUrl.searchParams.get("x") ?? 0); // временно: замер (1 без теней, 2 без фона, 4 без фото)
   const origin = process.env.APP_URL?.replace(/\/$/, "") || reqUrl.origin;
 
   const t0 = Date.now();
@@ -144,7 +145,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     loadCover(src, origin),
     blurDataUrl(src, origin),
   ]);
-  const blur = cover ? blurRaw : null;
+  const blur = cover && !(X & 2) ? blurRaw : null;
   const tImg = Date.now() - t0 - tDb;
 
   const date = new Date(`${e.event_date}T00:00:00Z`);
@@ -241,7 +242,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             alignItems: "center",
             justifyContent: "center",
             transform: "rotate(8deg)",
-            boxShadow: "0 30px 90px rgba(0,0,0,0.3)",
+            boxShadow: X & 1 ? undefined : "0 30px 90px rgba(0,0,0,0.3)",
           }}
         >
           <div style={{ fontSize: weekday.length > 8 ? 29 : 36, fontWeight: 500, color: "#6B6585", display: "flex" }}>{weekday}</div>
@@ -249,7 +250,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
           <div style={{ fontSize: 42, fontWeight: 700, color: "#6C3BFF", display: "flex" }}>{time}</div>
         </div>
 
-        {cover ? (
+        {cover && !(X & 4) ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={cover.dataUrl}
@@ -263,7 +264,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
               width: Math.round(pw),
               height: Math.round(ph),
               borderRadius: 60,
-              boxShadow: "0 40px 120px rgba(0,0,0,0.45)",
+              boxShadow: X & 1 ? undefined : "0 40px 120px rgba(0,0,0,0.45)",
             }}
           />
         ) : null}
@@ -280,7 +281,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
             color: "#16121F",
             display: "flex",
             flexDirection: "column",
-            boxShadow: "0 48px 120px rgba(0,0,0,0.3)",
+            boxShadow: X & 1 ? undefined : "0 48px 120px rgba(0,0,0,0.3)",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", fontSize: 45, fontWeight: 700 }}>
