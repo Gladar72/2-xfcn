@@ -4,7 +4,8 @@
  * уведомления в Telegram через бота (lib/telegram/notify.ts) — чтобы
  * формулировка была одна и та же, а не расходилась в двух местах.
  */
-export function buildNotificationText(type: string, eventTitle: string | undefined): string {
+export function buildNotificationText(type: string, eventTitle: string | undefined, fromName?: string): string {
+  const who = fromName || "Кто-то";
   const title = eventTitle ? `«${eventTitle}»` : "встречу";
   switch (type) {
     case "new_application":
@@ -21,6 +22,12 @@ export function buildNotificationText(type: string, eventTitle: string | undefin
       return `Оцени, как прошла ${title}`;
     case "share_nudge":
       return `Пока никто не откликнулся на ${title} — поделись в сторис или в чате`;
+    case "heart":
+      return `${who} поставил(а) тебе сердечко ❤️ Ответь или позови на встречу`;
+    case "heart_mutual":
+      return `Взаимное сердечко: ${who} 💜 Самое время позвать на встречу`;
+    case "meet_hint":
+      return `${who} намекает: хочет с тобой на встречу 👋`;
     case "boost_suggestion":
       return `Мало откликов на ${title} — можно поднять её в ленте`;
     case "subscription_expiring":

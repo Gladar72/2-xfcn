@@ -8,6 +8,7 @@ import { useGuide } from "@/lib/mosya/guide";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { Ic, Overlay, Screen } from "@/components/proto/ui";
 import { SupportSheet } from "@/components/proto/SupportSheet";
+import { HeartsSheet } from "@/components/people/HeartsSheet";
 import type { IconName } from "@/components/brand/Icon";
 
 interface Profile {
@@ -92,6 +93,8 @@ export default function ProfilePage() {
           <Ic n="gear" />
         </Link>
       </div>
+
+      <HeartsSheet />
 
       {!profile ? (
         <div className="sk" style={{ height: 330, marginTop: 10, borderRadius: 30 }} />

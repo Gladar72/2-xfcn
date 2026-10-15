@@ -28,6 +28,7 @@ interface NotificationItem {
   } | null;
   ticketCode: string | null;
   eventConversationId: string | null;
+  linkUserId?: string | null;
 }
 
 type Tab = "all" | "events" | "chats";
@@ -41,6 +42,9 @@ const MEETING_TYPES = new Set([
   "review_request",
   "boost_suggestion",
   "share_nudge",
+  "heart",
+  "heart_mutual",
+  "meet_hint",
 ]);
 
 const TYPE_ICON: Record<string, string> = {
@@ -54,6 +58,9 @@ const TYPE_ICON: Record<string, string> = {
   review_request: "/brand/mosya/mosya_wave.webp",
   boost_suggestion: "/brand/mosya/mosya_jump.webp",
   share_nudge: "/brand/stickers/mosya_sad.webp",
+  heart: "/brand/mosya/mosya_wave.webp",
+  heart_mutual: "/brand/mosya/mosya_jump.webp",
+  meet_hint: "/brand/mosya/mosya_wave.webp",
   new_message: "/brand/mosya/mosya_phone.webp",
 };
 
@@ -94,7 +101,11 @@ export default function NotificationsPage() {
   }, [filtered]);
 
   function handlePress(item: NotificationItem) {
-    if (item.type === "subscription_expiring" || item.type === "subscription_expired") {
+    if (item.type === "heart") {
+      router.push("/profile");
+    } else if ((item.type === "heart_mutual" || item.type === "meet_hint") && item.linkUserId) {
+      router.push(`/people/${item.linkUserId}`);
+    } else if (item.type === "subscription_expiring" || item.type === "subscription_expired") {
       router.push("/subscriptions");
     } else if (item.type === "review_request") {
       // Оценка встречи — сразу на форму оценки, а не на страницу события

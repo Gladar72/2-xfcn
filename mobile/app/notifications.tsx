@@ -30,6 +30,7 @@ interface NotificationItem {
   } | null;
   ticketCode: string | null;
   eventConversationId: string | null;
+  linkUserId?: string | null;
 }
 
 type Tab = "all" | "events" | "chats";
@@ -43,6 +44,9 @@ const MEETING_TYPES = new Set([
   "review_request",
   "boost_suggestion",
   "share_nudge",
+  "heart",
+  "heart_mutual",
+  "meet_hint",
 ]);
 
 /** Короткий заголовок карточки по типу — сам текст приходит с сервера. */
@@ -55,6 +59,9 @@ const TYPE_META: Record<string, { label: string; icon: IconName }> = {
   review_request: { label: "Оцени встречу", icon: "star" },
   boost_suggestion: { label: "Мало откликов", icon: "up" },
   share_nudge: { label: "Поделись событием", icon: "up" },
+  heart: { label: "Вам поставили сердечко", icon: "people" },
+  heart_mutual: { label: "Это взаимно!", icon: "people" },
+  meet_hint: { label: "Хочет на встречу", icon: "people" },
   subscription_expiring: { label: "Подписка", icon: "wallet" },
   subscription_expired: { label: "Подписка", icon: "wallet" },
   new_message: { label: "Сообщение", icon: "chat" },
@@ -85,6 +92,7 @@ function timeAgo(iso: string): string {
 /** Куда ведёт тап — как на веб-экране уведомлений, но по маршрутам приложения. */
 function targetOf(item: NotificationItem): string {
   if (item.type === "subscription_expiring" || item.type === "subscription_expired") return "/profile";
+  if ((item.type === "heart" || item.type === "heart_mutual" || item.type === "meet_hint") && item.linkUserId) return `/person/${item.linkUserId}`;
   if (item.type === "review_request") return item.linkEventId ? `/reviews?event=${item.linkEventId}` : "/reviews";
   if (item.type === "new_message") return item.linkConversationId ? `/chat/${item.linkConversationId}` : "/chats";
   if (item.linkEventId) return `/event/${item.linkEventId}`;
