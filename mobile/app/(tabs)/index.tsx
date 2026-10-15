@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { Image } from "expo-image";
@@ -17,6 +17,8 @@ import { costShort, dayShort, plural } from "@/lib/format";
 import type { Category, FeedEvent, MyProfile, PersonCard } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { fetchPendingApplications, type PendingApplications } from "@/lib/pending";
+import { distanceShort } from "@/lib/interests";
+import { refreshLocationSilently, shareLocation } from "@/lib/location";
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -30,16 +32,30 @@ export default function HomeScreen() {
   const [cityEvents, setCityEvents] = useState<CityEvent[]>([]);
   const [cityOpen, setCityOpen] = useState(false);
   const [people, setPeople] = useState<PersonCard[]>([]);
+  // Есть ли у меня свежая примерная точка — иначе предлагаем «Показать, кто рядом».
+  const [meHasLoc, setMeHasLoc] = useState(true);
+  const [geoBusy, setGeoBusy] = useState(false);
   const [unread, setUnread] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
   // Новая заявка на мою встречу — плашка над категориями, как в мини-приложении.
   const [req, setReq] = useState<PendingApplications | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
+  // «Люди рядом» и «Популярное» приходят немного перемешанными (shuffle=1 и случайная
+  // добавка на сервере) — при каждом заходе и раз в 2 минуты подборка обновляется.
+  const loadPeople = useCallback(() => {
+    return api<{ items: PersonCard[]; meHasLocation?: boolean }>("/api/people")
+      .then((r) => {
+        setPeople(r.items ?? []);
+        setMeHasLoc(r.meHasLocation !== false);
+      })
+      .catch(() => {});
+  }, []);
+
   const load = useCallback(async () => {
     const qs = cat ? `&category=${cat}` : "";
     await Promise.all([
-      api<{ items: FeedEvent[] }>(`/api/events?page=0${qs}`).then((r) => setEvents(r.items)).catch(() => setEvents([])),
+      api<{ items: FeedEvent[] }>(`/api/events?page=0&shuffle=1${qs}`).then((r) => setEvents(r.items)).catch(() => setEvents((prev) => prev ?? [])),
       api<{ items: FeedEvent[] }>(`/api/events?business=true`).then((r) => setBiz(r.items.filter((x) => x.isBusiness))).catch(() => {}),
       api<{ items: CityEvent[] }>("/api/city-events").then((r) => setCityEvents(r.items ?? [])).catch(() => {}),
     ]);
@@ -49,7 +65,7 @@ export default function HomeScreen() {
   useEffect(() => {
     api<MyProfile>("/api/me/profile").then((p) => setCity(p.city)).catch(() => {});
     api<{ categories: Category[] }>("/api/categories").then((r) => setCategories(r.categories.filter((c) => c.slug !== "custom"))).catch(() => {});
-    api<{ items: PersonCard[] }>("/api/people").then((r) => setPeople(r.items ?? [])).catch(() => {});
+    loadPeople();
     api<{ items: { unreadCount: number }[] }>("/api/conversations")
       .then((r) => setUnread(r.items.reduce((s, c) => s + (c.unreadCount > 0 ? 1 : 0), 0)))
       .catch(() => {});
@@ -71,6 +87,35 @@ export default function HomeScreen() {
     }, [])
   );
 
+  // Свежая геопозиция (если разрешение уже дано) и автообновление подборок, пока главная на экране.
+  useFocusEffect(
+    useCallback(() => {
+      refreshLocationSilently().then((ok) => {
+        if (ok) {
+          loadPeople();
+          load();
+        }
+      });
+      const t = setInterval(() => {
+        if (AppState.currentState !== "active") return;
+        loadPeople();
+        load();
+      }, 120e3);
+      return () => clearInterval(t);
+    }, [loadPeople, load])
+  );
+
+  async function allowGeo() {
+    setGeoBusy(true);
+    const ok = await shareLocation();
+    setGeoBusy(false);
+    if (ok) {
+      tapOk();
+      loadPeople();
+      load();
+    }
+  }
+
   async function changeCity(next: string) {
     setCityOpen(false);
     if (next === city) return;
@@ -81,7 +126,7 @@ export default function HomeScreen() {
       tapOk();
       setEvents(null);
       load();
-      api<{ items: PersonCard[] }>("/api/people").then((r) => setPeople(r.items ?? [])).catch(() => {});
+      loadPeople();
     } catch {
       setCity(prev);
     }
@@ -218,7 +263,25 @@ export default function HomeScreen() {
 
         {people.length > 0 && !cat ? (
           <>
-            <SectionHead title="Люди с похожими интересами" action="Листать" onAction={() => router.push("/people")} />
+            <SectionHead
+              title={people.some((p) => p.distanceM != null) ? "Люди рядом" : "Люди с похожими интересами"}
+              action="Листать"
+              onAction={() => router.push("/people")}
+            />
+            {!meHasLoc ? (
+              <Pressable onPress={allowGeo} disabled={geoBusy} style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.97 : 1 }], marginBottom: 12 }]}>
+                <Glass style={styles.geo}>
+                  <View style={styles.geoIc}>
+                    {geoBusy ? <ActivityIndicator color="#fff" /> : <Icon name="pin" color="#fff" size={20} />}
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={styles.geoTitle}>{geoBusy ? "Ищем, кто рядом…" : "Показать, кто рядом"}</Text>
+                    <Text style={styles.geoText}>Увидишь, сколько до людей и встреч — точный адрес никто не узнает</Text>
+                  </View>
+                  <Icon name="chev" size={18} color={colors.grey} />
+                </Glass>
+              </Pressable>
+            ) : null}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railOut} contentContainerStyle={styles.rail}>
               {people.map((p) => (
                 <Pressable
@@ -242,6 +305,12 @@ export default function HomeScreen() {
                     </View>
                   ) : null}
                   <View style={styles.pInfo}>
+                    {p.distanceM != null ? (
+                      <View style={styles.pDist}>
+                        <Icon name="pin" size={12} color="#fff" />
+                        <Text style={styles.pDistText}>{distanceShort(p.distanceM)}</Text>
+                      </View>
+                    ) : null}
                     <Text style={styles.pName} numberOfLines={2}>
                       {p.name}, {p.age}
                     </Text>
@@ -395,6 +464,12 @@ const styles = StyleSheet.create({
   pTag: { position: "absolute", top: 10, left: 10, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999, paddingHorizontal: 9, height: 26, justifyContent: "center" },
   pTagText: { fontFamily: FONT, color: "#fff", fontSize: 11.5 },
   pInfo: { position: "absolute", left: 12, right: 12, bottom: 10 },
+  pDist: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999, paddingLeft: 6, paddingRight: 8, height: 22, marginBottom: 4 },
+  pDistText: { fontFamily: FONT, color: "#fff", fontSize: 11.5, fontWeight: "600" },
+  geo: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 24, paddingVertical: 8, paddingLeft: 8, paddingRight: 14 },
+  geoIc: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" },
+  geoTitle: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink },
+  geoText: { fontFamily: FONT, fontSize: 13, lineHeight: 17, color: colors.grey },
   pName: { fontFamily: FONT, color: "#fff", fontSize: 16, fontWeight: "500" },
   pSub: { fontFamily: FONT, color: "rgba(255,255,255,0.9)", fontSize: 12 },
   afisha: { marginTop: 26, marginHorizontal: -20, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 12, overflow: "hidden" },
