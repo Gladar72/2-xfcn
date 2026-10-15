@@ -22,7 +22,17 @@ export const dynamic = "force-dynamic";
  */
 
 const BOT = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "Mesto_people_bot";
-const asset = (name: string) => readFile(join(process.cwd(), "assets/og", name));
+// Шрифты и логотип читаем один раз на «тёплый» экземпляр функции, а не на каждый запрос.
+const assetCache = new Map<string, Promise<Buffer>>();
+const asset = (name: string) => {
+  let p = assetCache.get(name);
+  if (!p) {
+    p = readFile(join(process.cwd(), "assets/og", name));
+    p.catch(() => assetCache.delete(name));
+    assetCache.set(name, p);
+  }
+  return p;
+};
 
 function seatsWord(n: number): string {
   const d = n % 10;
@@ -58,43 +68,53 @@ interface Cover {
   sourceUrl: string; // адрес для уменьшенной копии (размытый фон)
 }
 
-async function loadCover(photoUrl: string | null, origin: string): Promise<Cover | null> {
+/** Откуда брать обложку: заготовки — из jpg-копий в репозитории, свои фото — по https. */
+function coverSource(photoUrl: string | null, origin: string): { preset: string | null; url: string } | null {
   if (!photoUrl) return null;
+  const preset = photoUrl.match(/\/brand\/covers\/([a-z]+)\.webp(?:\?.*)?$/);
+  if (preset) return { preset: preset[1]!, url: `${origin}/brand/covers-jpg/${preset[1]}.jpg` };
+  if (!/^https:\/\//.test(photoUrl)) return null;
+  return { preset: null, url: photoUrl };
+}
+
+async function fetchImage(url: string, ms: number): Promise<{ buf: Buffer; type: string } | null> {
   try {
-    let buf: Buffer;
-    let type = "image/jpeg";
-    let sourceUrl: string;
-    const preset = photoUrl.match(/\/brand\/covers\/([a-z]+)\.webp(?:\?.*)?$/);
-    if (preset) {
-      buf = await readFile(join(process.cwd(), "public/brand/covers-jpg", `${preset[1]}.jpg`));
-      sourceUrl = `/brand/covers-jpg/${preset[1]}.jpg`;
+    const res = await fetch(url, { headers: { Accept: "image/jpeg,image/png" }, signal: AbortSignal.timeout(ms) });
+    const type = (res.headers.get("content-type") ?? "").split(";")[0] ?? "";
+    if (!res.ok || !/image\/(jpeg|jpg|png)/.test(type)) return null;
+    return { buf: Buffer.from(await res.arrayBuffer()), type };
+  } catch {
+    return null;
+  }
+}
+
+async function loadCover(src: { preset: string | null; url: string } | null, origin: string): Promise<Cover | null> {
+  if (!src) return null;
+  try {
+    let img: { buf: Buffer; type: string } | null;
+    if (src.preset) {
+      img = { buf: await readFile(join(process.cwd(), "public/brand/covers-jpg", `${src.preset}.jpg`)), type: "image/jpeg" };
     } else {
-      if (!/^https:\/\//.test(photoUrl)) return null;
-      const res = await fetch(photoUrl, { signal: AbortSignal.timeout(5000) });
-      type = (res.headers.get("content-type") ?? "").split(";")[0] ?? "";
-      if (!res.ok || !/image\/(jpeg|jpg|png)/.test(type)) return null;
-      buf = Buffer.from(await res.arrayBuffer());
-      sourceUrl = photoUrl;
+      // Свои фото бывают по 5–10 МБ: берём уменьшенную копию (1080 px) через оптимизатор
+      // картинок — она весит в десятки раз меньше и кэшируется. Не вышло — оригинал.
+      img =
+        (await fetchImage(`${origin}/_next/image?url=${encodeURIComponent(src.url)}&w=1080&q=80`, 5000)) ??
+        (await fetchImage(src.url, 6000));
     }
-    const size = imageSize(buf);
+    if (!img) return null;
+    const size = imageSize(img.buf);
     const ratio = size && size.w > 0 && size.h > 0 ? size.w / size.h : 4 / 3;
-    return { dataUrl: `data:${type};base64,${buf.toString("base64")}`, ratio, sourceUrl: sourceUrl.startsWith("/") ? `${origin}${sourceUrl}` : sourceUrl };
+    return { dataUrl: `data:${img.type};base64,${img.buf.toString("base64")}`, ratio, sourceUrl: src.url };
   } catch {
     return null;
   }
 }
 
 /** Крошечная (32 px) копия картинки — растянутая на весь фон, она выглядит размытой. */
-async function blurDataUrl(cover: Cover, origin: string): Promise<string | null> {
-  try {
-    const url = `${origin}/_next/image?url=${encodeURIComponent(cover.sourceUrl)}&w=32&q=50`;
-    const res = await fetch(url, { headers: { Accept: "image/jpeg,image/png" }, signal: AbortSignal.timeout(4000) });
-    const type = (res.headers.get("content-type") ?? "").split(";")[0] ?? "";
-    if (!res.ok || !/image\/(jpeg|jpg|png)/.test(type)) return null;
-    return `data:${type};base64,${Buffer.from(await res.arrayBuffer()).toString("base64")}`;
-  } catch {
-    return null;
-  }
+async function blurDataUrl(src: { url: string } | null, origin: string): Promise<string | null> {
+  if (!src) return null;
+  const img = await fetchImage(`${origin}/_next/image?url=${encodeURIComponent(src.url)}&w=32&q=50`, 4000);
+  return img ? `data:${img.type};base64,${img.buf.toString("base64")}` : null;
 }
 
 export async function GET(req: Request, { params }: { params: { id: string } }) {
@@ -113,13 +133,16 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     .maybeSingle();
   if (!e || !["published", "closed"].includes(e.status)) return new Response("not found", { status: 404 });
 
-  const [bold, medium, wordmark, cover] = await Promise.all([
+  // Обложка и её размытая копия — параллельно, а не одна за другой.
+  const src = coverSource(e.photo_url, origin);
+  const [bold, medium, wordmark, cover, blurRaw] = await Promise.all([
     asset("GolosText-Bold.ttf"),
     asset("GolosText-Medium.ttf"),
     asset("wordmark-dark.svg"),
-    loadCover(e.photo_url, origin),
+    loadCover(src, origin),
+    blurDataUrl(src, origin),
   ]);
-  const blur = cover ? await blurDataUrl(cover, origin) : null;
+  const blur = cover ? blurRaw : null;
 
   const date = new Date(`${e.event_date}T00:00:00Z`);
   const weekday = date.toLocaleDateString("ru-RU", { weekday: "long", timeZone: "UTC" });
@@ -298,7 +321,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         { name: "Golos", data: medium, weight: 500, style: "normal" },
         { name: "Golos", data: bold, weight: 700, style: "normal" },
       ],
-      headers: { "Cache-Control": "public, max-age=300, s-maxage=300" },
+      // Адрес картинки содержит ?v=<хэш обложки/названия/времени/мест> — при правке он меняется,
+      // поэтому готовую картинку можно долго держать в CDN и в браузере.
+      headers: { "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400" },
     }
   );
 }

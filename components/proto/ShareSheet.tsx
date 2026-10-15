@@ -76,6 +76,22 @@ export function ShareSheet({
   const v = hashKey(`${version}|${title}|${when}`);
   const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
   const igUrl = `${storyUrl}&ig=1`;
+  // Картинку для сторис рисуем заранее, пока человек смотрит событие: к нажатию
+  // «Поделиться» она уже готова (в кэше браузера и CDN), а не рисуется 3–5 секунд.
+  useEffect(() => {
+    if (!origin || !eventId) return;
+    const t = setTimeout(() => {
+      const im = new Image();
+      im.decoding = "async";
+      im.src = storyUrl;
+    }, open ? 0 : 1200);
+    return () => clearTimeout(t);
+  }, [origin, eventId, storyUrl, open]);
+  useEffect(() => {
+    if (!open || !origin) return;
+    const im = new Image();
+    im.src = igUrl;
+  }, [open, origin, igUrl]);
 
   async function copyLink(withText = true): Promise<boolean> {
     try {
