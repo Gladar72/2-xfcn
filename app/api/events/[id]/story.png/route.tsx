@@ -135,7 +135,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!/^[0-9a-f-]{36}$/.test(params.id)) return new Response("not found", { status: 404 });
   const reqUrl = new URL(req.url);
   const ig = reqUrl.searchParams.get("ig") === "1";
-  const glow = reqUrl.searchParams.get("glow") ?? "";
+  const glow = reqUrl.searchParams.get("glow") ?? "4";
   const origin = process.env.APP_URL?.replace(/\/$/, "") || reqUrl.origin;
 
   const t0 = Date.now();
@@ -168,7 +168,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const shadowRect = `data:image/png;base64,${shRect.toString("base64")}`;
   const shadowRound = `data:image/png;base64,${shRound.toString("base64")}`;
   const glowMask = `data:image/png;base64,${glowMaskBuf.toString("base64")}`;
-  const GK = glow === "1" ? 1.5 : 1.75;
+  const GK = glow === "1" ? 1.5 : glow === "4" ? 1.85 : 1.75;
   const Shade = ({ src, x, y, w, h }: { src: string; x: number; y: number; w: number; h: number }) => (
     // eslint-disable-next-line @next/next/no-img-element
     <img src={src} alt="" width={Math.round(w * 1.5)} height={Math.round(h * 1.5)} style={{ position: "absolute", left: Math.round(x - w * 0.25), top: Math.round(y - h * 0.25), width: Math.round(w * 1.5), height: Math.round(h * 1.5) }} />
@@ -277,12 +277,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
           <div style={{ fontSize: 42, fontWeight: 700, color: "#6C3BFF", display: "flex" }}>{time}</div>
         </div>
 
-        {cover && blur && glow === "3" ? <Shade src={shadowRect} x={(1080 - pw) / 2} y={photoTop + 40} w={pw} h={ph} /> : null}
+        {cover && blur && (glow === "3" || glow === "4") ? <Shade src={shadowRect} x={(1080 - pw) / 2} y={photoTop + 40} w={pw} h={ph} /> : null}
         {cover && blur && glow ? (
           // Своя тень у каждой картинки: цвета самой обложки, мягкие края.
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={glowSvg(blur, glowMask, Math.round(pw * GK), Math.round(ph * GK), glow === "1" ? 1.6 : 2.4, glow === "1" ? 1 : 1.45)}
+            src={glowSvg(blur, glowMask, Math.round(pw * GK), Math.round(ph * GK), glow === "1" ? 1.6 : glow === "4" ? 2.8 : 2.4, glow === "1" ? 1 : glow === "4" ? 1.8 : 1.45)}
             alt=""
             width={Math.round(pw * GK)}
             height={Math.round(ph * GK)}
