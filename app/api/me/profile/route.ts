@@ -59,6 +59,7 @@ export async function GET() {
     photos,
     interests,
     age: calculateAge(user.birth_date),
+    birthDate: user.birth_date,
     city: user.city,
     bio: user.bio,
     ratingAvg: user.rating_avg,
@@ -85,7 +86,8 @@ function calculateAge(birthDateIso: string): number {
 
 /**
  * PATCH /api/me/profile
- * Body: { name?: string, bio?: string, city?: string }
+ * Body: { name?: string, bio?: string, city?: string, birthDate?: "ГГГГ-ММ-ДД" }
+ * Дату рождения (возраст) можно менять без ограничений, но только 18+. Пол — нельзя.
  * Смена города — только из фиксированного списка городов России
  * (lib/data/russian-cities.ts), как и везде в приложении, где выбирается
  * город (поиск, лента) — иначе рассинхронизация с фильтрами по городу.
@@ -103,6 +105,18 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "invalid_name" }, { status: 422 });
     }
     update.name = name;
+  }
+
+  if (typeof body?.birthDate === "string") {
+    const v = body.birthDate.trim();
+    const d = new Date(`${v}T00:00:00Z`);
+    const adult = new Date();
+    adult.setFullYear(adult.getFullYear() - 18);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(v) || Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== v || d.getUTCFullYear() < 1920) {
+      return NextResponse.json({ error: "invalid_birth_date" }, { status: 422 });
+    }
+    if (d > adult) return NextResponse.json({ error: "under_18" }, { status: 422 });
+    update.birth_date = v;
   }
 
   if (typeof body?.bio === "string") {

@@ -12,6 +12,7 @@ import { goBack } from "@/lib/nav/back";
 
 interface Profile {
   name: string;
+  birthDate?: string | null;
   avatarUrl: string | null;
   photos?: string[];
   bio: string | null;
@@ -23,6 +24,8 @@ export default function EditProfilePage() {
   const router = useRouter();
   const [p, setP] = useState<Profile | null>(null);
   const [bio, setBio] = useState("");
+  const [name, setName] = useState("");
+  const [birthText, setBirthText] = useState("");
   const [busySlot, setBusySlot] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -36,6 +39,9 @@ export default function EditProfilePage() {
         if (d.error) return;
         setP(d);
         setBio(d.bio ?? "");
+        setName(d.name ?? "");
+        const m = String(d.birthDate ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+        setBirthText(m ? `${m[3]}.${m[2]}.${m[1]}` : "");
       })
       .catch(() => {});
   }, []);
@@ -81,13 +87,32 @@ export default function EditProfilePage() {
   }
 
   async function save() {
+    const nm = name.trim();
+    if (nm.length < 2) return flash("Имя — минимум 2 буквы");
+    const bm = birthText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (!bm) return flash("Дата рождения: ДД.ММ.ГГГГ");
+    const birthDate = `${bm[3]}-${bm[2]}-${bm[1]}`;
     setSaving(true);
     try {
-      const res = await fetch("/api/me/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ bio }) });
+      const res = await fetch("/api/me/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bio, name: nm, birthDate }),
+      });
+      const d = await res.json().catch(() => ({}));
       if (res.ok) {
         flash("Сохранено");
         setTimeout(() => goBack(router, "/profile"), 600);
-      } else flash("Не получилось сохранить");
+      } else
+        flash(
+          d.error === "under_18"
+            ? "Сервис доступен только с 18 лет"
+            : d.error === "invalid_birth_date"
+              ? "Проверь дату рождения: ДД.ММ.ГГГГ"
+              : d.error === "invalid_name"
+                ? "Имя — от 2 до 50 букв"
+                : "Не получилось сохранить"
+        );
     } finally {
       setSaving(false);
     }
@@ -162,6 +187,24 @@ export default function EditProfilePage() {
           })}
         </div>
         <input ref={input} type="file" accept="image/*" hidden onChange={onFile} />
+
+        <span className="lbl">Имя</span>
+        <label className="field gl">
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={50} placeholder="Имя" />
+        </label>
+        <span className="lbl">Дата рождения</span>
+        <label className="field gl">
+          <input
+            value={birthText}
+            onChange={(e) => {
+              const d = e.target.value.replace(/\D/g, "").slice(0, 8);
+              setBirthText([d.slice(0, 2), d.slice(2, 4), d.slice(4, 8)].filter(Boolean).join("."));
+            }}
+            placeholder="ДД.ММ.ГГГГ"
+            inputMode="numeric"
+            maxLength={10}
+          />
+        </label>
 
         <span className="lbl">О себе</span>
         <label className="field gl ta">
