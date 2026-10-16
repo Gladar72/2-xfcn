@@ -390,6 +390,26 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       );
     }
 
+    // Старые дата/время/место — для запрета переноса в прошлое и для уведомления участников.
+    const { data: beforeRow } = await admin
+      .from("events")
+      .select("event_date, event_time, event_end_time, place_name, city")
+      .eq("id", eventId)
+      .maybeSingle();
+
+    // Перенести встречу в прошлое нельзя (если дату/время не трогали — не мешаем сохранить остальное).
+    const timeMoved =
+      !beforeRow ||
+      beforeRow.event_date !== eventDate ||
+      String(beforeRow.event_time ?? "").slice(0, 5) !== eventTime.slice(0, 5);
+    if (
+      timeMoved &&
+      eventTiming({ event_date: eventDate, event_time: eventTime, event_end_time: eventEndTime, city: beforeRow?.city, longitude }).start.getTime() <=
+        Date.now()
+    ) {
+      return invalid("eventDate", "Это время уже прошло — выбери дату и время в будущем.");
+    }
+
     const updatePayload: Record<string, unknown> = {
       title,
       description: description || null,
@@ -463,21 +483,15 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     // Существенные изменения (дата/время/место) — уведомляем участников в
     // чате встречи, см. явное требование ТЗ. Сравниваем со СТАРЫМИ
     // значениями, полученными ДО этого запроса.
-    const { data: beforeRow } = await admin
-      .from("events")
-      .select("event_date, event_time, event_end_time, place_name")
-      .eq("id", eventId)
-      .maybeSingle();
-
     const { error: updateError } = await admin.from("events").update(updatePayload).eq("id", eventId);
     if (updateError) return NextResponse.json({ error: "update_failed" }, { status: 500 });
 
+    // В базе время хранится как «19:00:00», а приходит «19:00» — сравниваем по ЧЧ:ММ,
+    // иначе любое сохранение считалось «время изменилось» и участникам летело уведомление.
+    const hm = (t: unknown) => String(t ?? "").slice(0, 5);
+    const timeChanged = !!beforeRow && (hm(beforeRow.event_time) !== hm(eventTime) || hm(beforeRow.event_end_time) !== hm(eventEndTime));
     const significantChange =
-      beforeRow &&
-      (beforeRow.event_date !== eventDate ||
-        beforeRow.event_time !== eventTime ||
-        beforeRow.event_end_time !== eventEndTime ||
-        beforeRow.place_name !== placeName);
+      beforeRow && (beforeRow.event_date !== eventDate || timeChanged || beforeRow.place_name !== placeName);
 
     if (significantChange) {
       await notifyParticipantsOfChange(admin, eventId, {
@@ -486,7 +500,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
         eventEndTime,
         placeName,
         dateChanged: beforeRow!.event_date !== eventDate,
-        timeChanged: beforeRow!.event_time !== eventTime || beforeRow!.event_end_time !== eventEndTime,
+        timeChanged,
         placeChanged: beforeRow!.place_name !== placeName,
       });
     }
