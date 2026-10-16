@@ -55,11 +55,18 @@ export interface EventCard {
   photoUrl: string | null;
 }
 
+/** Анонимная встреча: имя скрыто, но видно, кто зовёт — девушка или парень. */
+function anonLine(g: string | null | undefined): string {
+  if (g === "female") return "🙈 Зовёт девушка — профиль откроется после одобрения";
+  if (g === "male") return "🙈 Зовёт парень — профиль откроется после одобрения";
+  return "🙈 Организатор анонимный — профиль откроется после одобрения";
+}
+
 export async function buildEventCard(admin: Admin, eventId: string): Promise<EventCard> {
   const { data: e } = await admin
     .from("events")
     .select(
-      "id, title, description, city, place_name, address, event_date, event_time, event_end_time, seats_total, seats_taken, status, is_business, cost_type, business_pricing_type, business_pricing_details, photo_url, is_anonymous"
+      "id, title, description, city, place_name, address, event_date, event_time, event_end_time, seats_total, seats_taken, status, is_business, cost_type, business_pricing_type, business_pricing_details, photo_url, is_anonymous, organizer:users(gender)"
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -78,6 +85,7 @@ export async function buildEventCard(admin: Admin, eventId: string): Promise<Eve
   const details = [
     `📅 ${formatWhen(e.event_date, e.event_time, e.event_end_time)}`,
     place ? `📍 ${escapeHtml(place)}` : "",
+    e.is_anonymous ? anonLine((e.organizer as unknown as { gender: string | null } | null)?.gender) : "",
     free > 0 ? `👥 Свободно ${free} из ${e.seats_total} мест` : "👥 Мест больше нет — но можно встать в очередь",
     priceLine(e) ? escapeHtml(priceLine(e)) : "",
   ].filter(Boolean);

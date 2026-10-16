@@ -1,5 +1,6 @@
 "use client";
 
+import { anonymousTag } from "@/lib/events/anonymity";
 import { EventPlaceMap } from "@/components/events/EventPlaceMap";
 import { markerIconFor } from "@/components/map/EventsMap";
 import { useEffect, useState } from "react";
@@ -48,6 +49,7 @@ interface EventDetails {
     name: string;
     avatarUrl: string | null;
     age: number | null;
+    gender?: string | null;
     ratingAvg: number;
     completedMeetingsCount: number;
   } | null;
@@ -378,6 +380,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const free = event.seatsTotal - event.seatsTaken;
   const isFull = free <= 0;
   const hid = !!event.organizerHidden;
+  // Анонимно, но пол организатора видно: «Девушка» / «Парень».
+  const anonG = event.organizer?.gender;
+  const anonWho = anonG === "female" ? "Девушка" : anonG === "male" ? "Парень" : null;
+  const anonPal = anonG === "female" ? "pink" : anonG === "male" ? "sky" : "lilac";
   const active = event.status === "published" || event.status === "closed";
   const canManage = mine && active;
   const hasStarted = !!event.startsAt && new Date(event.startsAt).getTime() <= Date.now();
@@ -518,7 +524,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               <img src={icon} alt="" style={{ width: 26, height: 26, marginLeft: -8 }} />
               {catName}
             </span>
-            {!event.isBusiness && <span className="pill gl">{event.isAnonymous ? "Анонимно" : "Открытая встреча"}</span>}
+            {!event.isBusiness && <span className="pill gl">{event.isAnonymous ? anonymousTag(event.organizer?.gender) : "Открытая встреча"}</span>}
             {isLive && (
               <span className="pill gl">
                 <span className="live">
@@ -554,10 +560,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             (hid ? (
               <button className="host gl" onClick={() => setAnonOpen(true)}>
                 <span className="hv">
-                  <Chr shape="ball" pal="lilac" face="hidden" />
+                  <Chr shape="ball" pal={anonPal} face="hidden" />
                 </span>
                 <div>
-                  <b>Организатор скрыт · анонимно</b>
+                  <b>{anonWho ? `${anonWho} · анонимно` : "Организатор скрыт · анонимно"}</b>
                   <span>
                     {organizer.ratingAvg > 0 ? `★ ${organizer.ratingAvg.toFixed(1).replace(".", ",")} · ` : ""}откроется после одобрения заявки
                   </span>
@@ -666,9 +672,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               {organizer && hid && (
                 <button onClick={() => setAnonOpen(true)}>
                   <span className="anon">
-                    <Chr shape="ball" pal="lilac" face="hidden" />
+                    <Chr shape="ball" pal={anonPal} face="hidden" />
                   </span>
-                  Скрыт
+                  {anonWho ?? "Скрыт"}
                 </button>
               )}
               {event.participants.map((p) => (
@@ -920,8 +926,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
 
       <Sheet open={anonOpen} onClose={() => setAnonOpen(false)}>
         <div className="anonbox">
-          <Chr shape="ball" pal="lilac" face="hidden" />
-          <b>Организатор скрыл профиль</b>
+          <Chr shape="ball" pal={anonPal} face="hidden" />
+          <b>{anonG === "female" ? "Девушка скрыла профиль" : anonG === "male" ? "Парень скрыл профиль" : "Организатор скрыл профиль"}</b>
           <span>Так делают, когда хотят сначала познакомиться вживую. Имя, фото и точный адрес откроются, когда организатор одобрит заявку.</span>
         </div>
         <button className="btn k" onClick={() => setAnonOpen(false)}>

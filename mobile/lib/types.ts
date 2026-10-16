@@ -9,8 +9,14 @@ export interface Organizer {
   name: string;
   avatarUrl: string | null;
   age: number;
+  gender?: string | null;
   ratingAvg: number;
   completedMeetingsCount: number;
+}
+
+/** «Анонимно · девушка» — пол анонимного организатора видно всем. */
+export function anonymousTag(g: string | null | undefined): string {
+  return g === "female" ? "Анонимно · девушка" : g === "male" ? "Анонимно · парень" : "Анонимно";
 }
 
 export interface FeedEvent {

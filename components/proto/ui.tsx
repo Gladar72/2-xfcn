@@ -5,6 +5,7 @@
  * Разметка повторяет прототип один в один: те же классы, та же структура,
  * поэтому и вид, и анимации совпадают с презентацией.
  */
+import { anonymousTag } from "@/lib/events/anonymity";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -124,7 +125,7 @@ export interface HeroEvent {
   category?: { slug: string; name?: string } | null;
   trainingType?: { slug: string; name?: string } | null;
   goingPreview?: Person[];
-  organizer?: { name: string } | null;
+  organizer?: { name: string; gender?: string | null } | null;
   /** Сколько до места от моей примерной точки (метры; null — неизвестно). */
   distanceM?: number | null;
 }
@@ -165,7 +166,7 @@ export function HeroCard({ e, full }: { e: HeroEvent; full?: boolean }) {
           )}
         </span>
         {e.isAnonymous ? (
-          <span className="pill glass">Анонимно</span>
+          <span className="pill glass">{anonymousTag(e.organizer?.gender)}</span>
         ) : (
           <span className="rb glass" style={{ width: 38, height: 38 }}>
             <Ic n="save" c="s" />
@@ -219,7 +220,7 @@ export function RowCard({
           )}
           {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}
           {distanceShort(e.distanceM) ? ` · ${distanceShort(e.distanceM)}` : ""}
-          {e.isAnonymous && e.organizerHidden ? " · анонимно" : ""}
+          {e.isAnonymous && e.organizerHidden ? ` · ${anonymousTag(e.organizer?.gender).toLowerCase().replace(" · ", ", ")}` : ""}
         </span>
         <span>
           <Faces people={e.goingPreview ?? []} />{" "}
