@@ -1,10 +1,23 @@
-import { useEffect, useState } from "react";
-import { KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import {
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import Constants from "expo-constants";
 import * as AppleAuthentication from "expo-apple-authentication";
-import { Aurora, Btn, Glass, Mosya, Wordmark } from "@/components/brand";
+import { Aurora, Btn, Glass, Mosya, Title, Wordmark, type MosyaPose } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -15,6 +28,76 @@ import { colors, FONT } from "@/lib/theme";
 
 // Вход через Apple (app.json → extra.appleLogin). App Store требует его, если есть вход через Telegram.
 const APPLE_ENABLED = Platform.OS === "ios" && !!(Constants.expoConfig?.extra as { appleLogin?: boolean } | undefined)?.appleLogin;
+
+/** Слайды на экране входа: что умеет «Место». Листаются сами и пальцем. */
+const SLIDES: { pose: MosyaPose; plain: string; em: string; sub: string }[] = [
+  { pose: "wave", plain: "Есть куда пойти. ", em: "Найдём, с кем", sub: "Кофе, спорт, кино, настолки — собери компанию за пару минут" },
+  { pose: "phone", plain: "Встречи ", em: "рядом", sub: "Видно, кто и что зовёт поблизости — и как далеко идти" },
+  { pose: "glasses", plain: "Ты решаешь, ", em: "кого позвать", sub: "Все приходят по заявке, а детали — в общем чате встречи" },
+];
+
+function Intro({ compact }: { compact: boolean }) {
+  const { width } = useWindowDimensions();
+  const w = width - 40;
+  const ref = useRef<ScrollView>(null);
+  const [i, setI] = useState(0);
+  const touched = useRef(false);
+
+  useEffect(() => {
+    if (compact) return;
+    const t = setInterval(() => {
+      if (touched.current) return;
+      setI((cur) => {
+        const n = (cur + 1) % SLIDES.length;
+        ref.current?.scrollTo({ x: n * w, animated: true });
+        return n;
+      });
+    }, 4000);
+    return () => clearInterval(t);
+  }, [compact, w]);
+
+  function onEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
+    setI(Math.round(e.nativeEvent.contentOffset.x / w));
+  }
+
+  // Ввод почты: клавиатура съедает место — оставляем только Мосю и логотип.
+  if (compact) {
+    return (
+      <View style={styles.hero}>
+        <Mosya pose="phone" size={130} />
+        <Wordmark height={40} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.hero}>
+      <Wordmark height={40} />
+      <ScrollView
+        ref={ref}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onScrollBeginDrag={() => (touched.current = true)}
+        onMomentumScrollEnd={onEnd}
+        style={{ width: w, flexGrow: 0 }}
+      >
+        {SLIDES.map((sl) => (
+          <View key={sl.pose} style={[styles.slide, { width: w }]}>
+            <Mosya pose={sl.pose} size={180} />
+            <Title plain={sl.plain} em={sl.em} size={28} style={styles.slideTitle} />
+            <Text style={styles.tagline}>{sl.sub}</Text>
+          </View>
+        ))}
+      </ScrollView>
+      <View style={styles.dots}>
+        {SLIDES.map((sl, k) => (
+          <View key={sl.pose} style={[styles.dot, k === i && styles.dotOn]} />
+        ))}
+      </View>
+    </View>
+  );
+}
 
 export default function LoginScreen() {
   const { handleAuthResult } = useAuth();
@@ -73,11 +156,7 @@ export default function LoginScreen() {
       <Aurora />
       <SafeAreaView style={{ flex: 1 }}>
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.wrap}>
-          <View style={styles.hero}>
-            <Mosya pose="wave" size={190} />
-            <Wordmark height={52} />
-            <Text style={styles.tagline}>Есть куда пойти. Найдём, с кем</Text>
-          </View>
+          <Intro compact={mode === "email"} />
 
           {mode === "buttons" ? (
             <View style={{ gap: 10 }}>
@@ -150,7 +229,12 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   wrap: { flex: 1, paddingHorizontal: 20, paddingBottom: 10, justifyContent: "space-between" },
   hero: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
-  tagline: { fontFamily: FONT, fontSize: 16, color: colors.ink2 },
+  tagline: { fontFamily: FONT, fontSize: 15.5, lineHeight: 21, color: colors.ink2, textAlign: "center", paddingHorizontal: 12 },
+  slide: { alignItems: "center", gap: 12 },
+  slideTitle: { textAlign: "center" },
+  dots: { flexDirection: "row", gap: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(108,59,255,0.22)" },
+  dotOn: { width: 20, backgroundColor: colors.violet },
   apple: { height: 56, width: "100%" },
   hint: { fontFamily: FONT, fontSize: 13, color: colors.grey, textAlign: "center", marginTop: 4, paddingHorizontal: 8 },
   field: { height: 56, borderRadius: 999, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18 },
