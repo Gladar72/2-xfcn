@@ -5,6 +5,16 @@ import Link from "next/link";
 import { useGuide } from "@/lib/mosya/guide";
 import { Cover, EmptyIll, Ic, Screen, dayLong, eventIcon } from "@/components/proto/ui";
 import { ReviewSheet, type ReviewData } from "@/components/proto/ReviewSheet";
+import { photoThumb } from "@/lib/photos/thumb";
+import { doneHints, markHintDone } from "@/lib/meet-hints";
+
+interface MeetHint {
+  notificationId: string;
+  userId: string;
+  name: string;
+  age: number | null;
+  avatarUrl: string | null;
+}
 
 interface MyEvent {
   id: string;
@@ -38,6 +48,21 @@ export default function MyEventsPage() {
   const [reviewable, setReviewable] = useState<Reviewable[]>([]);
   const [review, setReview] = useState<{ eventId: string; member: { id: string; name: string } } | null>(null);
   useGuide("myEvents");
+  // «Марина хочет с тобой на встречу» — намёки, которые ещё не разобраны.
+  const [hints, setHints] = useState<MeetHint[]>([]);
+  useEffect(() => {
+    fetch("/api/me/meet-hints")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const done = doneHints();
+        setHints(((d?.items ?? []) as MeetHint[]).filter((h) => !done.has(h.notificationId)));
+      })
+      .catch(() => {});
+  }, []);
+  function closeHint(h: MeetHint) {
+    markHintDone(h.notificationId);
+    setHints((l) => l.filter((x) => x.notificationId !== h.notificationId));
+  }
 
   useEffect(() => {
     fetch("/api/conversations")
@@ -94,7 +119,42 @@ export default function MyEventsPage() {
           {unread > 0 && <span className="cnt">{unread > 9 ? "9+" : unread}</span>}
         </Link>
       </div>
-      <div className="seg gl">
+      {hints.slice(0, 3).map((h) => (
+        <div key={h.notificationId} className="gl" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 12px 12px 14px", borderRadius: 22, margin: "14px 0 0" }}>
+          <span style={{ position: "relative", width: 46, height: 46, flex: "none" }}>
+            {h.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={photoThumb(h.avatarUrl, 120)} alt="" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover" }} />
+            ) : (
+              <span style={{ display: "grid", placeItems: "center", width: 46, height: 46, borderRadius: "50%", background: "var(--g)", color: "#fff", fontWeight: 600 }}>
+                {h.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <span style={{ position: "absolute", right: -4, bottom: -4, fontSize: 18, lineHeight: 1 }}>👋</span>
+          </span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <b style={{ display: "block", fontSize: 14.5, lineHeight: 1.25 }}>
+              {h.name}
+              {h.age ? `, ${h.age}` : ""} хочет с тобой на встречу
+            </b>
+            <span className="muted" style={{ display: "block", fontSize: 12.5, marginTop: 2 }}>
+              Позови куда-нибудь вместе
+            </span>
+          </span>
+          <Link
+            className="btn v"
+            href={`/people/${h.userId}?invite=1`}
+            onClick={() => markHintDone(h.notificationId)}
+            style={{ width: "auto", height: 38, minHeight: 38, padding: "0 14px", fontSize: 14, flex: "none" }}
+          >
+            Позвать
+          </Link>
+          <button aria-label="Скрыть" onClick={() => closeHint(h)} style={{ background: "none", border: 0, padding: 4, color: "inherit", opacity: 0.5, flex: "none" }}>
+            <Ic n="close" c="xs" />
+          </button>
+        </div>
+      ))}
+      <div className="seg gl" style={hints.length ? { marginTop: 14 } : undefined}>
         <span className="si" style={{ width: "calc(50% - 4px)", transform: scope === "archive" ? "translateX(100%)" : "none" }} />
         <button className={scope === "upcoming" ? "on" : ""} onClick={() => setScope("upcoming")}>
           Предстоящие

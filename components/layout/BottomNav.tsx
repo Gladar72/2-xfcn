@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
+import { doneHints } from "@/lib/meet-hints";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Ic } from "@/components/proto/ui";
@@ -25,14 +26,32 @@ export function BottomNav() {
   const navRef = useRef<HTMLElement>(null);
   const [ind, setInd] = useState<{ x: number; on: boolean }>({ x: 0, on: false });
   // Цифра на «Встречи» — сколько новых заявок ждут ответа на мои встречи.
+  // Плюс намёки «Хочу на встречу», которые ещё не разобраны.
   const [pending, setPending] = useState(0);
+  const [hints, setHints] = useState<string[]>([]);
+  const [hintsDone, setHintsDone] = useState(0);
   useEffect(() => {
     if (!isTab) return;
     fetch("/api/me/pending-applications")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setPending(typeof d?.count === "number" ? d.count : 0))
       .catch(() => {});
+    fetch("/api/me/meet-hints")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setHints(((d?.items ?? []) as { notificationId: string }[]).map((h) => h.notificationId)))
+      .catch(() => {});
   }, [pathname, isTab]);
+  useEffect(() => {
+    const on = () => setHintsDone((n) => n + 1);
+    window.addEventListener("mesto:hints", on);
+    return () => window.removeEventListener("mesto:hints", on);
+  }, []);
+  const openHints = useMemo(() => {
+    const done = doneHints();
+    return hints.filter((id) => !done.has(id)).length;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hints, hintsDone]);
+  const badge = pending + openHints;
 
   useEffect(() => {
     const on = navRef.current?.querySelector<HTMLElement>(".tab.on");
@@ -56,12 +75,12 @@ export function BottomNav() {
             style={{ position: "relative" }}
           >
             <Ic n={t.icon} />
-            {t.href === "/my-events" && pending > 0 && (
+            {t.href === "/my-events" && badge > 0 && (
               <span
-                aria-label={`Новых заявок: ${pending}`}
+                aria-label={`Новое на встречах: ${badge}`}
                 style={{ position: "absolute", top: 4, left: "58%", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 99, background: "#FF3B6B", color: "#fff", fontSize: 11, fontWeight: 700, lineHeight: "18px", textAlign: "center", boxShadow: "0 0 0 2px rgba(22,18,31,.85)" }}
               >
-                {pending > 9 ? "9+" : pending}
+                {badge > 9 ? "9+" : badge}
               </span>
             )}
             <span className="lb">{t.label}</span>
