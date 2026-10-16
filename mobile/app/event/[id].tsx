@@ -16,7 +16,7 @@ import { api, type ApiError } from "@/lib/api";
 import { costShort, formatEventDate, seatsLeft } from "@/lib/format";
 import { openRoute } from "@/lib/route";
 import { CATEGORY_SHORT, colors, eventIcon, FONT } from "@/lib/theme";
-import type { EventDetail } from "@/lib/types";
+import { anonymousTag, type EventDetail } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 
 const APPLY_ERRORS: Record<string, string> = {
@@ -252,7 +252,7 @@ export default function EventScreen() {
           <View style={styles.badges}>
             <Pill label={catLabel} />
             {live ? <Pill kind="live" label="Идёт сейчас" /> : null}
-            {event.isAnonymous ? <Pill kind="dark" label="Анонимно" icon={<Icon name="mask" size={14} color="#fff" />} /> : null}
+            {event.isAnonymous ? <Pill kind="dark" label={anonymousTag(event.organizer?.gender)} icon={<Icon name="mask" size={14} color="#fff" />} /> : null}
           </View>
           <Text style={styles.title}>{event.title}</Text>
 

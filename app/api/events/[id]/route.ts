@@ -11,7 +11,7 @@ import { sendPushToUsers } from "@/lib/push/expo";
 import { shortTitle } from "@/lib/notify/user";
 import { finalizeCompletedEvents } from "@/lib/reviews/complete-due-events";
 import { clearFeedCache } from "@/lib/data/feed-cache";
-import { ANONYMOUS_ORGANIZER_NAME, canSeeAnonymousDetails, fuzzCoordinate } from "@/lib/events/anonymity";
+import { anonGender, anonymousOrganizerName, canSeeAnonymousDetails, fuzzCoordinate } from "@/lib/events/anonymity";
 
 /**
  * GET /api/events/[id]
@@ -32,7 +32,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       cost_type, is_business, business_pricing_type, business_pricing_details, has_chat, photo_url, is_anonymous, created_at,
       category:categories(slug, name, emoji),
       training_type:training_types(slug, name, emoji),
-      organizer:users(id, name, avatar_url, birth_date, rating_avg, completed_meetings_count)
+      organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count)
       `
     )
     .eq("id", eventId)
@@ -45,6 +45,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     name: string;
     avatar_url: string | null;
     birth_date: string;
+    gender: string | null;
     rating_avg: number;
     completed_meetings_count: number;
   } | null;
@@ -186,7 +187,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     organizer: organizerRow
       ? {
           id: revealed ? organizerRow.id : "anonymous",
-          name: revealed ? organizerRow.name : ANONYMOUS_ORGANIZER_NAME,
+          name: revealed ? organizerRow.name : anonymousOrganizerName(organizerRow.gender),
+          gender: anonGender(organizerRow.gender),
           avatarUrl: revealed ? organizerRow.avatar_url : null,
           age: revealed ? calculateAge(organizerRow.birth_date) : null,
           ratingAvg: organizerRow.rating_avg,

@@ -11,7 +11,7 @@ import { Icon } from "./Icon";
 import { colors, eventIcon, FONT } from "@/lib/theme";
 import { costShort, dayShort } from "@/lib/format";
 import { distanceShort } from "@/lib/interests";
-import type { FeedEvent } from "@/lib/types";
+import { anonymousTag, type FeedEvent } from "@/lib/types";
 
 const STATUS_LABEL = { pending: "Заявка отправлена", accepted: "Ты идёшь", rejected: "Не подтвердили" } as const;
 
@@ -50,7 +50,7 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
         </View>
         {e.isAnonymous ? (
           <View style={styles.glassPill}>
-            <Text style={styles.glassText}>Анонимно</Text>
+            <Text style={styles.glassText}>{anonymousTag(e.organizer?.gender)}</Text>
           </View>
         ) : null}
       </View>

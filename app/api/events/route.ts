@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ANONYMOUS_ORGANIZER_NAME, canSeeAnonymousDetails } from "@/lib/events/anonymity";
+import { anonGender, anonymousOrganizerName, canSeeAnonymousDetails } from "@/lib/events/anonymity";
 import { runInBackground, sendInBatches } from "@/lib/server/background";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -333,6 +333,7 @@ export async function GET(req: NextRequest) {
       name: string;
       avatar_url: string | null;
       birth_date: string;
+      gender: string | null;
       rating_avg: number;
       completed_meetings_count: number;
     } | null;
@@ -379,6 +380,7 @@ export async function GET(req: NextRequest) {
             name: organizer.name,
             avatarUrl: organizer.avatar_url,
             age: calculateAge(organizer.birth_date),
+            gender: anonGender(organizer.gender),
             ratingAvg: organizer.rating_avg,
             completedMeetingsCount: organizer.completed_meetings_count,
           }
@@ -449,7 +451,7 @@ export async function GET(req: NextRequest) {
             placeName: null,
             address: null,
             organizer: item.organizer
-              ? { ...item.organizer, id: "anonymous", name: ANONYMOUS_ORGANIZER_NAME, avatarUrl: null, age: null }
+              ? { ...item.organizer, id: "anonymous", name: anonymousOrganizerName(item.organizer.gender), avatarUrl: null, age: null }
               : null,
           };
       return {

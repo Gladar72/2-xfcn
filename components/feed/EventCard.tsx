@@ -1,5 +1,6 @@
 "use client";
 
+import { anonymousTag } from "@/lib/events/anonymity";
 import Image from "next/image";
 import Link from "next/link";
 import clsx from "clsx";
@@ -25,6 +26,7 @@ export interface EventCardData {
     name: string;
     avatarUrl: string | null;
     age: number | null;
+    gender?: string | null;
     ratingAvg: number;
     completedMeetingsCount: number;
   } | null;
@@ -119,7 +121,7 @@ export function EventCard({
             Нужно ещё {seatsLeft} {pluralPeople(seatsLeft)}
           </span>
         )}
-        {event.isAnonymous && <span className="m-chip m-chip-glass">Анонимно</span>}
+        {event.isAnonymous && <span className="m-chip m-chip-glass">{anonymousTag(event.organizer?.gender)}</span>}
         {event.isMine && <span className="m-chip m-chip-glass">Ваша встреча</span>}
       </div>
 

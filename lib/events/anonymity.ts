@@ -11,6 +11,21 @@
  * обычно. Бизнес-события анонимными быть не могут.
  */
 export const ANONYMOUS_ORGANIZER_NAME = "Анонимный организатор";
+/** Пол анонимного организатора — его видно всем (имя и фото — нет). */
+export type AnonGender = "female" | "male" | null;
+export function anonGender(g: string | null | undefined): AnonGender {
+  return g === "female" || g === "male" ? g : null;
+}
+/** «Анонимная девушка» / «Анонимный парень» — вместо имени скрытого организатора. */
+export function anonymousOrganizerName(g: string | null | undefined): string {
+  const x = anonGender(g);
+  return x === "female" ? "Анонимная девушка" : x === "male" ? "Анонимный парень" : ANONYMOUS_ORGANIZER_NAME;
+}
+/** «Анонимно · девушка» — подпись-чип у анонимной встречи. */
+export function anonymousTag(g: string | null | undefined): string {
+  const x = anonGender(g);
+  return x === "female" ? "Анонимно · девушка" : x === "male" ? "Анонимно · парень" : "Анонимно";
+}
 export const HIDDEN_PLACE_TEXT = "Место откроется после одобрения заявки";
 
 /** Видит ли зритель организатора и точный адрес анонимной встречи. */

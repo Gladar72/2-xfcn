@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ANONYMOUS_ORGANIZER_NAME, fuzzCoordinate } from "@/lib/events/anonymity";
+import { anonGender, anonymousOrganizerName, fuzzCoordinate } from "@/lib/events/anonymity";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { eventTiming, eventUtcOffsetHours } from "@/lib/events/timing";
@@ -195,9 +195,9 @@ export async function GET(req: NextRequest) {
       };
     })(),
     organizer: (() => {
-      const o = e.organizer as unknown as { name: string | null; avatar_url: string | null } | null;
+      const o = e.organizer as unknown as { name: string | null; avatar_url: string | null; gender: string | null } | null;
       if (!o) return null;
-      if (hiddenIds.has(e.id)) return { name: ANONYMOUS_ORGANIZER_NAME, avatarUrl: null };
+      if (hiddenIds.has(e.id)) return { name: anonymousOrganizerName(o.gender), avatarUrl: null, gender: anonGender(o.gender) };
       return { name: o.name ?? "", avatarUrl: o.avatar_url };
     })(),
   }));
