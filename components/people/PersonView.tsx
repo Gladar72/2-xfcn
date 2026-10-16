@@ -234,6 +234,16 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         .catch(() => setMyEvents([]));
   }
 
+  // /people/<id>?invite=1 — пришли из карточки «Хочет на встречу»: сразу открываем «Позвать».
+  const autoInvite = useRef(false);
+  useEffect(() => {
+    if (!person || deck || autoInvite.current) return;
+    if (new URLSearchParams(window.location.search).get("invite") !== "1") return;
+    autoInvite.current = true;
+    openInvite();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [person?.id, deck]);
+
   async function report(reason: string) {
     if (!person) return;
     setMoreOpen(false);
