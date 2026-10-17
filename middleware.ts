@@ -99,12 +99,34 @@ async function verifySession(token: string | undefined): Promise<string | null> 
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  // Прокладка к Telegram Bot API: /api/telegram/relay/<путь> → /api/telegram/relay?__p=<путь>.
+  // Прокладка к Telegram Bot API для сервера в России: /api/telegram/relay/<путь> → api.telegram.org/<путь>.
+  // Пересылаем прямо отсюда (переписывание адреса на Vercel подвешивает POST-запросы с телом).
+  // Пропускаем только токен нашего бота — это не открытый прокси.
   if (pathname.startsWith("/api/telegram/relay/")) {
-    const url = req.nextUrl.clone();
-    url.pathname = "/api/telegram/relay";
-    url.searchParams.set("__p", pathname.slice("/api/telegram/relay/".length));
-    return NextResponse.rewrite(url);
+    const rest = pathname.slice("/api/telegram/relay/".length);
+    const parts = rest.split("/");
+    const isFile = parts[0] === "file";
+    const own = process.env.TELEGRAM_BOT_TOKEN;
+    if (!own || (isFile ? parts[1] : parts[0]) !== `bot${own}` || parts.length < (isFile ? 3 : 2)) {
+      return NextResponse.json({ ok: false, description: "Not Found" }, { status: 404 });
+    }
+    const headers = new Headers();
+    const ct = req.headers.get("content-type");
+    if (ct) headers.set("content-type", ct);
+    const hasBody = req.method !== "GET" && req.method !== "HEAD";
+    try {
+      const res = await fetch(`https://api.telegram.org/${rest}${req.nextUrl.search}`, {
+        method: req.method,
+        headers,
+        body: hasBody ? await req.arrayBuffer() : undefined,
+      });
+      return new NextResponse(res.body, {
+        status: res.status,
+        headers: { "content-type": res.headers.get("content-type") ?? "application/json" },
+      });
+    } catch {
+      return NextResponse.json({ ok: false, error_code: 502, description: "Relay error" }, { status: 502 });
+    }
   }
   // Сервер в России не видит telegram.org: скрипт Mini App берём у Vercel (адрес прокладки).
   const tgRoot = process.env.TELEGRAM_API_ROOT;
