@@ -106,6 +106,11 @@ export async function middleware(req: NextRequest) {
     url.searchParams.set("__p", pathname.slice("/api/telegram/relay/".length));
     return NextResponse.rewrite(url);
   }
+  // Сервер в России не видит telegram.org: скрипт Mini App берём у Vercel (адрес прокладки).
+  const tgRoot = process.env.TELEGRAM_API_ROOT;
+  if (pathname === "/tg/telegram-web-app.js" && tgRoot && !tgRoot.includes("api.telegram.org")) {
+    return NextResponse.rewrite(new URL("/tg/telegram-web-app.js", new URL(tgRoot).origin));
+  }
   // Файлы для универсальных ссылок (Apple/Google проверяют их своими роботами).
   if (pathname === "/.well-known/assetlinks.json") {
     return NextResponse.rewrite(new URL("/.well-known/assetlinks", req.url));
