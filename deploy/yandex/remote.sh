@@ -186,24 +186,45 @@ logs() {
   done
 }
 
+# Адрес Telegram Bot API: напрямую из России не открывается, поэтому через прокладку (TELEGRAM_API_ROOT).
+tgroot() { local r; r=$(envget TELEGRAM_API_ROOT); echo "${r:-https://api.telegram.org}" | sed 's#/$##'; }
+
+# Проверка связи с Telegram: напрямую и через прокладку. Ничего не меняет.
+tgcheck() {
+  prepare_env
+  local tok root
+  tok=$(envget TELEGRAM_BOT_TOKEN); root=$(tgroot)
+  [ -n "$tok" ] || { echo "нет TELEGRAM_BOT_TOKEN"; exit 1; }
+  log "напрямую api.telegram.org"
+  curl -sS -m 10 -o /dev/null -w "http %{http_code}\n" "https://api.telegram.org/" || echo "недоступен"
+  log "через прокладку: $root"
+  curl -sS -m 20 "$root/bot$tok/getMe" |
+    python3 -c 'import json,sys; d=json.load(sys.stdin); print("ok:", d.get("ok"), (d.get("result") or {}).get("username", d.get("description","")))' || echo "прокладка не отвечает"
+  log "скрипт Mini App с сервера"
+  curl -sS -m 20 -o /dev/null -w "http %{http_code}, %{size_download} байт\n" "http://127.0.0.1:3000/tg/telegram-web-app.js" || true
+  log "вебхук сейчас (только чтение)"
+  curl -sS -m 20 "$root/bot$tok/getWebhookInfo" |
+    python3 -c 'import json,sys; r=json.load(sys.stdin)["result"]; print("url:", r.get("url"), "| pending:", r.get("pending_update_count"), "| last_error:", r.get("last_error_message", "-"))' || true
+}
+
 # Telegram-вебхук бота → этот сервер (APP_URL). Токен и секрет берутся из /opt/mesto/.env и никуда не выводятся.
 webhook() {
   prepare_env
-  local tok url sec
-  tok=$(envget TELEGRAM_BOT_TOKEN); sec=$(envget TELEGRAM_WEBHOOK_SECRET)
+  local tok url sec root
+  tok=$(envget TELEGRAM_BOT_TOKEN); sec=$(envget TELEGRAM_WEBHOOK_SECRET); root=$(tgroot)
   url="$(envget APP_URL | sed 's#/$##')/api/telegram/webhook"
   [ -n "$tok" ] || { echo "нет TELEGRAM_BOT_TOKEN"; exit 1; }
-  log "setWebhook → $url"
-  curl -sS -X POST "https://api.telegram.org/bot$tok/setWebhook" \
+  log "setWebhook → $url (через $root)"
+  curl -sS -m 30 -X POST "$root/bot$tok/setWebhook" \
     --data-urlencode "url=$url" --data-urlencode "secret_token=$sec" -d drop_pending_updates=false |
     python3 -c 'import json,sys; d=json.load(sys.stdin); print("ok:", d.get("ok"), d.get("description",""))'
-  curl -sS "https://api.telegram.org/bot$tok/getWebhookInfo" |
+  curl -sS -m 30 "$root/bot$tok/getWebhookInfo" |
     python3 -c 'import json,sys; r=json.load(sys.stdin)["result"]; print("url:", r.get("url"), "| pending:", r.get("pending_update_count"), "| last_error:", r.get("last_error_message", "-"))'
-  curl -sS "https://api.telegram.org/bot$tok/getChatMenuButton" |
+  curl -sS -m 30 "$root/bot$tok/getChatMenuButton" |
     python3 -c 'import json,sys; b=json.load(sys.stdin)["result"]; print("menu button:", b.get("type"), (b.get("web_app") or {}).get("url", ""))'
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac

@@ -21,6 +21,8 @@ DEFAULTS = {
     "APP_HOSTS": "new.mesto-go.ru",
     "ACME_EMAIL": "",
     "CRON_ENABLED": "0",
+    # api.telegram.org из России недоступен — бот ходит в Telegram через прокладку на Vercel.
+    "TELEGRAM_API_ROOT": "https://2-xfcn.vercel.app/api/telegram/relay",
     "NEXT_PUBLIC_TELEGRAM_BOT_USERNAME": "Mesto_people_bot",
     "YANDEX_GPT_MODEL": "yandexgpt-lite",
     "MAIL_FROM_NAME": "МЕСТО",
