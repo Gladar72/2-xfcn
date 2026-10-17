@@ -11,7 +11,7 @@ on:
         required: true
         default: status
         type: choice
-        options: [status, bootstrap, supabase, migrate, deploy, logs]
+        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook]
   push:
     branches: [main]
 
@@ -45,8 +45,12 @@ jobs:
           BOT_TOKEN: ${{ secrets.YC_BOT_TOKEN }}
           ADMIN_IDS: ${{ vars.YC_ADMIN_IDS }}
           APP_ENV: ${{ secrets.YC_APP_ENV }}
+          # Переезд: переменные репозитория (не секреты). Пустые — не меняют настройки сервера.
+          APP_HOSTS: ${{ vars.YC_APP_HOSTS }}
+          CRON_ENABLED: ${{ vars.YC_CRON_ENABLED }}
         run: |
-          { printf 'TELEGRAM_BOT_TOKEN=%s\nADMIN_TELEGRAM_IDS=%s\n' "$BOT_TOKEN" "$ADMIN_IDS"; printf '%s\n' "$APP_ENV"; } |
+          { printf 'TELEGRAM_BOT_TOKEN=%s\nADMIN_TELEGRAM_IDS=%s\n' "$BOT_TOKEN" "$ADMIN_IDS"; printf '%s\n' "$APP_ENV";
+            printf 'APP_HOSTS=%s\nCRON_ENABLED=%s\n' "$APP_HOSTS" "$CRON_ENABLED"; } |
             ssh deploy@"$HOST" 'sudo mkdir -p /opt/mesto && sudo chown deploy /opt/mesto && umask 077 && cat > /opt/mesto/inputs.env'
 
       - name: Upload migration settings
