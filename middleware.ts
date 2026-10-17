@@ -33,6 +33,7 @@ const PUBLIC_API_PREFIXES = [
 // (Telegram, ЮKassa, Vercel Cron, n8n ходят своими клиентами).
 const SERVICE_PREFIXES = [
   "/api/telegram/webhook",
+  "/api/telegram/relay/",
   "/api/payments/",
   "/api/webhooks/",
   "/api/subscriptions/yookassa",

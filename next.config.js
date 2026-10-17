@@ -35,6 +35,10 @@ const nextConfig = {
       },
     ],
   },
+  // Прокладка к Telegram Bot API (app/api/telegram/relay): путь после /relay/ передаём параметром.
+  async rewrites() {
+    return [{ source: "/api/telegram/relay/:path+", destination: "/api/telegram/relay?__p=:path+" }];
+  },
   // Разрешаем встраивание в Telegram WebView (Mini App открывается в iframe/webview Telegram)
   async headers() {
     return [
