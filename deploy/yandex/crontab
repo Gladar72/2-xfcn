@@ -5,6 +5,8 @@ CRON_TZ=UTC
 */5 * * * *  bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/send-morning-reminders
 */5 * * * *  bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/event-reminders
 17 * * * *   bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/subscriptions
+# Сторож дублей уведомлений: молчит, если всё чисто; иначе пишет админам в бота.
+25 * * * *   bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/notification-dupes
 52 4 * * *   bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/outreach
 33 21 * * *  bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/places
 # Резервная копия базы каждую ночь (хранится 14 дней в /opt/backups).
