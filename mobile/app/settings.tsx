@@ -109,7 +109,7 @@ export default function SettingsScreen() {
             icon="wallet"
             label="Мой тариф"
             sub={planLabel}
-            onPress={() => Alert.alert("Тарифы", "Подключить или продлить тариф в приложении можно будет совсем скоро.")}
+            onPress={() => router.push("/subscription")}
           />
           <Row icon="pin" label="Город" sub={me?.city} onPress={() => setCityOpen(true)} />
           <View style={[styles.row, styles.sep]}>
