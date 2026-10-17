@@ -186,7 +186,24 @@ logs() {
   done
 }
 
+# Telegram-вебхук бота → этот сервер (APP_URL). Токен и секрет берутся из /opt/mesto/.env и никуда не выводятся.
+webhook() {
+  prepare_env
+  local tok url sec
+  tok=$(envget TELEGRAM_BOT_TOKEN); sec=$(envget TELEGRAM_WEBHOOK_SECRET)
+  url="$(envget APP_URL | sed 's#/$##')/api/telegram/webhook"
+  [ -n "$tok" ] || { echo "нет TELEGRAM_BOT_TOKEN"; exit 1; }
+  log "setWebhook → $url"
+  curl -sS -X POST "https://api.telegram.org/bot$tok/setWebhook" \
+    --data-urlencode "url=$url" --data-urlencode "secret_token=$sec" -d drop_pending_updates=false |
+    python3 -c 'import json,sys; d=json.load(sys.stdin); print("ok:", d.get("ok"), d.get("description",""))'
+  curl -sS "https://api.telegram.org/bot$tok/getWebhookInfo" |
+    python3 -c 'import json,sys; r=json.load(sys.stdin)["result"]; print("url:", r.get("url"), "| pending:", r.get("pending_update_count"), "| last_error:", r.get("last_error_message", "-"))'
+  curl -sS "https://api.telegram.org/bot$tok/getChatMenuButton" |
+    python3 -c 'import json,sys; b=json.load(sys.stdin)["result"]; print("menu button:", b.get("type"), (b.get("web_app") or {}).get("url", ""))'
+}
+
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
