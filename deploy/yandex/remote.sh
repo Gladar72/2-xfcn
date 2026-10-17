@@ -157,6 +157,10 @@ deploy() {
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d caddy
   DC --env-file "$ROOT/.env" -f docker-compose.yml restart caddy  # перечитать Caddyfile
   sleep 10
+  # Защита от дублей уведомлений (идемпотентно, ошибки не мешают деплою).
+  log "notification guards"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
+    < "$APP/supabase/migrations/0066_notifications_once_guards_v3.sql" || true
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
