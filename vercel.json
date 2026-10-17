@@ -1,35 +1,5 @@
 {
   "regions": [
     "dub1"
-  ],
-  "crons": [
-    {
-      "path": "/api/cron/complete-events",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/schedule-morning-reminders",
-      "schedule": "10 0 * * *"
-    },
-    {
-      "path": "/api/cron/send-morning-reminders",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/event-reminders",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/subscriptions",
-      "schedule": "17 * * * *"
-    },
-    {
-      "path": "/api/cron/outreach",
-      "schedule": "52 4 * * *"
-    },
-    {
-      "path": "/api/cron/places",
-      "schedule": "33 21 * * *"
-    }
   ]
 }
