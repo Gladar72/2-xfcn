@@ -186,7 +186,7 @@ logs() {
   done
 }
 
-# Какие ключи заданы на сервере. Значения не выводятся — только «задан/пусто» и последние 4 символа.
+# Какие ключи заданы на сервере. Значения не выводятся — только «задан/пусто».
 envcheck() {
   prepare_env
   local k v
@@ -194,11 +194,13 @@ envcheck() {
     NEXT_PUBLIC_YANDEX_MAPS_API_KEY YANDEX_GEOCODER_API_KEY YANDEX_PLACES_API_KEY YANDEX_GPT_API_KEY YANDEX_FOLDER_ID \
     BREVO_API_KEY POSTBOX_ACCESS_KEY_ID POSTBOX_SECRET_KEY MAIL_FROM SMSRU_API_ID SIGHTENGINE_API_USER SIGHTENGINE_API_SECRET \
     APPLE_IAP_ISSUER_ID APPLE_IAP_KEY_ID APPLE_IAP_PRIVATE_KEY EXPO_ACCESS_TOKEN; do
-    v=$(envget "$k")
+    v=$(envget "$k" || true)
     if [ -z "$v" ]; then echo "$k: пусто"
-    elif [ "$k" = YOOKASSA_SHOP_ID ] || [ "$k" = APP_URL ] || [ "$k" = TELEGRAM_API_ROOT ] || [ "$k" = CRON_ENABLED ] || [ "$k" = MAIL_FROM ]; then echo "$k: $v"
-    elif [ "$k" = APPLE_IAP_PRIVATE_KEY ]; then echo "$k: задан"
-    else echo "$k: задан (…${v: -4})"; fi
+    elif [ "$k" = YOOKASSA_SHOP_ID ]; then
+      # ShopID — только цифры. Если там что-то другое (например, секретный ключ) — не печатаем.
+      if [[ "$v" =~ ^[0-9]+$ ]]; then echo "$k: $v"; else echo "$k: ОШИБКА — это не ShopID (должны быть только цифры)"; fi
+    elif [ "$k" = APP_URL ] || [ "$k" = TELEGRAM_API_ROOT ] || [ "$k" = CRON_ENABLED ]; then echo "$k: $v"
+    else echo "$k: задан"; fi
   done
   echo "--- все ключи в .env (только имена):"
   grep -oE '^[A-Z0-9_]+=' "$ROOT/.env" | tr -d '=' | sort | tr '\n' ' '; echo
