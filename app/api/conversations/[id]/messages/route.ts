@@ -347,13 +347,27 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .neq("user_id", currentUser.userId);
 
     if (otherMembers && otherMembers.length > 0) {
-      await admin.from("notifications").insert(
-        otherMembers.map((m) => ({
-          user_id: m.user_id,
-          type: "new_message",
-          payload: { conversationId },
-        }))
-      );
+      // В «Уведомлениях» — одна строка на чат, пока её не прочитали: новое сообщение
+      // поднимает её наверх, а не добавляет ещё одну (раньше набегало по 20–25 штук).
+      const memberIds = otherMembers.map((m) => m.user_id as string);
+      const { data: unreadRows } = await admin
+        .from("notifications")
+        .select("id, user_id")
+        .eq("type", "new_message")
+        .eq("is_read", false)
+        .eq("payload->>conversationId", conversationId)
+        .in("user_id", memberIds);
+      const hasUnread = new Set((unreadRows ?? []).map((r) => r.user_id as string));
+      if (unreadRows && unreadRows.length > 0) {
+        await admin
+          .from("notifications")
+          .update({ created_at: new Date().toISOString() })
+          .in("id", unreadRows.map((r) => r.id as string));
+      }
+      const fresh = memberIds.filter((id) => !hasUnread.has(id));
+      if (fresh.length > 0) {
+        await admin.from("notifications").insert(fresh.map((user_id) => ({ user_id, type: "new_message", payload: { conversationId } })));
+      }
 
       // Уведомление в Telegram с кнопкой «Открыть чат»: от организатора — с
       // именем и текстом, от остальных — «Новое сообщение в чате». Не шлём тем, кто заблокировал чат, и тем, у
