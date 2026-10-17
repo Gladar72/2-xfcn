@@ -11,7 +11,7 @@ on:
         required: true
         default: status
         type: choice
-        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck]
+        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck]
   push:
     branches: [main]
 
