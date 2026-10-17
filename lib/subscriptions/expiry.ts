@@ -93,17 +93,20 @@ export async function processSubscriptionExpiry(
     const sentKeys = new Set(
       (already ?? []).map((n) => {
         const p = n.payload as { subscriptionId?: string; periodEnd?: string } | null;
-        return `${p?.subscriptionId}:${p?.periodEnd}`;
+        return `${p?.subscriptionId}:${p?.periodEnd ? new Date(p.periodEnd).getTime() : ""}`;
       })
     );
     for (const sub of upcoming) {
-      const key = `${sub.id}:${sub.current_period_end}`;
+      const key = `${sub.id}:${new Date(sub.current_period_end).getTime()}`;
       if (sentKeys.has(key)) continue;
-      await admin.from("notifications").insert({
+      // Строка-«замок»: уникальный индекс в БД не даст вставить вторую такую же —
+      // тогда и сообщение не шлём (раньше напоминание уходило каждый час).
+      const { error: lockError } = await admin.from("notifications").insert({
         user_id: sub.user_id,
         type: "subscription_expiring",
         payload: { subscriptionId: sub.id, periodEnd: sub.current_period_end },
       });
+      if (lockError) continue;
       if (sub.user) {
         await api
           .sendMessage(

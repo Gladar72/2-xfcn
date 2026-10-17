@@ -65,7 +65,14 @@ export async function sendDueShareNudges(admin: Admin, api: Api): Promise<{ nudg
   const ids = due.map((e) => e.id);
   const [{ data: pending }, { data: sent }] = await Promise.all([
     admin.from("applications").select("event_id").in("event_id", ids).eq("status", "pending"),
-    admin.from("notifications").select("payload").eq("type", "share_nudge").in("payload->>eventId", ids),
+    // По организаторам, а не фильтром по полю внутри payload — тот не срабатывал,
+    // и напоминание уходило каждые 5 минут. Плюс уникальный индекс в БД (см. миграцию).
+    admin
+      .from("notifications")
+      .select("payload")
+      .eq("type", "share_nudge")
+      .in("user_id", [...new Set(due.map((e) => e.organizer_id))])
+      .limit(1000),
   ]);
   const hasPending = new Set((pending ?? []).map((a) => a.event_id as string));
   const alreadySent = new Set((sent ?? []).map((n) => (n.payload as { eventId?: string } | null)?.eventId));
