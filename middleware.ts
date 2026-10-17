@@ -99,6 +99,13 @@ async function verifySession(token: string | undefined): Promise<string | null> 
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  // Прокладка к Telegram Bot API: /api/telegram/relay/<путь> → /api/telegram/relay?__p=<путь>.
+  if (pathname.startsWith("/api/telegram/relay/")) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/api/telegram/relay";
+    url.searchParams.set("__p", pathname.slice("/api/telegram/relay/".length));
+    return NextResponse.rewrite(url);
+  }
   // Файлы для универсальных ссылок (Apple/Google проверяют их своими роботами).
   if (pathname === "/.well-known/assetlinks.json") {
     return NextResponse.rewrite(new URL("/.well-known/assetlinks", req.url));
@@ -137,5 +144,5 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   // Всё, кроме статики Next.js и картинок/шрифтов из public.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|brand/|mesto/|marketing/|.*\\.(?:png|jpg|jpeg|svg|webp|gif|ico|woff2?|ttf)$).*)"],
+  matcher: ["/api/telegram/relay/:path*", "/((?!_next/static|_next/image|favicon.ico|brand/|mesto/|marketing/|.*\\.(?:png|jpg|jpeg|svg|webp|gif|ico|woff2?|ttf)$).*)"],
 };
