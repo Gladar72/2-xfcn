@@ -7,7 +7,9 @@
  * могут получить изменения, которых нет в этом файле.
  */
 
-const TELEGRAM_API_BASE = "https://api.telegram.org";
+import { TELEGRAM_API_ROOT } from "./api-root";
+
+const TELEGRAM_API_BASE = TELEGRAM_API_ROOT;
 
 function getBotToken(): string {
   const token = process.env.TELEGRAM_BOT_TOKEN;

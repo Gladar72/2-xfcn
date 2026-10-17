@@ -1,3 +1,5 @@
+import { TELEGRAM_API_ROOT } from "./api-root";
+
 /**
  * Текущая аватарка пользователя из Telegram как data URL (или null, если
  * её нет / скрыта настройками приватности). Через Bot API:
@@ -7,7 +9,7 @@ const TARGET_SIZE = 640;
 
 export async function fetchTelegramAvatarDataUrl(botToken: string, telegramId: number): Promise<string | null> {
   try {
-    const api = `https://api.telegram.org/bot${botToken}`;
+    const api = `${TELEGRAM_API_ROOT}/bot${botToken}`;
     const photosRes = await fetch(`${api}/getUserProfilePhotos?user_id=${telegramId}&limit=1`, {
       cache: "no-store",
       signal: AbortSignal.timeout(6000),
@@ -28,7 +30,7 @@ export async function fetchTelegramAvatarDataUrl(botToken: string, telegramId: n
     const file = (await fileRes.json()) as { ok: boolean; result?: { file_path?: string } };
     const filePath = file.ok ? file.result?.file_path : undefined;
     if (!filePath) return null;
-    const imgRes = await fetch(`https://api.telegram.org/file/bot${botToken}/${filePath}`, {
+    const imgRes = await fetch(`${TELEGRAM_API_ROOT}/file/bot${botToken}/${filePath}`, {
       cache: "no-store",
       signal: AbortSignal.timeout(8000),
     });

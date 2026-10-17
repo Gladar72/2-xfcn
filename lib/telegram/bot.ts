@@ -1,4 +1,5 @@
 import { Bot, InlineKeyboard, Keyboard, type Context } from "grammy";
+import { TELEGRAM_API_ROOT } from "@/lib/telegram/api-root";
 import { getSupportAiReply } from "@/lib/telegram/support-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { activateSubscription } from "@/lib/subscriptions/server";
@@ -80,7 +81,7 @@ export function getBot(): Bot {
   // без этого openAppKeyboard() ниже видел бы appUrl как `string | undefined`.
   const validatedAppUrl: string = appUrl;
 
-  const bot = new Bot(token);
+  const bot = new Bot(token, { client: { apiRoot: TELEGRAM_API_ROOT } });
 
   function openAppKeyboard() {
     return new InlineKeyboard().webApp("Открыть приложение", validatedAppUrl);
