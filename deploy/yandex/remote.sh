@@ -186,6 +186,24 @@ logs() {
   done
 }
 
+# Какие ключи заданы на сервере. Значения не выводятся — только «задан/пусто» и последние 4 символа.
+envcheck() {
+  prepare_env
+  local k v
+  for k in YOOKASSA_SHOP_ID YOOKASSA_SECRET_KEY APP_URL TELEGRAM_API_ROOT CRON_ENABLED TELEGRAM_BOT_TOKEN \
+    NEXT_PUBLIC_YANDEX_MAPS_API_KEY YANDEX_GEOCODER_API_KEY YANDEX_PLACES_API_KEY YANDEX_GPT_API_KEY YANDEX_FOLDER_ID \
+    BREVO_API_KEY POSTBOX_ACCESS_KEY_ID POSTBOX_SECRET_KEY MAIL_FROM SMSRU_API_ID SIGHTENGINE_API_USER SIGHTENGINE_API_SECRET \
+    APPLE_IAP_ISSUER_ID APPLE_IAP_KEY_ID APPLE_IAP_PRIVATE_KEY EXPO_ACCESS_TOKEN; do
+    v=$(envget "$k")
+    if [ -z "$v" ]; then echo "$k: пусто"
+    elif [ "$k" = YOOKASSA_SHOP_ID ] || [ "$k" = APP_URL ] || [ "$k" = TELEGRAM_API_ROOT ] || [ "$k" = CRON_ENABLED ] || [ "$k" = MAIL_FROM ]; then echo "$k: $v"
+    elif [ "$k" = APPLE_IAP_PRIVATE_KEY ]; then echo "$k: задан"
+    else echo "$k: задан (…${v: -4})"; fi
+  done
+  echo "--- все ключи в .env (только имена):"
+  grep -oE '^[A-Z0-9_]+=' "$ROOT/.env" | tr -d '=' | sort | tr '\n' ' '; echo
+}
+
 # Адрес Telegram Bot API: напрямую из России не открывается, поэтому через прокладку (TELEGRAM_API_ROOT).
 tgroot() { local r; r=$(envget TELEGRAM_API_ROOT); echo "${r:-https://api.telegram.org}" | sed 's#/$##'; }
 
@@ -225,6 +243,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
