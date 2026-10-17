@@ -210,6 +210,13 @@ envcheck() {
   grep -oE '^[A-Z0-9_]+=' "$ROOT/.env" | tr -d '=' | sort | tr '\n' ' '; echo
 }
 
+# Живая проверка ключей: по одному безвредному запросу в GPT, Postbox, Sightengine, ЮKassa, геокодер.
+# Печатает только «работает / ошибка», значения ключей не выводятся.
+keytest() {
+  prepare_env
+  python3 "$APP/deploy/yandex/keytest.py" "$ROOT/.env" "$APP"
+}
+
 # Адрес Telegram Bot API: напрямую из России не открывается, поэтому через прокладку (TELEGRAM_API_ROOT).
 tgroot() { local r; r=$(envget TELEGRAM_API_ROOT); echo "${r:-https://api.telegram.org}" | sed 's#/$##'; }
 
@@ -249,6 +256,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | keytest) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
