@@ -1,4 +1,5 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
+import { osmSearch } from "@/lib/maps/osm-geocode";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -140,12 +141,10 @@ export async function syncCityCovers(admin: Admin, limit = 20): Promise<number> 
 }
 
 /**
- * Координаты для карты заведений: Яндекс Геокодер по адресу или названию
+ * Координаты для карты заведений: геокодер OpenStreetMap по адресу или названию
  * площадки. Каждое событие пробуем один раз (geo_tried_at).
  */
 export async function geocodeCityEvents(admin: Admin, limit = 20): Promise<void> {
-  const key = process.env.YANDEX_GEOCODER_API_KEY;
-  if (!key) return;
   const { data } = await admin
     .from("city_events")
     .select("id, city, place_name, address")
@@ -159,20 +158,10 @@ export async function geocodeCityEvents(admin: Admin, limit = 20): Promise<void>
     let lat: number | null = null;
     let lon: number | null = null;
     if (q) {
-      try {
-        const url = `https://geocode-maps.yandex.ru/1.x/?apikey=${key}&geocode=${encodeURIComponent(`${r.city as string}, ${q}`)}&format=json&results=1&lang=ru_RU`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
-        const j = await res.json();
-        const pos = j?.response?.GeoObjectCollection?.featureMember?.[0]?.GeoObject?.Point?.pos as string | undefined;
-        if (pos) {
-          const [lo, la] = pos.split(" ").map(Number);
-          if (Number.isFinite(la) && Number.isFinite(lo)) {
-            lat = la ?? null;
-            lon = lo ?? null;
-          }
-        }
-      } catch {
-        /* попробуем при следующем добавлении адреса */
+      const hit = (await osmSearch(q, r.city as string | null, 1))[0];
+      if (hit) {
+        lat = hit.latitude;
+        lon = hit.longitude;
       }
     }
     await admin.from("city_events").update({ latitude: lat, longitude: lon, geo_tried_at: new Date().toISOString() }).eq("id", r.id);
