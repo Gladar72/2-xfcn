@@ -1,10 +1,13 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendRuStore } from "@/lib/push/rustore";
 
 /**
  * Push-уведомления в мобильное приложение через Expo Push API.
  *
  * Токены регистрирует само приложение (mobile/lib/push.ts →
  * POST /api/me/push-token) в таблицу push_tokens. Здесь — только отправка.
+ * Токены с platform = "rustore" (Android-сборка для RuStore) уходят через RuStore Push
+ * (lib/push/rustore.ts), остальные — через Expo.
  *
  * Никогда не бросает исключений: push — дополнительный канал, и его сбой
  * не должен ронять основной запрос (отклик, сообщение, оплату и т.д.).
@@ -120,21 +123,23 @@ async function sendExpoMessages(admin: Admin, messages: ExpoMessage[]): Promise<
   }
 }
 
-async function loadTokens(admin: Admin, userIds: string[]): Promise<{ token: string; user_id: string }[]> {
+type TokenRow = { token: string; user_id: string; platform: string | null };
+
+async function loadTokens(admin: Admin, userIds: string[]): Promise<TokenRow[]> {
   const ids = Array.from(new Set(userIds.filter(Boolean)));
   if (ids.length === 0) return [];
-  const rows: { token: string; user_id: string }[] = [];
+  const rows: TokenRow[] = [];
   // .in() с тысячами id может упереться в длину URL — режем на куски.
   for (let i = 0; i < ids.length; i += 200) {
     const { data, error } = await admin
       .from("push_tokens")
-      .select("token, user_id")
+      .select("token, user_id, platform")
       .in("user_id", ids.slice(i, i + 200));
     if (error) {
       console.error("push: не удалось загрузить токены", error);
       continue;
     }
-    rows.push(...((data ?? []) as { token: string; user_id: string }[]));
+    rows.push(...((data ?? []) as TokenRow[]));
   }
   return rows;
 }
@@ -150,6 +155,27 @@ function toExpo(token: string, message: PushMessage): ExpoMessage {
   };
 }
 
+/** Раскладывает сообщения по каналам: RuStore Push для токенов RuStore, Expo — для остальных. */
+async function dispatch(admin: Admin, items: { t: TokenRow; message: PushMessage }[]): Promise<void> {
+  const expo: ExpoMessage[] = [];
+  const rustore: { token: string; title: string; body: string; url?: string; data?: Record<string, unknown> }[] = [];
+  for (const { t, message } of items) {
+    if (t.platform === "rustore") {
+      rustore.push({ token: t.token, title: message.title, body: message.body, url: message.data?.url, data: message.data });
+    } else {
+      expo.push(toExpo(t.token, message));
+    }
+  }
+  const [dead] = await Promise.all([sendRuStore(rustore), sendExpoMessages(admin, expo)]);
+  if (dead.length > 0) {
+    try {
+      await admin.from("push_tokens").delete().in("token", dead);
+    } catch (err) {
+      console.error("push: не удалось удалить токены RuStore", err);
+    }
+  }
+}
+
 /** Одно и то же уведомление нескольким пользователям (на всех их устройства). */
 export async function sendPushToUsers(
   admin: Admin | null | undefined,
@@ -160,7 +186,7 @@ export async function sendPushToUsers(
     const db = getAdmin(admin);
     if (!db) return;
     const tokens = await loadTokens(db, userIds);
-    await sendExpoMessages(db, tokens.map((t) => toExpo(t.token, message)));
+    await dispatch(db, tokens.map((t) => ({ t, message })));
   } catch (err) {
     console.error("push: sendPushToUsers упал", err);
   }
@@ -184,11 +210,11 @@ export async function sendPushPersonal(
       list.push(item.message);
       byUser.set(item.userId, list);
     }
-    const messages: ExpoMessage[] = [];
+    const messages: { t: TokenRow; message: PushMessage }[] = [];
     for (const t of tokens) {
-      for (const msg of byUser.get(t.user_id) ?? []) messages.push(toExpo(t.token, msg));
+      for (const msg of byUser.get(t.user_id) ?? []) messages.push({ t, message: msg });
     }
-    await sendExpoMessages(db, messages);
+    await dispatch(db, messages);
   } catch (err) {
     console.error("push: sendPushPersonal упал", err);
   }
