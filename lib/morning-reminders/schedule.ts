@@ -5,15 +5,13 @@ const MIN_HOURS_AFTER_SIGNUP = 48;
 // т.е. 05:00 UTC — по явному запросу владельца.
 const SEND_UTC_HOUR = 5;
 const SEND_UTC_MINUTE = 0;
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Через день: шлём только в "чётные" дни от 1970-01-01 (UTC). Считаем от
- * эпохи, а не от понедельника — в неделе 7 дней, и иначе чередование
- * сбивалось бы на стыке недель (вс → пн подряд).
+ * Раз в неделю — по пятницам (по явному запросу владельца), в 05:00 UTC = 8:00 МСК.
  */
+const REMINDER_WEEKDAY_UTC = 5; // 0 = воскресенье … 5 = пятница
 function isReminderDay(day: Date): boolean {
-  return Math.round(day.getTime() / DAY_MS) % 2 === 0;
+  return day.getUTCDay() === REMINDER_WEEKDAY_UTC;
 }
 const PAGE_SIZE = 1000;
 const INSERT_CHUNK = 1000;
@@ -129,7 +127,7 @@ export async function scheduleCurrentWeekReminders(admin: ReturnType<typeof crea
   for (const user of candidates) {
     const signupCutoff = new Date(new Date(user.created_at).getTime() + MIN_HOURS_AFTER_SIGNUP * 60 * 60 * 1000);
     const existingSlots = alreadyScheduledSlotsByUser.get(user.id) ?? new Set<number>();
-    // Всем зарегистрированным пользователям, ЧЕРЕЗ ДЕНЬ (см. isReminderDay)
+    // Всем зарегистрированным пользователям, РАЗ В НЕДЕЛЮ (см. isReminderDay)
     // — без тех дней, на которые запись уже есть.
     const chosenDays = remainingDays.filter(
       (d) =>
