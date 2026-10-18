@@ -117,7 +117,7 @@ export default function SettingsPage() {
           <Ic n="sun" />
           <span>
             Утренние приглашения
-            <small>Иногда предлагаем идею на день — не чаще пары раз в неделю</small>
+            <small>Раз в неделю, в пятницу утром, предлагаем идею на день</small>
           </span>
           <span className={`sw-t ${p?.morningRemindersEnabled ? "on" : ""}`} role="switch" aria-checked={!!p?.morningRemindersEnabled} onClick={toggleMorning} />
         </div>
