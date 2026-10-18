@@ -22,7 +22,8 @@ DEFAULTS = {
     "ACME_EMAIL": "",
     "CRON_ENABLED": "0",
     # api.telegram.org из России недоступен — бот ходит в Telegram через прокладку на Vercel.
-    "TELEGRAM_API_ROOT": "https://2-xfcn.vercel.app/api/telegram/relay",
+    # Адрес *.vercel.app из России перестал открываться — используем свой поддомен на том же Vercel.
+    "TELEGRAM_API_ROOT": "https://tg.mesto-go.ru/api/telegram/relay",
     "NEXT_PUBLIC_TELEGRAM_BOT_USERNAME": "Mesto_people_bot",
     "YANDEX_GPT_MODEL": "yandexgpt-lite",
     "MAIL_FROM_NAME": "МЕСТО",
@@ -63,6 +64,9 @@ def jwt(role, secret):
 
 env = dict(DEFAULTS)
 env.update(read(env_path))
+# Старый адрес прокладки (*.vercel.app) из России недоступен — переводим на новый.
+if env.get("TELEGRAM_API_ROOT", "").startswith("https://2-xfcn.vercel.app"):
+    env["TELEGRAM_API_ROOT"] = DEFAULTS["TELEGRAM_API_ROOT"]
 for k, v in read(inputs_path).items():
     if v:
         env[k] = v
