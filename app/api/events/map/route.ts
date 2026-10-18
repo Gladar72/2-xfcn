@@ -204,7 +204,8 @@ export async function GET(req: NextRequest) {
 
   // Карта заведений — ещё и одобренные события города («Что ещё в городе»).
   if (businessOnly) {
-    await geocodeCityEvents(admin).catch(() => {});
+    // По 5 событий за раз, чтобы не задерживать ответ карты (каждое событие геокодируется один раз).
+    await geocodeCityEvents(admin, 5).catch(() => {});
     const cityItems = (await upcomingCityEvents(admin, city, 40))
       .filter((c) => c.latitude != null && c.longitude != null)
       .map((c) => {
