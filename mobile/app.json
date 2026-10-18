@@ -81,7 +81,8 @@
         {
           "color": "#6C3BFF"
         }
-      ]
+      ],
+      "./plugins/with-rustore-push"
     ],
     "experiments": {
       "typedRoutes": true
