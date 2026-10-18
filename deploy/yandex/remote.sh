@@ -149,6 +149,16 @@ SQL
     sudo docker exec -i supabase-db psql -U postgres -d postgres -q
 }
 
+# Докопировать файлы, которые не перенеслись при migrate (база не трогается).
+storagefix() {
+  update_code
+  [ -s "$ROOT/migrate/files.tsv" ] || { echo "нет списка файлов $ROOT/migrate/files.tsv — сначала migrate"; exit 1; }
+  log "copy missing storage files"
+  sudo docker run --rm --network host -v "$APP/deploy/yandex:/w:ro" -v "$ROOT/migrate:/m:ro" \
+    -e ONLY_MISSING=1 -e SERVICE_ROLE_KEY="$(envget SUPABASE_SERVICE_ROLE_KEY)" node:20-bookworm-slim \
+    node /w/copy-storage.mjs "$OLD_SUPABASE_URL" "http://127.0.0.1:8000" /m/buckets.json /m/files.tsv
+}
+
 deploy() {
   prepare_env
   cd "$APP/deploy/yandex"
@@ -262,6 +272,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | keytest | health) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | keytest | health | storagefix) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac

@@ -40,14 +40,26 @@ const files = readFileSync(filesFile, "utf8")
   });
 console.log(`files: ${files.length}`);
 
+// ONLY_MISSING=1 — докопировать только то, чего ещё нет на сервере; пути файлов в лог не пишем
+// (логи GitHub публичные), только корзину и причину.
+const ONLY_MISSING = process.env.ONLY_MISSING === "1";
+const where = (f) => (ONLY_MISSING ? f.bucket : `${f.bucket}/${f.path}`);
 let ok = 0;
 let fail = 0;
+let present = 0;
 async function copy(f) {
   const enc = f.path.split("/").map(encodeURIComponent).join("/");
+  if (ONLY_MISSING) {
+    const have = await fetch(`${NEW}/storage/v1/object/public/${f.bucket}/${enc}`, { method: "HEAD", headers: H });
+    if (have.ok) {
+      present++;
+      return;
+    }
+  }
   const src = await fetch(`${OLD}/storage/v1/object/public/${f.bucket}/${enc}`);
   if (!src.ok) {
     fail++;
-    console.error(`skip ${f.bucket}/${f.path}: ${src.status}`);
+    console.error(`skip ${where(f)}: в старом хранилище ответ ${src.status}`);
     return;
   }
   const body = Buffer.from(await src.arrayBuffer());
@@ -59,7 +71,7 @@ async function copy(f) {
   if (up.ok) ok++;
   else {
     fail++;
-    console.error(`fail ${f.bucket}/${f.path}: ${up.status} ${(await up.text()).slice(0, 150)}`);
+    console.error(`fail ${where(f)}: ${up.status} ${(await up.text()).slice(0, 150)}`);
   }
 }
 
@@ -68,4 +80,4 @@ for (let i = 0; i < files.length; i += 6) {
   await Promise.all(files.slice(i, i + 6).map(copy));
   if (i % 120 === 0) console.log(`… ${i}/${files.length}`);
 }
-console.log(`copied ${ok}, failed ${fail}`);
+console.log(`copied ${ok}, failed ${fail}` + (ONLY_MISSING ? `, already there ${present}` : ""));
