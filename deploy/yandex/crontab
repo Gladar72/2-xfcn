@@ -9,5 +9,9 @@ CRON_TZ=UTC
 25 * * * *   bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/notification-dupes
 52 4 * * *   bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/outreach
 33 21 * * *  bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/places
+# Состояние сервера админам в бота: сводка каждый день в 08:55 по Тюмени (03:55 UTC),
+# а раз в час — тревога, только если сайт/база/бот сломались.
+55 3 * * *   bash /opt/mesto/app/deploy/yandex/health.sh
+7 * * * *    bash /opt/mesto/app/deploy/yandex/health.sh --alert
 # Резервная копия базы каждую ночь (хранится 14 дней в /opt/backups).
 40 23 * * *  bash /opt/mesto/app/deploy/yandex/backup.sh

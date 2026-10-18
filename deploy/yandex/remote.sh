@@ -217,6 +217,12 @@ keytest() {
   python3 "$APP/deploy/yandex/keytest.py" "$ROOT/.env" "$APP"
 }
 
+# Сводка о состоянии сервера — та же, что каждое утро приходит админам в бота.
+health() {
+  update_code
+  bash "$APP/deploy/yandex/health.sh"
+}
+
 # Адрес Telegram Bot API: напрямую из России не открывается, поэтому через прокладку (TELEGRAM_API_ROOT).
 tgroot() { local r; r=$(envget TELEGRAM_API_ROOT); echo "${r:-https://api.telegram.org}" | sed 's#/$##'; }
 
@@ -256,6 +262,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | keytest) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | keytest | health) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
