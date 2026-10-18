@@ -84,7 +84,7 @@ def test_postbox():
     if not kid or not sec:
         return report("Postbox (почта)", None, "ключи не заданы")
     host, region, service, path = "postbox.cloud.yandex.net", "ru-central1", "ses", "/v2/email/identities"
-    now = datetime.datetime.utcnow()
+    now = datetime.datetime.now(datetime.timezone.utc)
     amz = now.strftime("%Y%m%dT%H%M%SZ")
     day = amz[:8]
     payload_hash = hashlib.sha256(b"").hexdigest()
@@ -159,14 +159,16 @@ def test_yookassa():
         report("ЮKassa", False, f"HTTP {code}: {text}")
 
 
-# 5. Геокодер Яндекса — один адрес.
+# 5. Геокодер OpenStreetMap (ключ не нужен) — доступен ли он с сервера.
 def test_geocoder():
-    key = E.get("YANDEX_GEOCODER_API_KEY")
-    if not key:
-        return report("Геокодер Яндекса", None, "ключ не задан")
     from urllib.parse import quote
-    code, text = req(f"https://geocode-maps.yandex.ru/1.x/?apikey={quote(key)}&format=json&results=1&geocode={quote('Тюмень')}")
-    report("Геокодер Яндекса", code == 200, "" if code == 200 else f"HTTP {code}: {text}")
+    ua = {"User-Agent": "MestoApp/1.0 (https://mesto-go.ru; t.me/Mesto_people_bot)"}
+    code, text = req(f"https://photon.komoot.io/api/?q={quote('Тюмень, улица Республики 65')}&limit=1&lang=default", headers=ua)
+    ok1 = code == 200 and '"features":[{' in text.replace(" ", "")
+    report("Геокодер OSM: поиск адреса (Photon)", ok1, "" if ok1 else f"HTTP {code}: {text}")
+    code, text = req("https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&accept-language=ru&lat=57.153&lon=65.534", headers=ua)
+    ok2 = code == 200 and '"address"' in text
+    report("Геокодер OSM: адрес по точке (Nominatim)", ok2, "" if ok2 else f"HTTP {code}: {text}")
 
 
 for t in (test_gpt, test_postbox, test_sightengine, test_yookassa, test_geocoder):
