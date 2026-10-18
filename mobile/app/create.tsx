@@ -174,21 +174,21 @@ export default function CreateScreen() {
     return null;
   }
 
-  /** Место введено вручную — ищем точку по адресу: геокодер сервера, потом геокодер телефона. */
+  /** Место введено вручную — ищем точку по адресу: сначала геокодер телефона (бесплатно), потом наш сервер. */
   async function locate(): Promise<boolean> {
     if (form.latitude !== undefined && form.longitude !== undefined) return true;
     const q = (form.address.trim() || form.placeName.trim()).trim();
     if (q.length >= 3) {
+      const loc = await Location.geocodeAsync(me?.city ? `${me.city}, ${q}` : q).catch(() => []);
+      if (loc[0]) {
+        set({ latitude: loc[0].latitude, longitude: loc[0].longitude });
+        return true;
+      }
       const p = qs({ query: q, city: me?.city });
       const r = await api<{ suggestions?: { address: string; latitude: number; longitude: number }[] }>(`/api/geocode?${p}`).catch(() => null);
       const hit = r?.suggestions?.[0];
       if (hit) {
         set({ latitude: hit.latitude, longitude: hit.longitude, address: form.address.trim() || hit.address });
-        return true;
-      }
-      const loc = await Location.geocodeAsync(me?.city ? `${me.city}, ${q}` : q).catch(() => []);
-      if (loc[0]) {
-        set({ latitude: loc[0].latitude, longitude: loc[0].longitude });
         return true;
       }
     }
