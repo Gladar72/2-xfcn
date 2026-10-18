@@ -5,6 +5,7 @@ import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { router, type Href } from "expo-router";
 import { api } from "./api";
+import { STORE } from "./store";
 
 // Показываем уведомления и когда приложение открыто (баннер сверху + в списке).
 Notifications.setNotificationHandler({
@@ -27,13 +28,52 @@ async function ensureAndroidChannel(): Promise<void> {
   });
 }
 
-/** Спрашивает разрешение на уведомления и отправляет Expo Push токен на сервер. */
+/**
+ * Android-сборка для RuStore: пуши через RuStore Push (работает в России без Google и VPN).
+ * Модуль подключаем лениво — на iPhone и в сборке для Google Play его нет.
+ */
+let ruStoreListening = false;
+async function registerRuStorePush(): Promise<boolean> {
+  if (Platform.OS !== "android" || STORE !== "rustore") return false;
+  if (!process.env.EXPO_PUBLIC_RUSTORE_PUSH_PROJECT_ID) return false;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require("react-native-rustore-push") as {
+      default: {
+        checkPushAvailability: () => Promise<boolean>;
+        getToken: () => Promise<string>;
+        createPushEmitter: () => void;
+      };
+      eventEmitter: { addListener: (event: string, cb: (payload: unknown) => void) => unknown };
+    };
+    const client = mod.default;
+    if (!(await client.checkPushAvailability())) return false; // нет приложения RuStore на телефоне
+    const send = (token: string) =>
+      api("/api/me/push-token", { body: { token, platform: "rustore" } }).catch(() => {});
+    const token = await client.getToken();
+    if (token) await send(token);
+    if (!ruStoreListening) {
+      ruStoreListening = true;
+      client.createPushEmitter();
+      // RuStore может выдать новый токен — сразу сообщаем серверу.
+      mod.eventEmitter.addListener("ON_NEW_TOKEN", (t) => {
+        if (typeof t === "string" && t) void send(t);
+      });
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Спрашивает разрешение на уведомления и отправляет push-токен (RuStore или Expo) на сервер. */
 export async function registerForPush(): Promise<void> {
   await ensureAndroidChannel().catch(() => {});
   if (!Device.isDevice) return;
   let { status } = await Notifications.getPermissionsAsync();
   if (status !== "granted") status = (await Notifications.requestPermissionsAsync()).status;
   if (status !== "granted") return;
+  if (await registerRuStorePush()) return;
   const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
   if (!projectId) return; // появится после `eas init`
   const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
