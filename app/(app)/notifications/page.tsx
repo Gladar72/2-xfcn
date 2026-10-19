@@ -29,6 +29,7 @@ interface NotificationItem {
   ticketCode: string | null;
   eventConversationId: string | null;
   linkUserId?: string | null;
+  fromAvatarUrl?: string | null;
 }
 
 type Tab = "all" | "events" | "chats";
@@ -185,12 +186,13 @@ export default function NotificationsPage() {
                 </div>
               );
             }
-            const img = item.event?.photoUrl;
+            const avatar = !item.event?.photoUrl ? item.fromAvatarUrl : null;
+            const img = item.event?.photoUrl ?? avatar;
             return (
               <button key={item.id} className={`nt gl ${item.isRead ? "" : "unread"}`} style={{ width: "100%", textAlign: "left" }} onClick={() => handlePress(item)}>
                 {img ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoThumb(img, 92)} alt="" />
+                  <img src={photoThumb(img, 92)} alt="" style={avatar ? { borderRadius: "50%" } : undefined} />
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={TYPE_ICON[item.type] ?? "/brand/mosya/mosya_wave.webp"} alt="" style={{ objectFit: "contain", background: "#EFE8FF" }} />
