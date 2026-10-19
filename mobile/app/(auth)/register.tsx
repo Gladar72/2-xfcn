@@ -85,6 +85,7 @@ export default function RegisterScreen() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return setError("Укажи дату рождения полностью");
     if (!gender) return setError("Укажи пол");
     if (!agreed) return setError("Нужно принять условия оферты и политики конфиденциальности");
+    if (!photo) return setError("Добавь своё фото — без него зарегистрироваться нельзя");
     setBusy(true);
     try {
       const refCode = await getPendingRef();
@@ -136,7 +137,7 @@ export default function RegisterScreen() {
           {photo ? (
             <Image source={{ uri: photo.uri }} style={{ width: "100%", height: "100%" }} />
           ) : (
-            <Text style={{ color: colors.accent, fontWeight: "700" }}>+ Фото</Text>
+            <Text style={{ color: colors.accent, fontWeight: "700", textAlign: "center" }}>+ Фото{"\n"}обязательно</Text>
           )}
         </Pressable>
 
