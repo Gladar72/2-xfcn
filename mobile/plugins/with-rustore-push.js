@@ -6,13 +6,15 @@
 // Берётся из EXPO_PUBLIC_RUSTORE_PUSH_PROJECT_ID (eas.json / .env) или из параметра плагина.
 const { withProjectBuildGradle, withAndroidManifest, AndroidConfig } = require("expo/config-plugins");
 
-const MAVEN = "https://artifactory-external.vkpartner.ru/artifactory/maven";
+// Старый artifactory-external.vkpartner.ru RuStore закрыл 01.10.2026 — новые адреса.
+const MAVEN = "https://nexus-external.rustore.ru/repository/maven-rustore-exposed";
+const MAVEN2 = "https://nexus-external.vkteam.ru/repository/maven/";
 
 function withRuStoreMaven(config) {
   return withProjectBuildGradle(config, (cfg) => {
     if (cfg.modResults.language !== "groovy" || cfg.modResults.contents.includes(MAVEN)) return cfg;
     // Отдельный блок в конце файла — работает при любом виде шаблона build.gradle.
-    cfg.modResults.contents += `\nallprojects {\n    repositories {\n        maven { url "${MAVEN}" }\n    }\n}\n`;
+    cfg.modResults.contents += `\nallprojects {\n    repositories {\n        maven { url "${MAVEN}" }\n        maven { url "${MAVEN2}" }\n    }\n}\n`;
     return cfg;
   });
 }
