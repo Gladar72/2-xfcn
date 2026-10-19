@@ -4,7 +4,8 @@ import { useLocalSearchParams, useFocusEffect, router, type Href } from "expo-ro
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import MapView, { Marker } from "react-native-maps";
+import { Camera, Map, Marker } from "@maplibre/maplibre-react-native";
+import { MAP_STYLE } from "@/lib/map";
 import { Aurora, Btn, Glass, Grad, Pill, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { Avatar } from "@/components/ui";
@@ -216,15 +217,24 @@ export default function EventScreen() {
           {event.photoUrl ? (
             <Image source={{ uri: event.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
           ) : hasCoords ? (
-            <MapView
-              style={StyleSheet.absoluteFill}
-              pointerEvents="none"
-              initialRegion={{ latitude: event.latitude!, longitude: event.longitude!, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
-            >
-              <Marker coordinate={{ latitude: event.latitude!, longitude: event.longitude! }}>
-                <Image source={{ uri: eventIcon(event) }} style={{ width: 54, height: 54 }} />
-              </Marker>
-            </MapView>
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">
+              <Map
+                style={StyleSheet.absoluteFill}
+                mapStyle={MAP_STYLE}
+                logo={false}
+                compass={false}
+                dragPan={false}
+                touchZoom={false}
+                doubleTapZoom={false}
+                touchRotate={false}
+                touchPitch={false}
+              >
+                <Camera initialViewState={{ center: [event.longitude!, event.latitude!], zoom: 15 }} />
+                <Marker lngLat={[event.longitude!, event.latitude!]} anchor="bottom">
+                  <Image source={{ uri: eventIcon(event) }} style={{ width: 54, height: 54 }} />
+                </Marker>
+              </Map>
+            </View>
           ) : (
             <Grad style={[StyleSheet.absoluteFill, styles.gfx]}>
               <Image source={{ uri: eventIcon(event) }} style={{ width: 200, height: 200 }} contentFit="contain" />
