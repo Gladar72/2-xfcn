@@ -312,6 +312,22 @@ eventsdiag() {
   sudo docker logs --since 24h mesto-app-1 2>&1 | grep -iE "api/events|error|failed" | grep -v "^\s*$" | tail -60 || true
 }
 
+bizdiag() {
+  log "будущие бизнес-события"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select e.status, e.city, e.event_date, e.event_time, left(e.title,40) title, e.latitude is not null as geo
+    from events e where e.is_business and e.event_date >= current_date - 1 order by e.event_date limit 40;"
+  log "события города (Что ещё в городе)"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select event_date, left(title,40), latitude is not null geo, status from city_events where event_date >= current_date - 1 order by event_date limit 15;" 2>&1 | head -20 || true
+  log "API карты заведений по фильтрам"
+  for d in "" today tomorrow weekend; do
+    echo "--- date=$d"
+    curl -s "http://127.0.0.1:3000/api/events/map?city=%D0%A2%D1%8E%D0%BC%D0%B5%D0%BD%D1%8C&business=only&date=$d" | python3 -c "import sys,json; j=json.load(sys.stdin); [print(i.get('eventDate'), i.get('eventTime'), i.get('isCity',False), i.get('title')[:40]) for i in j.get('items',[])]; print('всего', len(j.get('items',[])), j.get('error',''))" || true
+  done
+  date; sudo docker exec mesto-app-1 date || true
+}
+
 health() {
   update_code
   bash "$APP/deploy/yandex/health.sh"
@@ -356,6 +372,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
