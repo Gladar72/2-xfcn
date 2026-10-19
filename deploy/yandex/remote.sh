@@ -228,6 +228,19 @@ keytest() {
 }
 
 # Сводка о состоянии сервера — та же, что каждое утро приходит админам в бота.
+# Сообщение от бота тем, кто зарегистрировался в старой базе после переезда (один раз, 19.10.2026).
+reauthnotify() {
+  update_code
+  local OLD_DB_URL; OLD_DB_URL="$(grep -E '^OLD_DB_URL=' "$ROOT/migrate.env" | cut -d= -f2-)"
+  [ -n "$OLD_DB_URL" ] || { echo "нет OLD_DB_URL"; exit 1; }
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -tA -c \
+    "select telegram_id from users where telegram_id is not null" > "$ROOT/existing_tg.txt"
+  sudo docker run --rm -e PGCONNECT_TIMEOUT=20 postgres:17 psql "$OLD_DB_URL" -tA -F $'\t' -c \
+    "select telegram_id, coalesce(name,'') from users where created_at > '2026-10-17 22:30+00' and created_at < '2026-10-19 04:00+00' and telegram_id is not null" |
+    TG_TOKEN="$(envget TELEGRAM_BOT_TOKEN)" TG_ROOT="$(tgroot)" python3 "$APP/deploy/yandex/reauth-notify.py" "$ROOT/existing_tg.txt"
+  rm -f "$ROOT/existing_tg.txt"
+}
+
 # Перенос встреч, созданных в старой базе после переезда (deploy/yandex/restore-events.sql).
 restoreevents() {
   update_code
@@ -296,6 +309,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | keytest | health | storagefix) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | reauthnotify | keytest | health | storagefix) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac

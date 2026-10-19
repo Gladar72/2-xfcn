@@ -11,7 +11,7 @@ on:
         required: true
         default: status
         type: choice
-        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, storagefix, eventsdiag, restoreevents]
+        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, storagefix, eventsdiag, restoreevents, reauthnotify]
   push:
     branches: [main]
 
@@ -54,7 +54,7 @@ jobs:
             ssh deploy@"$HOST" 'sudo mkdir -p /opt/mesto && sudo chown deploy /opt/mesto && umask 077 && cat > /opt/mesto/inputs.env'
 
       - name: Upload migration settings
-        if: env.TASK == 'migrate'
+        if: env.TASK == 'migrate' || env.TASK == 'reauthnotify'
         env:
           OLD_DB_URL: ${{ secrets.YC_OLD_DB_URL }}
         run: |
@@ -64,5 +64,5 @@ jobs:
         run: ssh deploy@"$HOST" 'bash -s' -- "$TASK" < deploy/yandex/remote.sh
 
       - name: Clean up migration settings
-        if: always() && env.TASK == 'migrate'
+        if: always() && (env.TASK == 'migrate' || env.TASK == 'reauthnotify')
         run: ssh deploy@"$HOST" 'rm -f /opt/mesto/migrate.env' || true
