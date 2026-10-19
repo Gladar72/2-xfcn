@@ -185,7 +185,13 @@ deploy() {
 status() {
   sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
   df -h / | tail -1
-  free -m | head -2
+  free -m | head -3
+  echo "--- диск: устройство, CPU, что занимает место"
+  lsblk -d -o NAME,SIZE,TYPE | grep -v loop || true
+  echo "CPU: $(nproc), нагрузка: $(cut -d' ' -f1-3 /proc/loadavg)"
+  sudo du -sh /var/lib/docker /opt/backups /opt/mesto /var/log 2>/dev/null || true
+  sudo docker system df 2>/dev/null || true
+  sudo docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}' 2>/dev/null | head -20 || true
   local UA="Mozilla/5.0 (status check)"
   curl -sS -A "$UA" -o /dev/null -w "app: %{http_code}\n" http://127.0.0.1:3000/ || echo "app: down"
   for h in $(envget APP_HOSTS | tr ',' ' ') $(envget API_HOST); do
