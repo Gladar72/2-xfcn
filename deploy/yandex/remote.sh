@@ -177,9 +177,19 @@ deploy() {
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
-  sudo docker image prune -f >/dev/null
+  cleanup
   sleep 5
   curl -fsS -o /dev/null -w "local app: %{http_code}\n" http://127.0.0.1:3000/ || true
+}
+
+# Чистка Docker: старые образы и кэш сборки съедают диск (каждый деплой — +1–2 ГБ).
+# Тома с базой и файлами не трогаем.
+cleanup() {
+  df -h / | tail -1 | awk '{print "диск до чистки: занято "$3" из "$2" ("$5")"}'
+  sudo docker image prune -af >/dev/null 2>&1 || true
+  sudo docker builder prune -af --filter until=48h >/dev/null 2>&1 || true
+  sudo journalctl --vacuum-size=200M >/dev/null 2>&1 || true
+  df -h / | tail -1 | awk '{print "диск после чистки: занято "$3" из "$2" ("$5")"}'
 }
 
 status() {
@@ -338,6 +348,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
