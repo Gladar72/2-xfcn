@@ -185,6 +185,14 @@ deploy() {
 # Чистка Docker: старые образы и кэш сборки съедают диск (каждый деплой — +1–2 ГБ).
 # Тома с базой и файлами не трогаем.
 cleanup() {
+  # Если диск увеличили в Яндекс Облаке — растягиваем раздел и файловую систему (без перезагрузки).
+  local src fs disk part
+  read -r src fs < <(findmnt -no SOURCE,FSTYPE /)
+  disk="/dev/$(lsblk -no PKNAME "$src")"; part="$(cat /sys/class/block/$(basename "$src")/partition 2>/dev/null)"
+  if [ -n "$part" ] && sudo growpart "$disk" "$part" >/dev/null 2>&1; then
+    if [ "$fs" = xfs ]; then sudo xfs_growfs / >/dev/null; else sudo resize2fs "$src" >/dev/null 2>&1; fi
+    echo "раздел растянут на весь диск"
+  fi
   df -h / | tail -1 | awk '{print "диск до чистки: занято "$3" из "$2" ("$5")"}'
   sudo docker image prune -af >/dev/null 2>&1 || true
   sudo docker builder prune -af --filter until=48h >/dev/null 2>&1 || true
