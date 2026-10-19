@@ -16,6 +16,24 @@ import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { MAP_STYLE, TYUMEN_CENTER } from "@/lib/map";
 
+const SMOKE_EVENTS: MapEvent[] = [
+  [57.1522, 65.5272, "coffee"],
+  [57.1613, 65.5455, "walk"],
+  [57.1398, 65.5601, "cinema"],
+].map(([latitude, longitude, slug], i) => ({
+  id: `smoke-${i}`,
+  title: "Тест",
+  latitude: latitude as number,
+  longitude: longitude as number,
+  startsAt: new Date(Date.now() + (i + 1) * 3600_000).toISOString(),
+  endsAt: new Date(Date.now() + (i + 3) * 3600_000).toISOString(),
+  seatsLeft: 3,
+  isBusiness: false,
+  placeName: null,
+  organizer: null,
+  category: { slug: slug as string, name: "" },
+}));
+
 type DateChip = "any" | "now" | "today" | "tomorrow" | "weekend";
 const CHIPS: [DateChip, string][] = [
   ["now", "Сейчас"],
@@ -60,7 +78,9 @@ export default function MapScreen() {
     setError(null);
     const id = ++reqId.current;
     const query = qs({ date: chip === "now" ? "today" : chip === "any" ? undefined : chip, business: bizOnly ? "only" : undefined });
-    api<{ items: (MapEvent & { isCity?: boolean })[]; city?: string }>(`/api/events/map${query ? `?${query}` : ""}`)
+    // Тестовая сборка для эмулятора — без входа, с тремя примерами меток.
+    const source = process.env.EXPO_PUBLIC_MAP_SMOKE === "1" ? Promise.resolve({ items: SMOKE_EVENTS, city: "Тюмень" }) : api<{ items: (MapEvent & { isCity?: boolean })[]; city?: string }>(`/api/events/map${query ? `?${query}` : ""}`);
+    source
       .then((r) => {
         if (id !== reqId.current) return; // пришёл ответ на старый фильтр
         const now = Date.now();
