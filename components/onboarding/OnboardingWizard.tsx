@@ -264,7 +264,7 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
     const lines: Record<Step, [Parameters<typeof peek>[0]["pose"], string]> = {
       setup: [
         "wave",
-        `Привет${name ? ", " + name : ""}! Знаю, регистрация — скучно, она есть во всех сервисах. Но без неё я не смогу найти тебе компанию или собрать встречу. Тут пара секунд 🙌`,
+        `Привет${name ? ", " + name : ""}! Знаю, регистрация — скучно, она есть во всех сервисах. Но без неё я не смогу найти тебе компанию или собрать встречу. И обязательно добавь своё фото — без него зарегистрироваться нельзя 📸`,
       ],
       interests: ["think", "Отметь хотя бы 3 — по ним я подберу встречи и людей, с которыми тебе будет интересно"],
       geo: ["phone", "Геолокация нужна, чтобы показать, что рядом. Где ты — никому не видно"],
@@ -282,6 +282,7 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
       if (!isAtLeast18(birthDate)) return "Сервис доступен только с 18 лет.";
       if (gender === null) return "Выбери пол.";
       if (!agreedToTerms) return "Отметь галочку — нужно согласие с условиями оферты и политикой конфиденциальности.";
+      if (!photoBase64) return photoLoading ? "Секунду, ищу твоё фото в Telegram…" : "Добавь своё фото — без него зарегистрироваться нельзя. Люди хотят видеть, с кем идут на встречу.";
     }
     if (step === "interests" && selectedInterestIds.length < minInterests) return `Выбери хотя бы ${minInterests} интереса.`;
     return null;
@@ -445,7 +446,7 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
           <p className="muted" style={{ margin: "8px 0 14px", fontSize: 15, lineHeight: 1.5 }}>
             {photoFromTelegram
               ? "Имя и фото взяли из Telegram. Добавь ещё 1–2 фото — с ними чаще зовут на встречи."
-              : "Добавь 1–3 фото — с ними чаще зовут на встречи."}
+              : "Добавь 1–3 фото — хотя бы одно обязательно: без фото зарегистрироваться нельзя."}
           </p>
           <div className="phgrid">
             {[0, 1, 2].map((i) => {
