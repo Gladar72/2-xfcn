@@ -368,21 +368,50 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
     }
     setSubmitting(true);
     const initData = getInitData();
-    if (!initData) {
-      say("Открой приложение через Telegram, чтобы продолжить.", "think");
-      setSubmitting(false);
+    // Вход на сайте (почта / Telegram-виджет): «пропуск» от /login вместо initData.
+    let ticket: string | null = null;
+    try {
+      ticket = sessionStorage.getItem("mesto_reg_ticket");
+    } catch {
+      ticket = null;
+    }
+    if (!initData && !ticket) {
+      window.location.href = "/login";
       return;
     }
+    const profile = { name, birthDate, gender, agreedToTerms, city: cityValue, bio, interestIds: selectedInterestIds, photoBase64, extraPhotos };
     try {
-      const res = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          initData,
-          profile: { name, birthDate, gender, agreedToTerms, city: cityValue, bio, interestIds: selectedInterestIds, photoBase64, extraPhotos },
-        }),
-      });
+      const res = initData
+        ? await fetch("/api/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ initData, profile }),
+          })
+        : await fetch("/api/auth/mobile/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ticket, profile }),
+          });
       const data = await res.json().catch(() => ({}));
+      if (!initData && res.ok && data.token) {
+        // Сессия сайта — в cookie, как у мини-приложения.
+        await fetch("/api/auth/web/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: data.token }),
+        });
+        try {
+          sessionStorage.removeItem("mesto_reg_ticket");
+        } catch {
+          /* ничего */
+        }
+      }
+      if (!initData && res.status === 401) {
+        say("Вход устарел — войди заново.", "think");
+        setTimeout(() => (window.location.href = "/login"), 1500);
+        setSubmitting(false);
+        return;
+      }
       if (!res.ok) {
         if (data.error === "already_registered") {
           window.location.href = "/";
