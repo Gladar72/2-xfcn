@@ -228,6 +228,12 @@ keytest() {
 }
 
 # Сводка о состоянии сервера — та же, что каждое утро приходит админам в бота.
+# Перенос встреч, созданных в старой базе после переезда (deploy/yandex/restore-events.sql).
+restoreevents() {
+  update_code
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -v ON_ERROR_STOP=1 < "$APP/deploy/yandex/restore-events.sql"
+}
+
 # Диагностика встреч (только чтение): последние встречи в базе сервера и ошибки API при создании.
 eventsdiag() {
   log "встречи за 3 дня в базе сервера"
@@ -290,6 +296,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | keytest | health | storagefix) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | keytest | health | storagefix) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
