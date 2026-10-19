@@ -171,6 +171,9 @@ deploy() {
   log "notification guards"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
     < "$APP/supabase/migrations/0066_notifications_once_guards_v3.sql" || true
+  # Учёт блокировок бота (идемпотентно).
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
+    < "$APP/supabase/migrations/0067_bot_blocks.sql" || true
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
@@ -228,6 +231,18 @@ keytest() {
 }
 
 # Сводка о состоянии сервера — та же, что каждое утро приходит админам в бота.
+# Отчёт по блокировкам бота: после каких сообщений блокируют (только тексты сообщений и числа).
+blocksreport() {
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select count(*) filter (where status='blocked') blocked, count(*) filter (where status='unblocked') unblocked,
+           min(at) since from bot_blocks;"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select coalesce(left(last_preview,60),'(бот ещё ничего не присылал)') last_message, count(*) n,
+           round(avg(extract(epoch from at - last_sent_at)/3600)::numeric,1) hours_after,
+           round(avg(extract(epoch from at - user_created_at)/86400)::numeric,1) days_since_signup
+    from bot_blocks where status='blocked' group by 1 order by 2 desc limit 25;"
+}
+
 # Сколько людей заблокировали бота (только числа).
 blockedcount() {
   update_code
@@ -317,6 +332,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | reauthnotify | blockedcount | keytest | health | storagefix) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac

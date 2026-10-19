@@ -2,6 +2,7 @@ import { Bot, InlineKeyboard, Keyboard, type Context } from "grammy";
 import { TELEGRAM_API_ROOT } from "@/lib/telegram/api-root";
 import { getSupportAiReply } from "@/lib/telegram/support-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { recordBlock, trackBotSends } from "@/lib/telegram/bot-blocks";
 import { activateSubscription } from "@/lib/subscriptions/server";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import { registerCityEventReview } from "@/lib/telegram/city-events-review";
@@ -82,6 +83,8 @@ export function getBot(): Bot {
   const validatedAppUrl: string = appUrl;
 
   const bot = new Bot(token, { client: { apiRoot: TELEGRAM_API_ROOT } });
+  // Запоминаем последнее сообщение каждому человеку — чтобы видеть, после чего блокируют бота.
+  trackBotSends(bot.api);
 
   function openAppKeyboard() {
     return new InlineKeyboard().webApp("Открыть приложение", validatedAppUrl);
@@ -312,6 +315,12 @@ export function getBot(): Bot {
   bot.on("my_chat_member", async (ctx) => {
     const chat = ctx.myChatMember.chat;
     const status = ctx.myChatMember.new_chat_member.status;
+    // Личный чат: человек заблокировал («kicked») или снова запустил бота.
+    if (chat.type === "private") {
+      if (status === "kicked") await recordBlock(chat.id, "blocked");
+      else if (status === "member" && ctx.myChatMember.old_chat_member.status === "kicked") await recordBlock(chat.id, "unblocked");
+      return;
+    }
     if (chat.type !== "channel" || status !== "administrator") return;
     const adminId = getAdminId();
     if (!adminId) return;
