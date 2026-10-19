@@ -38,7 +38,10 @@ export const onboardingSchema = z.object({
     .max(15, "Можно выбрать не больше 15 интересов")
     .default([]),
   // Фото — base64 data URL (data:image/jpeg;base64,...), проверяем размер отдельно на бэкенде.
-  photoBase64: z.string().startsWith("data:image/", "Не получилось прочитать фото — выбери его заново").optional(),
+  // Обязательно: без фото зарегистрироваться нельзя (по просьбе владельца).
+  photoBase64: z
+    .string({ required_error: "Добавь своё фото — без него зарегистрироваться нельзя" })
+    .startsWith("data:image/", "Не получилось прочитать фото — выбери его заново"),
   // Ещё до двух фото профиля (как в прототипе: главное + 2).
   extraPhotos: z
     .array(z.string().startsWith("data:image/", "Не получилось прочитать фото — выбери его заново"))
