@@ -46,6 +46,19 @@ jobs:
       - name: Зависимости
         run: npm install --no-audit --no-fund
 
+      - name: Патч RuStore SDK под новый React Native
+        # В RN 0.77+ onNewIntent(intent: Intent) — без «?»; SDK RuStore 6.9.1 ещё со старой сигнатурой.
+        run: |
+          python3 - <<'PY'
+          import re, pathlib
+          p = pathlib.Path("node_modules/react-native-rustore-push/android/src/main/java/com/rustorepush/RustorePushModule.kt")
+          s = p.read_text()
+          s2 = re.sub(r"fun onNewIntent\(\s*(\w+)\s*:\s*Intent\?\s*\)", r"fun onNewIntent(\1: Intent)", s)
+          s2 = re.sub(r"fun onActivityResult\(\s*(\w+)\s*:\s*Activity\?", r"fun onActivityResult(\1: Activity", s2)
+          print("патч применён" if s2 != s else "менять нечего")
+          p.write_text(s2)
+          PY
+
       - name: Android-проект из app.json (expo prebuild)
         run: npx expo prebuild --platform android --clean --no-install
 
