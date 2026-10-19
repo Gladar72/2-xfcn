@@ -43,7 +43,7 @@ const EARLY_READY = `(function(){function p(t){try{var w=window,d='{}';if(w.Tele
  * ссылками на уже несуществующие куски JS — приложение не оживает и висит.
  * Если кусок /_next/static не загрузился — один раз перезагружаем страницу.
  */
-const CHUNK_RELOAD = `window.addEventListener('error',function(e){var t=e.target;if(t&&t.tagName==='SCRIPT'&&/\/_next\/static\//.test(t.src||'')){try{if(!sessionStorage.getItem('mesto_chunk_reload')){sessionStorage.setItem('mesto_chunk_reload','1');location.reload()}}catch(_){}}},true);`;
+const CHUNK_RELOAD = `window.addEventListener('error',function(e){var t=e.target;if(t&&t.tagName==='SCRIPT'&&/\\/_next\\/static\\//.test(t.src||'')){try{if(!sessionStorage.getItem('mesto_chunk_reload')){sessionStorage.setItem('mesto_chunk_reload','1');location.reload()}}catch(_){}}},true);`;
 
 export const metadata: Metadata = {
   title: "Место",
