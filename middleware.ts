@@ -128,6 +128,9 @@ export async function middleware(req: NextRequest) {
       return NextResponse.json({ ok: false, error_code: 502, description: "Relay error" }, { status: 502 });
     }
   }
+  // На Vercel (после переезда) всё, кроме прокладки, пересылается на сервер в Yandex Cloud
+  // (next.config.js → rewrites): проверки делает сам сервер — его сессии подписаны другим ключом.
+  if (process.env.MESTO_PROXY_MODE === "1" && !pathname.startsWith("/tg/")) return NextResponse.next();
   // Сервер в России не видит telegram.org: скрипт Mini App берём у Vercel (адрес прокладки).
   const tgRoot = process.env.TELEGRAM_API_ROOT;
   if (pathname === "/tg/telegram-web-app.js" && tgRoot && !tgRoot.includes("api.telegram.org")) {

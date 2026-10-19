@@ -35,6 +35,25 @@ const nextConfig = {
       },
     ],
   },
+  // После переезда на сервер в Yandex Cloud: всё, что ещё приходит на Vercel (старые
+  // версии мобильного приложения с адресом 2-xfcn.vercel.app, старые кнопки в боте),
+  // пересылаем на сервер — иначе люди попадают в старую базу, и их встречи никто не видит.
+  // На Vercel остаётся только прокладка к Telegram (/api/telegram/relay, /tg/...).
+  async rewrites() {
+    if (!process.env.VERCEL) return [];
+    return {
+      beforeFiles: [
+        { source: "/", destination: "https://new.mesto-go.ru/" },
+        {
+          source: "/:path((?!api/telegram/relay/|tg/).*)",
+          destination: "https://new.mesto-go.ru/:path",
+        },
+      ],
+    };
+  },
+  env: {
+    MESTO_PROXY_MODE: process.env.VERCEL ? "1" : "",
+  },
   // Разрешаем встраивание в Telegram WebView (Mini App открывается в iframe/webview Telegram)
   async headers() {
     return [
