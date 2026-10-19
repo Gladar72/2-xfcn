@@ -254,6 +254,31 @@ function MapPageContent() {
         </div>
       )}
 
+      {!loading && !error && !selected && shown.length === 0 && (dateNow || liveOnly) && (
+        <div className="note gl" style={{ position: "absolute", left: 20, right: 20, bottom: "calc(var(--bot) + 120px)", zIndex: 6, display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ flex: 1 }}>
+            {liveOnly
+              ? "Прямо сейчас ничего не идёт."
+              : dateNow === "today"
+                ? "На сегодня встреч пока нет."
+                : dateNow === "tomorrow"
+                  ? "На завтра встреч пока нет."
+                  : dateNow === "weekend"
+                    ? "На выходные встреч пока нет."
+                    : "На этот день встреч нет."}
+          </span>
+          <button
+            className="chip on"
+            onClick={() => {
+              setLiveOnly(false);
+              setDate(null);
+            }}
+          >
+            Все дни
+          </button>
+        </div>
+      )}
+
       <div className="mcar">
         {carousel.map((e) => (
           <Link key={e.id} className="mcard gl" href={e.id.startsWith("city:") ? `/city/${e.id.slice(5)}` : `/events/${e.id}`}>

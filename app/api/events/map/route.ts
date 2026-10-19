@@ -1,3 +1,4 @@
+import { cityDates } from "@/lib/events/local-dates";
 import { NextRequest, NextResponse } from "next/server";
 import { anonGender, anonymousOrganizerName, fuzzCoordinate } from "@/lib/events/anonymity";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -83,15 +84,13 @@ export async function GET(req: NextRequest) {
     query = query.eq("cost_type", costTypeParam);
   }
 
+  const cd = cityDates(city);
   if (dateFilter === "today") {
-    query = query.eq("event_date", todayIso);
+    query = query.eq("event_date", cd.today);
   } else if (dateFilter === "tomorrow") {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    query = query.eq("event_date", tomorrow.toISOString().slice(0, 10));
+    query = query.eq("event_date", cd.tomorrow);
   } else if (dateFilter === "weekend") {
-    const { from, to } = getUpcomingWeekendRange();
-    query = query.gte("event_date", from).lte("event_date", to);
+    query = query.gte("event_date", cd.weekend.from).lte("event_date", cd.weekend.to);
   } else if (dateFilter && dateFilter !== "any" && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
     query = query.eq("event_date", dateFilter);
   }
@@ -208,6 +207,14 @@ export async function GET(req: NextRequest) {
     await geocodeCityEvents(admin, 5).catch(() => {});
     const cityItems = (await upcomingCityEvents(admin, city, 40))
       .filter((c) => c.latitude != null && c.longitude != null)
+      // Те же фильтры по дню, что и у встреч: иначе события города висели на карте при любом «Сегодня/Завтра».
+      .filter((c) => {
+        if (dateFilter === "today") return c.eventDate === cd.today;
+        if (dateFilter === "tomorrow") return c.eventDate === cd.tomorrow;
+        if (dateFilter === "weekend") return c.eventDate >= cd.weekend.from && c.eventDate <= cd.weekend.to;
+        if (dateFilter && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) return c.eventDate === dateFilter;
+        return true;
+      })
       .map((c) => {
         const t = eventTiming({ event_date: c.eventDate, event_time: c.eventTime ?? "19:00:00", event_end_time: null, city, longitude: c.longitude });
         return {
@@ -246,19 +253,3 @@ function calculateAge(birthDateIso: string): number {
   return age;
 }
 
-function getUpcomingWeekendRange(): { from: string; to: string } {
-  const today = new Date();
-  const dayOfWeek = today.getDay();
-
-  if (dayOfWeek === 0) {
-    const iso = today.toISOString().slice(0, 10);
-    return { from: iso, to: iso };
-  }
-
-  const daysUntilSaturday = dayOfWeek === 6 ? 0 : 6 - dayOfWeek;
-  const saturday = new Date(today);
-  saturday.setDate(today.getDate() + daysUntilSaturday);
-  const sunday = new Date(saturday);
-  sunday.setDate(saturday.getDate() + 1);
-  return { from: saturday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) };
-}

@@ -1,3 +1,4 @@
+import { cityDates } from "@/lib/events/local-dates";
 import { NextRequest, NextResponse } from "next/server";
 import { anonGender, anonymousOrganizerName, canSeeAnonymousDetails } from "@/lib/events/anonymity";
 import { runInBackground, sendInBatches } from "@/lib/server/background";
@@ -180,15 +181,13 @@ export async function GET(req: NextRequest) {
     }
 
     // Дата: конкретный день, либо "выходные" (ближайшие сб/вс от сегодня).
+    const cd = cityDates(city);
     if (dateFilter === "today") {
-      query = query.eq("event_date", todayIso);
+      query = query.eq("event_date", cd.today);
     } else if (dateFilter === "tomorrow") {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      query = query.eq("event_date", tomorrow.toISOString().slice(0, 10));
+      query = query.eq("event_date", cd.tomorrow);
     } else if (dateFilter === "weekend") {
-      const { from, to } = getUpcomingWeekendRange();
-      query = query.gte("event_date", from).lte("event_date", to);
+      query = query.gte("event_date", cd.weekend.from).lte("event_date", cd.weekend.to);
     } else if (dateFilter && dateFilter !== "any" && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
       query = query.eq("event_date", dateFilter);
     }
@@ -485,23 +484,6 @@ function calculateAge(birthDateIso: string): number {
   return age;
 }
 
-/** Диапазон ближайших выходных: если сегодня сб/вс — начиная с сегодня, иначе следующие сб-вс. */
-function getUpcomingWeekendRange(): { from: string; to: string } {
-  const today = new Date();
-  const dayOfWeek = today.getDay(); // 0 = вс, 6 = сб
-
-  if (dayOfWeek === 0) {
-    const iso = today.toISOString().slice(0, 10);
-    return { from: iso, to: iso };
-  }
-
-  const daysUntilSaturday = dayOfWeek === 6 ? 0 : 6 - dayOfWeek;
-  const saturday = new Date(today);
-  saturday.setDate(today.getDate() + daysUntilSaturday);
-  const sunday = new Date(saturday);
-  sunday.setDate(saturday.getDate() + 1);
-  return { from: saturday.toISOString().slice(0, 10), to: sunday.toISOString().slice(0, 10) };
-}
 
 /**
  * POST /api/events
