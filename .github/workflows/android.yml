@@ -49,6 +49,9 @@ jobs:
       - name: Android-проект из app.json (expo prebuild)
         run: npx expo prebuild --platform android --clean --no-install
 
+      - name: Репозиторий RuStore подключён?
+        run: grep -n "vkpartner" android/build.gradle
+
       - name: Подпись релиза
         env:
           KS_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
