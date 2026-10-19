@@ -71,8 +71,10 @@ export async function GET(req: Request) {
     .eq("city", me.city)
     .eq("is_profile_hidden", false)
     .eq("moderation_status", "active")
-    .neq("id", currentUser.userId);
-  query = candidateIds.length > 0 ? query.in("id", candidateIds) : query.not("avatar_url", "is", null).order("created_at", { ascending: false });
+    .neq("id", currentUser.userId)
+    // Без фото в «Люди рядом» не показываем (по просьбе владельца).
+    .not("avatar_url", "is", null);
+  query = candidateIds.length > 0 ? query.in("id", candidateIds) : query.order("created_at", { ascending: false });
 
   // Кто поблизости прямо сейчас: свежая огрублённая точка в радиусе ~15 км (грубая рамка,
   // точное расстояние считаем ниже). Только если у меня самого есть свежая точка.
@@ -101,7 +103,7 @@ export async function GET(req: Request) {
   const seen = new Set<string>();
   const pool = [...(users ?? []), ...(near?.data ?? [])].filter((u) => {
     const id = u.id as string;
-    if (seen.has(id) || blocked.has(id)) return false;
+    if (seen.has(id) || blocked.has(id) || !(u.avatar_url as string | null)?.trim()) return false;
     seen.add(id);
     return true;
   });
