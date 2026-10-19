@@ -50,7 +50,7 @@ jobs:
         run: npx expo prebuild --platform android --clean --no-install
 
       - name: Репозиторий RuStore подключён?
-        run: grep -n "vkpartner" android/build.gradle
+        run: grep -n "nexus-external" android/build.gradle
 
       - name: Подпись релиза
         env:
