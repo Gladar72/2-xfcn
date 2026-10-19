@@ -64,8 +64,9 @@ function EntryPageInner() {
     const initData = getInitData();
     if (!initData) {
       // Небольшая задержка на случай, если telegram-web-app.js ещё не успел выполниться.
+      // Открыли в обычном браузере (не в Telegram) — на страницу входа по почте / Telegram.
       const timeout = setTimeout(() => {
-        if (!getInitData()) setStatus("no_telegram");
+        if (!getInitData()) window.location.replace(`/login${goto ? `?goto=${encodeURIComponent(goto)}` : ""}`);
       }, 500);
       return () => clearTimeout(timeout);
     }
