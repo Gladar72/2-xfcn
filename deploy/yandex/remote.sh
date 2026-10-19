@@ -228,6 +228,14 @@ keytest() {
 }
 
 # Сводка о состоянии сервера — та же, что каждое утро приходит админам в бота.
+# Сколько людей заблокировали бота (только числа).
+blockedcount() {
+  update_code
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -tA -c \
+    "select telegram_id from users where telegram_id is not null" |
+    TG_TOKEN="$(envget TELEGRAM_BOT_TOKEN)" TG_ROOT="$(tgroot)" python3 "$APP/deploy/yandex/blocked-count.py"
+}
+
 # Сообщение от бота тем, кто зарегистрировался в старой базе после переезда (один раз, 19.10.2026).
 reauthnotify() {
   update_code
@@ -309,6 +317,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | reauthnotify | keytest | health | storagefix) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | restoreevents | reauthnotify | blockedcount | keytest | health | storagefix) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
