@@ -11,10 +11,8 @@ const MAVEN = "https://artifactory-external.vkpartner.ru/artifactory/maven";
 function withRuStoreMaven(config) {
   return withProjectBuildGradle(config, (cfg) => {
     if (cfg.modResults.language !== "groovy" || cfg.modResults.contents.includes(MAVEN)) return cfg;
-    cfg.modResults.contents = cfg.modResults.contents.replace(
-      /allprojects\s*\{\s*repositories\s*\{/,
-      (m) => `${m}\n        maven { url "${MAVEN}" }`
-    );
+    // Отдельный блок в конце файла — работает при любом виде шаблона build.gradle.
+    cfg.modResults.contents += `\nallprojects {\n    repositories {\n        maven { url "${MAVEN}" }\n    }\n}\n`;
     return cfg;
   });
 }
