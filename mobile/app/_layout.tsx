@@ -70,6 +70,11 @@ function Gate() {
 
   useEffect(() => {
     if (!ready) return;
+    // Тестовая сборка для проверки карты на эмуляторе (не для магазина): сразу на карту.
+    if (process.env.EXPO_PUBLIC_MAP_SMOKE === "1") {
+      if (segments[1] !== "map") router.replace("/(tabs)/map");
+      return;
+    }
     // Ссылка партнёра сама решает, куда вести (сначала сохраняет код).
     if ((segments[0] as string) === "r") return;
     const inAuth = segments[0] === "(auth)";
