@@ -3,7 +3,7 @@
     "name": "Место",
     "slug": "mesto",
     "scheme": "mesto",
-    "version": "0.2.0",
+    "version": "0.2.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -25,6 +25,7 @@
       }
     },
     "android": {
+      "versionCode": 2,
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -51,15 +52,11 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
-      ],
-      "config": {
-        "googleMaps": {
-          "apiKey": "GOOGLE_MAPS_ANDROID_API_KEY"
-        }
-      }
+      ]
     },
     "plugins": [
       "expo-router",
+      "@maplibre/maplibre-react-native",
       "expo-secure-store",
       "expo-web-browser",
       "expo-apple-authentication",
