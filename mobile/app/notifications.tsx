@@ -31,6 +31,7 @@ interface NotificationItem {
   ticketCode: string | null;
   eventConversationId: string | null;
   linkUserId?: string | null;
+  fromAvatarUrl?: string | null;
 }
 
 type Tab = "all" | "events" | "chats";
@@ -192,12 +193,13 @@ export default function NotificationsScreen() {
           if (row.kind === "label") return <Text style={styles.label}>{row.label}</Text>;
           const n = row.item;
           const meta = TYPE_META[n.type] ?? { label: "Уведомление", icon: "bell" as IconName };
-          const photo = n.event?.photoUrl;
+          const avatar = !n.event?.photoUrl ? n.fromAvatarUrl : null;
+          const photo = n.event?.photoUrl ?? avatar;
           return (
             <Pressable onPress={() => open(n)} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}>
               <Glass strong style={[styles.row, !n.isRead && styles.unread]}>
                 {photo ? (
-                  <Image source={{ uri: photo }} style={styles.thumb} contentFit="cover" />
+                  <Image source={{ uri: photo }} style={[styles.thumb, avatar ? { borderRadius: 25 } : null]} contentFit="cover" />
                 ) : (
                   <View style={[styles.thumb, styles.iconBox]}>
                     <Icon name={meta.icon} size={22} color={colors.violet} />
