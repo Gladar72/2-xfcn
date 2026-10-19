@@ -228,6 +228,24 @@ keytest() {
 }
 
 # Сводка о состоянии сервера — та же, что каждое утро приходит админам в бота.
+# Диагностика встреч (только чтение): последние встречи в базе сервера и ошибки API при создании.
+eventsdiag() {
+  log "встречи за 3 дня в базе сервера"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select to_char(e.created_at at time zone 'Asia/Yekaterinburg','DD.MM HH24:MI') created, e.status, e.city,
+           e.event_date, e.event_time, left(e.title,30) title, e.is_business, e.latitude is not null as geo,
+           e.category_id is not null as cat
+    from events e where e.created_at > now() - interval '3 days' order by e.created_at desc limit 40;"
+  log "статусы опубликованных будущих встреч по городам"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select city, status, count(*) from events where event_date >= current_date - 1 group by 1,2 order by 3 desc limit 20;"
+  log "пользователи: всего / активны за сутки / новые за 2 дня"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -tA -c "
+    select count(*), count(*) filter (where last_active_at > now()-interval '1 day'), count(*) filter (where created_at > now()-interval '2 days') from users;"
+  log "ошибки приложения за сутки (POST /api/events и 5xx)"
+  sudo docker logs --since 24h mesto-app-1 2>&1 | grep -iE "api/events|error|failed" | grep -v "^\s*$" | tail -60 || true
+}
+
 health() {
   update_code
   bash "$APP/deploy/yandex/health.sh"
@@ -272,6 +290,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | keytest | health | storagefix) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | keytest | health | storagefix) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
