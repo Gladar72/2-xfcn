@@ -91,7 +91,7 @@ export async function GET() {
     for (const c of conversations ?? []) if (memberOf.has(c.event_id)) conversationIds.set(c.event_id, c.id);
   }
 
-  // Сердечки и намёки: имя того, кто поставил.
+  // Сердечки и намёки: имя и фото того, кто поставил.
   const fromIds = Array.from(
     new Set(
       items
@@ -100,9 +100,13 @@ export async function GET() {
     )
   );
   const fromNames = new Map<string, string>();
+  const fromAvatars = new Map<string, string>();
   if (fromIds.length > 0) {
-    const { data: senders } = await admin.from("users").select("id, name").in("id", fromIds);
-    for (const u of senders ?? []) fromNames.set(u.id as string, ((u.name as string | null) ?? "").trim());
+    const { data: senders } = await admin.from("users").select("id, name, avatar_url").in("id", fromIds);
+    for (const u of senders ?? []) {
+      fromNames.set(u.id as string, ((u.name as string | null) ?? "").trim());
+      if (u.avatar_url) fromAvatars.set(u.id as string, u.avatar_url as string);
+    }
   }
 
   const result = items.map((n) => {
@@ -118,6 +122,8 @@ export async function GET() {
       createdAt: n.created_at,
       text: buildNotificationText(n.type, eventTitle, fromId ? fromNames.get(fromId) : undefined),
       linkUserId: fromId,
+      // Фото человека — для сердечек и намёков вместо Моси.
+      fromAvatarUrl: fromId ? fromAvatars.get(fromId) ?? null : null,
       linkEventId: eventId,
       linkConversationId: typeof payload?.conversationId === "string" ? payload.conversationId : null,
       event: eventId ? eventCards.get(eventId) ?? null : null,
