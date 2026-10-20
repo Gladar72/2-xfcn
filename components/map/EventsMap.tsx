@@ -17,6 +17,8 @@ export interface MapEventItem {
   seatsLeft: number;
   category: { slug: string; name: string; emoji: string | null } | null;
   isBusiness?: boolean;
+  /** Тип события города (concert, theatre…) — для фильтра категорий на карте заведений. */
+  kind?: string | null;
   /** Начало/конец встречи в UTC и пояс города — для метки «сейчас / через 1 ч / 20:30 / завтра». */
   startsAt?: string;
   endsAt?: string;
