@@ -36,6 +36,18 @@ const X = 80;
 
 export function InviteStory(d: InviteStoryData) {
   const photoH = Math.round(Math.max(520, Math.min(W / (d.coverRatio || 4 / 3), 780)));
+  // Фото всегда заполняет рамку без полей: считаем «cover» сами (Satori не всегда его соблюдает)
+  // и чуть увеличиваем (+5%), чтобы срезать белые края у афиш и скриншотов.
+  const ratio = d.coverRatio || 4 / 3;
+  const ZOOM = 1.05;
+  const fit = (() => {
+    const w0 = Math.max(W, photoH * ratio) * ZOOM;
+    const h0 = w0 / ratio;
+    const w = Math.ceil(w0);
+    const h = Math.ceil(Math.max(h0, photoH * ZOOM));
+    const ww = Math.ceil(Math.max(w, h * ratio));
+    return { w: ww, h, x: Math.round((W - ww) / 2), y: Math.round((photoH - h) / 2) };
+  })();
   const t = d.title.replace(/\s+/g, " ").trim();
   const titleSize = t.length <= 20 ? 84 : t.length <= 34 ? 76 : t.length <= 50 ? 64 : 56;
   const perLine = Math.floor(W / (titleSize * 0.58));
@@ -64,7 +76,7 @@ export function InviteStory(d: InviteStoryData) {
     <div style={{ position: "absolute", left: x, top: y, width: w, height: h, borderRadius: r, overflow: "hidden", display: "flex", border: "1.5px solid rgba(255,255,255,0.5)" }}>
       {d.blurUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={d.blurUrl} alt="" width={W} height={photoH} style={{ position: "absolute", left: -x, top: -y, width: W, height: photoH }} />
+        <img src={d.blurUrl} alt="" width={fit.w} height={fit.h} style={{ position: "absolute", left: fit.x - x, top: fit.y - y, width: fit.w, height: fit.h }} />
       ) : null}
       <div style={{ position: "absolute", left: 0, top: 0, width: w, height: h, display: "flex", background: "rgba(22,14,40,0.34)" }} />
       <div style={{ position: "absolute", left: 0, top: 0, width: w, height: h, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 100%)" }} />
@@ -94,7 +106,7 @@ export function InviteStory(d: InviteStoryData) {
       <div style={{ position: "absolute", left: X, top: yPhoto, width: W, height: photoH, borderRadius: 48, overflow: "hidden", display: "flex", background: "#2A2238" }}>
         {d.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={d.coverUrl} alt="" width={W} height={photoH} style={{ position: "absolute", left: 0, top: 0, width: W, height: photoH, objectFit: "cover" }} />
+          <img src={d.coverUrl} alt="" width={fit.w} height={fit.h} style={{ position: "absolute", left: fit.x, top: fit.y, width: fit.w, height: fit.h }} />
         ) : (
           <div style={{ position: "absolute", left: 0, top: 0, width: W, height: photoH, display: "flex", backgroundImage: "linear-gradient(160deg,#4B1FB8,#6C3BFF 55%,#A24DFF)" }} />
         )}
