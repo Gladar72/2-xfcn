@@ -1,0 +1,27 @@
+# Проверка сервиса модерации фото (deploy/yandex/moderation) до выкладки на сервер:
+# собрать образ, запустить и прогнать логотип (должен пройти) и битый файл (ошибка 422).
+name: Moderation check
+on:
+  workflow_dispatch:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Сборка образа
+        run: docker build -t mesto-moderation deploy/yandex/moderation
+      - name: Запуск и проверка
+        run: |
+          docker run -d --name mod -p 8090:8000 mesto-moderation
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8090/health && break; sleep 2; done
+          echo; echo "--- логотип:"
+          curl -sS -X POST --data-binary @public/brand/logo/app-icon.png -H 'Content-Type: image/png' http://127.0.0.1:8090/check | tee /tmp/logo.json
+          grep -q '"safe": true' /tmp/logo.json
+          echo; echo "--- обложки событий:"
+          for f in $(ls public/brand/covers/* | head -5); do printf '%s ' "$f"; curl -sS -X POST --data-binary @"$f" http://127.0.0.1:8090/check; echo; done
+          echo "--- битый файл:"
+          echo "not an image" > /tmp/bad.jpg
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST --data-binary @/tmp/bad.jpg http://127.0.0.1:8090/check); echo "HTTP $code"; [ "$code" = 422 ]
+          echo "--- время проверки одного фото:"
+          time curl -sS -o /dev/null -X POST --data-binary @public/brand/logo/app-icon.png http://127.0.0.1:8090/check
+          docker stats --no-stream mod
