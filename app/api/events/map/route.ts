@@ -230,6 +230,7 @@ export async function GET(req: NextRequest) {
           organizerHidden: false,
           seatsLeft: 999,
           category: { slug: c.category, name: "", emoji: null },
+          kind: c.kind,
           isBusiness: true,
           isCity: true,
           startsAt: t.start.toISOString(),
