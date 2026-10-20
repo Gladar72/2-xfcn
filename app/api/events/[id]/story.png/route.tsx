@@ -6,6 +6,7 @@ import { anonymousOrganizerName } from "@/lib/events/anonymity";
 import { cityDates } from "@/lib/events/local-dates";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { PhoneStory } from "./phone-layout";
+import { InviteStory } from "./invite-layout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -155,7 +156,9 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!e || !["published", "closed"].includes(e.status)) return new Response("not found", { status: 404 });
 
   const tDb = Date.now() - t0;
-  if (reqUrl.searchParams.get("layout") === "phone") return phoneStoryResponse(e, ig, origin, tDb);
+  // По умолчанию — приглашение (согласовано 20.10); ?layout=phone — телефон, ?layout=old — прежний вид.
+  const layout = reqUrl.searchParams.get("layout");
+  if (layout !== "old") return phoneStoryResponse(e, ig, origin, tDb, layout === "phone" ? "phone" : "invite");
   // Обложка и её размытая копия — параллельно, а не одна за другой.
   const src = coverSource(e.photo_url);
   const [bold, medium, wordmark, shRect, shRound, glowMaskBuf, cover, blurRaw] = await Promise.all([
@@ -167,6 +170,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     asset("glow-mask.png"),
     loadCover(src, origin),
     blurDataUrl(src, origin),
+    asset("mosya_jump.png"),
+    asset("glow-mask.png"),
   ]);
   const blur = cover ? blurRaw : null;
   // Тени — готовые размытые PNG, растянутые под элемент. Настоящий boxShadow с большим
@@ -401,7 +406,7 @@ function ageOf(birth: string | null | undefined): number | null {
   return a > 0 && a < 120 ? a : null;
 }
 
-async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tDb: number) {
+async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tDb: number, kind: "phone" | "invite" = "phone") {
   const t1 = Date.now();
   const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
   const org = one(e.organizer as unknown as { name: string | null; avatar_url: string | null; birth_date: string | null; gender: string | null } | null);
@@ -412,7 +417,7 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
 
   const avatarSrc = !e.is_anonymous && !e.is_business && org?.avatar_url && /^https:\/\//.test(org.avatar_url) ? org.avatar_url : null;
   const src = coverSource(e.photo_url);
-  const [bold, medium, wordmark, shRect, cover, icon, avatar, blurRaw] = await Promise.all([
+  const [bold, medium, wordmark, shRect, cover, icon, avatar, blurRaw, mosyaBuf, glowMaskBuf] = await Promise.all([
     asset("GolosText-Bold.ttf"),
     asset("GolosText-Medium.ttf"),
     asset("wordmark-dark.svg"),
@@ -421,6 +426,8 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
     iconName ? asset(`cat3d/${iconName}.png`).catch(() => null) : Promise.resolve(null),
     avatarSrc ? fetchImage(`${origin}/_next/image?url=${encodeURIComponent(avatarSrc)}&w=96&q=80`, 4000).then((r) => r ?? fetchImage(avatarSrc, 4000)) : Promise.resolve(null),
     blurDataUrl(src, origin),
+    asset("mosya_jump.png"),
+    asset("glow-mask.png"),
   ]);
 
   const cd = cityDates(e.city);
@@ -439,6 +446,46 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
     : e.is_business
       ? { name: `${placeName || orgName} · для бизнеса`, avatar: null, initial: (placeName || orgName).charAt(0).toUpperCase() }
       : { name: `${orgName}${age ? `, ${age}` : ""} · зовёт`, avatar: avatar ? `data:${avatar.type};base64,${avatar.buf.toString("base64")}` : null, initial: orgName.charAt(0).toUpperCase() };
+
+  const fonts = [
+    { name: "Golos", data: medium, weight: 500 as const, style: "normal" as const },
+    { name: "Golos", data: bold, weight: 700 as const, style: "normal" as const },
+  ];
+  const headers = { "Server-Timing": `db;dur=${tDb}, img;dur=${Date.now() - t1}`, "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400" };
+  if (kind === "invite") {
+    const blur = cover ? blurRaw : null;
+    const ratio = cover?.ratio ?? 4 / 3;
+    const ph = Math.round(Math.max(520, Math.min(920 / ratio, 780)));
+    const WEEK_ACC: Record<string, string> = { понедельник: "в понедельник", вторник: "во вторник", среда: "в среду", четверг: "в четверг", пятница: "в пятницу", суббота: "в субботу", воскресенье: "в воскресенье" };
+    const wd = date.toLocaleDateString("ru-RU", { weekday: "long", timeZone: "UTC" });
+    const time = String(e.event_time).slice(0, 5);
+    const kicker =
+      dateTop === "сегодня" ? `Сегодня в ${time}. Пойдёшь со мной?` : dateTop === "завтра" ? `Завтра в ${time}. Пойдёшь со мной?` : `Иду ${WEEK_ACC[wd] ?? wd}. Пойдёшь со мной?`;
+    const short = date.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).replace(/\./g, "");
+    return new ImageResponse(
+      InviteStory({
+        kicker,
+        title: e.title ?? "",
+        coverUrl: cover?.dataUrl ?? null,
+        coverRatio: ratio,
+        blurUrl: blur,
+        glowUrl: blur ? glowSvg(blur, `data:image/png;base64,${glowMaskBuf.toString("base64")}`, 1080, ph + 160, 2.4, 1.45) : null,
+        who: e.is_business && !e.is_anonymous ? { ...who, name: placeName || orgName } : who,
+        catIcon: icon ? `data:image/png;base64,${icon.toString("base64")}` : null,
+        when: dateTop === "сегодня" || dateTop === "завтра" ? dateTop : short,
+        time,
+        whereLabel: city ? `Где · ${city}` : "Где",
+        place: e.is_anonymous ? "Скрыто" : placeName || street || "Точка на карте",
+        street: e.is_anonymous ? "после одобрения" : placeName ? street.replace(/^ул(ица)?\.?\s*/i, "") : "",
+        free,
+        seatsTotal: e.seats_total ?? 0,
+        logo: `data:image/svg+xml;base64,${wordmark.toString("base64")}`,
+        mosya: `data:image/png;base64,${mosyaBuf.toString("base64")}`,
+        ig,
+      }),
+      { width: 1080, height: 1920, fonts, headers }
+    );
+  }
 
   return new ImageResponse(
     PhoneStory({
