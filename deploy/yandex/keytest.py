@@ -112,33 +112,22 @@ def test_postbox():
         report("Postbox (почта)", False, f"HTTP {code}: {text}")
 
 
-# 3. Sightengine — проверка логотипа «Места» (тратит 1 из бесплатных проверок).
-def test_sightengine():
-    user, sec = E.get("SIGHTENGINE_API_USER"), E.get("SIGHTENGINE_API_SECRET")
-    if not user or not sec:
-        return report("Sightengine (модерация фото)", None, "ключи не заданы")
+# 3. Модерация фото на своём сервере (NudeNet): логотип «Места» должен пройти.
+def test_moderation():
     try:
         with open(f"{APP_DIR}/public/brand/logo/app-icon.png", "rb") as f:
             img = f.read()
     except OSError as e:
-        return report("Sightengine (модерация фото)", False, f"нет тестовой картинки: {e}")
-    b = uuid.uuid4().hex
-    parts = []
-    for name, val in (("models", "nudity-2.1"), ("api_user", user), ("api_secret", sec)):
-        parts.append(f'--{b}\r\nContent-Disposition: form-data; name="{name}"\r\n\r\n{val}\r\n'.encode())
-    parts.append(f'--{b}\r\nContent-Disposition: form-data; name="media"; filename="t.png"\r\nContent-Type: image/png\r\n\r\n'.encode() + img + b"\r\n")
-    parts.append(f"--{b}--\r\n".encode())
-    code, text = req("https://api.sightengine.com/1.0/check.json", b"".join(parts),
-                     {"Content-Type": f"multipart/form-data; boundary={b}"})
+        return report("Модерация фото (свой сервер)", False, f"нет тестовой картинки: {e}")
+    code, text = req("http://127.0.0.1:8090/check", img, {"Content-Type": "image/png"})
     try:
         d = json.loads(text)
     except Exception:
         d = {}
-    if code == 200 and d.get("status") == "success":
-        report("Sightengine (модерация фото)", True, "картинка проверена")
+    if code == 200 and d.get("safe") is True:
+        report("Модерация фото (свой сервер)", True, "логотип прошёл проверку")
     else:
-        err = (d.get("error") or {}).get("message") if isinstance(d.get("error"), dict) else text
-        report("Sightengine (модерация фото)", False, f"HTTP {code}: {err}")
+        report("Модерация фото (свой сервер)", False, f"HTTP {code}: {str(text)[:200]}")
 
 
 # 4. ЮKassa — данные магазина (GET /v3/me, ничего не создаёт).
@@ -171,7 +160,7 @@ def test_geocoder():
     report("Геокодер OSM: адрес по точке (Nominatim)", ok2, "" if ok2 else f"HTTP {code}: {text}")
 
 
-for t in (test_gpt, test_postbox, test_sightengine, test_yookassa, test_geocoder):
+for t in (test_gpt, test_postbox, test_moderation, test_yookassa, test_geocoder):
     try:
         t()
     except Exception as e:

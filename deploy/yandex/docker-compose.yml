@@ -22,6 +22,18 @@ services:
       driver: json-file
       options: { max-size: "20m", max-file: "5" }
 
+  # Проверка фото на наготу прямо на этом сервере (фото не уходят к сторонним сервисам).
+  moderation:
+    build: ./moderation
+    image: mesto-moderation:latest
+    ports:
+      - "127.0.0.1:8090:8000"
+    restart: unless-stopped
+    mem_limit: 1g
+    logging:
+      driver: json-file
+      options: { max-size: "5m", max-file: "2" }
+
   caddy:
     image: caddy:2.8
     network_mode: host
