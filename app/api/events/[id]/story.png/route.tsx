@@ -411,14 +411,16 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
   const iconName = iconPath?.match(/\/(i_[a-z]+)\.webp$/)?.[1] ?? null;
 
   const avatarSrc = !e.is_anonymous && !e.is_business && org?.avatar_url && /^https:\/\//.test(org.avatar_url) ? org.avatar_url : null;
-  const [bold, medium, wordmark, shRect, cover, icon, avatar] = await Promise.all([
+  const src = coverSource(e.photo_url);
+  const [bold, medium, wordmark, shRect, cover, icon, avatar, blurRaw] = await Promise.all([
     asset("GolosText-Bold.ttf"),
     asset("GolosText-Medium.ttf"),
     asset("wordmark-dark.svg"),
     asset("shadow-rect.png"),
-    loadCover(coverSource(e.photo_url), origin),
+    loadCover(src, origin),
     iconName ? asset(`cat3d/${iconName}.png`).catch(() => null) : Promise.resolve(null),
     avatarSrc ? fetchImage(`${origin}/_next/image?url=${encodeURIComponent(avatarSrc)}&w=96&q=80`, 4000).then((r) => r ?? fetchImage(avatarSrc, 4000)) : Promise.resolve(null),
+    blurDataUrl(src, origin),
   ]);
 
   const cd = cityDates(e.city);
@@ -430,10 +432,12 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
   const free = Math.max(0, (e.seats_total ?? 0) - (e.seats_taken ?? 0));
   const age = ageOf(org?.birth_date);
   const orgName = org?.name?.trim() || "Организатор";
+  // «Точка на карте» — заглушка, когда место выбрано булавкой без названия.
+  const placeName = e.place_name?.trim() && !/^точка на карте$/i.test(e.place_name.trim()) ? e.place_name.trim() : "";
   const who = e.is_anonymous
     ? { name: `${anonymousOrganizerName(org?.gender ?? null)} · зовёт`, avatar: null, initial: "?" }
     : e.is_business
-      ? { name: `${e.place_name?.trim() || orgName} · для бизнеса`, avatar: null, initial: (e.place_name?.trim() || orgName).charAt(0).toUpperCase() }
+      ? { name: `${placeName || orgName} · для бизнеса`, avatar: null, initial: (placeName || orgName).charAt(0).toUpperCase() }
       : { name: `${orgName}${age ? `, ${age}` : ""} · зовёт`, avatar: avatar ? `data:${avatar.type};base64,${avatar.buf.toString("base64")}` : null, initial: orgName.charAt(0).toUpperCase() };
 
   return new ImageResponse(
@@ -441,14 +445,16 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
       title: e.title ?? "",
       description: e.description ?? null,
       coverUrl: cover?.dataUrl ?? null,
+      coverRatio: cover?.ratio ?? 4 / 3,
+      blurUrl: cover ? blurRaw : null,
       who,
       dateTop,
       day: date.getUTCDate(),
       month,
       time: String(e.event_time).slice(0, 5),
       city,
-      place: e.is_anonymous ? "Место — после одобрения" : e.place_name?.trim() || street || city,
-      street: e.is_anonymous ? "" : e.place_name?.trim() ? street : "",
+      place: e.is_anonymous ? "Место — после одобрения" : placeName || street || "Точка на карте",
+      street: e.is_anonymous ? "" : placeName ? street : "",
       free,
       seatsWord: seatsWord(free),
       catIcon: icon ? `data:image/png;base64,${icon.toString("base64")}` : null,

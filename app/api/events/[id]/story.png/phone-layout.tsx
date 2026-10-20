@@ -10,6 +10,8 @@ export interface PhoneStoryData {
   title: string;
   description: string | null;
   coverUrl: string | null; // data: URL
+  coverRatio: number; // ширина / высота
+  blurUrl: string | null; // крошечная копия — размытый фон экрана
   who: { name: string; avatar: string | null; initial: string };
   dateTop: string; // «сегодня» / «завтра» / «среда»
   day: number;
@@ -52,12 +54,18 @@ function clip(s: string, n: number) {
 export function PhoneStory(d: PhoneStoryData) {
   // Телефон: 500×1080, экран 474×1054. Ниже — рамка под стикер (только ig) и надпись.
   const PX = 290;
-  const PY = 250;
+  const PY = 300;
   const PW = 500;
   const PH = 1080;
   const title = clip(d.title, 60);
   const titleSize = title.length <= 22 ? 46 : title.length <= 40 ? 40 : 34;
-  const desc = d.description ? clip(d.description, 90) : null;
+  const desc = d.description ? clip(d.description, 110) : null;
+  const SW = PW - 26;
+  const SH = PH - 26;
+  // Фото целиком: на всю ширину экрана, высота — по пропорциям (не выше 62% экрана).
+  const photoH = Math.round(Math.min(SW / (d.coverRatio || 4 / 3), SH * 0.62));
+  const photoTop = 0;
+  const textTop = Math.max(photoTop + photoH - 30, 300);
 
   const Shade = ({ x, y, w, h, o = 0.35 }: { x: number; y: number; w: number; h: number; o?: number }) => (
     // eslint-disable-next-line @next/next/no-img-element
@@ -82,18 +90,25 @@ export function PhoneStory(d: PhoneStoryData) {
       <div style={{ position: "absolute", left: PX - 4, top: PY - 4, width: PW + 8, height: PH + 8, borderRadius: 86, background: "#C9C2D9", display: "flex" }} />
       <div style={{ position: "absolute", left: PX, top: PY, width: PW, height: PH, borderRadius: 82, background: "#0B0910", padding: 13, display: "flex" }}>
         <div style={{ width: PW - 26, height: PH - 26, borderRadius: 70, overflow: "hidden", position: "relative", display: "flex", background: "#2A2238", color: "#fff" }}>
+          {/* Фон экрана — размытая копия фото, сильно затемнённая; сверху — фото целиком, в своих пропорциях. */}
+          {d.blurUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={d.blurUrl} alt="" width={SW + 120} height={SH + 120} style={{ position: "absolute", left: -60, top: -60, width: SW + 120, height: SH + 120, objectFit: "cover" }} />
+          ) : null}
+          <div style={{ position: "absolute", left: 0, top: 0, width: SW, height: SH, display: "flex", background: "rgba(12,8,22,0.86)" }} />
           {d.coverUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={d.coverUrl} alt="" width={PW - 26} height={PH - 26} style={{ position: "absolute", left: 0, top: 0, width: PW - 26, height: PH - 26, objectFit: "cover" }} />
+            <img src={d.coverUrl} alt="" width={SW} height={photoH} style={{ position: "absolute", left: 0, top: photoTop, width: SW, height: photoH, objectFit: "cover" }} />
           ) : (
-            <div style={{ position: "absolute", left: 0, top: 0, width: PW - 26, height: PH - 26, display: "flex", backgroundImage: "linear-gradient(160deg,#4B1FB8,#6C3BFF 55%,#A24DFF)" }} />
+            <div style={{ position: "absolute", left: 0, top: photoTop, width: SW, height: photoH, display: "flex", backgroundImage: "linear-gradient(160deg,#4B1FB8,#6C3BFF 55%,#A24DFF)" }} />
           )}
-          <div style={{ position: "absolute", left: 0, top: 0, width: PW - 26, height: PH - 26, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0) 16%, rgba(0,0,0,0) 40%, rgba(10,6,20,0.84) 76%, rgba(10,6,20,0.94) 100%)" }} />
+          <div style={{ position: "absolute", left: 0, top: photoTop + photoH - 160, width: SW, height: 162, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(12,8,22,0) 0%, rgba(12,8,22,0.95) 100%)" }} />
+          <div style={{ position: "absolute", left: 0, top: 0, width: SW, height: 120, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 100%)" }} />
           <div style={{ position: "absolute", left: 157, top: 16, width: 160, height: 46, borderRadius: 30, background: "#000", display: "flex" }} />
           <div style={{ position: "absolute", left: 56, top: 26, fontSize: 24, fontWeight: 700, display: "flex" }}>9:41</div>
 
           {/* Поверх фото: кто зовёт, название, описание, кнопки */}
-          <div style={{ position: "absolute", left: 34, width: 330, bottom: 58, display: "flex", flexDirection: "column" }}>
+          <div style={{ position: "absolute", left: 34, width: 330, top: textTop, display: "flex", flexDirection: "column" }}>
             <div style={{ display: "flex", alignItems: "center", fontSize: 22, fontWeight: 500 }}>
               {d.who.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -176,7 +191,7 @@ export function PhoneStory(d: PhoneStoryData) {
         </div>
       ) : null}
 
-      <div style={{ position: "absolute", left: 0, top: d.ig ? 1520 : 1470, width: 1080, display: "flex", flexDirection: "column", alignItems: "center", fontSize: 112, fontWeight: 700, lineHeight: 1.02, letterSpacing: -3.5 }}>
+      <div style={{ position: "absolute", left: 0, top: d.ig ? 1565 : 1500, width: 1080, display: "flex", flexDirection: "column", alignItems: "center", fontSize: 112, fontWeight: 700, lineHeight: 1.02, letterSpacing: -3.5 }}>
         <div style={{ display: "flex" }}>Пойдём</div>
         <div style={{ display: "flex", color: violet }}>вместе?</div>
       </div>
