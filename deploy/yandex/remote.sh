@@ -174,6 +174,9 @@ deploy() {
   # Учёт блокировок бота (идемпотентно).
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
     < "$APP/supabase/migrations/0067_bot_blocks.sql" || true
+  # Удаление аккаунта: платежи и жалобы не мешают удалению (идемпотентно).
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
+    < "$APP/supabase/migrations/0068_account_deletion.sql" || true
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
