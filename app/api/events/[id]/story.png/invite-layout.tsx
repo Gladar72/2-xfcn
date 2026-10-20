@@ -60,7 +60,7 @@ export function InviteStory(d: InviteStoryData) {
   const panelW = W - 48;
 
   // «Стекло»: внутри плашки — размытая копия фото, сдвинутая так, чтобы совпасть с фото под ней.
-  const Glass = ({ x, y, w, h, r, children, row }: { x: number; y: number; w: number; h: number; r: number; children: ReactNode; row?: boolean }) => (
+  const Glass = ({ x, y, w, h, r, children, row }: { x: number; y: number; w: number; h: number; r: number; children?: ReactNode; row?: boolean }) => (
     <div style={{ position: "absolute", left: x, top: y, width: w, height: h, borderRadius: r, overflow: "hidden", display: "flex", border: "1.5px solid rgba(255,255,255,0.5)" }}>
       {d.blurUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
