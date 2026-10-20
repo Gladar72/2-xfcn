@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { API_URL } from "@/lib/config";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
@@ -39,6 +40,8 @@ export default function RegisterScreen() {
   const [interests, setInterests] = useState<Interest[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
   const [agreed, setAgreed] = useState(false);
+  // Согласие на обработку персональных данных — отдельной галочкой (152-ФЗ).
+  const [agreedPd, setAgreedPd] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -85,6 +88,7 @@ export default function RegisterScreen() {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return setError("Укажи дату рождения полностью");
     if (!gender) return setError("Укажи пол");
     if (!agreed) return setError("Нужно принять условия оферты и политики конфиденциальности");
+    if (!agreedPd) return setError("Нужно согласие на обработку персональных данных");
     if (!photo) return setError("Добавь своё фото — без него зарегистрироваться нельзя");
     setBusy(true);
     try {
@@ -190,6 +194,17 @@ export default function RegisterScreen() {
             {agreed ? <Text style={{ color: "#fff", fontWeight: "900" }}>✓</Text> : null}
           </View>
           <Text style={{ flex: 1, fontFamily: FONT, color: colors.ink2, fontSize: 14 }}>Мне есть 18 лет, принимаю условия оферты и политику конфиденциальности</Text>
+        </Pressable>
+        <Pressable onPress={() => setAgreedPd((v) => !v)} style={styles.terms}>
+          <View style={[styles.check, agreedPd && { backgroundColor: colors.accent, borderColor: colors.accent }]}>
+            {agreedPd ? <Text style={{ color: "#fff", fontWeight: "900" }}>✓</Text> : null}
+          </View>
+          <Text style={{ flex: 1, fontFamily: FONT, color: colors.ink2, fontSize: 14 }}>
+            Даю{" "}
+            <Text style={{ color: colors.violet, textDecorationLine: "underline" }} onPress={() => Linking.openURL(`${API_URL}/legal/consent`)}>
+              согласие на обработку персональных данных
+            </Text>
+          </Text>
         </Pressable>
 
         <ErrorText>{error}</ErrorText>
