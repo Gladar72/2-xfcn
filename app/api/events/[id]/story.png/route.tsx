@@ -461,6 +461,10 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
     const time = String(e.event_time).slice(0, 5);
     const kicker =
       dateTop === "сегодня" ? `Сегодня в ${time}. Пойдёшь со мной?` : dateTop === "завтра" ? `Завтра в ${time}. Пойдёшь со мной?` : `Иду ${WEEK_ACC[wd] ?? wd}. Пойдёшь со мной?`;
+    // Название места без города в начале («Тюмень Ленина 46» → «Ленина 46»); если это и есть адрес — улицу не повторяем.
+    const invPlace = placeName.replace(new RegExp(`^${city || "—"}[,\\s]+`, "i"), "");
+    const norm = (x: string) => x.toLowerCase().replace(/[^a-zа-яё0-9]/gi, "");
+    const sameAsStreet = !!street && norm(street).includes(norm(invPlace).replace(/^ул(ица)?/, ""));
     const short = date.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).replace(/\./g, "");
     return new ImageResponse(
       InviteStory({
@@ -475,8 +479,8 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
         when: dateTop === "сегодня" || dateTop === "завтра" ? dateTop : short,
         time,
         whereLabel: city ? `Где · ${city}` : "Где",
-        place: e.is_anonymous ? "Скрыто" : placeName || street || "Точка на карте",
-        street: e.is_anonymous ? "после одобрения" : placeName ? street.replace(/^ул(ица)?\.?\s*/i, "") : "",
+        place: e.is_anonymous ? "Скрыто" : invPlace || street || "Точка на карте",
+        street: e.is_anonymous ? "после одобрения" : invPlace && !sameAsStreet ? street.replace(/^ул(ица)?\.?\s*/i, "") : "",
         free,
         seatsTotal: e.seats_total ?? 0,
         logo: `data:image/svg+xml;base64,${wordmark.toString("base64")}`,

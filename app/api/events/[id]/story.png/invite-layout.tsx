@@ -66,7 +66,8 @@ export function InviteStory(d: InviteStoryData) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={d.blurUrl} alt="" width={W} height={photoH} style={{ position: "absolute", left: -x, top: -y, width: W, height: photoH }} />
       ) : null}
-      <div style={{ position: "absolute", left: 0, top: 0, width: w, height: h, display: "flex", background: "rgba(255,255,255,0.14)" }} />
+      <div style={{ position: "absolute", left: 0, top: 0, width: w, height: h, display: "flex", background: "rgba(22,14,40,0.34)" }} />
+      <div style={{ position: "absolute", left: 0, top: 0, width: w, height: h, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(255,255,255,0.16) 0%, rgba(255,255,255,0.04) 100%)" }} />
       <div style={{ position: "absolute", left: 0, top: 0, width: w, height: h, display: "flex", flexDirection: row ? "row" : "column", alignItems: "center", justifyContent: "center" }}>{children}</div>
     </div>
   );
