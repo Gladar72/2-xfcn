@@ -2,6 +2,10 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { anonymousOrganizerName } from "@/lib/events/anonymity";
+import { cityDates } from "@/lib/events/local-dates";
+import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
+import { PhoneStory } from "./phone-layout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -144,13 +148,14 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const { data: e } = await admin
     .from("events")
     .select(
-      "title, city, place_name, address, event_date, event_time, seats_total, seats_taken, status, is_business, cost_type, business_pricing_type, business_pricing_details, photo_url, is_anonymous"
+      "title, description, city, place_name, address, event_date, event_time, seats_total, seats_taken, status, is_business, cost_type, business_pricing_type, business_pricing_details, photo_url, is_anonymous, category:categories(slug), training_type:training_types(slug), organizer:users(name, avatar_url, birth_date, gender)"
     )
     .eq("id", params.id)
     .maybeSingle();
   if (!e || !["published", "closed"].includes(e.status)) return new Response("not found", { status: 404 });
 
   const tDb = Date.now() - t0;
+  if (reqUrl.searchParams.get("layout") === "phone") return phoneStoryResponse(e, ig, origin, tDb);
   // Обложка и её размытая копия — параллельно, а не одна за другой.
   const src = coverSource(e.photo_url);
   const [bold, medium, wordmark, shRect, shRound, glowMaskBuf, cover, blurRaw] = await Promise.all([
@@ -369,6 +374,96 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       // Адрес картинки содержит ?v=<хэш обложки/названия/времени/мест> — при правке он меняется,
       // поэтому готовую картинку можно долго держать в CDN и в браузере.
       headers: { "Server-Timing": `db;dur=${tDb}, img;dur=${tImg}`, "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400" },
+    }
+  );
+}
+
+type StoryEvent = NonNullable<Awaited<ReturnType<typeof loadEventForStory>>>;
+// Только для вывода типа строки события (запрос тот же, что в GET).
+async function loadEventForStory(id: string) {
+  return (
+    await createAdminClient()
+      .from("events")
+      .select(
+        "title, description, city, place_name, address, event_date, event_time, seats_total, seats_taken, status, is_business, cost_type, business_pricing_type, business_pricing_details, photo_url, is_anonymous, category:categories(slug), training_type:training_types(slug), organizer:users(name, avatar_url, birth_date, gender)"
+      )
+      .eq("id", id)
+      .maybeSingle()
+  ).data;
+}
+
+function ageOf(birth: string | null | undefined): number | null {
+  if (!birth) return null;
+  const b = new Date(birth);
+  const n = new Date();
+  let a = n.getFullYear() - b.getFullYear();
+  if (n.getMonth() < b.getMonth() || (n.getMonth() === b.getMonth() && n.getDate() < b.getDate())) a--;
+  return a > 0 && a < 120 ? a : null;
+}
+
+async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tDb: number) {
+  const t1 = Date.now();
+  const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
+  const org = one(e.organizer as unknown as { name: string | null; avatar_url: string | null; birth_date: string | null; gender: string | null } | null);
+  const catSlug = one(e.category as unknown as { slug: string } | null)?.slug ?? null;
+  const ttSlug = one(e.training_type as unknown as { slug: string } | null)?.slug ?? null;
+  const iconPath = e.is_business ? CATEGORY_ICON.business : catSlug === "training" ? trainingIcon(ttSlug) : catSlug === "custom" ? "/brand/cat3d/i_games.webp" : catSlug ? CATEGORY_ICON[catSlug] : null;
+  const iconName = iconPath?.match(/\/(i_[a-z]+)\.webp$/)?.[1] ?? null;
+
+  const avatarSrc = !e.is_anonymous && !e.is_business && org?.avatar_url && /^https:\/\//.test(org.avatar_url) ? org.avatar_url : null;
+  const [bold, medium, wordmark, shRect, cover, icon, avatar] = await Promise.all([
+    asset("GolosText-Bold.ttf"),
+    asset("GolosText-Medium.ttf"),
+    asset("wordmark-dark.svg"),
+    asset("shadow-rect.png"),
+    loadCover(coverSource(e.photo_url), origin),
+    iconName ? asset(`cat3d/${iconName}.png`).catch(() => null) : Promise.resolve(null),
+    avatarSrc ? fetchImage(`${origin}/_next/image?url=${encodeURIComponent(avatarSrc)}&w=96&q=80`, 4000).then((r) => r ?? fetchImage(avatarSrc, 4000)) : Promise.resolve(null),
+  ]);
+
+  const cd = cityDates(e.city);
+  const date = new Date(`${e.event_date}T00:00:00Z`);
+  const dateTop = e.event_date === cd.today ? "сегодня" : e.event_date === cd.tomorrow ? "завтра" : date.toLocaleDateString("ru-RU", { weekday: "long", timeZone: "UTC" });
+  const month = date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" }).replace(/^\d+\s*/, "");
+  const city = e.city ?? "";
+  const street = (e.address ?? "").replace(/^Россия,\s*/i, "").replace(new RegExp(`^${city || "—"},\\s*`, "i"), "");
+  const free = Math.max(0, (e.seats_total ?? 0) - (e.seats_taken ?? 0));
+  const age = ageOf(org?.birth_date);
+  const orgName = org?.name?.trim() || "Организатор";
+  const who = e.is_anonymous
+    ? { name: `${anonymousOrganizerName(org?.gender ?? null)} · зовёт`, avatar: null, initial: "?" }
+    : e.is_business
+      ? { name: `${e.place_name?.trim() || orgName} · для бизнеса`, avatar: null, initial: (e.place_name?.trim() || orgName).charAt(0).toUpperCase() }
+      : { name: `${orgName}${age ? `, ${age}` : ""} · зовёт`, avatar: avatar ? `data:${avatar.type};base64,${avatar.buf.toString("base64")}` : null, initial: orgName.charAt(0).toUpperCase() };
+
+  return new ImageResponse(
+    PhoneStory({
+      title: e.title ?? "",
+      description: e.description ?? null,
+      coverUrl: cover?.dataUrl ?? null,
+      who,
+      dateTop,
+      day: date.getUTCDate(),
+      month,
+      time: String(e.event_time).slice(0, 5),
+      city,
+      place: e.is_anonymous ? "Место — после одобрения" : e.place_name?.trim() || street || city,
+      street: e.is_anonymous ? "" : e.place_name?.trim() ? street : "",
+      free,
+      seatsWord: seatsWord(free),
+      catIcon: icon ? `data:image/png;base64,${icon.toString("base64")}` : null,
+      logo: `data:image/svg+xml;base64,${wordmark.toString("base64")}`,
+      shadowRect: `data:image/png;base64,${shRect.toString("base64")}`,
+      ig,
+    }),
+    {
+      width: 1080,
+      height: 1920,
+      fonts: [
+        { name: "Golos", data: medium, weight: 500, style: "normal" },
+        { name: "Golos", data: bold, weight: 700, style: "normal" },
+      ],
+      headers: { "Server-Timing": `db;dur=${tDb}, img;dur=${Date.now() - t1}`, "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400" },
     }
   );
 }

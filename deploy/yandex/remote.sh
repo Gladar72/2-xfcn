@@ -315,8 +315,8 @@ eventsdiag() {
 bizdiag() {
   log "будущие бизнес-события"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
-    select e.status, e.city, e.event_date, e.event_time, left(e.title,40) title, e.latitude is not null as geo
-    from events e where e.is_business and e.event_date >= current_date - 1 order by e.event_date limit 40;"
+    select e.id, e.status, e.event_date, left(e.title,30) title
+    from events e where e.status='published' and e.event_date >= current_date order by e.event_date limit 25;"
   log "события города (Что ещё в городе)"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
     select event_date, left(title,40), latitude is not null geo, status from city_events where event_date >= current_date - 1 order by event_date limit 15;" 2>&1 | head -20 || true
