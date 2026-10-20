@@ -462,7 +462,7 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
     const kicker =
       dateTop === "сегодня" ? `Сегодня в ${time}. Пойдёшь со мной?` : dateTop === "завтра" ? `Завтра в ${time}. Пойдёшь со мной?` : `Иду ${WEEK_ACC[wd] ?? wd}. Пойдёшь со мной?`;
     // Название места без города в начале («Тюмень Ленина 46» → «Ленина 46»); если это и есть адрес — улицу не повторяем.
-    const invPlace = placeName.replace(new RegExp(`^${city || "—"}[,\\s]+`, "i"), "");
+    const invPlace = placeName.replace(new RegExp(`^${city || "—"}[,\\s]+|[,\\s]+${city || "—"}$`, "gi"), "");
     const norm = (x: string) => x.toLowerCase().replace(/[^a-zа-яё0-9]/gi, "");
     const sameAsStreet = !!street && norm(street).includes(norm(invPlace).replace(/^ул(ица)?/, ""));
     const short = date.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).replace(/\./g, "");
