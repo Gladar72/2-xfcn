@@ -8,13 +8,20 @@ import { EmptyIll, HeroCard, Ic, Overlay, Screen, type HeroEvent } from "@/compo
 import { goBack } from "@/lib/nav/back";
 import { Cover } from "@/components/proto/ui";
 import { KIND_LABEL, cityEventIcon, type CityEvent } from "@/lib/city-events";
+import { bizCategoryCounts, bizCategoryIcon, matchesBizCategory } from "@/lib/events/biz-categories";
 
 /** «Для бизнеса» (SCR.business прототипа): как это работает + ближайшие события. */
 export default function BusinessPage() {
   const router = useRouter();
   const [events, setEvents] = useState<HeroEvent[] | null>(null);
   const [cityEv, setCityEv] = useState<CityEvent[]>([]);
+  // Категория (кафе, бары, концерты…) — фильтрует и события заведений, и «Что ещё в городе».
+  const [cat, setCat] = useState<string | null>(null);
   useGuide("business");
+  const cityTagged = cityEv.map((c) => ({ c, tag: { title: c.title, kind: c.kind } }));
+  const counts = bizCategoryCounts([...(events ?? []), ...cityTagged.map((x) => x.tag)]);
+  const shownEvents = events?.filter((e) => matchesBizCategory(e, cat)) ?? null;
+  const shownCity = cityTagged.filter((x) => matchesBizCategory(x.tag, cat)).map((x) => x.c);
 
   useEffect(() => {
     fetch("/api/events?business=true&page=0")
@@ -60,13 +67,33 @@ export default function BusinessPage() {
           </div>
         ))}
       </div>
+      {counts.length > 1 && (
+        <div className="cats" style={{ marginTop: 18 }}>
+          <button className={`cat ${!cat ? "on" : "gl"}`} style={{ paddingLeft: 16 }} onClick={() => setCat(null)}>
+            Все
+          </button>
+          {counts.map(({ cat: c, count }) => (
+            <button key={c.key} className={`cat ${cat === c.key ? "on" : "gl"}`} onClick={() => setCat(cat === c.key ? null : c.key)}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={bizCategoryIcon(c)} alt="" />
+              {c.label}
+              <span style={{ opacity: 0.55, marginLeft: 2 }}>{count}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <div className="sec">
         <b>Ближайшие события</b>
-        <span>{events?.length ?? ""}</span>
+        <span>{shownEvents?.length ?? ""}</span>
       </div>
       <div style={{ display: "grid", gap: 12 }}>
         {events === null && [0, 1].map((i) => <div key={i} className="sk" style={{ height: 290, borderRadius: 32 }} />)}
-        {events?.map((e) => <HeroCard key={e.id} e={e} full />)}
+        {shownEvents?.map((e) => <HeroCard key={e.id} e={e} full />)}
+        {cat && events && events.length > 0 && shownEvents?.length === 0 && (
+          <div className="empty">
+            <b>В этой категории пока нет событий заведений</b>
+          </div>
+        )}
         {events?.length === 0 && (
           <div className="empty">
             <EmptyIll />
@@ -75,14 +102,14 @@ export default function BusinessPage() {
           </div>
         )}
       </div>
-      {cityEv.length > 0 && (
+      {shownCity.length > 0 && (
         <>
           <div className="sec">
             <b>Что ещё в городе</b>
-            <span>{cityEv.length}</span>
+            <span>{shownCity.length}</span>
           </div>
           <div style={{ display: "grid", gap: 10 }}>
-            {cityEv.map((c) => (
+            {shownCity.map((c) => (
               <Link key={c.id} href={`/city/${c.id}`} className="gl cityrow">
                 <Cover photoUrl={c.photoUrl} icon={cityEventIcon(c.kind)} cls="cr-ph" thumb={200} />
                 <div className="cr-i">
@@ -102,7 +129,7 @@ export default function BusinessPage() {
       <div style={{ height: 90 }} />
       {/* Как на главной — по центру внизу: карта только с событиями заведений. */}
       <Overlay>
-        <Link className="mapfab" href="/map?business=only">
+        <Link className="mapfab" href={`/map?business=only${cat ? `&cat=${cat}` : ""}`}>
           <Ic n="map" />
           Карта
         </Link>
