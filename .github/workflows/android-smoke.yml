@@ -81,7 +81,9 @@ jobs:
             adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/splash-1.png
             sleep 3
             adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/splash-2.png
-            sleep 39
+            sleep 10
+            adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/login.png
+            sleep 29
             adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/map-1.png
             sleep 20
             adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/map-2.png
