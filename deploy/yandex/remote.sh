@@ -325,6 +325,10 @@ bizdiag() {
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
     select e.id, e.status, e.event_date, left(e.title,30) title
     from events e where e.status='published' and e.event_date >= current_date order by e.event_date limit 25;"
+  log "подборка мест по городам"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select city, category, training_type, count(*) from place_picks group by 1,2,3 order by 1,2,3;" || true
+  log "города пользователей (топ-15)"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select city, count(*) from users group by 1 order by 2 desc limit 15;" || true
   log "события города (Что ещё в городе)"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
     select event_date, left(title,40), latitude is not null geo, status from city_events where event_date >= current_date - 1 order by event_date limit 15;" 2>&1 | head -20 || true
