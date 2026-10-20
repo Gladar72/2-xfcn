@@ -64,8 +64,13 @@ export function PhoneStory(d: PhoneStoryData) {
   const SH = PH - 26;
   // Фото целиком: на всю ширину экрана, высота — по пропорциям (не выше 62% экрана).
   const photoH = Math.round(Math.min(SW / (d.coverRatio || 4 / 3), SH * 0.62));
-  const photoTop = 0;
-  const textTop = Math.max(photoTop + photoH - 30, 300);
+  // Блок «фото + текст» прижат к низу экрана (как в ленте), текст чуть выше края.
+  const perLine = Math.floor(330 / (titleSize * 0.56));
+  const titleLines = Math.min(3, Math.ceil(title.length / Math.max(1, perLine)));
+  const descLines = desc ? Math.min(4, Math.ceil(desc.length / 30)) : 0;
+  const textH = 44 + 16 + titleLines * titleSize * 1.05 + (desc ? 12 + descLines * 28 : 0) + 22 + 34;
+  const textTop = Math.round(SH - 110 - textH);
+  const photoTop = Math.max(80, textTop - photoH + 40);
 
   const Shade = ({ x, y, w, h, o = 0.35 }: { x: number; y: number; w: number; h: number; o?: number }) => (
     // eslint-disable-next-line @next/next/no-img-element
