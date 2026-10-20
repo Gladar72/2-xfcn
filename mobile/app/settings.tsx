@@ -83,6 +83,32 @@ export default function SettingsScreen() {
     }
   }
 
+  /** Удаление аккаунта (152-ФЗ, требование App Store): два подтверждения, потом выход. */
+  function confirmDelete() {
+    Alert.alert(
+      "Удалить аккаунт?",
+      "Удалятся профиль, фото, твои встречи, заявки, чаты и отзывы. Подписка перестанет действовать. Вернуть данные будет нельзя.",
+      [
+        { text: "Не удалять", style: "cancel" },
+        {
+          text: "Удалить навсегда",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await api("/api/me", { method: "DELETE" });
+              tapOk();
+              Alert.alert("Аккаунт удалён", "Будем рады видеть тебя снова в «Месте».");
+              await signOut();
+            } catch {
+              tapWarn();
+              Alert.alert("Не получилось", "Попробуй ещё раз или напиши в поддержку.");
+            }
+          },
+        },
+      ]
+    );
+  }
+
   function confirmSignOut() {
     Alert.alert("Выйти из аккаунта?", "Чтобы вернуться, понадобится войти по телефону или почте.", [
       { text: "Отмена", style: "cancel" },
@@ -152,11 +178,15 @@ export default function SettingsScreen() {
         <Text style={styles.section}>Документы</Text>
         <Glass strong style={styles.list}>
           <Row icon="doc" label="Оферта" onPress={() => Linking.openURL(`${API_URL}/legal/offer`)} />
-          <Row icon="shield" label="Политика конфиденциальности" onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)} last />
+          <Row icon="shield" label="Политика конфиденциальности" onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)} />
+          <Row icon="doc" label="Согласие на обработку данных" onPress={() => Linking.openURL(`${API_URL}/legal/consent`)} last />
         </Glass>
 
         <Pressable onPress={confirmSignOut} style={({ pressed }) => [styles.logout, pressed && { opacity: 0.7 }]}>
           <Text style={styles.logoutText}>Выйти из аккаунта</Text>
+        </Pressable>
+        <Pressable onPress={confirmDelete} style={({ pressed }) => [styles.logout, { paddingTop: 0 }, pressed && { opacity: 0.7 }]}>
+          <Text style={[styles.logoutText, { fontSize: 14, color: colors.grey }]}>Удалить аккаунт</Text>
         </Pressable>
 
         <View style={styles.about}>
