@@ -88,7 +88,7 @@ jobs:
             sleep 20
             adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/map-2.png
             adb shell pidof ru.mesto.app > $GITHUB_WORKSPACE/shots/alive.txt || echo "НЕ ЗАПУЩЕНО (упало?)" > $GITHUB_WORKSPACE/shots/alive.txt
-            adb logcat -d | grep -E "ReactNativeJS|AndroidRuntime|FATAL|MapLibre|mbgl|maplibre" | tail -n 300 > $GITHUB_WORKSPACE/shots/log.txt || true
+            adb logcat -d | grep -E "ReactNative|AndroidRuntime|FATAL|Exception|Error|MapLibre|mbgl|maplibre" | grep -v ViewManagerPropertyUpdater | tail -n 300 > $GITHUB_WORKSPACE/shots/log.txt || true
 
       - name: Снимки в ветку smoke-shots
         if: always()
