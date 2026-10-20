@@ -204,6 +204,8 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
   const [bio, setBio] = useState("");
   const [selectedInterestIds, setSelectedInterestIds] = useState<string[]>([]);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
+  // Согласие на обработку персональных данных — отдельной галочкой (152-ФЗ, с 01.09.2025 — отдельный документ).
+  const [agreedToPd, setAgreedToPd] = useState(false);
   const [locating, setLocating] = useState(false);
   const photoInput = useRef<HTMLInputElement>(null);
   const [extraPhotos, setExtraPhotos] = useState<string[]>([]);
@@ -281,7 +283,8 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
       if (!isCompleteBirthDate(birthDate)) return "Напиши дату рождения: ДД.ММ.ГГГГ.";
       if (!isAtLeast18(birthDate)) return "Сервис доступен только с 18 лет.";
       if (gender === null) return "Выбери пол.";
-      if (!agreedToTerms) return "Отметь галочку — нужно согласие с условиями оферты и политикой конфиденциальности.";
+      if (!agreedToTerms) return "Отметь галочку — нужно принять условия оферты и политику конфиденциальности.";
+      if (!agreedToPd) return "Отметь галочку — нужно согласие на обработку персональных данных.";
       if (!photoBase64) return photoLoading ? "Секунду, ищу твоё фото в Telegram…" : "Добавь своё фото — без него зарегистрироваться нельзя. Люди хотят видеть, с кем идут на встречу.";
     }
     if (step === "interests" && selectedInterestIds.length < minInterests) return `Выбери хотя бы ${minInterests} интереса.`;
@@ -565,6 +568,18 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
                 политики конфиденциальности
               </a>
               . Мне есть 18 лет.
+            </span>
+          </label>
+          <label className="agree">
+            <input type="checkbox" checked={agreedToPd} onChange={(e) => setAgreedToPd(e.target.checked)} />
+            <span className="cb">
+              <Ic n="check" />
+            </span>
+            <span>
+              Даю{" "}
+              <a href="/legal/consent" target="_blank">
+                согласие на обработку персональных данных
+              </a>
             </span>
           </label>
         </div>
