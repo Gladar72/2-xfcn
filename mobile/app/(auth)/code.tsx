@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { AuthShell } from "@/components/AuthShell";
+import { AUTH, AuthShell } from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { useAuth, type AuthResult } from "@/lib/auth";
 import { colors, FONT } from "@/lib/theme";
@@ -86,11 +86,11 @@ export default function CodeScreen() {
 
 const styles = StyleSheet.create({
   boxes: { flexDirection: "row", gap: 10, justifyContent: "center", marginBottom: 4 },
-  box: { width: 60, height: 68, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 1, borderColor: "#DCD5F3" },
-  boxActive: { borderWidth: 1.5, borderColor: colors.violet },
+  box: { width: 60, height: 68, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.5)" },
+  boxActive: { borderWidth: 2.5, borderColor: AUTH.accent },
   digit: { fontFamily: FONT, fontSize: 28, fontWeight: "700", color: colors.ink },
   hidden: { position: "absolute", opacity: 0, height: 1, width: 1 },
-  sub: { fontFamily: FONT, fontSize: 13, color: colors.grey, textAlign: "center" },
-  error: { fontFamily: FONT, color: colors.danger, fontSize: 14, textAlign: "center" },
-  link: { fontFamily: FONT, color: colors.violet, fontWeight: "500", fontSize: 14, textAlign: "center" },
+  sub: { fontFamily: FONT, fontSize: 13, color: AUTH.muted, textAlign: "center" },
+  error: { fontFamily: FONT, color: AUTH.error, fontSize: 14, textAlign: "center" },
+  link: { fontFamily: FONT, color: AUTH.text, fontWeight: "500", fontSize: 14, textAlign: "center" },
 });

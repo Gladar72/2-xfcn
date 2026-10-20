@@ -4,7 +4,7 @@ import { router } from "expo-router";
 import Constants from "expo-constants";
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Btn } from "@/components/brand";
-import { AuthShell } from "@/components/AuthShell";
+import { AUTH, AuthShell, GlassBtn } from "@/components/AuthShell";
 import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -107,14 +107,14 @@ export default function LoginScreen() {
         ) : (
           <AppleAuthentication.AppleAuthenticationButton
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
             cornerRadius={28}
             style={styles.apple}
             onPress={appleLogin}
           />
         )
       ) : null}
-      <Btn kind="o" title="Войти по почте" icon={<Icon name="mail" size={20} />} onPress={() => setMode("email")} />
+      <GlassBtn title="Войти по почте" icon={<Icon name="mail" size={20} color="#fff" />} onPress={() => setMode("email")} />
       {err}
       <Text style={styles.hint}>Уже в «Месте» через Telegram? Входи через Telegram — всё сохранится</Text>
     </AuthShell>
@@ -123,7 +123,7 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   apple: { height: 56, width: "100%" },
-  hint: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, textAlign: "center", paddingHorizontal: 8 },
+  hint: { fontFamily: FONT, fontSize: 12.5, color: AUTH.muted, textAlign: "center", paddingHorizontal: 8 },
   field: {
     height: 56,
     borderRadius: 999,
@@ -132,10 +132,9 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 18,
     backgroundColor: "#fff",
-    borderWidth: 1.5,
-    borderColor: colors.violet,
+    borderWidth: 0,
   },
   input: { flex: 1, fontFamily: FONT, fontSize: 16, color: colors.ink, height: 56 },
-  back: { fontFamily: FONT, fontSize: 14, color: colors.violet, textAlign: "center", marginTop: 4, fontWeight: "500" },
-  error: { fontFamily: FONT, color: colors.danger, fontSize: 14, textAlign: "center" },
+  back: { fontFamily: FONT, fontSize: 14, color: AUTH.text, textAlign: "center", marginTop: 4, fontWeight: "500" },
+  error: { fontFamily: FONT, color: AUTH.error, fontSize: 14, textAlign: "center" },
 });
