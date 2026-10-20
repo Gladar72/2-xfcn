@@ -31,6 +31,13 @@ jobs:
         working-directory: mobile
         run: npm install --no-audit --no-fund
 
+      - name: Проверка типов (TypeScript)
+        working-directory: mobile
+        run: |
+          mkdir -p ../shots
+          npx tsc --noEmit > ../shots/tsc.txt 2>&1 && echo "OK" >> ../shots/tsc.txt || true
+          cat ../shots/tsc.txt | tail -n 40
+
       - name: Патч RuStore SDK под новый React Native
         working-directory: mobile
         run: |
