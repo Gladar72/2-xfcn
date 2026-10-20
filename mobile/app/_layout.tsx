@@ -70,6 +70,7 @@ function Gate() {
   const fontReady = useBrandFont();
   const smokeHold = useSmokeHold();
   const smokeLogin = useRef(false);
+  const [smokePhase, setSmokePhase] = useState<"login" | "map">("login");
 
   useEffect(() => {
     if (!ready) return;
@@ -77,11 +78,13 @@ function Gate() {
     // Сначала 20 с экран входа (снимок), потом карта.
     if (process.env.EXPO_PUBLIC_MAP_SMOKE === "1") {
       if (smokeHold) return; // навигация — только когда экраны уже на месте
-      if (!smokeLogin.current) {
-        smokeLogin.current = true;
-        router.replace("/(auth)/login");
-        setTimeout(() => router.replace({ pathname: "/(tabs)/map", params: { business: "only" } }), 20000);
-      }
+      if (smokePhase === "login") {
+        if (segments[0] !== "(auth)") router.replace("/(auth)/login");
+        if (!smokeLogin.current) {
+          smokeLogin.current = true;
+          setTimeout(() => setSmokePhase("map"), 20000);
+        }
+      } else if (segments[1] !== "map") router.replace({ pathname: "/(tabs)/map", params: { business: "only" } });
       return;
     }
     // Ссылка партнёра сама решает, куда вести (сначала сохраняет код).
@@ -90,7 +93,7 @@ function Gate() {
     if (!signedIn && ticket && segments[1] !== "register") router.replace("/(auth)/register");
     else if (!signedIn && !ticket && !inAuth) router.replace("/(auth)/login");
     else if (signedIn && inAuth) router.replace("/(tabs)");
-  }, [ready, signedIn, ticket, segments, smokeHold]);
+  }, [ready, signedIn, ticket, segments, smokeHold, smokePhase]);
 
   useEffect(() => {
     if (!signedIn) {
