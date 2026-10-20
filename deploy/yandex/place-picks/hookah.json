@@ -1,0 +1,12 @@
+[
+ {"category":"party","type":null,"name":"Tangiers Lounge","address":"ул. Дзержинского, 38","lat":57.15665,"lon":65.53680,"rating":5.0,"reviews":972,"note":"Топ по отзывам в центре, открыт до 2:00","source":"https://2gis.ru/tyumen/firm/70000001077491215"},
+ {"category":"party","type":null,"name":"Не усложняй","address":"ул. Володарского, 14","lat":57.15807,"lon":65.53408,"rating":5.0,"reviews":1324,"note":"Народный любимец с тысячей отзывов","source":"https://2gis.ru/tyumen/firm/70000001043095980"},
+ {"category":"party","type":null,"name":"Fibo","address":"ул. Монтажников, 59","lat":57.09870,"lon":65.58755,"rating":4.9,"reviews":772,"note":"Уютный лаунж на Видном — свои рядом с домом","source":"https://2gis.ru/tyumen/firm/70000001032155058"},
+ {"category":"party","type":null,"name":"Эхо","address":"ул. Ленина, 68/101","lat":57.15152,"lon":65.53826,"rating":5.0,"reviews":267,"note":"Лаунж у Цветного бульвара, удобно после прогулки","source":"https://2gis.ru/tyumen/firm/70000001105792146"},
+ {"category":"party","type":null,"name":"Touch","address":"ул. Кузнецова, 4/2","lat":57.15119,"lon":65.53325,"rating":4.9,"reviews":201,"note":"Атмосферное лаунж-пространство для компании","source":"https://2gis.ru/tyumen/firm/70000001095711050"},
+ {"category":"party","type":null,"name":"Сад","address":"ул. Николая Машарова, 4","lat":57.14902,"lon":65.55548,"rating":4.9,"reviews":160,"note":"Лаунж-бар в центре, открыт до полуночи","source":"https://2gis.ru/tyumen/firm/70000001105816112"},
+ {"category":"party","type":null,"name":"Облака","address":"ул. Первооткрывателей, 10","lat":57.13059,"lon":65.47611,"rating":4.9,"reviews":157,"note":"Паровые коктейли в Калининском округе","source":"https://2gis.ru/tyumen/firm/70000001064194908"},
+ {"category":"party","type":null,"name":"Шишки","address":"Советская ул., 55/8","lat":57.15551,"lon":65.54654,"rating":4.9,"reviews":144,"note":"Сетевой лаунж в центре, открыт до 2:00","source":"https://2gis.ru/tyumen/firm/70000001066407472"},
+ {"category":"party","type":null,"name":"Alfaville","address":"ул. Малыгина, 75","lat":57.13899,"lon":65.55839,"rating":5.0,"reviews":130,"note":"Лаунж в Центр-сити, засидеться до ночи","source":"https://2gis.ru/tyumen/firm/70000001112433995"},
+ {"category":"party","type":null,"name":"Парзавод","address":"Советская ул., 54","lat":57.15638,"lon":65.54238,"rating":4.7,"reviews":84,"note":"Камерный лаунж-бар в самом центре","source":"https://2gis.ru/tyumen/firm/70000001115768610"}
+]
