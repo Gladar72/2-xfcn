@@ -6,9 +6,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { openRoute } from "@/lib/maps/route";
 import { photoThumb } from "@/lib/photos/thumb";
-import { Ic } from "@/components/proto/ui";
+import { Ic, Sheet } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
 import { EventsMap, categoryIcon3d, eventTimeLabel, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
+import { BIZ_CATEGORIES, BIZ_OTHER, bizCategoryCounts, bizCategoryIcon, matchesBizCategory } from "@/lib/events/biz-categories";
 
 const PAGE_SIZE = 20; // показ длинного списка кластера порциями, а не всё разом
 
@@ -128,7 +129,19 @@ function MapPageContent() {
   }
   const [liveOnly, setLiveOnly] = useState(false);
   const base = bizOnly ? events.filter((e) => e.isBusiness) : events;
-  const shown = liveOnly ? base.filter((e) => eventTimeLabel(e).live) : base;
+  const timed = liveOnly ? base.filter((e) => eventTimeLabel(e).live) : base;
+  // Карта заведений: категория (кафе, бары, концерты…) — фильтруем сразу, без перезагрузки.
+  // Состояние, а не адрес: смена адреса перезагрузила бы карту.
+  const [bizCatState, setBizCatState] = useState<string | null>(searchParams.get("cat"));
+  const bizCat = bizOnly ? bizCatState : null;
+  const bizCounts = useMemo(() => (bizOnly ? bizCategoryCounts(timed) : []), [bizOnly, timed]);
+  const bizCatInfo = bizCat ? [...BIZ_CATEGORIES, BIZ_OTHER].find((c) => c.key === bizCat) ?? null : null;
+  const shown = bizCat ? timed.filter((e) => matchesBizCategory(e, bizCat)) : timed;
+  const [catSheet, setCatSheet] = useState(false);
+  function setBizCat(k: string | null) {
+    setSelected(null);
+    setBizCatState(k);
+  }
   const carousel = (selected ?? shown).slice(0, visibleCount);
 
   return (
@@ -182,9 +195,15 @@ function MapPageContent() {
                 ? `Что рядом? · ${resolvedCity}`
                 : "Что рядом?"}
           </Link>
-          <Link className="rb k" href="/search?filters=1" aria-label="Фильтры" style={{ width: 50, height: 50 }}>
-            <Ic n="filter" />
-          </Link>
+          {bizOnly ? (
+            <button className="rb k" onClick={() => setCatSheet(true)} aria-label="Категории" style={{ width: 50, height: 50 }}>
+              <Ic n="filter" />
+            </button>
+          ) : (
+            <Link className="rb k" href="/search?filters=1" aria-label="Фильтры" style={{ width: 50, height: 50 }}>
+              <Ic n="filter" />
+            </Link>
+          )}
         </div>
         <div className="chipsrow">
           <button
@@ -215,9 +234,57 @@ function MapPageContent() {
             </button>
           ))}
         </div>
+        {bizOnly && (bizCounts.length > 0 || bizCatInfo) && (
+          <div className="cats" style={{ padding: "0 20px 4px" }}>
+            <button className={`cat ${!bizCat ? "on" : "gl"}`} style={{ paddingLeft: 16 }} onClick={() => setBizCat(null)}>
+              Все
+            </button>
+            {(bizCatInfo && !bizCounts.some((x) => x.cat.key === bizCat) ? [{ cat: bizCatInfo, count: 0 }, ...bizCounts] : bizCounts).map(({ cat, count }) => (
+              <button key={cat.key} className={`cat ${bizCat === cat.key ? "on" : "gl"}`} onClick={() => setBizCat(bizCat === cat.key ? null : cat.key)}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={bizCategoryIcon(cat)} alt="" />
+                {cat.label}
+                <span style={{ opacity: 0.55, marginLeft: 2 }}>{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
-      {bizOnly && !error && (
-        <div className="bizmap-note gl">
+      <Sheet open={catSheet} onClose={() => setCatSheet(false)}>
+        <h2 className="t">Что ищем?</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {[...BIZ_CATEGORIES, BIZ_OTHER].map((cat) => {
+            const count = bizCounts.find((x) => x.cat.key === cat.key)?.count ?? 0;
+            return (
+              <button
+                key={cat.key}
+                className={`cat ${bizCat === cat.key ? "on" : "gl"}`}
+                style={{ height: 56, opacity: count ? 1 : 0.45, justifyContent: "flex-start" }}
+                onClick={() => {
+                  setBizCat(bizCat === cat.key ? null : cat.key);
+                  setCatSheet(false);
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={bizCategoryIcon(cat)} alt="" />
+                <span style={{ flex: 1, textAlign: "left", lineHeight: 1.2 }}>{cat.label}</span>
+                <span style={{ opacity: 0.55 }}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+        <button
+          className="btn v"
+          onClick={() => {
+            setBizCat(null);
+            setCatSheet(false);
+          }}
+        >
+          Показать все · {timed.length}
+        </button>
+      </Sheet>
+      {bizOnly && !error && !bizCat && (
+        <div className="bizmap-note gl" style={bizCounts.length ? { top: "calc(var(--top) + 172px)" } : undefined}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/markers/v2/pin-business.png" alt="" />
           <span>
@@ -254,7 +321,15 @@ function MapPageContent() {
         </div>
       )}
 
-      {!loading && !error && !selected && shown.length === 0 && (dateNow || liveOnly) && (
+      {!loading && !error && !selected && shown.length === 0 && bizCatInfo && (
+        <div className="note gl" style={{ position: "absolute", left: 20, right: 20, bottom: "calc(var(--bot) + 120px)", zIndex: 6, display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ flex: 1 }}>«{bizCatInfo.label}» — {dateNow || liveOnly ? "на эти дни" : "пока"} ничего нет.</span>
+          <button className="chip on" onClick={() => setBizCat(null)}>
+            Все
+          </button>
+        </div>
+      )}
+      {!loading && !error && !selected && shown.length === 0 && !bizCatInfo && (dateNow || liveOnly) && (
         <div className="note gl" style={{ position: "absolute", left: 20, right: 20, bottom: "calc(var(--bot) + 120px)", zIndex: 6, display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ flex: 1 }}>
             {liveOnly
