@@ -51,8 +51,8 @@ export default function ConsentPage() {
         <p>
           Я согласен(на) с поручением обработки и передачей данных обработчикам, указанным в{" "}
           <Link href="/legal/privacy">Политике конфиденциальности</Link> (Yandex Cloud, Яндекс, ЮKassa,
-          RuStore, Apple, Expo, Telegram, Sightengine), в том числе с трансграничной передачей Apple, Expo,
-          Telegram и Sightengine — только для указанных целей.
+          RuStore, Apple, Expo, Telegram), в том числе с трансграничной передачей Apple, Expo и Telegram —
+          только для указанных целей.
         </p>
         <p>
           Другим пользователям сервиса будут видны мои имя, возраст, фото, город, описание, интересы,
