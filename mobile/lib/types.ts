@@ -90,6 +90,8 @@ export interface MapEvent {
   category?: { slug: string; name: string } | null;
   isAnonymous?: boolean;
   organizerHidden?: boolean;
+  /** Тип события города (concert, theatre…) — для категорий «Для бизнеса». */
+  kind?: string | null;
 }
 
 export interface MyProfile {
