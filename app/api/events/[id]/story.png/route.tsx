@@ -474,7 +474,7 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
         coverRatio: ratio,
         blurUrl: blur,
         glowUrl: blur ? glowSvg(blur, `data:image/png;base64,${glowMaskBuf.toString("base64")}`, 1080, ph + 160, 2.4, 1.45) : null,
-        who: e.is_business && !e.is_anonymous ? { ...who, name: placeName || orgName } : who,
+        who: e.is_business && !e.is_anonymous ? { ...who, name: invPlace || orgName, initial: (invPlace || orgName).charAt(0).toUpperCase() } : who,
         catIcon: icon ? `data:image/png;base64,${icon.toString("base64")}` : null,
         when: dateTop === "сегодня" || dateTop === "завтра" ? dateTop : short,
         time,

@@ -103,7 +103,7 @@ export function InviteStory(d: InviteStoryData) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={d.glowUrl} alt="" width={W + 160} height={photoH + 160} style={{ position: "absolute", left: X - 80, top: yPhoto - 40, width: W + 160, height: photoH + 160 }} />
       ) : null}
-      <div style={{ position: "absolute", left: X, top: yPhoto, width: W, height: photoH, borderRadius: 48, overflow: "hidden", display: "flex", background: "#2A2238" }}>
+      <div style={{ position: "absolute", left: X, top: yPhoto, width: W, height: photoH, borderRadius: 48, overflow: "hidden", display: "flex", background: "#2A2238", border: "1.5px solid rgba(22,18,31,0.08)" }}>
         {d.coverUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={d.coverUrl} alt="" width={fit.w} height={fit.h} style={{ position: "absolute", left: fit.x, top: fit.y, width: fit.w, height: fit.h }} />
