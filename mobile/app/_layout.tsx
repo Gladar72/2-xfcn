@@ -76,6 +76,7 @@ function Gate() {
     // Тестовая сборка для проверки карты на эмуляторе (не для магазина): сразу на карту.
     // Сначала 20 с экран входа (снимок), потом карта.
     if (process.env.EXPO_PUBLIC_MAP_SMOKE === "1") {
+      if (smokeHold) return; // навигация — только когда экраны уже на месте
       if (!smokeLogin.current) {
         smokeLogin.current = true;
         router.replace("/(auth)/login");
@@ -89,7 +90,7 @@ function Gate() {
     if (!signedIn && ticket && segments[1] !== "register") router.replace("/(auth)/register");
     else if (!signedIn && !ticket && !inAuth) router.replace("/(auth)/login");
     else if (signedIn && inAuth) router.replace("/(tabs)");
-  }, [ready, signedIn, ticket, segments]);
+  }, [ready, signedIn, ticket, segments, smokeHold]);
 
   useEffect(() => {
     if (!signedIn) {
