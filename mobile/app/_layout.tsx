@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Stack, router, useSegments } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -69,12 +69,18 @@ function Gate() {
   const segments = useSegments();
   const fontReady = useBrandFont();
   const smokeHold = useSmokeHold();
+  const smokeLogin = useRef(false);
 
   useEffect(() => {
     if (!ready) return;
     // Тестовая сборка для проверки карты на эмуляторе (не для магазина): сразу на карту.
+    // Сначала 20 с экран входа (снимок), потом карта.
     if (process.env.EXPO_PUBLIC_MAP_SMOKE === "1") {
-      if (segments[1] !== "map") router.replace({ pathname: "/(tabs)/map", params: { business: "only" } });
+      if (!smokeLogin.current) {
+        smokeLogin.current = true;
+        router.replace("/(auth)/login");
+        setTimeout(() => router.replace({ pathname: "/(tabs)/map", params: { business: "only" } }), 20000);
+      }
       return;
     }
     // Ссылка партнёра сама решает, куда вести (сначала сохраняет код).
