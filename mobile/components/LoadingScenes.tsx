@@ -44,16 +44,16 @@ const SCENES: { title: [string, string]; text: string; cast: Ch[] }[] = [
   },
 ];
 
-const HEART = `<svg viewBox="0 0 24 24"><path fill="#FF5FAE" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 4.3 2.4.7-1.2 2.2-2.4 4.3-2.4 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg>`;
+export const HEART = `<svg viewBox="0 0 24 24"><path fill="#FF5FAE" d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.1 0 3.6 1.2 4.3 2.4.7-1.2 2.2-2.4 4.3-2.4 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z"/></svg>`;
 const PIN = `<svg viewBox="0 0 64 84"><defs><radialGradient id="lp" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#B9A2FF"/><stop offset="1" stop-color="#6C3BFF"/></radialGradient></defs><ellipse cx="32" cy="80" rx="14" ry="4" fill="rgba(108,59,255,.15)"/><path d="M32 2C16 2 4 14 4 30c0 20 28 48 28 48s28-28 28-48C60 14 48 2 32 2z" fill="url(#lp)"/><circle cx="32" cy="30" r="11" fill="#fff"/></svg>`;
 
 /** SVG персонажа без CSS-анимаций (в приложении «дыхание» и прыжки — через Animated). */
-function charXml(shape: Shape, pal: Palette, face: Face, seed: number) {
+export function charXml(shape: Shape, pal: Palette, face: Face, seed: number) {
   return characterSvg(shape, pal, face, seed).replace(/ class="[^"]*"/g, "").replace(/ style="[^"]*"/g, "").replace(/ aria-hidden="true"/g, "");
 }
 
 /** Появление (пружина) + лёгкие прыжки по кругу. */
-function Pop({ children, delay, from, x, y, size, active }: { children: React.ReactNode; delay: number; from?: string; x: number; y: number; size: number; active: boolean }) {
+export function Pop({ children, delay, from, x, y, size, active }: { children: React.ReactNode; delay: number; from?: string; x: number; y: number; size: number; active: boolean }) {
   const t = useRef(new Animated.Value(0)).current;
   const hop = useRef(new Animated.Value(0)).current;
   useEffect(() => {
