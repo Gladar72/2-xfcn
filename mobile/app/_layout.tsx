@@ -72,7 +72,7 @@ function Gate() {
     if (!ready) return;
     // Тестовая сборка для проверки карты на эмуляторе (не для магазина): сразу на карту.
     if (process.env.EXPO_PUBLIC_MAP_SMOKE === "1") {
-      if (segments[1] !== "map") router.replace("/(tabs)/map");
+      if (segments[1] !== "map") router.replace({ pathname: "/(tabs)/map", params: { business: "only" } });
       return;
     }
     // Ссылка партнёра сама решает, куда вести (сначала сохраняет код).

@@ -8,6 +8,8 @@ import { EventCard } from "@/components/EventCard";
 import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { cityEventIcon, cityWhen, KIND_LABEL, type CityEvent } from "@/lib/cityEvents";
+import { BizCatRow } from "@/components/BizCategories";
+import { bizCategoryCounts, matchesBizCategory } from "@/lib/bizCategories";
 import { colors, FONT } from "@/lib/theme";
 import type { FeedEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
@@ -25,6 +27,12 @@ export default function BusinessScreen() {
   const [biz, setBiz] = useState<FeedEvent[] | null>(null);
   const [city, setCity] = useState<CityEvent[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  // Категория (кафе, бары, концерты…) — фильтрует и события заведений, и афишу города.
+  const [cat, setCat] = useState<string | null>(null);
+  const cityTagged = city.map((c) => ({ c, tag: { title: c.title, kind: c.kind } }));
+  const counts = bizCategoryCounts([...(biz ?? []), ...cityTagged.map((x) => x.tag)]);
+  const shownBiz = biz?.filter((e) => matchesBizCategory(e, cat)) ?? null;
+  const shownCity = cityTagged.filter((x) => matchesBizCategory(x.tag, cat)).map((x) => x.c);
 
   const load = useCallback(async () => {
     await Promise.all([
@@ -81,9 +89,10 @@ export default function BusinessScreen() {
           ))}
         </Glass>
 
+        {counts.length > 1 ? <BizCatRow counts={counts} value={cat} onChange={setCat} /> : null}
         <View style={styles.secRow}>
           <Text style={styles.section}>Ближайшие события</Text>
-          {biz?.length ? <Text style={styles.count}>{biz.length}</Text> : null}
+          {shownBiz?.length ? <Text style={styles.count}>{shownBiz.length}</Text> : null}
         </View>
         {biz === null ? <ActivityIndicator color={colors.violet} /> : null}
         {biz?.length === 0 ? (
@@ -92,18 +101,19 @@ export default function BusinessScreen() {
             <Text style={styles.muted}>Стань первым — создай концерт, дегустацию или мастер-класс.</Text>
           </Glass>
         ) : null}
-        {biz?.map((e) => (
+        {cat && !!biz?.length && shownBiz?.length === 0 ? <Text style={styles.muted}>В этой категории пока нет событий заведений.</Text> : null}
+        {shownBiz?.map((e) => (
           <EventCard key={e.id} event={e} width="100%" height={320} />
         ))}
 
-        {city.length ? (
+        {shownCity.length ? (
           <>
             <View style={styles.secRow}>
               <Text style={styles.section}>Что ещё в городе</Text>
-              <Text style={styles.count}>{city.length}</Text>
+              <Text style={styles.count}>{shownCity.length}</Text>
             </View>
             <Glass strong style={styles.list}>
-              {city.map((c, i) => (
+              {shownCity.map((c, i) => (
                 <Pressable key={c.id} onPress={() => router.push(`/city/${c.id}` as Href)} style={({ pressed }) => [styles.row, i > 0 && styles.sep, pressed && { opacity: 0.7 }]}>
                   <View style={styles.thumb}>
                     {c.photoUrl ? (
