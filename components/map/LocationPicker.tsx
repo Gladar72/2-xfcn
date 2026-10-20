@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type React from "react";
 import { createMap, type LngLat, type MapLibreMap, type MapLibreMarker } from "@/lib/maps/load-maplibre";
 import { reverseGeocode } from "@/lib/maps/reverse-geocode";
 
@@ -50,6 +51,7 @@ export function LocationPicker({
   const [resolvingAddress, setResolvingAddress] = useState(false);
   const mapRef = useRef<MapLibreMap | null>(null);
   const placeMarkerRef = useRef<((coords: LngLat) => void) | null>(null);
+  const pendingRef = useRef<{ latitude: number; longitude: number } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -59,7 +61,7 @@ export function LocationPicker({
 
     async function setup() {
       if (!container) return;
-      const created = await createMap(container, { center: initialCenter ?? DEFAULT_CENTER, zoom: 14 });
+      const created = await createMap(container, { center: initialCenter ?? DEFAULT_CENTER, zoom: 14, style: "positron" });
       if (cancelled) {
         created.map.remove();
         return;
@@ -85,6 +87,13 @@ export function LocationPicker({
         marker = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(coordinates).addTo(activeMap);
       }
       placeMarkerRef.current = placeMarker;
+      // Адрес выбрали раньше, чем загрузилась карта, — показываем его сразу.
+      if (pendingRef.current) {
+        const pc: LngLat = [pendingRef.current.longitude, pendingRef.current.latitude];
+        activeMap.flyTo({ center: pc, zoom: 16 });
+        placeMarker(pc);
+        setHasPin(true);
+      }
 
       activeMap.on("click", (e: unknown) => {
         const { lng: longitude, lat: latitude } = (e as { lngLat: { lng: number; lat: number } }).lngLat;
@@ -116,20 +125,48 @@ export function LocationPicker({
   // Точка выбрана извне (человек ввёл адрес текстом и выбрал подсказку) —
   // перелетаем картой к ней и ставим тот же маркер, что и при клике.
   useEffect(() => {
-    if (!externalCoords || !mapRef.current || !placeMarkerRef.current) return;
+    if (!externalCoords) return;
+    pendingRef.current = externalCoords;
+    if (!mapRef.current || !placeMarkerRef.current) return;
     const coords: LngLat = [externalCoords.longitude, externalCoords.latitude];
     mapRef.current.flyTo({ center: coords, zoom: 16 });
     placeMarkerRef.current(coords);
     setHasPin(true);
   }, [externalCoords]);
 
+  const zoomBy = (d: number) => (d > 0 ? mapRef.current?.zoomIn() : mapRef.current?.zoomOut());
+  const locateMe = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const c: LngLat = [pos.coords.longitude, pos.coords.latitude];
+        mapRef.current?.flyTo({ center: c, zoom: 16 });
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
+  };
+  const btn: React.CSSProperties = {
+    width: 40, height: 40, borderRadius: 14, background: "rgba(255,255,255,0.92)", border: "1px solid rgba(108,59,255,0.14)",
+    boxShadow: "0 6px 16px rgba(40,20,100,0.14)", display: "flex", alignItems: "center", justifyContent: "center",
+    fontSize: 22, fontWeight: 600, color: "#16121F", cursor: "pointer",
+  };
+
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card shadow-card">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card shadow-card" style={{ position: "relative" }}>
       <div
         ref={containerRef}
         className="w-full flex-1"
-        style={heightPx ? { height: heightPx, minHeight: heightPx } : { minHeight: 280 }}
+        // touch-action: none — жесты (щипок, перетаскивание) достаются карте, а не прокрутке страницы/Telegram.
+        style={{ ...(heightPx ? { height: heightPx, minHeight: heightPx } : { minHeight: 280 }), touchAction: "none" }}
       />
+      <div style={{ position: "absolute", right: 10, top: 10, display: "flex", flexDirection: "column", gap: 8, zIndex: 5 }}>
+        <button type="button" style={btn} onClick={() => zoomBy(1)} aria-label="Приблизить">+</button>
+        <button type="button" style={btn} onClick={() => zoomBy(-1)} aria-label="Отдалить">−</button>
+        <button type="button" style={btn} onClick={locateMe} aria-label="Где я">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="3.5" /><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3" /><circle cx="12" cy="12" r="7.5" /></svg>
+        </button>
+      </div>
       {!hasPin && (
         <p className="shrink-0 bg-white px-3 py-1.5 text-center text-xs text-ink-600">
           Нажми на карту, чтобы отметить место встречи

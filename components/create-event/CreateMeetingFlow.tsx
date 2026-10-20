@@ -960,7 +960,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   }}
                   onAddressResolved={(resolved) => setAddress(resolved)}
                   externalCoords={externalCoords}
-                  heightPx={300}
+                  heightPx={360}
                 />
                 {latitude === undefined && <span className="phint">Нажми на карту — адрес определится сам</span>}
                 {placeName && (

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { osmReverse, osmSearch } from "@/lib/maps/osm-geocode";
+import { getCurrentUser } from "@/lib/telegram/current-user";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * GET /api/geocode?lat=...&lng=...  — обратное геокодирование (точка → адрес)
@@ -14,10 +16,18 @@ export async function GET(req: NextRequest) {
   const lat = searchParams.get("lat");
   const lng = searchParams.get("lng");
   const query = searchParams.get("query");
-  const city = searchParams.get("city");
+  let city = searchParams.get("city");
 
   if (query) {
     if (query.trim().length < 3) return NextResponse.json({ suggestions: [] });
+    // Город не передали — берём из профиля: иначе поиск идёт по всей России («Ямская» на Камчатке).
+    if (!city) {
+      const me = await getCurrentUser().catch(() => null);
+      if (me) {
+        const { data } = await createAdminClient().from("users").select("city").eq("id", me.userId).maybeSingle();
+        city = (data?.city as string | null) ?? null;
+      }
+    }
     const suggestions = await osmSearch(query.trim(), city, 5);
     return NextResponse.json({ suggestions });
   }

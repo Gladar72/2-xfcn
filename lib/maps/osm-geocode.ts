@@ -4,6 +4,8 @@
  *   адрес по точке — Nominatim (nominatim.openstreetmap.org).
  * Запасной путь для поиска — Nominatim. Правила Nominatim: не чаще 1 запроса в секунду и понятный User-Agent.
  */
+import { CITY_CENTER } from "@/lib/places/osm";
+
 const UA = { "User-Agent": "MestoApp/1.0 (https://mesto-go.ru; t.me/Mesto_people_bot)" };
 
 export type GeoHit = { address: string; latitude: number; longitude: number };
@@ -38,12 +40,46 @@ function photonAddress(p: PhotonProps): string {
   return join([settlement || p.state, street, name]);
 }
 
-/** Поиск адреса по тексту. city — добавляем в запрос, чтобы выдача была в нужном городе. */
+/** Центр города: известные — сразу, остальные — один раз через Nominatim (кэш в памяти). */
+const centerCache = new Map<string, Promise<[number, number] | null>>();
+async function cityCenter(city: string): Promise<[number, number] | null> {
+  const known = CITY_CENTER[city];
+  if (known) return known;
+  let p = centerCache.get(city);
+  if (!p) {
+    p = fetch(
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=ru&accept-language=ru&city=${encodeURIComponent(city)}`,
+      { headers: UA, signal: AbortSignal.timeout(4000) }
+    )
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d: { lat?: string; lon?: string }[]) => (d[0]?.lat && d[0]?.lon ? ([Number(d[0].lat), Number(d[0].lon)] as [number, number]) : null))
+      .catch(() => null);
+    centerCache.set(city, p);
+  }
+  return p;
+}
+
+function km(a: [number, number], lat: number, lon: number) {
+  const dLat = ((lat - a[0]) * Math.PI) / 180;
+  const dLon = ((lon - a[1]) * Math.PI) / 180;
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos((a[0] * Math.PI) / 180) * Math.cos((lat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+  return 12742 * Math.asin(Math.sqrt(x));
+}
+
+/**
+ * Поиск адреса по тексту в пределах города (~60 км от центра): «Ямская», «Гагаринский парк».
+ * Раньше город просто дописывался в текст запроса — Photon находил «Ямскую» на Камчатке.
+ * Теперь: поиск смещён к центру города, всё дальше 60 км отбрасывается, город из текста убираем.
+ */
 export async function osmSearch(query: string, city?: string | null, limit = 5): Promise<GeoHit[]> {
-  const text = city ? `${city}, ${query}` : query;
+  const center = city ? await cityCenter(city) : null;
+  const q = city ? query.replace(new RegExp(`(^|[\\s,])(г\\.?\\s*)?${city}(?=$|[\\s,])`, "gi"), " ").replace(/\s+/g, " ").trim() || query : query;
+  const near = (h: GeoHit) => !center || km(center, h.latitude, h.longitude) <= 60;
   try {
+    const bias = center ? `&lat=${center[0]}&lon=${center[1]}&zoom=12&location_bias_scale=0.1` : "";
+    const bbox = center ? `&bbox=${center[1] - 1},${center[0] - 0.6},${center[1] + 1},${center[0] + 0.6}` : "";
     // lang=default — местные (русские) названия; без него Photon отдаёт английские.
-    const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(text)}&limit=${limit + 3}&lang=default`, {
+    const res = await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=${limit + 5}&lang=default${bias}${bbox}`, {
       headers: UA,
       signal: AbortSignal.timeout(5000),
     });
@@ -60,6 +96,7 @@ export async function osmSearch(query: string, city?: string | null, limit = 5):
           return { address, longitude: c[0], latitude: c[1] };
         })
         .filter((h): h is GeoHit => !!h)
+        .filter(near)
         // Несколько зданий с одним адресом — оставляем одно.
         .filter((h, i, all) => all.findIndex((x) => x.address === h.address) === i)
         .slice(0, limit);
@@ -70,13 +107,14 @@ export async function osmSearch(query: string, city?: string | null, limit = 5):
   } catch (err) {
     console.error("osmSearch: Photon недоступен", err);
   }
-  return nominatimSearch(text, limit);
+  return (await nominatimSearch(q, limit, center)).filter(near);
 }
 
-async function nominatimSearch(text: string, limit: number): Promise<GeoHit[]> {
+async function nominatimSearch(text: string, limit: number, center: [number, number] | null = null): Promise<GeoHit[]> {
   try {
+    const box = center ? `&viewbox=${center[1] - 0.8},${center[0] + 0.5},${center[1] + 0.8},${center[0] - 0.5}&bounded=1` : "";
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=${limit}&countrycodes=ru&accept-language=ru&addressdetails=1&q=${encodeURIComponent(text)}`,
+      `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=${limit}&countrycodes=ru&accept-language=ru&addressdetails=1${box}&q=${encodeURIComponent(text)}`,
       { headers: UA, signal: AbortSignal.timeout(5000) }
     );
     if (!res.ok) return [];

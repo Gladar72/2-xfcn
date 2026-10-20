@@ -43,7 +43,7 @@ function esc(s: string) {
 export type BBox = [number, number, number, number];
 
 /** Известные центры — без лишнего запроса к геокодеру. */
-const CITY_CENTER: Record<string, [number, number]> = {
+export const CITY_CENTER: Record<string, [number, number]> = {
   "Тюмень": [57.153, 65.534],
   "Москва": [55.756, 37.617],
   "Санкт-Петербург": [59.939, 30.316],
