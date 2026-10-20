@@ -34,7 +34,18 @@ export default function SettingsPage() {
   const [cityOpen, setCityOpen] = useState(false);
   const [supOpen, setSupOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [delOpen, setDelOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleted, setDeleted] = useState(false);
   useGuide("settings");
+
+  async function deleteAccount() {
+    setDeleting(true);
+    const res = await fetch("/api/me", { method: "DELETE" }).catch(() => null);
+    setDeleting(false);
+    if (!res?.ok) return flash("Не получилось удалить — напиши в поддержку");
+    setDeleted(true);
+  }
 
   useEffect(() => {
     fetch("/api/me/profile")
@@ -135,6 +146,7 @@ export default function SettingsPage() {
       <div className="menu gl" style={{ marginTop: 0 }}>
         <Row i="doc" t="Публичная оферта" href="/legal/offer" />
         <Row i="doc" t="Политика конфиденциальности" href="/legal/privacy" />
+        <Row i="doc" t="Согласие на обработку данных" href="/legal/consent" />
       </div>
 
       <div className="about2">
@@ -145,6 +157,38 @@ export default function SettingsPage() {
       <button className="btn o" style={{ marginTop: 6 }} onClick={() => getTelegramWebApp()?.close()}>
         Закрыть приложение
       </button>
+      <button className="btn o" style={{ marginTop: 6, color: "#E5484D" }} onClick={() => setDelOpen(true)}>
+        Удалить аккаунт
+      </button>
+
+      <Sheet open={delOpen} onClose={() => !deleting && !deleted && setDelOpen(false)}>
+        {deleted ? (
+          <>
+            <h2 className="t">Аккаунт удалён</h2>
+            <p className="muted" style={{ margin: 0, lineHeight: 1.5 }}>Профиль, фото, встречи и переписка удалены. Будем рады видеть тебя снова в «Месте».</p>
+            <button className="btn v" onClick={() => {
+                const w = getTelegramWebApp();
+                if (w?.initData) w.close();
+                else window.location.replace("/login");
+              }}>
+              Закрыть
+            </button>
+          </>
+        ) : (
+          <>
+            <h2 className="t">Удалить аккаунт?</h2>
+            <p className="muted" style={{ margin: 0, lineHeight: 1.5 }}>
+              Удалятся профиль, фото, твои встречи, заявки, чаты и отзывы. Подписка перестанет действовать. Вернуть данные будет нельзя.
+            </p>
+            <button className="btn v" style={{ background: "#E5484D" }} disabled={deleting} onClick={deleteAccount}>
+              {deleting ? "Удаляем…" : "Да, удалить навсегда"}
+            </button>
+            <button className="btn o" disabled={deleting} onClick={() => setDelOpen(false)}>
+              Не удалять
+            </button>
+          </>
+        )}
+      </Sheet>
 
       <Sheet open={cityOpen} onClose={() => setCityOpen(false)}>
         <h2 className="t">
