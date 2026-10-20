@@ -10,7 +10,7 @@ import { startAppleWatcher, stopAppleWatcher } from "@/lib/iap";
 import { MosyaPeekHost } from "@/components/MosyaPeek";
 import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
-import { Aurora, Grad, Mosya, Wordmark } from "@/components/brand";
+import { LoadingScenes } from "@/components/LoadingScenes";
 import { brand, colors, FONT } from "@/lib/theme";
 
 /** Шрифт Golos Text берём с сайта; если сети нет — через 3 секунды продолжаем на системном. */
@@ -29,19 +29,20 @@ function useBrandFont() {
   return done;
 }
 
-/** Заставка: Мося, логотип и слоган — как экран загрузки мини-приложения. */
+/** Заставка на время загрузки: три сцены с персонажами «Места» (components/LoadingScenes). */
 function Splash() {
-  return (
-    <View style={styles.splash}>
-      <Aurora />
-      <Mosya pose="wave" size={170} />
-      <Wordmark height={48} />
-      <Text style={styles.tagline}>Есть куда пойти. Найдём, с кем</Text>
-      <View style={styles.track}>
-        <Grad style={{ width: "70%", height: "100%", borderRadius: 3 }} />
-      </View>
-    </View>
-  );
+  return <LoadingScenes />;
+}
+
+/** Тестовая сборка для эмулятора держит заставку 8 с, чтобы её успели снять. */
+function useSmokeHold() {
+  const [hold, setHold] = useState(process.env.EXPO_PUBLIC_MAP_SMOKE === "1");
+  useEffect(() => {
+    if (!hold) return;
+    const t = setTimeout(() => setHold(false), 8000);
+    return () => clearTimeout(t);
+  }, [hold]);
+  return hold;
 }
 
 /** «В сети»: пока приложение открыто, раз в минуту отмечаемся на сервере (/api/me/ping). */
@@ -67,6 +68,7 @@ function Gate() {
   const { ready, signedIn, ticket } = useAuth();
   const segments = useSegments();
   const fontReady = useBrandFont();
+  const smokeHold = useSmokeHold();
 
   useEffect(() => {
     if (!ready) return;
@@ -100,7 +102,7 @@ function Gate() {
   // Тап по push-уведомлению открывает нужный экран (встреча, чат, уведомления).
   useNotificationTaps(ready && fontReady && signedIn);
 
-  if (!ready || !fontReady) return <Splash />;
+  if (!ready || !fontReady || smokeHold) return <Splash />;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.milk }, animation: "slide_from_right" }}>
