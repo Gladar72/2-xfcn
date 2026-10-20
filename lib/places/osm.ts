@@ -25,7 +25,8 @@ const TAGS_BY_CATEGORY: Record<string, string[]> = {
   party: ['["amenity"~"^(bar|pub|nightclub)$"]'],
 };
 const TAGS_BY_TRAINING: Record<string, string[]> = {
-  running: ['["leisure"~"^(stadium|track)$"]'],
+  running: ['["leisure"~"^(stadium|track|park)$"]'],
+  cycling: ['["leisure"="park"]', '["highway"="cycleway"]["name"]'],
   padel: ['["sport"~"padel"]'],
   gym: ['["leisure"="fitness_centre"]'],
   hyrox: ['["leisure"="fitness_centre"]'],

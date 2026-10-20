@@ -31,7 +31,7 @@ export function StepWhen({ form, set, catLabel, city }: { form: Form; set: SetFo
   useEffect(() => {
     const p = qs({ category: form.categorySlug, type: form.trainingTypeSlug });
     api<{ items?: PlaceSuggestion[] }>(`/api/places?${p}`)
-      .then((d) => setRecs(Array.isArray(d.items) ? d.items.slice(0, 4) : []))
+      .then((d) => setRecs(Array.isArray(d.items) ? d.items.slice(0, 6) : []))
       .catch(() => setRecs([]));
   }, [form.categorySlug, form.trainingTypeSlug]);
 
@@ -160,6 +160,17 @@ export function StepWhen({ form, set, catLabel, city }: { form: Form; set: SetFo
                     <Text style={st.recTitle} numberOfLines={1}>
                       {p.name}
                     </Text>
+                    {p.rating ? (
+                      <Text style={[st.recText, { color: colors.ink, fontWeight: "600" }]} numberOfLines={1}>
+                        ★ {p.rating.toFixed(1).replace(".", ",")}
+                        {p.reviews ? ` · ${p.reviews.toLocaleString("ru-RU")} отз.` : ""}
+                      </Text>
+                    ) : null}
+                    {p.note ? (
+                      <Text style={st.recText} numberOfLines={2}>
+                        {p.note}
+                      </Text>
+                    ) : null}
                     <Text style={st.recText} numberOfLines={1}>
                       {p.address || "адрес уточним"}
                     </Text>

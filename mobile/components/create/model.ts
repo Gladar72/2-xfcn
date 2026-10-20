@@ -15,7 +15,10 @@ export interface PlaceSuggestion {
   address: string;
   latitude: number;
   longitude: number;
-  source?: "yandex" | "osm" | "history";
+  source?: "yandex" | "osm" | "history" | "pick";
+  rating?: number | null;
+  reviews?: number | null;
+  note?: string | null;
 }
 export interface AddressSuggestion {
   address: string;

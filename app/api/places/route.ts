@@ -42,7 +42,44 @@ interface Place {
   address: string;
   latitude: number;
   longitude: number;
-  source: "yandex" | "osm" | "history";
+  source: "yandex" | "osm" | "history" | "pick";
+  rating?: number | null;
+  reviews?: number | null;
+  note?: string | null;
+}
+
+/** Подборка «Мося рекомендует» (таблица place_picks): лучшие места города под категорию. */
+async function searchPicks(admin: ReturnType<typeof createAdminClient>, city: string, category: string, trainingType: string, q: string): Promise<Place[]> {
+  if (!category && q.length < 2) return [];
+  let query = admin
+    .from("place_picks")
+    .select("name, address, latitude, longitude, rating, reviews, note, sort")
+    .eq("city", city)
+    .eq("is_active", true)
+    .limit(40);
+  if (q.length >= 2) query = query.ilike("name", `%${q}%`);
+  else {
+    query = query.eq("category", category);
+    if (category === "training") {
+      if (trainingType && trainingType !== "custom") query = query.eq("training_type", trainingType);
+    }
+  }
+  const { data, error } = await query;
+  if (error || !data) return [];
+  return data
+    .map((r) => ({
+      name: r.name as string,
+      address: (r.address as string) ?? "",
+      latitude: r.latitude as number,
+      longitude: r.longitude as number,
+      rating: r.rating == null ? null : Number(r.rating),
+      reviews: (r.reviews as number | null) ?? null,
+      note: (r.note as string | null) ?? null,
+      source: "pick" as const,
+      sort: (r.sort as number) ?? 0,
+    }))
+    .sort((a, b) => a.sort - b.sort || (b.rating ?? 0) - (a.rating ?? 0) || (b.reviews ?? 0) - (a.reviews ?? 0))
+    .map((p) => ({ name: p.name, address: p.address, latitude: p.latitude, longitude: p.longitude, rating: p.rating, reviews: p.reviews, note: p.note, source: p.source }));
 }
 
 export async function GET(req: NextRequest) {
@@ -62,7 +99,8 @@ export async function GET(req: NextRequest) {
   }
 
   const hasYandex = !!process.env.YANDEX_PLACES_API_KEY;
-  const [yandex, history] = await Promise.all([
+  const [picks, yandex, history] = await Promise.all([
+    searchPicks(admin, city, category, trainingType, q),
     hasYandex
       ? searchYandex(q || QUERY_BY_TRAINING[trainingType] || QUERY_BY_CATEGORY[category] || "", city)
       : osmCached(admin, city, category, trainingType, q),
@@ -71,13 +109,14 @@ export async function GET(req: NextRequest) {
 
   // Склеиваем без повторов (по названию): сначала места, где уже встречались, потом каталог.
   const seen = new Set<string>();
-  const items = [...history.slice(0, 3), ...yandex, ...history.slice(3)].filter((p) => {
+  // Порядок: подборка Моси (с рейтингом) → где уже встречались → каталог.
+  const items = [...picks, ...history.slice(0, 3), ...yandex, ...history.slice(3)].filter((p) => {
     const k = p.name.toLowerCase();
     if (seen.has(k)) return false;
     seen.add(k);
     return true;
   });
-  return NextResponse.json({ items: items.slice(0, 8) });
+  return NextResponse.json({ items: items.slice(0, picks.length > 8 ? 12 : 8) });
 }
 
 async function searchYandex(text: string, city: string): Promise<Place[]> {

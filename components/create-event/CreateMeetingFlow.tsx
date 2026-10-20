@@ -39,12 +39,23 @@ interface TrainingType {
   slug: string;
   name: string;
 }
+/** «1 240 отзывов», «3 отзыва». */
+function reviewsWord(n: number): string {
+  const a = n % 10;
+  const b = n % 100;
+  const w = a === 1 && b !== 11 ? "отзыв" : a >= 2 && a <= 4 && (b < 12 || b > 14) ? "отзыва" : "отзывов";
+  return `${n.toLocaleString("ru-RU")} ${w}`;
+}
+
 interface PlaceSuggestion {
   name: string;
   address: string;
   latitude: number;
   longitude: number;
-  source: "yandex" | "osm" | "history";
+  source: "yandex" | "osm" | "history" | "pick";
+  rating?: number | null;
+  reviews?: number | null;
+  note?: string | null;
 }
 type CostType = "each_pays" | "organizer_treats" | "free" | "negotiable";
 
@@ -356,7 +367,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     if (trainingTypeSlug) p.set("type", trainingTypeSlug);
     fetch(`/api/places?${p}`)
       .then((r) => r.json())
-      .then((d) => setRecs(Array.isArray(d.items) ? d.items.slice(0, 4) : []))
+      .then((d) => setRecs(Array.isArray(d.items) ? d.items.slice(0, 10) : []))
       .catch(() => setRecs([]));
   }, [step, categorySlug, trainingTypeSlug]);
 
@@ -945,6 +956,13 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                     {recs.map((p) => (
                       <button key={p.name} className={`plr gl ${placeName === p.name ? "on" : ""}`} onClick={() => pickPlace(p)}>
                         <b>{p.name}</b>
+                        {p.rating ? (
+                          <span className="plrate">
+                            ★ {p.rating.toFixed(1).replace(".", ",")}
+                            {p.reviews ? ` · ${reviewsWord(p.reviews)}` : ""}
+                          </span>
+                        ) : null}
+                        {p.note ? <span className="plnote">{p.note}</span> : null}
                         <span>{p.address || "отметим на карте"}</span>
                       </button>
                     ))}
