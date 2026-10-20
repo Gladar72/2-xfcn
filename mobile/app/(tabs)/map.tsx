@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Camera, Map, Marker, UserLocation, type CameraRef } from "@maplibre/maplibre-react-native";
 import * as Location from "expo-location";
@@ -15,6 +15,8 @@ import { colors, FONT, pinIcon } from "@/lib/theme";
 import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { MAP_STYLE, TYUMEN_CENTER } from "@/lib/map";
+import { BizCatRow, BizCatSheet } from "@/components/BizCategories";
+import { bizCategoryCounts, matchesBizCategory } from "@/lib/bizCategories";
 
 const SMOKE_EVENTS: MapEvent[] = [
   [57.1522, 65.5272, "coffee"],
@@ -28,7 +30,7 @@ const SMOKE_EVENTS: MapEvent[] = [
   startsAt: new Date(Date.now() + (i + 1) * 3600_000).toISOString(),
   endsAt: new Date(Date.now() + (i + 3) * 3600_000).toISOString(),
   seatsLeft: 3,
-  isBusiness: false,
+  isBusiness: true,
   placeName: null,
   organizer: null,
   category: { slug: slug as string, name: "" },
@@ -58,6 +60,8 @@ export default function MapScreen() {
   const [city, setCity] = useState<string | null>(null);
   const [chip, setChip] = useState<DateChip>((params.date as DateChip) || "any");
   const [bizOnly, setBizOnly] = useState(params.business === "only");
+  const [bizCat, setBizCat] = useState<string | null>(null);
+  const [catSheet, setCatSheet] = useState(false);
   useEffect(() => {
     Location.getForegroundPermissionsAsync()
       .then((p) => setLocated(p.status === "granted"))
@@ -117,7 +121,11 @@ export default function MapScreen() {
     else router.push(`/event/${e.id}` as Href);
   }
 
-  const word = bizOnly ? plural(events.length, "событие", "события", "событий") : plural(events.length, "встреча", "встречи", "встреч");
+  // Карта заведений: категория (кафе, бары, концерты…) — фильтруем сразу, без загрузки.
+  const bizCounts = useMemo(() => (bizOnly ? bizCategoryCounts(events) : []), [bizOnly, events]);
+  const shown = bizOnly && bizCat ? events.filter((e) => matchesBizCategory(e, bizCat)) : events;
+  const word = bizOnly ? plural(shown.length, "событие", "события", "событий") : plural(events.length, "встреча", "встречи", "встреч");
+  const shownCount = shown.length;
 
   return (
     <View style={{ flex: 1 }}>
@@ -130,7 +138,7 @@ export default function MapScreen() {
       >
         <Camera ref={camera} initialViewState={{ center: TYUMEN_CENTER, zoom: 11 }} />
         {located ? <UserLocation /> : null}
-        {events.map((e) => {
+        {shown.map((e) => {
           const cityEv = e.isCity || e.id.startsWith("city:");
           const full = !cityEv && e.seatsLeft <= 0;
           const label = cityEv ? "в городе" : full ? "мест нет" : timePill(e.startsAt, e.endsAt);
@@ -163,11 +171,11 @@ export default function MapScreen() {
                   {bizOnly ? "Заведения" : "Что рядом?"}
                   {city ? ` · ${city}` : ""}
                 </Text>
-                <Text style={styles.sub}>{error ?? (events.length ? `${events.length} ${word} на карте` : "Загружаем…")}</Text>
+                <Text style={styles.sub}>{error ?? (shownCount ? `${shownCount} ${word} на карте` : events.length ? "В этой категории пусто" : "Загружаем…")}</Text>
               </View>
             </Glass>
           </Pressable>
-          <RoundBtn dark size={50} onPress={() => router.push({ pathname: "/search", params: { filters: "1" } })}>
+          <RoundBtn dark size={50} onPress={() => (bizOnly ? setCatSheet(true) : router.push({ pathname: "/search", params: { filters: "1" } }))}>
             <Icon name="filter" color="#fff" />
           </RoundBtn>
         </View>
@@ -185,7 +193,8 @@ export default function MapScreen() {
             />
           ))}
         </ScrollView>
-        {bizOnly ? (
+        {bizOnly && bizCounts.length ? <BizCatRow counts={bizCounts} value={bizCat} onChange={setBizCat} /> : null}
+        {bizOnly && !bizCat ? (
           <Glass strong style={styles.note}>
             <Text style={styles.noteText}>Здесь только события заведений{city ? ` в городе ${city}` : ""} — кафе, бары, студии.</Text>
           </Glass>
@@ -197,6 +206,7 @@ export default function MapScreen() {
         ) : null}
       </View>
 
+      <BizCatSheet visible={catSheet} onClose={() => setCatSheet(false)} counts={bizCounts} value={bizCat} onChange={setBizCat} total={events.length} />
       <RoundBtn onPress={locate} size={50} style={[styles.locate, { bottom: insets.bottom + 104 }]}>
         <Icon name="nav" color={colors.violet} />
       </RoundBtn>
