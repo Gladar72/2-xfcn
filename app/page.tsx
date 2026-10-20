@@ -2,9 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Wordmark } from "@/components/brand/Logo";
-import { Character } from "@/components/brand/AliveStage";
-import { CAST } from "@/components/brand/characters";
+import { LoadingScenes } from "@/components/brand/LoadingScenes";
 import { getInitData } from "@/lib/telegram/webapp-client";
 
 /**
@@ -113,95 +111,13 @@ function EntryPageInner() {
   return <SplashScreen status={status} full={full} />;
 }
 
-/** Персонажи, которые «выскакивают» вокруг, когда Мося добегает до центра. */
-const POPS: [number, number, number][] = [
-  [7, 150, 64],
-  [76, 140, 70],
-  [5, 330, 54],
-  [82, 320, 50],
-  [45, 96, 40],
-  [83, 560, 42],
-  [4, 560, 38],
-];
-
-function SplashScreen({ status, full = false }: { status: "loading" | "no_telegram" | "error"; full?: boolean }) {
-  const runner = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const r = runner.current;
-    if (!full || !r || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    // Мося выбегает слева, бежит по полу, вверх по правой стенке, по
-    // потолку, вниз по левой и прыгает в центр — где превращается в героя.
-    const H = window.innerHeight;
-    const Wd = window.innerWidth;
-    const h = 43;
-    const P2: [number, number, number][] = [
-      [-60, H - 34 - h, 0],
-      [Wd - h, H - 34 - h, 0],
-      [Wd - h, H - 34 - h, -90],
-      [Wd - h, 96, -90],
-      [Wd - h, 96, -180],
-      [h, 96, -180],
-      [h, 96, -270],
-      [h, H * 0.51, -270],
-      [Wd / 2, H * 0.36, -360],
-    ];
-    const L = [0];
-    for (let i = 1; i < P2.length; i++) {
-      const a = P2[i - 1]!;
-      const b = P2[i]!;
-      const d = Math.hypot(b[0] - a[0], b[1] - a[1]) + Math.abs(b[2] - a[2]) * 0.9;
-      L.push(L[i - 1]! + d);
-    }
-    const T = L[L.length - 1]!;
-    const kf: Keyframe[] = P2.map((p, i) => ({
-      transform: `translate(${p[0] - h}px,${p[1] - h}px) rotate(${p[2]}deg) scale(${i === P2.length - 1 ? 2.2 : 1})`,
-      opacity: i === P2.length - 1 ? 0 : 1,
-      offset: L[i]! / T,
-    }));
-    r.animate(kf, { duration: 2900, easing: "cubic-bezier(.45,.05,.55,.95)", fill: "forwards" });
-  }, [full]);
-
-  return (
-    <div className="P">
-      <section className="scr splash aurora" data-id="splash">
-        {full && (
-          <div ref={runner} className="runner" aria-hidden style={{ transform: "translate(-200px,0)" }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/mosya/mosya_run.webp" alt="" />
-          </div>
-        )}
-        <div aria-hidden className="pops">
-          {POPS.map(([x, y, s], i) => (
-            <span
-              key={i}
-              className="pp2"
-              style={{ left: `${x}%`, top: `${(y / 844) * 100}%`, width: s, height: s, animationDelay: `${(full ? 2.95 : 0.1) + i * 0.07}s` }}
-            >
-              <Character shape={CAST[i]![0]} pal={CAST[i]![1]} face={CAST[i]![2]} size={s} seed={i + 3} />
-            </span>
-          ))}
-        </div>
-        <div className={`lockup ${full ? "" : "fast"}`}>
-          <div className="hero-m">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/mosya/mosya_wave.webp" alt="" />
-          </div>
-          <span className="wm">
-            <Wordmark height={66} color="#16121F" />
-          </span>
-          <p>Есть куда пойти. Найдём, с кем</p>
-          {status === "no_telegram" && (
-            <p style={{ marginTop: 12, maxWidth: 280, fontSize: 14 }}>Это приложение открывается только внутри Telegram. Открой его через кнопку в боте.</p>
-          )}
-          {status === "error" && <p style={{ marginTop: 12, maxWidth: 280, fontSize: 14 }}>Что-то пошло не так. Попробуй закрыть и открыть приложение снова.</p>}
-        </div>
-        {status === "loading" && (
-          <div className={`load ${full ? "" : "fast"}`} role="status" aria-label="Загрузка">
-            <i />
-          </div>
-        )}
-      </section>
-    </div>
-  );
+/** Экран загрузки: три сцены с персонажами «Места» (components/brand/LoadingScenes). */
+function SplashScreen({ status }: { status: "loading" | "no_telegram" | "error"; full?: boolean }) {
+  const message =
+    status === "no_telegram"
+      ? "Это приложение открывается только внутри Telegram. Открой его через кнопку в боте."
+      : status === "error"
+        ? "Что-то пошло не так. Попробуй закрыть и открыть приложение снова."
+        : undefined;
+  return <LoadingScenes message={message} loading={status === "loading"} />;
 }
