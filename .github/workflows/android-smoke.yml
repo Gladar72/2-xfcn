@@ -77,7 +77,11 @@ jobs:
             adb shell pm grant ru.mesto.app android.permission.ACCESS_FINE_LOCATION || true
             adb logcat -c
             adb shell monkey -p ru.mesto.app -c android.intent.category.LAUNCHER 1
-            sleep 45
+            sleep 3
+            adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/splash-1.png
+            sleep 3
+            adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/splash-2.png
+            sleep 39
             adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/map-1.png
             sleep 20
             adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/map-2.png
