@@ -669,7 +669,6 @@ export default function ChatPage({ params }: ChatPageProps) {
                         handleSend();
                       }
                     }}
-                    enterKeyHint="enter"
                     placeholder={pendingImage ? "Подпись к фото…" : "Сообщение"}
                     style={{ resize: "none", lineHeight: "20px", padding: "13px 0", maxHeight: 120, overflowY: "auto", background: "transparent", border: 0, outline: "none", flex: 1, font: "inherit", color: "inherit" }}
                   />
