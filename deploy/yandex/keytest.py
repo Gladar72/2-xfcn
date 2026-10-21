@@ -105,7 +105,7 @@ def test_postbox():
         except Exception:
             names = []
         report("Postbox (почта)", True, "домены: " + (", ".join(n for n in names if n) or "—"))
-    elif code == 403 and "AccessDenied" in text and "Signature" not in text:
+    elif code == 403 and "Signature" not in text and "InvalidClientTokenId" not in text:
         # Ключ принят, просто у роли postbox.sender нет права смотреть список — отправка разрешена.
         report("Postbox (почта)", True, "ключ принят (прав на просмотр списка нет — для отправки не нужно)")
     else:
