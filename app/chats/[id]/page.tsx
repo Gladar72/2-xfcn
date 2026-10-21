@@ -44,7 +44,9 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   const visualViewportHeight = useVisualViewportHeight();
   const telegramViewportHeight = useTelegramViewportHeight();
-  const liveHeight = visualViewportHeight ?? telegramViewportHeight;
+  // Округляем: iOS присылает дробные изменения высоты при прокрутке — без округления чат «прилипал» к низу.
+  const rawHeight = visualViewportHeight ?? telegramViewportHeight;
+  const liveHeight = rawHeight == null ? rawHeight : Math.round(rawHeight);
 
   const [messages, setMessages] = useState<MessageData[]>([]);
   const [myUserId, setMyUserId] = useState<string | null>(null);
@@ -260,8 +262,10 @@ export default function ChatPage({ params }: ChatPageProps) {
   }, [messages, myUserId, scrollToBottom]);
 
   // Открылась/закрылась клавиатура или выросло поле ввода: если были внизу — остаёмся внизу.
+  // Пока палец на экране — не трогаем: иначе чат возвращало вниз и вверх было не пролистать.
+  const touchingRef = useRef(false);
   useLayoutEffect(() => {
-    if (atBottomRef.current) scrollToBottom(false);
+    if (atBottomRef.current && !touchingRef.current) scrollToBottom(false);
   }, [liveHeight, composeH, scrollToBottom]);
 
   // Высота нижней панели (подсказки, фото, многострочный текст) — чтобы сообщения не прятались под ней.
@@ -532,7 +536,15 @@ export default function ChatPage({ params }: ChatPageProps) {
           ) : null}
         </div>
 
-        <div className="msgs" ref={listRef} onScroll={handleScroll} style={{ paddingBottom: composeH + 16 }}>
+        <div
+          className="msgs"
+          ref={listRef}
+          onScroll={handleScroll}
+          onTouchStart={() => (touchingRef.current = true)}
+          onTouchEnd={() => (touchingRef.current = false)}
+          onTouchCancel={() => (touchingRef.current = false)}
+          style={{ paddingBottom: composeH + 16 }}
+        >
           {loadingOlder && <span className="daysep">Загружаем ранние сообщения…</span>}
           {eventTitle !== null && eventMeta && (
             <>
