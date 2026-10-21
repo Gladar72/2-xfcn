@@ -340,6 +340,20 @@ bizdiag() {
   date; sudo docker exec mesto-app-1 date || true
 }
 
+storyshot() {
+  # Готовые сторис «Поделиться» с нескольких настоящих встреч — для промо (файлы забирает workflow).
+  rm -rf /tmp/storyshot && mkdir -p /tmp/storyshot
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -At -c "
+    select e.id || '|' || coalesce(c.slug,'x') from events e left join categories c on c.id=e.category_id
+    where e.status='published' and e.event_date >= current_date and not coalesce(e.is_business,false)
+      and not coalesce(e.is_anonymous,false) and e.photo_url is not null
+    order by (c.slug='coffee') desc, (c.slug='training') desc, e.event_date limit 6;" | while IFS='|' read -r id slug; do
+    [ -n "$id" ] || continue
+    curl -sS -m 60 -o "/tmp/storyshot/${slug}_${id}.png" -w "$slug $id %{http_code} %{size_download}\n" "http://127.0.0.1:3000/api/events/$id/story.png?ig=1" || true
+  done
+  ls -la /tmp/storyshot
+}
+
 health() {
   update_code
   bash "$APP/deploy/yandex/health.sh"
@@ -384,6 +398,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
