@@ -111,7 +111,7 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
           </b>
           <span>
             {u.ratingAvg > 0 ? `★ ${u.ratingAvg.toFixed(1).replace(".", ",")} · ` : ""}
-            {u.completedMeetingsCount} встреч{app.status !== "pending" ? ` · ${STATUS[app.status] ?? ""}` : ""}
+            {u.completedMeetingsCount} {pluralMeet(u.completedMeetingsCount)}{app.status !== "pending" ? ` · ${STATUS[app.status] ?? ""}` : ""}
           </span>
         </div>
         {actions}
@@ -157,9 +157,7 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
             card(
               app,
               <>
-                <button className="sm no" disabled={processingId === app.id} onClick={() => handleAction(app.id, "reject")}>
-                  Отклонить
-                </button>
+                <button className="sm no x" disabled={processingId === app.id} onClick={() => handleAction(app.id, "reject")} aria-label="Отклонить" title="Отклонить">✕</button>
                 <button className="sm yes" disabled={processingId === app.id} onClick={() => handleAction(app.id, "accept")}>
                   Принять
                 </button>
@@ -188,4 +186,12 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
       )}
     </Screen>
   );
+}
+
+function pluralMeet(n: number): string {
+  const a = n % 10;
+  const b = n % 100;
+  if (a === 1 && b !== 11) return "встреча";
+  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return "встречи";
+  return "встреч";
 }

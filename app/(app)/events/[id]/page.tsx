@@ -747,9 +747,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                           {a.applicant.completedMeetingsCount} {plural(a.applicant.completedMeetingsCount, "встреча", "встречи", "встреч")}
                         </span>
                       </div>
-                      <button className="sm no" disabled={processingApplicantId === a.id} onClick={() => handleApplicantDecision(a.id, "reject")}>
-                        Отклонить
-                      </button>
+                      <button className="sm no x" disabled={processingApplicantId === a.id} onClick={() => handleApplicantDecision(a.id, "reject")} aria-label="Отклонить" title="Отклонить">✕</button>
                       <button className="sm yes" disabled={processingApplicantId === a.id} onClick={() => handleApplicantDecision(a.id, "accept")}>
                         Принять
                       </button>
