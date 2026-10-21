@@ -1,0 +1,111 @@
+name: iOS
+
+# Сборка iPhone-версии «Места» в GitHub на macOS (без Mac и без облака Expo).
+# Запуск: Actions → iOS → Run workflow.
+#   check   — проверочная сборка для симулятора, без подписи и без аккаунта Apple:
+#             показывает, что приложение собирается под iOS.
+#   release — подписанная сборка и загрузка в App Store Connect (TestFlight).
+#
+# Для release (один раз, после регистрации в Apple Developer Program):
+#   переменная репозитория APPLE_TEAM_ID       — Team ID (developer.apple.com → Membership)
+#   секрет ASC_KEY_ID, ASC_ISSUER_ID          — ключ App Store Connect API (Users and Access → Integrations, роль Admin)
+#   секрет ASC_KEY_P8                         — содержимое файла AuthKey_XXXX.p8
+# Сертификаты и профили Xcode создаёт сам по этому ключу (-allowProvisioningUpdates).
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "check — проверка сборки, release — в App Store Connect"
+        type: choice
+        options: [check, release]
+        default: check
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Секреты на месте?
+        if: inputs.mode == 'release'
+        env:
+          TEAM: ${{ vars.APPLE_TEAM_ID }}
+          KID: ${{ secrets.ASC_KEY_ID }}
+          ISS: ${{ secrets.ASC_ISSUER_ID }}
+          P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          for v in TEAM KID ISS P8; do
+            if [ -z "${!v}" ]; then echo "::error::Не задано: $v (см. шапку ios.yml)"; exit 1; fi
+          done
+
+      - name: Зависимости
+        run: npm install --no-audit --no-fund
+
+      - name: iOS-проект из app.json (expo prebuild)
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Имя проекта
+        id: proj
+        run: |
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          echo "ws=$WS" >> "$GITHUB_OUTPUT"
+          echo "scheme=$SCHEME" >> "$GITHUB_OUTPUT"
+          echo "workspace: $WS, scheme: $SCHEME"
+          xcodebuild -version
+
+      - name: Проверочная сборка (симулятор, без подписи)
+        if: inputs.mode == 'check'
+        run: |
+          set -o pipefail
+          xcodebuild -workspace "${{ steps.proj.outputs.ws }}" -scheme "${{ steps.proj.outputs.scheme }}" \
+            -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO build | tail -n 60
+
+      - name: Номер сборки
+        if: inputs.mode == 'release'
+        run: |
+          PLIST=$(ls ios/*/Info.plist | grep -v Tests | head -1)
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST"
+
+      - name: Архив и загрузка в App Store Connect
+        if: inputs.mode == 'release'
+        env:
+          TEAM: ${{ vars.APPLE_TEAM_ID }}
+          KID: ${{ secrets.ASC_KEY_ID }}
+          ISS: ${{ secrets.ASC_ISSUER_ID }}
+          P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          set -o pipefail
+          KEY="$RUNNER_TEMP/AuthKey_$KID.p8"
+          printf '%s\n' "$P8" > "$KEY"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$KID" -authenticationKeyIssuerID "$ISS")
+          xcodebuild -workspace "${{ steps.proj.outputs.ws }}" -scheme "${{ steps.proj.outputs.scheme }}" \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Mesto.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic "${AUTH[@]}" archive | tail -n 40
+          cat > "$RUNNER_TEMP/export.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Mesto.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/out" "${AUTH[@]}" | tail -n 40
+          rm -f "$KEY"
+          echo "Сборка ${{ github.run_number }} загружена в App Store Connect — появится в TestFlight через 10–30 минут."
