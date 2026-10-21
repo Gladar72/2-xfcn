@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { MessageBubble, formatDayLabel, type MessageData } from "@/components/chat/MessageBubble";
@@ -75,6 +75,20 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [accessBlocked, setAccessBlocked] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Прокрутка как в Telegram: вниз уезжаем сами, только если человек и так внизу
+  // (или отправил сообщение сам). Читает историю — не дёргаем, показываем «↓ N».
+  const listRef = useRef<HTMLDivElement>(null);
+  const composeRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const atBottomRef = useRef(true);
+  const firstScrollDone = useRef(false);
+  const prevCountRef = useRef(0);
+  const prependRef = useRef<{ height: number; top: number } | null>(null);
+  const [atBottom, setAtBottom] = useState(true);
+  const [unseen, setUnseen] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [composeH, setComposeH] = useState(150);
   const clientRef = useRef<SupabaseClient | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
   const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,6 +127,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
         setMyUserId(me.userId);
         setMessages(history.messages ?? []);
+        setHasMore(!!history.hasMore);
         setEventTitle(history.eventTitle ?? null);
         setEventStatus(history.eventStatus ?? null);
         setCategory(history.category ?? null);
@@ -208,9 +223,116 @@ export default function ChatPage({ params }: ChatPageProps) {
     };
   }, [conversationId]);
 
+  const scrollToBottom = useCallback((smooth = false) => {
+    const el = listRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+  }, []);
+
+  // Новые сообщения: вниз — только если были внизу или это своё сообщение.
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    // Подгрузили старые сверху — сохраняем место, на котором человек читал.
+    if (prependRef.current) {
+      el.scrollTop = el.scrollHeight - prependRef.current.height + prependRef.current.top;
+      prependRef.current = null;
+      prevCountRef.current = messages.length;
+      return;
+    }
+    const added = messages.length - prevCountRef.current;
+    prevCountRef.current = messages.length;
+    if (!firstScrollDone.current) {
+      if (messages.length > 0) {
+        el.scrollTop = el.scrollHeight;
+        firstScrollDone.current = true;
+      }
+      return;
+    }
+    if (added <= 0) return;
+    const last = messages[messages.length - 1];
+    if (atBottomRef.current || (last && last.senderId === myUserId)) {
+      scrollToBottom(true);
+      setUnseen(0);
+    } else {
+      setUnseen((n) => n + added);
+    }
+  }, [messages, myUserId, scrollToBottom]);
+
+  // Открылась/закрылась клавиатура или выросло поле ввода: если были внизу — остаёмся внизу.
+  useLayoutEffect(() => {
+    if (atBottomRef.current) scrollToBottom(false);
+  }, [liveHeight, composeH, scrollToBottom]);
+
+  // Высота нижней панели (подсказки, фото, многострочный текст) — чтобы сообщения не прятались под ней.
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, liveHeight]);
+    const el = composeRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setComposeH(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const loadOlder = useCallback(async () => {
+    if (!hasMore || loadingOlder || messages.length === 0) return;
+    const first = messages.find((m) => !m.id.startsWith("temp-"));
+    if (!first) return;
+    setLoadingOlder(true);
+    try {
+      const r = await fetch(`/api/conversations/${conversationId}/messages?before=${encodeURIComponent(first.createdAt)}&limit=50`);
+      if (!r.ok) return;
+      const d = (await r.json()) as { messages?: MessageData[]; hasMore?: boolean };
+      const older = d.messages ?? [];
+      const el = listRef.current;
+      if (el) prependRef.current = { height: el.scrollHeight, top: el.scrollTop };
+      setMessages((prev) => {
+        const ids = new Set(prev.map((m) => m.id));
+        return [...older.filter((m) => !ids.has(m.id)), ...prev];
+      });
+      setHasMore(!!d.hasMore);
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [hasMore, loadingOlder, messages, conversationId]);
+
+  function handleScroll() {
+    const el = listRef.current;
+    if (!el) return;
+    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    atBottomRef.current = bottom;
+    if (bottom !== atBottom) setAtBottom(bottom);
+    if (bottom && unseen) setUnseen(0);
+    if (el.scrollTop < 300) loadOlder();
+  }
+
+  // Вернулись в приложение (телефон спал, переключались) — догружаем пропущенное.
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState !== "visible") return;
+      fetch(`/api/conversations/${conversationId}/messages`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d: { messages?: MessageData[] } | null) => {
+          if (!d?.messages) return;
+          setMessages((prev) => {
+            const ids = new Set(prev.map((m) => m.id));
+            const fresh = d.messages!.filter((m) => !ids.has(m.id));
+            if (!fresh.length) return prev;
+            return [...prev, ...fresh].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+          });
+        })
+        .catch(() => {});
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [conversationId]);
+
+  // Поле ввода растёт по тексту (до 5 строк), как в Telegram.
+  useLayoutEffect(() => {
+    const t = inputRef.current;
+    if (!t) return;
+    t.style.height = "0px";
+    t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
+  }, [draft]);
 
   // «+» → системное окно выбора фото (галерея / камера). Доступ к фото
   // телефон запрашивает сам, как в Telegram. Фото сразу ужимаем на
@@ -252,6 +374,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       },
     ]);
     setSending(true);
+    atBottomRef.current = true;
     setDraft("");
     setPendingImage(null);
     const restore = () => {
@@ -393,7 +516,8 @@ export default function ChatPage({ params }: ChatPageProps) {
           ) : null}
         </div>
 
-        <div className="msgs">
+        <div className="msgs" ref={listRef} onScroll={handleScroll} style={{ paddingBottom: composeH + 16 }}>
+          {loadingOlder && <span className="daysep">Загружаем ранние сообщения…</span>}
           {eventTitle !== null && eventMeta && (
             <>
               <div className="evpin gl">
@@ -483,7 +607,22 @@ export default function ChatPage({ params }: ChatPageProps) {
           <div ref={scrollRef} />
         </div>
 
-        <div className="compose">
+        {!atBottom && (
+          <button
+            className="tobot gl"
+            style={{ bottom: composeH + 12 }}
+            onClick={() => {
+              scrollToBottom(true);
+              setUnseen(0);
+            }}
+            aria-label="К последним сообщениям"
+          >
+            {unseen > 0 && <span className="cnt">{unseen > 99 ? "99+" : unseen}</span>}
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+          </button>
+        )}
+
+        <div className="compose" ref={composeRef}>
           {isEventClosed ? (
             <p className="muted" style={{ textAlign: "center", fontSize: 14, padding: "6px 0" }}>
               Событие закрыто — отправка новых сообщений недоступна.
@@ -514,19 +653,33 @@ export default function ChatPage({ params }: ChatPageProps) {
               <div className="inrow">
                 <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handlePickImage} />
                 <label className="field gl">
-                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={sending || preparingImage} aria-label="Прикрепить фото" style={{ color: "var(--grey)", display: "grid" }}>
+                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={sending || preparingImage} aria-label="Прикрепить фото" style={{ color: "var(--grey)", display: "grid", alignSelf: "flex-end", marginBottom: 13 }}>
                     <Ic n="camera" c="s" />
                   </button>
-                  <input
+                  <textarea
+                    ref={inputRef}
+                    rows={1}
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleSend();
+                      // Компьютер: Enter — отправить, Shift+Enter — новая строка. Телефон: Enter — новая строка.
+                      const coarse = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+                      if (e.key === "Enter" && !e.shiftKey && !coarse && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        handleSend();
+                      }
                     }}
+                    enterKeyHint="enter"
                     placeholder={pendingImage ? "Подпись к фото…" : "Сообщение"}
+                    style={{ resize: "none", lineHeight: "20px", padding: "13px 0", maxHeight: 120, overflowY: "auto", background: "transparent", border: 0, outline: "none", flex: 1, font: "inherit", color: "inherit" }}
                   />
                 </label>
-                <button className="send" onClick={handleSend} disabled={sending || (!draft.trim() && !pendingImage)} aria-label="Отправить">
+                <button
+                  className="send"
+                  // Не забираем фокус у поля — клавиатура не закрывается после отправки (как в Telegram).
+                  onPointerDown={(e) => e.preventDefault()}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleSend} disabled={sending || (!draft.trim() && !pendingImage)} aria-label="Отправить">
                   <Ic n="send" />
                 </button>
               </div>
