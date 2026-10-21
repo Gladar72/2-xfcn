@@ -23,6 +23,8 @@ jobs:
   run:
     if: github.event_name == 'workflow_dispatch' || vars.YC_AUTODEPLOY == 'on'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     timeout-minutes: 40
     env:
       TASK: ${{ github.event.inputs.task || 'deploy' }}
@@ -67,12 +69,12 @@ jobs:
         if: env.TASK == 'storyshot'
         run: mkdir -p storyshot && scp -q 'deploy@'"$HOST"':/tmp/storyshot/*.png' storyshot/ || true
 
-      - name: Upload story renders
+      - name: Publish story renders to branch
         if: env.TASK == 'storyshot'
-        uses: actions/upload-artifact@v4
-        with:
-          name: storyshot
-          path: storyshot/
+        run: |
+          cd storyshot && git init -q && git checkout -q -b storyshot
+          git -c user.name=bot -c user.email=bot@users.noreply.github.com add . && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm storyshot
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" storyshot
 
       - name: Clean up migration settings
         if: always() && (env.TASK == 'migrate' || env.TASK == 'reauthnotify')
