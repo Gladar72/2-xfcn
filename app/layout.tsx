@@ -51,7 +51,8 @@ export const metadata: Metadata = {
   icons: { icon: "/brand/logo/favicon-m.svg", apple: "/brand/logo/app-icon.png" },
 };
 
-export const viewport = { themeColor: "#F6F2FF" };
+// maximumScale: 1 — iPhone не приближает экран при нажатии на поле ввода (из-за этого экран «ехал» вбок).
+export const viewport = { themeColor: "#F6F2FF", width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false, viewportFit: "cover" as const };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

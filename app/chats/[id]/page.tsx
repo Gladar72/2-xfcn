@@ -326,6 +326,22 @@ export default function ChatPage({ params }: ChatPageProps) {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [conversationId]);
 
+  // Экран не должен ездить вбок (iOS сдвигает страницу, подводя поле под клавиатуру).
+  useEffect(() => {
+    const fix = () => {
+      if (window.scrollX !== 0 || document.documentElement.scrollLeft !== 0) window.scrollTo(0, window.scrollY);
+    };
+    const vv = window.visualViewport;
+    vv?.addEventListener("scroll", fix);
+    vv?.addEventListener("resize", fix);
+    window.addEventListener("scroll", fix, { passive: true });
+    return () => {
+      vv?.removeEventListener("scroll", fix);
+      vv?.removeEventListener("resize", fix);
+      window.removeEventListener("scroll", fix);
+    };
+  }, []);
+
   // Поле ввода растёт по тексту (до 5 строк), как в Telegram.
   useLayoutEffect(() => {
     const t = inputRef.current;
@@ -670,7 +686,7 @@ export default function ChatPage({ params }: ChatPageProps) {
                       }
                     }}
                     placeholder={pendingImage ? "Подпись к фото…" : "Сообщение"}
-                    style={{ resize: "none", lineHeight: "20px", padding: "13px 0", maxHeight: 120, overflowY: "auto", background: "transparent", border: 0, outline: "none", flex: 1, font: "inherit", color: "inherit" }}
+                    style={{ resize: "none", lineHeight: "20px", padding: "13px 0", maxHeight: 120, overflowY: "auto", background: "transparent", border: 0, outline: "none", flex: 1, font: "inherit", fontSize: 16, color: "inherit", minWidth: 0, width: "100%" }}
                   />
                 </label>
                 <button
