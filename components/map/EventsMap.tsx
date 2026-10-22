@@ -24,6 +24,8 @@ export interface MapEventItem {
   endsAt?: string;
   utcOffset?: number;
   organizer?: { name: string; avatarUrl: string | null } | null;
+  /** Фото в метке: обложка у заведений, аватар у людей (с сервера). */
+  markerPhoto?: string | null;
   /** Анонимная встреча, организатор и точное место скрыты — точка показывает только район. */
   organizerHidden?: boolean;
 }
@@ -213,7 +215,7 @@ const PHOTO = 44; // фото внутри неё
 export function buildEventMarkerElement(event: MapEventItem, onClick: () => void): { el: HTMLElement; offsetY: number } {
   const label = eventTimeLabel(event);
   const isFull = event.seatsLeft <= 0;
-  const avatar = event.organizer?.avatarUrl;
+  const avatar = event.markerPhoto !== undefined ? event.markerPhoto : event.organizer?.avatarUrl;
 
   const ring = event.isBusiness
     ? "background:linear-gradient(#fff,#fff) padding-box,linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0) border-box;border:3px solid transparent;"
@@ -222,7 +224,7 @@ export function buildEventMarkerElement(event: MapEventItem, onClick: () => void
     ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.replaceWith(Object.assign(document.createElement('img'),{src:'${categoryIcon3d(event)}',style:'width:100%;height:100%;object-fit:contain;padding:5px;box-sizing:border-box;background:#f3efff'}))" />`
     : `<img src="${categoryIcon3d(event)}" alt="" style="width:100%;height:100%;object-fit:contain;padding:5px;box-sizing:border-box;display:block;" />`;
   // У метки с фото организатора — значок категории в уголке.
-  const badge = avatar
+  const badge = avatar && !event.isBusiness
     ? `<div style="position:absolute;right:-6px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 3px 8px -2px rgba(60,30,140,.45);display:flex;align-items:center;justify-content:center;"><img src="${categoryIcon3d(event)}" alt="" style="width:19px;height:19px;object-fit:contain;" /></div>`
     : "";
 

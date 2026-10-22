@@ -87,6 +87,8 @@ export interface MapEvent {
   isBusiness: boolean;
   placeName: string | null;
   organizer: { name: string; avatarUrl: string | null } | null;
+  /** Фото в метке: обложка у заведений, аватар у людей (с сервера). */
+  markerPhoto?: string | null;
   category?: { slug: string; name: string } | null;
   isAnonymous?: boolean;
   organizerHidden?: boolean;

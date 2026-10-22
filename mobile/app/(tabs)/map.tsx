@@ -11,7 +11,8 @@ import { Chip } from "@/components/ui";
 import { api } from "@/lib/api";
 import { tapLight } from "@/lib/feedback";
 import { plural, qs, timePill } from "@/lib/format";
-import { colors, FONT, pinIcon } from "@/lib/theme";
+import { colors, eventIcon, FONT, pinIcon } from "@/lib/theme";
+import { coverUri } from "@/lib/covers";
 import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { MAP_STYLE, TYUMEN_CENTER } from "@/lib/map";
@@ -33,8 +34,31 @@ const SMOKE_EVENTS: MapEvent[] = [
   isBusiness: true,
   placeName: null,
   organizer: null,
+  markerPhoto: i < 2 ? `/brand/covers/${slug}.webp` : null,
   category: { slug: slug as string, name: "" },
 }));
+
+/**
+ * Метка на карте как в мини-приложении: белая капля с фото внутри — у людей аватар
+ * (и значок категории в уголке), у заведений обложка события вместо значка-портфеля.
+ * Нет фото — прежняя 3D-булавка категории.
+ */
+function PinPhoto({ e }: { e: MapEvent }) {
+  const photo = coverUri(e.markerPhoto ?? null);
+  const [broken, setBroken] = useState(false);
+  if (!photo || broken) return <Image source={{ uri: pinIcon(e) }} style={styles.pinImg} contentFit="contain" />;
+  return (
+    <View style={styles.drop}>
+      <View style={[styles.dropShape, e.isBusiness && styles.dropBiz]} />
+      <Image source={{ uri: photo }} style={styles.dropImg} contentFit="cover" onError={() => setBroken(true)} />
+      {!e.isBusiness ? (
+        <View style={styles.badge}>
+          <Image source={{ uri: eventIcon(e) }} style={{ width: 19, height: 19 }} contentFit="contain" />
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 type DateChip = "any" | "now" | "today" | "tomorrow" | "weekend";
 const CHIPS: [DateChip, string][] = [
@@ -154,7 +178,7 @@ export default function MapScreen() {
                     <Text style={styles.pillText}>{label}</Text>
                   </Grad>
                 )}
-                <Image source={{ uri: pinIcon(e) }} style={styles.pinImg} contentFit="contain" />
+                <PinPhoto e={e} />
               </Pressable>
             </Marker>
           );
@@ -228,5 +252,38 @@ const styles = StyleSheet.create({
   pill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginBottom: 2 },
   pillText: { fontFamily: FONT, color: "#fff", fontSize: 11.5, fontWeight: "500" },
   pinImg: { width: 48, height: 60 },
+  drop: { width: 52, height: 52, marginBottom: 10 },
+  dropShape: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    width: 52,
+    height: 52,
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    borderBottomRightRadius: 26,
+    borderBottomLeftRadius: 0,
+    transform: [{ rotate: "-45deg" }],
+    shadowColor: "#3C1E8C",
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  dropBiz: { borderWidth: 3, borderColor: colors.violet },
+  dropImg: { position: "absolute", left: 4, top: 4, width: 44, height: 44, borderRadius: 22, backgroundColor: "#F3EFFF" },
+  badge: {
+    position: "absolute",
+    right: -6,
+    bottom: -4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+  },
   locate: { position: "absolute", right: 16 },
 });

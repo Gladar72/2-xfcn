@@ -54,7 +54,7 @@ export async function GET(req: NextRequest) {
     .select(
       `
       id, title, event_date, event_time, event_end_time, city, latitude, longitude, place_name, address, seats_total, seats_taken, cost_type, is_business,
-      is_anonymous, organizer_id,
+      is_anonymous, organizer_id, photo_url,
       category:categories(slug, name, emoji),
       organizer:users(name, avatar_url, birth_date, gender)
       `
@@ -193,6 +193,12 @@ export async function GET(req: NextRequest) {
         utcOffset: eventUtcOffsetHours({ city: e.city, longitude: e.longitude }),
       };
     })(),
+    // Фото в метке на карте: у заведений — обложка события (а не значок-портфель), у людей — аватар.
+    markerPhoto: hiddenIds.has(e.id)
+      ? null
+      : e.is_business
+        ? (e.photo_url as string | null) ?? (e.organizer as unknown as { avatar_url: string | null } | null)?.avatar_url ?? null
+        : (e.organizer as unknown as { avatar_url: string | null } | null)?.avatar_url ?? null,
     organizer: (() => {
       const o = e.organizer as unknown as { name: string | null; avatar_url: string | null; gender: string | null } | null;
       if (!o) return null;
@@ -237,6 +243,7 @@ export async function GET(req: NextRequest) {
           endsAt: t.end.toISOString(),
           utcOffset: eventUtcOffsetHours({ city, longitude: c.longitude }),
           organizer: { name: c.placeName ?? "", avatarUrl: c.photoUrl },
+          markerPhoto: c.photoUrl ?? null,
         };
       });
     return NextResponse.json({ items: [...items, ...cityItems], city });
