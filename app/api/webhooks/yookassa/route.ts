@@ -6,6 +6,9 @@ import { notifyTelegram } from "@/lib/telegram/notify";
 import { notifyUser } from "@/lib/notify/user";
 import type { Plan } from "@/lib/subscriptions/limits";
 import { recordReferralCommission } from "@/lib/subscriptions/referrals";
+import { createPromotion, loadPromoEvent } from "@/lib/promotions/server";
+import { promoClock } from "@/lib/promotions/config";
+import { eventUtcOffsetHours } from "@/lib/events/timing";
 
 /**
  * POST /api/webhooks/yookassa
@@ -36,7 +39,7 @@ export async function POST(req: Request) {
 
   const { data: paymentRow } = await admin
     .from("payments")
-    .select("id, user_id, plan, status, amount, currency")
+    .select("id, user_id, plan, status, amount, currency, purpose, event_id")
     .eq("external_payment_id", paymentId)
     .maybeSingle();
 
@@ -66,6 +69,43 @@ export async function POST(req: Request) {
       await admin.from("payments").update({ status: "failed" }).eq("id", paymentRow.id);
     }
     return NextResponse.json({ status: "not_paid_yet" });
+  }
+
+  // Разовое продвижение встречи в «Популярное сегодня».
+  if (paymentRow.purpose === "promotion") {
+    await admin.from("payments").update({ status: "succeeded" }).eq("id", paymentRow.id);
+    const { data: u } = await admin.from("users").select("telegram_id").eq("id", paymentRow.user_id).maybeSingle();
+    const ev = paymentRow.event_id ? await loadPromoEvent(admin, paymentRow.event_id) : null;
+    const res = ev ? await createPromotion(admin, ev, paymentRow.user_id, "paid", paymentRow.id) : { ok: false as const, reason: "event_not_found" };
+    if (res.ok && ev) {
+      const off = eventUtcOffsetHours(ev);
+      const first = Date.parse(res.row.top_from) <= Date.now() + 60_000;
+      const text = first
+        ? `Встреча «${ev.title}» первая в «Популярном сегодня» до ${promoClock(res.row.top_until, off)}`
+        : `Встреча «${ev.title}» станет первой в «Популярном сегодня» в ${promoClock(res.row.top_from, off)}`;
+      await notifyUser(admin, paymentRow.user_id, {
+        title: "Ты в популярном",
+        body: text,
+        url: `/events/${ev.id}`,
+        data: { type: "promotion_started" },
+        telegramText: `🔝 ${text}.`,
+        telegramId: u?.telegram_id ?? null,
+      });
+    } else {
+      // Оплатили, но встреча уже началась / отменена — нужен возврат вручную.
+      for (const id of (process.env.ADMIN_TELEGRAM_IDS ?? "").split(",").map((x) => Number(x.trim())).filter(Boolean)) {
+        await notifyTelegram(id, `⚠️ Продвижение оплачено, но не включилось (${res.ok ? "" : res.reason}). Платёж ЮKassa ${paymentId}, встреча ${paymentRow.event_id}. Нужен возврат 149 ₽.`).catch(() => {});
+      }
+      await notifyUser(admin, paymentRow.user_id, {
+        title: "Не получилось продвинуть встречу",
+        body: "Встреча уже началась или закрыта. Вернём деньги в течение нескольких дней.",
+        url: "/support",
+        data: { type: "promotion_failed" },
+        telegramText: "Не получилось продвинуть встречу: она уже началась или закрыта. Вернём деньги в течение нескольких дней — если будут вопросы, напиши в поддержку.",
+        telegramId: u?.telegram_id ?? null,
+      });
+    }
+    return NextResponse.json({ status: res.ok ? "promoted" : "promotion_failed" });
   }
 
   const plan = paymentRow.plan as Plan;

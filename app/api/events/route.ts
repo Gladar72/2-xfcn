@@ -19,6 +19,7 @@ import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { moderateImage } from "@/lib/photos/moderate-image";
 import { cachedFeed, clearFeedCache } from "@/lib/data/feed-cache";
 import { eventTiming } from "@/lib/events/timing";
+import { activePromotions, promotedOrder } from "@/lib/promotions/server";
 import { freshPoint, pointDistanceM, roundDistanceM } from "@/lib/geo/approx-distance";
 
 // Рассылки после создания (бизнес-событие — всему городу) идут фоном после ответа — даём им время.
@@ -325,6 +326,12 @@ export async function GET(req: NextRequest) {
   // Заполненные встречи — в конце ленты: сначала те, куда ещё можно пойти.
   ranked.sort((a, b) => Number(a._row.seats_taken >= a._row.seats_total) - Number(b._row.seats_taken >= b._row.seats_total));
 
+  // «В популярное сегодня»: продвинутые встречи города — первыми, в порядке
+  // «чей час сейчас → ждущие своего часа → отстоявшие свой час» (lib/promotions/server.ts).
+  const promoOrder = promotedOrder(await activePromotions(admin, feedCity, now).catch(() => []), now);
+  const promoPos = new Map(promoOrder.map((id, i) => [id, i]));
+  if (promoPos.size) ranked.sort((a, b) => (promoPos.get(a.id) ?? 1e9) - (promoPos.get(b.id) ?? 1e9));
+
   const pageStart = page * PAGE_SIZE;
   const pageItems = ranked.slice(pageStart, pageStart + PAGE_SIZE).map(({ _row, organizerPlan }) => {
     const organizer = _row.organizer as unknown as {
@@ -366,8 +373,10 @@ export async function GET(req: NextRequest) {
         viewerLatitude != null && viewerLongitude != null && _row.latitude != null && _row.longitude != null && !_row.is_anonymous
           ? roundDistanceM(pointDistanceM(viewerLatitude, viewerLongitude, Number(_row.latitude), Number(_row.longitude)))
           : null,
-      // «Поднято» на карточке — поднятие за последние сутки.
-      isBoosted: !!_row.boosted_at && Date.now() - new Date(_row.boosted_at as string).getTime() < 24 * 3600 * 1000,
+      // «В популярном» на карточке — встреча продвинута (у старых версий приложения — «Поднято»).
+      isPromoted: promoPos.has(_row.id),
+      promoRank: promoPos.get(_row.id) ?? null,
+      isBoosted: promoPos.has(_row.id),
       // Лёгкое визуальное выделение карточки — привилегия тарифов
       // Медиум и Премьер (см. FEATURES в components/paywall/Paywall.tsx).
       isHighlighted: organizerPlan === "medium" || organizerPlan === "premium",

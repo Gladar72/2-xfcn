@@ -29,7 +29,7 @@ export function buildNotificationText(type: string, eventTitle: string | undefin
     case "meet_hint":
       return `${who} намекает: хочет с тобой на встречу 👋`;
     case "boost_suggestion":
-      return `Мало откликов на ${title} — можно поднять её в ленте`;
+      return `Мало откликов на ${title} — продвинь её в «Популярное сегодня»`;
     case "subscription_expiring":
       return "Подписка скоро закончится — продли, чтобы не потерять доступ";
     case "subscription_expired":

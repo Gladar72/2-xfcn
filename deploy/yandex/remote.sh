@@ -182,6 +182,9 @@ deploy() {
     < "$APP/supabase/migrations/0069_place_picks.sql" || true
   [ -f "$APP/deploy/yandex/place-picks.sql" ] && sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
     < "$APP/deploy/yandex/place-picks.sql" || true
+  # «В популярное сегодня»: продвижения и разовые платежи (идемпотентно).
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
+    < "$APP/supabase/migrations/0070_promotions.sql" || true
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"

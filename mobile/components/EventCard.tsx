@@ -56,7 +56,7 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
       </View>
 
       <View style={styles.badges}>
-        {e.isLive ? <Pill kind="live" label="Идёт сейчас" /> : e.isBoosted ? <Pill kind="white" label="Поднято" icon={<Icon name="up" size={14} color={colors.violet} />} /> : null}
+        {e.isLive ? <Pill kind="live" label="Идёт сейчас" /> : e.isBoosted ? <Pill kind="white" label="В популярном" icon={<Icon name="up" size={14} color={colors.violet} />} /> : null}
         {e.myApplicationStatus ? <Pill kind="white" label={STATUS_LABEL[e.myApplicationStatus]} /> : null}
       </View>
 

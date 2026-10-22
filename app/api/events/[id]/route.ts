@@ -148,6 +148,11 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   // чтобы организатор видел «Завершить встречу» и время автозакрытия.
   const timing = eventTiming(event);
 
+  // «В популярном»: открытие чужой продвинутой встречи — в счётчик «открыли» (не ждём ответа).
+  if (viewerStatus !== "organizer") {
+    void admin.rpc("promotion_bump", { p_event_ids: [event.id], p_field: "opens" }).then(() => {}, () => {});
+  }
+
   // Анонимная встреча: до одобрения заявки — без организатора и точного адреса.
   const revealed = canSeeAnonymousDetails({
     isAnonymous: event.is_anonymous,

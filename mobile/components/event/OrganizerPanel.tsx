@@ -40,7 +40,7 @@ function hhmm(iso?: string): string {
 /**
  * Всё, чем организатор управляет на экране встречи — как в мини-приложении
  * (app/(app)/events/[id]/page.tsx): новые заявки, приглашённые, участники,
- * «Поднять», «Редактировать», билеты, «Отменить» / «Завершить».
+ * «В популярное», «Редактировать», билеты, «Отменить» / «Завершить».
  */
 export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; onChanged: () => void }) {
   const [pending, setPending] = useState<Application[]>([]);
@@ -98,11 +98,20 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
   async function boost() {
     setBoosting(true);
     try {
-      const r = await api<{ boostsUsed: number; boostsLimit: number | null }>("/api/boosts", { body: { eventId: event.id } });
+      // «В популярное сегодня» по тарифу (разовая оплата — в Telegram-версии и на сайте).
+      const r = await api<{ promotion: { topFrom: string; topUntil: string; endsAt: string } | null }>("/api/promotions", {
+        body: { eventId: event.id, method: "plan" },
+      });
       tapOk();
+      const hm = (iso: string) => new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
+      const p = r.promotion;
       Alert.alert(
-        "Встреча поднята!",
-        r.boostsLimit ? `Она снова в начале ленты. Использовано ${r.boostsUsed} из ${r.boostsLimit} в этом месяце.` : "Она снова в начале ленты."
+        "Ты в популярном!",
+        !p
+          ? "Встреча в «Популярном сегодня»."
+          : Date.parse(p.topFrom) > Date.now() + 60_000
+            ? `Встреча станет первой в «Популярном сегодня» в ${hm(p.topFrom)} и пробудет там час, а потом останется в «Популярном» до ${hm(p.endsAt)}.`
+            : `Встреча первая в «Популярном сегодня» до ${hm(p.topUntil)}, а потом останется в «Популярном» до ${hm(p.endsAt)}.`
       );
     } catch (e) {
       tapWarn();
@@ -201,7 +210,7 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
       {active ? (
         <View style={styles.tiles}>
           {event.status === "published" ? (
-            <Tile icon="up" title={boosting ? "Поднимаем…" : "Поднять встречу"} sub="в начало ленты" onPress={boosting ? undefined : boost} />
+            <Tile icon="up" title={boosting ? "Секунду…" : "В популярное"} sub="первой на главной" onPress={boosting ? undefined : boost} />
           ) : (
             <Tile icon="people" title="Все заявки" sub="история и решения" onPress={() => router.push(`/applications/${event.id}` as Href)} />
           )}

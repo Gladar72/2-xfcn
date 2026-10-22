@@ -72,7 +72,7 @@ export default function SubscriptionsPage() {
   const fmt = (iso?: string) => (iso ? new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) : "");
   const rows: [string, number, number | null][] = [
     ["Встречи", status.events?.used ?? 0, status.events?.limit ?? null],
-    ["Поднятия", status.boosts?.used ?? 0, status.boosts?.limit ?? null],
+    ["В популярное", status.boosts?.used ?? 0, status.boosts?.limit ?? null],
   ];
 
   return (
@@ -105,7 +105,7 @@ export default function SubscriptionsPage() {
             </span>
           </div>
         ))}
-        <small className="muted">Поднятие ставит встречу в начало ленты</small>
+        <small className="muted">Продвижение ставит встречу первой в «Популярном сегодня» на час, а потом держит её там до начала</small>
       </div>
       <button className="btn v" style={{ marginTop: 14 }} onClick={() => setChangingPlan(true)}>
         Сменить тариф

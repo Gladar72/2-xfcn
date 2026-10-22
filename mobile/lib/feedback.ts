@@ -34,9 +34,11 @@ const MANAGE_ERRORS: Record<string, string> = {
   cannot_remove_organizer: "Организатора убрать нельзя",
   cannot_cancel: "Эту встречу уже нельзя отменить",
   cannot_cancel_processed_application: "Заявку уже рассмотрели — отозвать её нельзя",
-  event_not_active: "Поднять можно только активную встречу",
-  subscription_required: "Чтобы поднимать встречи, нужна подписка",
-  boost_limit_reached: "Лимит подъёмов на этот месяц исчерпан",
+  event_not_active: "Продвигать можно только активную встречу",
+  event_started: "Встреча уже началась — продвигать поздно",
+  no_slot_before_start: "До начала встречи первое место уже занято",
+  subscription_required: "Чтобы продвигать по тарифу, нужна подписка — разово можно в Telegram-версии",
+  boost_limit_reached: "Продвижения по тарифу на этот период закончились — разово можно в Telegram-версии",
 };
 
 export function manageErrorText(e: unknown): string {

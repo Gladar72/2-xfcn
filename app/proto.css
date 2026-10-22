@@ -980,3 +980,19 @@ html,body{overflow-x:hidden;max-width:100%}
 .P .wm.wm5{display:inline-block;line-height:0;letter-spacing:0}
 .P .wm.wm5 svg{display:block;height:auto;margin:0;overflow:visible}
 @media (prefers-reduced-motion: reduce){.P *,.P *::before,.P *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+/* «В популярное сегодня» — шторка и экран «Ты в популярном» */
+.P .ppopt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;border-radius:22px;padding:14px 16px}
+.P .ppopt.on{box-shadow:inset 0 0 0 2px #9B5CFF,0 14px 30px -18px rgba(130,60,255,.8)}
+.P .ppopt .rd{width:22px;height:22px;border-radius:50%;flex:none;box-shadow:inset 0 0 0 2px #CFC6EA}
+.P .ppopt.on .rd{box-shadow:inset 0 0 0 7px var(--violet)}
+.P .ppopt b{display:block;font-weight:500;font-size:15px}
+.P .ppopt span{font-size:12.5px;color:var(--grey)}
+.P .ppopt .pr{margin-left:auto;font-weight:500;font-size:15px;color:var(--ink)}
+.P .ppstat{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;margin-top:12px}
+.P .ppstat div+div{border-left:1px solid rgba(108,59,255,.12)}
+.P .ppstat b{display:block;font-size:26px;font-weight:600}
+.P .ppstat span{font-size:12px;color:var(--grey)}
+.P .ppbar{margin-top:14px;height:8px;border-radius:4px;background:#EDE6FF;overflow:hidden}
+.P .ppbar i{display:block;height:100%;border-radius:4px;background:var(--violet);transition:width .6s}
+.P .tiles2 button.pron{box-shadow:inset 0 0 0 2px #9B5CFF,0 14px 30px -18px rgba(130,60,255,.8)}

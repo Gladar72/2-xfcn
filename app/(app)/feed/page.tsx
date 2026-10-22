@@ -142,6 +142,16 @@ function HomeScreen() {
     return () => clearInterval(t);
   }, [loadPeople, loadEvents]);
 
+  // Счётчик «увидели» у продвинутых встреч — один раз за заход (и при смене набора).
+  const seenRef = useRef("");
+  useEffect(() => {
+    const ids = (events ?? []).filter((e) => e.isPromoted && !e.isMine).map((e) => e.id);
+    const key = ids.join(",");
+    if (!ids.length || seenRef.current === key) return;
+    seenRef.current = key;
+    fetch("/api/promotions/seen", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ eventIds: ids }) }).catch(() => {});
+  }, [events]);
+
   async function allowGeo() {
     setGeoBusy(true);
     const ok = await sendMyLocation();
@@ -232,7 +242,10 @@ function HomeScreen() {
     router.push(`/feed?category=${c.slug}${typeSlug ? `&type=${typeSlug}` : ""}`);
   }
 
-  const pop = (events ?? []).filter((e) => !e.isBusiness).slice(0, 4);
+  // «Популярное сегодня»: сначала все продвинутые встречи города (и бизнес тоже) в порядке
+  // с сервера, за ними — все обычные личные встречи (бизнес без продвижения — только в «Афише»).
+  const promoted = (events ?? []).filter((e) => e.isPromoted);
+  const pop = [...promoted, ...(events ?? []).filter((e) => !e.isPromoted && !e.isBusiness)];
   const nearN = (events ?? []).filter((e) => !e.isBusiness && !e.isMine).length;
   const cats = categories.filter((c) => c.slug !== "custom");
   const training = categories.find((c) => c.slug === "training");
@@ -329,7 +342,10 @@ function HomeScreen() {
 
       <div className="sec">
         <b>Популярное сегодня</b>
-        <Link href="/search">Все</Link>
+        <Link href="/my-events" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <Ic n="up" c="xs" />
+          Попасть сюда
+        </Link>
       </div>
       <div className="rail">
         {events === null
@@ -424,10 +440,9 @@ function HomeScreen() {
                     Идёт сейчас
                   </span>
                 </span>
-              ) : e.isBoosted ? (
+              ) : e.isPromoted || e.isBoosted ? (
                 <span className="ast">
-                  <Ic n="up" c="xs" />
-                  Поднято
+                  <Ic n="up" c="xs" />В популярном
                 </span>
               ) : e.seatsTaken >= e.seatsTotal ? (
                 <span className="ast full">Мест нет</span>

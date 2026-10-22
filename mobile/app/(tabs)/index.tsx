@@ -132,9 +132,14 @@ export default function HomeScreen() {
     }
   }
 
-  const list = useMemo(() => (events ?? []).filter((e) => !e.isBusiness), [events]);
-  const popular = list.slice(0, 4);
-  const rest = list.slice(4);
+  // «Популярное сегодня»: сначала продвинутые (и бизнес тоже), потом обычные личные встречи.
+  const list = useMemo(() => {
+    const all = events ?? [];
+    return [...all.filter((e) => e.isBoosted), ...all.filter((e) => !e.isBoosted && !e.isBusiness)];
+  }, [events]);
+  const promotedN = list.filter((e) => e.isBoosted).length;
+  const popular = list.slice(0, Math.max(4, promotedN));
+  const rest = list.slice(popular.length);
 
   return (
     <View style={{ flex: 1 }}>
@@ -354,7 +359,7 @@ export default function HomeScreen() {
                     {e.isLive ? (
                       <Pill kind="live" label="Идёт сейчас" />
                     ) : e.isBoosted ? (
-                      <Pill kind="white" label="Поднято" />
+                      <Pill kind="white" label="В популярном" />
                     ) : e.seatsTaken >= e.seatsTotal ? (
                       <Pill kind="dark" label="Мест нет" />
                     ) : null}

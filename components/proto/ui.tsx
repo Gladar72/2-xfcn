@@ -116,6 +116,8 @@ export interface HeroEvent {
   photoUrl?: string | null;
   isLive?: boolean;
   isBoosted?: boolean;
+  /** Продвинута в «Популярное сегодня». */
+  isPromoted?: boolean;
   isAnonymous?: boolean;
   isBusiness?: boolean;
   organizerHidden?: boolean;
@@ -145,10 +147,9 @@ export function HeroCard({ e, full }: { e: HeroEvent; full?: boolean }) {
             Идёт сейчас
           </span>
         </span>
-      ) : e.isBoosted ? (
+      ) : e.isPromoted || e.isBoosted ? (
         <span className="boost">
-          <Ic n="up" c="xs" />
-          Поднято
+          <Ic n="up" c="xs" />В популярном
         </span>
       ) : null}
       {isFull && <span className="fullb">Заполнено</span>}
@@ -230,10 +231,9 @@ export function RowCard({
               Идёт сейчас
             </span>
           )}
-          {!e.isLive && e.isBoosted && (
+          {!e.isLive && (e.isPromoted || e.isBoosted) && (
             <span className="upb">
-              <Ic n="up" c="xs" />
-              Поднято
+              <Ic n="up" c="xs" />В популярном
             </span>
           )}
           {isFull ? (

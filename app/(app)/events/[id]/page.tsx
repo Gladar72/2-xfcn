@@ -17,6 +17,8 @@ import { Chr, Cover, Ic, MiniMap, Sheet, Toast, costShort, dayLong, eventIcon } 
 import { ShareSheet } from "@/components/proto/ShareSheet";
 import { goBack } from "@/lib/nav/back";
 import { shareNudgeDue } from "@/lib/events/share-nudge";
+import { PromoDone, PromoteSheet, loadPromoInfo, type PromoStatus } from "@/components/promotions/Promote";
+import { promoClock } from "@/lib/promotions/config";
 
 interface EventDetails {
   id: string;
@@ -84,8 +86,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [confirmingComplete, setConfirmingComplete] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const [boosting, setBoosting] = useState(false);
-  const [boostMessage, setBoostMessage] = useState<string | null>(null);
+  // «В популярное сегодня» (бывшее «Поднять встречу»).
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoDone, setPromoDone] = useState(false);
+  const [promo, setPromo] = useState<{ status: PromoStatus | null; city: string | null; utcOffset: number } | null>(null);
   const [pendingApplicants, setPendingApplicants] = useState<ApplicantCardData[]>([]);
   const [processingApplicantId, setProcessingApplicantId] = useState<string | null>(null);
   useGuide("event", { when: !loading });
@@ -219,36 +223,34 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     }
   }
 
-  async function handleBoost() {
-    setBoosting(true);
-    setBoostMessage(null);
-    try {
-      const res = await fetch("/api/boosts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setBoostMessage(
-          data.error === "subscription_required"
-            ? "Нужна подписка, чтобы поднимать встречи."
-            : data.error === "boost_limit_reached"
-              ? "Лимит подъёмов на этот месяц исчерпан."
-              : "Не получилось поднять встречу."
-        );
-        return;
-      }
-      setBoostMessage(
-        data.boostsLimit != null
-          ? `Встреча поднята! Использовано ${data.boostsUsed} из ${data.boostsLimit} в этом месяце.`
-          : "Встреча поднята!"
-      );
-    } finally {
-      setBoosting(false);
-      setTimeout(() => setBoostMessage(null), 4000);
-    }
+  function refreshPromo(openDone = false) {
+    loadPromoInfo(eventId).then((d) => {
+      if (!d) return;
+      setPromo({ status: d.active, city: d.city, utcOffset: d.utcOffset });
+      if (openDone) setPromoDone(true);
+    });
   }
+  // Своя встреча: есть ли уже продвижение. После оплаты (?promoted=1) — сразу экран «Ты в популярном».
+  useEffect(() => {
+    if (event?.viewerStatus !== "organizer") return;
+    const paid = new URLSearchParams(window.location.search).get("promoted") === "1";
+    refreshPromo(paid);
+    if (!paid) return;
+    // Вебхук ЮKassa может прийти на пару секунд позже возврата — несколько раз перепроверяем.
+    let n = 0;
+    const t = setInterval(() => {
+      n += 1;
+      loadPromoInfo(eventId).then((d) => {
+        if (d?.active) {
+          setPromo({ status: d.active, city: d.city, utcOffset: d.utcOffset });
+          clearInterval(t);
+        }
+      });
+      if (n >= 10) clearInterval(t);
+    }, 3000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event?.viewerStatus, eventId]);
 
   const [shareOpen, setShareOpen] = useState(false);
   // Кнопка «Сторис» в напоминании бота открывает событие с ?share=1 — сразу показываем «Поделиться».
@@ -831,10 +833,18 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               )}
               <div className="tiles2">
                 {event.status === "published" ? (
-                  <button className="gl" onClick={handleBoost} disabled={boosting}>
+                  <button className={`gl ${promo?.status ? "pron" : ""}`} onClick={() => (promo?.status ? setPromoDone(true) : setPromoOpen(true))}>
                     <Ic n="up" />
-                    <b>{boosting ? "Поднимаем…" : "Поднять встречу"}</b>
-                    <span>{boostMessage ?? "в начало ленты"}</span>
+                    <b>{promo?.status ? "В популярном" : "В популярное"}</b>
+                    <span>
+                      {promo?.status
+                        ? Date.now() < Date.parse(promo.status.topFrom)
+                          ? `первой в ${promoClock(promo.status.topFrom, promo.utcOffset)}`
+                          : Date.now() < Date.parse(promo.status.topUntil)
+                            ? `первая до ${promoClock(promo.status.topUntil, promo.utcOffset)}`
+                            : `до ${promoClock(promo.status.endsAt, promo.utcOffset)} · счётчики`
+                        : "первой на главной"}
+                    </span>
                   </button>
                 ) : (
                   <Link className="gl" href={`/events/${event.id}/applications`} style={{ borderRadius: 20, padding: 12, display: "grid", gap: 3, color: "var(--violet)" }}>
@@ -920,6 +930,53 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         </div>
       )}
 
+      {event.viewerStatus === "organizer" && (
+        <PromoteSheet
+          open={promoOpen}
+          onClose={() => setPromoOpen(false)}
+          eventId={event.id}
+          card={{
+            id: event.id,
+            title: event.title,
+            eventDate: event.eventDate,
+            eventTime: event.eventTime,
+            placeName: event.placeName,
+            seatsTotal: event.seatsTotal,
+            seatsTaken: event.seatsTaken,
+            photoUrl: event.photoUrl,
+            isBusiness: event.isBusiness,
+            isAnonymous: event.isAnonymous,
+            costType: event.costType,
+            businessPricingType: event.businessPricingType,
+            businessPricingDetails: event.businessPricingDetails,
+            category: event.category,
+            trainingType: event.trainingType,
+            organizer: event.organizer ? { name: event.organizer.name, gender: event.organizer.gender } : null,
+            goingPreview: [
+              ...(event.organizer ? [{ id: event.organizer.id, name: event.organizer.name, avatarUrl: event.organizer.avatarUrl }] : []),
+              ...event.participants,
+            ].slice(0, 3),
+          }}
+          onPromoted={(st) => {
+            setPromoOpen(false);
+            setPromo((p) => ({ status: st, city: p?.city ?? null, utcOffset: p?.utcOffset ?? 5 }));
+            refreshPromo(true);
+          }}
+        />
+      )}
+      {promoDone && (
+        <PromoDone
+          title={event.title}
+          city={promo?.city ?? null}
+          utcOffset={promo?.utcOffset ?? 5}
+          status={promo?.status ?? null}
+          onClose={() => setPromoDone(false)}
+          onShare={() => {
+            setPromoDone(false);
+            setShareOpen(true);
+          }}
+        />
+      )}
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} when={shareWhen} version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`} />
 
       <Sheet open={anonOpen} onClose={() => setAnonOpen(false)}>
