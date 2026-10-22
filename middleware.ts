@@ -131,11 +131,7 @@ export async function middleware(req: NextRequest) {
   // На Vercel (после переезда) всё, кроме прокладки, пересылается на сервер в Yandex Cloud
   // (next.config.js → rewrites): проверки делает сам сервер — его сессии подписаны другим ключом.
   if (process.env.MESTO_PROXY_MODE === "1" && !pathname.startsWith("/tg/")) return NextResponse.next();
-  // Сервер в России не видит telegram.org: скрипт Mini App берём у Vercel (адрес прокладки).
-  const tgRoot = process.env.TELEGRAM_API_ROOT;
-  if (pathname === "/tg/telegram-web-app.js" && tgRoot && !tgRoot.includes("api.telegram.org")) {
-    return NextResponse.rewrite(new URL("/tg/telegram-web-app.js", new URL(tgRoot).origin));
-  }
+  // Скрипт Mini App (/tg/telegram-web-app.js) — своя копия в public/tg: сервер в России не видит telegram.org.
   // Файлы для универсальных ссылок (Apple/Google проверяют их своими роботами).
   if (pathname === "/.well-known/assetlinks.json") {
     return NextResponse.rewrite(new URL("/.well-known/assetlinks", req.url));
