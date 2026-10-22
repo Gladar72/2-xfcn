@@ -90,6 +90,19 @@ export async function promoSlot(admin: SupabaseClient, e: PromoEvent, now = new 
   if (e.status !== "published" || !e.city) return { ok: false as const, reason: "event_not_active" };
   const start = eventTiming(e).start;
   if (start.getTime() <= now.getTime()) return { ok: false as const, reason: "event_started" };
+  // Одновременно в «Популярном» — только одна встреча человека (ту же можно продвинуть повторно).
+  const { data: mine } = await admin
+    .from("promotions")
+    .select("event_id, ends_at, event:events(title)")
+    .eq("user_id", e.organizer_id)
+    .neq("event_id", e.id)
+    .gt("ends_at", now.toISOString())
+    .limit(1);
+  const other = mine?.[0];
+  if (other) {
+    const t = (other.event as unknown as { title: string } | null)?.title ?? "";
+    return { ok: false as const, reason: "other_event_promoted", otherTitle: t, otherEndsAt: other.ends_at as string };
+  }
   const rows = await activePromotions(admin, e.city, now);
   const topFrom = nextTopSlot(rows, now);
   if (topFrom.getTime() >= start.getTime()) return { ok: false as const, reason: "no_slot_before_start", topFrom, endsAt: start };

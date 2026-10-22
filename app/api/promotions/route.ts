@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     utcOffset: eventUtcOffsetHours(e),
     slot: slot.ok
       ? { ok: true, topFrom: slot.topFrom.toISOString(), topUntil: slot.topUntil.toISOString(), endsAt: slot.endsAt.toISOString(), queueAhead: slot.queueAhead }
-      : { ok: false, reason: slot.reason },
+      : { ok: false, reason: slot.reason, ...("otherTitle" in slot ? { otherTitle: slot.otherTitle, otherEndsAt: slot.otherEndsAt } : {}) },
     plan: isAdmin
       ? { name: "Админ", used: 0, limit: 99 }
       : sub

@@ -23,7 +23,7 @@ export interface PromoStatus {
 interface PromoInfo {
   city: string | null;
   utcOffset: number;
-  slot: { ok: true; topFrom: string; topUntil: string; endsAt: string; queueAhead: number } | { ok: false; reason: string };
+  slot: { ok: true; topFrom: string; topUntil: string; endsAt: string; queueAhead: number } | { ok: false; reason: string; otherTitle?: string; otherEndsAt?: string };
   plan: { name: string; used: number; limit: number } | null;
   price: number;
   active: PromoStatus | null;
@@ -33,6 +33,7 @@ const REASON: Record<string, string> = {
   event_started: "Встреча уже началась — продвигать поздно.",
   event_not_active: "Продвигать можно только опубликованную встречу.",
   no_slot_before_start: "До начала встречи первое место уже занято другими — продвинуть не получится.",
+  other_event_promoted: "В «Популярном» уже стоит другая твоя встреча — одновременно можно продвигать только одну.",
   subscription_required: "Нужна подписка — или продвинь разово.",
   boost_limit_reached: "Продвижения по тарифу закончились — можно разово.",
   invalid_contact: "Введи корректный email или номер телефона.",
@@ -123,7 +124,9 @@ export function PromoteSheet({
         {!info
           ? "Смотрим, свободно ли первое место…"
           : !slot?.ok
-            ? REASON[slot?.reason ?? ""] ?? "Сейчас продвинуть нельзя."
+            ? slot?.reason === "other_event_promoted" && slot.otherTitle
+              ? `В «Популярном» уже стоит твоя встреча «${slot.otherTitle}»${slot.otherEndsAt ? ` — до ${promoClock(slot.otherEndsAt, off)}` : ""}. Одновременно можно продвигать только одну встречу.`
+              : REASON[slot?.reason ?? ""] ?? "Сейчас продвинуть нельзя."
             : firstNow
               ? `Встреча встанет первой у всех ${where}. Первый час место твоё — потом она остаётся в «Популярном» до начала встречи.`
               : `Сейчас первое место занято. Твоя встреча встанет первой в ${promoClock(slot.topFrom, off)} и пробудет там час, а до тех пор — сразу за ней. В «Популярном» — до начала встречи.`}
