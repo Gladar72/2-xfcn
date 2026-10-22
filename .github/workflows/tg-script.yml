@@ -1,0 +1,18 @@
+name: Telegram script copy
+# Забирает официальный telegram-web-app.js (сервер в Яндекс Облаке до telegram.org не достаёт)
+# и кладёт его в ветку tgscript — оттуда он попадает в проект (public/tg).
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          mkdir out && cd out
+          curl -fsSL https://telegram.org/js/telegram-web-app.js -o telegram-web-app.js
+          sha256sum telegram-web-app.js > sha256.txt
+          git init -q && git checkout -q -b tgscript
+          git -c user.name=bot -c user.email=bot@users.noreply.github.com add . && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm tgscript
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" tgscript
