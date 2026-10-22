@@ -363,7 +363,7 @@ promodiag() {
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid='public.payments'::regclass and contype='c';" || true
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select city, source, top_from, top_until, ends_at, views, opens from promotions order by created_at desc limit 10;" || true
   curl -s -o /dev/null -w "promotions api (без входа): %{http_code}\n" "http://127.0.0.1:3000/api/promotions?eventId=x" || true
-  curl -sS -m 20 -o /tmp/twa.js -w "tg script: %{http_code}, %{size_download} байт\n" "http://127.0.0.1:3000/tg/telegram-web-app.js" || true
+  curl -sS -m 20 -A "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Telegram" -o /tmp/twa.js -w "tg script: %{http_code}, %{size_download} байт\n" "http://127.0.0.1:3000/tg/telegram-web-app.js" || true
   head -c 200 /tmp/twa.js; echo; grep -c disableVerticalSwipes /tmp/twa.js || true
   curl -sS -m 10 -o /dev/null -w "telegram.org с сервера: %{http_code}\n" https://telegram.org/js/telegram-web-app.js || echo "telegram.org с сервера: недоступен"
 }
