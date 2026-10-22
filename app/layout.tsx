@@ -59,8 +59,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="ru" className={`${golos.variable} ${onest.variable}`}>
       <head>
         {/* Официальный скрипт Telegram Mini Apps — инжектит window.Telegram.WebApp.
-            Отдаём с нашего домена (app/tg/telegram-web-app.js): telegram.org
-            у части российских провайдеров не грузится → белый экран. */}
+            Копия лежит в проекте (public/tg/telegram-web-app.js): telegram.org не открывается
+            ни у части российских провайдеров, ни с нашего сервера в Яндекс Облаке. Без скрипта
+            не отключается свайп «свернуть» — и в чате нельзя пролистать вверх. */}
         <Script src="/tg/telegram-web-app.js" strategy="beforeInteractive" />
         <script dangerouslySetInnerHTML={{ __html: CHUNK_RELOAD }} />
       </head>
