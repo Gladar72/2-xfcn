@@ -368,6 +368,14 @@ promodiag() {
   curl -sS -m 10 -o /dev/null -w "telegram.org с сервера: %{http_code}\n" https://telegram.org/js/telegram-web-app.js || echo "telegram.org с сервера: недоступен"
 }
 
+promofix() {
+  # Разово: у Динары оставить одну встречу в «Популярном» (первую по времени продвижения), остальные — снять.
+  local Q="sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c"
+  $Q "select u.name, e.title, p.source, p.created_at, p.ends_at from promotions p join users u on u.id=p.user_id join events e on e.id=p.event_id where p.ends_at > now() order by u.name, p.created_at;" || true
+  $Q "with d as (select p.id, row_number() over (partition by p.user_id order by p.created_at) rn from promotions p join users u on u.id=p.user_id where p.ends_at > now() and u.name ilike 'Динара%') update promotions set ends_at = now(), top_until = least(top_until, now()) where id in (select id from d where rn > 1) returning id;" || true
+  $Q "select u.name, e.title, p.created_at, p.ends_at from promotions p join users u on u.id=p.user_id join events e on e.id=p.event_id where p.ends_at > now() order by u.name, p.created_at;" || true
+}
+
 health() {
   update_code
   bash "$APP/deploy/yandex/health.sh"
@@ -412,6 +420,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
