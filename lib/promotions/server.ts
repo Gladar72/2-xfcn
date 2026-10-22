@@ -149,7 +149,7 @@ export async function promotionStatus(admin: SupabaseClient, eventId: string, no
   return {
     topFrom: first.top_from,
     topUntil: lastTop.top_until,
-    endsAt: rows[0].ends_at,
+    endsAt: first.ends_at,
     views: rows.reduce((s, r) => s + (r.views ?? 0), 0),
     opens: rows.reduce((s, r) => s + (r.opens ?? 0), 0),
     applications: count ?? 0,
