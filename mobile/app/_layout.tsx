@@ -84,13 +84,13 @@ function Gate() {
           smokeLogin.current = true;
           setTimeout(() => setSmokePhase("map"), 20000);
         }
-      } else if (segments[1] !== "map") router.replace({ pathname: "/(tabs)/map", params: { business: "only" } });
+      } else if ((segments as string[])[1] !== "map") router.replace({ pathname: "/(tabs)/map", params: { business: "only" } });
       return;
     }
     // Ссылка партнёра сама решает, куда вести (сначала сохраняет код).
     if ((segments[0] as string) === "r") return;
     const inAuth = segments[0] === "(auth)";
-    if (!signedIn && ticket && segments[1] !== "register") router.replace("/(auth)/register");
+    if (!signedIn && ticket && (segments as string[])[1] !== "register") router.replace("/(auth)/register");
     else if (!signedIn && !ticket && !inAuth) router.replace("/(auth)/login");
     else if (signedIn && inAuth) router.replace("/(tabs)");
   }, [ready, signedIn, ticket, segments, smokeHold, smokePhase]);

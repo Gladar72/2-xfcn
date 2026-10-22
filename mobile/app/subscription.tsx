@@ -67,7 +67,9 @@ export default function SubscriptionScreen() {
       loadApplePrices().then(setPrices).catch(() => {});
       // Дозавершаем покупку, если приложение закрылось посреди оплаты.
       restoreApple()
-        .then((r) => r?.active && load())
+        .then((r) => {
+          if (r?.active) void load();
+        })
         .catch(() => {});
     }
   }, [load, appear]);
