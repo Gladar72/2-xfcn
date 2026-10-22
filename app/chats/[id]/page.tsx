@@ -263,9 +263,16 @@ export default function ChatPage({ params }: ChatPageProps) {
 
   // Открылась/закрылась клавиатура или выросло поле ввода: если были внизу — остаёмся внизу.
   // Пока палец на экране — не трогаем: иначе чат возвращало вниз и вверх было не пролистать.
+  // Мелкие колебания высоты (iOS при прокрутке) не трогаем — только клавиатура (≥ 60px) и поле ввода.
   const touchingRef = useRef(false);
+  const prevHeightRef = useRef<number | null>(null);
+  const prevComposeRef = useRef(0);
   useLayoutEffect(() => {
-    if (atBottomRef.current && !touchingRef.current) scrollToBottom(false);
+    const dh = liveHeight != null && prevHeightRef.current != null ? Math.abs(liveHeight - prevHeightRef.current) : 0;
+    const dc = composeH !== prevComposeRef.current;
+    prevHeightRef.current = liveHeight;
+    prevComposeRef.current = composeH;
+    if ((dh >= 60 || dc) && atBottomRef.current && !touchingRef.current) scrollToBottom(false);
   }, [liveHeight, composeH, scrollToBottom]);
 
   // Высота нижней панели (подсказки, фото, многострочный текст) — чтобы сообщения не прятались под ней.
