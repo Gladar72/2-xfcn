@@ -197,7 +197,7 @@ export async function GET(req: NextRequest) {
     markerPhoto: hiddenIds.has(e.id)
       ? null
       : e.is_business
-        ? (e.photo_url as string | null) ?? (e.organizer as unknown as { avatar_url: string | null } | null)?.avatar_url ?? null
+        ? (e.photo_url as string | null) ?? (e.organizer as unknown as { avatar_url: string | null } | null)?.avatar_url ?? "/brand/covers/business.webp"
         : (e.organizer as unknown as { avatar_url: string | null } | null)?.avatar_url ?? null,
     organizer: (() => {
       const o = e.organizer as unknown as { name: string | null; avatar_url: string | null; gender: string | null } | null;
@@ -243,7 +243,7 @@ export async function GET(req: NextRequest) {
           endsAt: t.end.toISOString(),
           utcOffset: eventUtcOffsetHours({ city, longitude: c.longitude }),
           organizer: { name: c.placeName ?? "", avatarUrl: c.photoUrl },
-          markerPhoto: c.photoUrl ?? null,
+          markerPhoto: c.photoUrl ?? "/brand/covers/business.webp",
         };
       });
     return NextResponse.json({ items: [...items, ...cityItems], city });
