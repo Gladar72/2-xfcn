@@ -357,6 +357,14 @@ storyshot() {
   ls -la /tmp/storyshot
 }
 
+promodiag() {
+  # «В популярное сегодня»: таблица, ограничения платежей, активные продвижения.
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "\d public.promotions" || true
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select conname, pg_get_constraintdef(oid) from pg_constraint where conrelid='public.payments'::regclass and contype='c';" || true
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select city, source, top_from, top_until, ends_at, views, opens from promotions order by created_at desc limit 10;" || true
+  curl -s -o /dev/null -w "promotions api (без входа): %{http_code}\n" "http://127.0.0.1:3000/api/promotions?eventId=x" || true
+}
+
 health() {
   update_code
   bash "$APP/deploy/yandex/health.sh"
@@ -401,6 +409,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
