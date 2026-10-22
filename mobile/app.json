@@ -3,7 +3,7 @@
     "name": "Место",
     "slug": "mesto",
     "scheme": "mesto",
-    "version": "0.2.1",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,15 +17,20 @@
       "bundleIdentifier": "ru.mesto.app",
       "supportsTablet": false,
       "usesAppleSignIn": true,
-      "associatedDomains": ["applinks:mesto-go.ru", "applinks:www.mesto-go.ru", "webcredentials:mesto-go.ru"],
+      "associatedDomains": [
+        "applinks:mesto-go.ru",
+        "applinks:www.mesto-go.ru",
+        "webcredentials:mesto-go.ru"
+      ],
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Чтобы показать встречи рядом с тобой на карте.",
         "NSPhotoLibraryUsageDescription": "Чтобы выбрать фото для профиля и встречи.",
         "NSCameraUsageDescription": "Чтобы сделать фото для профиля."
-      }
+      },
+      "buildNumber": "3"
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 3,
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -36,17 +41,55 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/e/" },
-            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/r/" },
-            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/events/" },
-            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/people" },
-            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/chats" },
-            { "scheme": "https", "host": "mesto-go.ru", "pathPrefix": "/city/" },
-            { "scheme": "https", "host": "mesto-go.ru", "path": "/my-events" },
-            { "scheme": "https", "host": "mesto-go.ru", "path": "/notifications" },
-            { "scheme": "https", "host": "www.mesto-go.ru" }
+            {
+              "scheme": "https",
+              "host": "mesto-go.ru",
+              "pathPrefix": "/e/"
+            },
+            {
+              "scheme": "https",
+              "host": "mesto-go.ru",
+              "pathPrefix": "/r/"
+            },
+            {
+              "scheme": "https",
+              "host": "mesto-go.ru",
+              "pathPrefix": "/events/"
+            },
+            {
+              "scheme": "https",
+              "host": "mesto-go.ru",
+              "pathPrefix": "/people"
+            },
+            {
+              "scheme": "https",
+              "host": "mesto-go.ru",
+              "pathPrefix": "/chats"
+            },
+            {
+              "scheme": "https",
+              "host": "mesto-go.ru",
+              "pathPrefix": "/city/"
+            },
+            {
+              "scheme": "https",
+              "host": "mesto-go.ru",
+              "path": "/my-events"
+            },
+            {
+              "scheme": "https",
+              "host": "mesto-go.ru",
+              "path": "/notifications"
+            },
+            {
+              "scheme": "https",
+              "host": "www.mesto-go.ru"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "permissions": [
