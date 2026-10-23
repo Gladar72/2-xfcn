@@ -185,6 +185,9 @@ deploy() {
   # «В популярное сегодня»: продвижения и разовые платежи (идемпотентно).
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
     < "$APP/supabase/migrations/0070_promotions.sql" || true
+  # Подарок «Старт» по ссылке из директа Инстаграма.
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
+    < "$APP/supabase/migrations/0071_gift_direct.sql" || true
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
@@ -376,6 +379,10 @@ promofix() {
   $Q "select u.name, e.title, p.created_at, p.ends_at from promotions p join users u on u.id=p.user_id join events e on e.id=p.event_id where p.ends_at > now() order by u.name, p.created_at;" || true
 }
 
+giftdiag() {
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select c.code, c.title, c.plan, c.days, c.open_to_all, c.is_active, (select count(*) from gift_claims g where g.campaign_code=c.code) claims from gift_campaigns c order by c.code;" || true
+}
+
 health() {
   update_code
   bash "$APP/deploy/yandex/health.sh"
@@ -420,6 +427,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | giftdiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac

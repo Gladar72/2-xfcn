@@ -11,7 +11,7 @@ on:
         required: true
         default: status
         type: choice
-        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, storagefix, eventsdiag, bizdiag, storyshot, promodiag, promofix, restoreevents, reauthnotify, blockedcount, blocksreport, cleanup]
+        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, storagefix, eventsdiag, bizdiag, storyshot, promodiag, promofix, giftdiag, restoreevents, reauthnotify, blockedcount, blocksreport, cleanup]
   push:
     branches: [main]
 
