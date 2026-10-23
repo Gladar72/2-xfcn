@@ -1,0 +1,13 @@
+   code    |          title          | plan  | days | open_to_all | is_active | claims 
+-----------+-------------------------+-------+------+-------------+-----------+--------
+ afisha_tg | Афиша Тюмень · Telegram | start |   30 | t           | t         |      0
+ afisha_vk | Афиша Тюмень · ВК       | start |   30 | t           | t         |      0
+ direct    | Инстаграм · директ      | start |   30 | t           | t         |      0
+ dvor      | Двор                    | start |   30 | f           | t         |      0
+ insta     | Инстаграм               | start |   30 | t           | t         |     55
+ provrave  | Провинциальный рейв     | start |   30 | t           | t         |      0
+ ref       | Партнёры                | start |   30 | t           | t         |    175
+ tiktok    | TikTok                  | start |   30 | t           | t         |      0
+ welcome   | Приветственный подарок  | start |   30 | t           | f         |    506
+(9 rows)
+
