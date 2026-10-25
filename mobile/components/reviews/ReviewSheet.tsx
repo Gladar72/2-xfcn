@@ -8,10 +8,10 @@ import { sendReview, type ReviewInput, type ReviewTarget } from "@/lib/reviews";
 import { colors, FONT } from "@/lib/theme";
 
 const TOGGLES: { key: Exclude<keyof ReviewInput, "rating">; label: string }[] = [
-  { key: "arrivedOnTime", label: "Пришёл(-ла) вовремя" },
-  { key: "pleasantCommunication", label: "Приятное общение" },
   { key: "meetingHappened", label: "Встреча состоялась" },
-  { key: "wouldMeetAgain", label: "Готов(а) встретиться снова" },
+  { key: "arrivedOnTime", label: "Всё началось вовремя" },
+  { key: "pleasantCommunication", label: "Приятная атмосфера" },
+  { key: "wouldMeetAgain", label: "Пошёл(-ла) бы снова" },
 ];
 
 const FRESH: ReviewInput = { rating: 0, arrivedOnTime: true, pleasantCommunication: true, meetingHappened: true, wouldMeetAgain: true };
@@ -72,10 +72,10 @@ export function ReviewSheet({
             <Avatar uri={shown.person.avatarUrl} name={shown.person.name} size={56} />
             <View style={{ flex: 1 }}>
               <Text style={styles.title}>
-                Как прошла встреча <Text style={{ color: colors.violet }}>с {shown.person.name}?</Text>
+                Как прошла <Text style={{ color: colors.violet }}>встреча?</Text>
               </Text>
-              <Text style={styles.muted} numberOfLines={1}>
-                {shown.eventTitle}
+              <Text style={styles.muted} numberOfLines={2}>
+                «{shown.eventTitle}» · организатор {shown.person.name}
               </Text>
             </View>
           </View>
