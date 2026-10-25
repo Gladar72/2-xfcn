@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/cron/broadcast  (Authorization: Bearer CRON_SECRET)
- * Body: { key, text, button?, city?, dry? }
+ * Body: { key, text, button?, city?, dry? }  (button: false — без кнопки)
  *
  * Разовая рассылка от бота всем, у кого есть Telegram (или только городу `city`).
  * Пропускает тех, кто сейчас заблокировал бота, и тех, кому эта рассылка (`key`) уже ушла —
@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   const appUrl = process.env.APP_URL;
   const button = typeof body?.button === "string" && body.button.trim() ? body.button.trim().slice(0, 40) : "Открыть «Место»";
-  const markup = appUrl ? new InlineKeyboard().webApp(button, appUrl) : undefined;
+  const markup = appUrl && body?.button !== false ? new InlineKeyboard().webApp(button, appUrl) : undefined;
   const api = getBot().api;
   let ok = 0;
   let failed = 0;
