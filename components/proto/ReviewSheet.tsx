@@ -12,13 +12,13 @@ export interface ReviewData {
 }
 
 const TOGGLES: [keyof Omit<ReviewData, "rating">, string][] = [
-  ["arrivedOnTime", "Пришёл(-ла) вовремя"],
-  ["pleasantCommunication", "Приятное общение"],
   ["meetingHappened", "Встреча состоялась"],
-  ["wouldMeetAgain", "Готов(а) встретиться снова"],
+  ["arrivedOnTime", "Всё началось вовремя"],
+  ["pleasantCommunication", "Приятная атмосфера"],
+  ["wouldMeetAgain", "Пошёл(-ла) бы снова"],
 ];
 
-/** «Как прошла встреча с …?» (reviewSheet прототипа): звёзды + 4 переключателя. */
+/** «Как прошла встреча «…»?» — оценка события целиком: звёзды + 4 переключателя. */
 export function ReviewSheet({
   open,
   personName,
@@ -26,6 +26,7 @@ export function ReviewSheet({
   onClose,
 }: {
   open: boolean;
+  /** Название встречи — оцениваем событие, а не человека. */
   personName: string;
   onSubmit: (d: ReviewData) => Promise<void> | void;
   onClose: () => void;
@@ -43,7 +44,7 @@ export function ReviewSheet({
   return (
     <Sheet open={open} onClose={onClose}>
       <h2 className="t">
-        Как прошла встреча <em>с {personName}?</em>
+        Как прошла встреча <em>«{personName}»?</em>
       </h2>
       <div className="stars">
         {[1, 2, 3, 4, 5].map((i) => (
