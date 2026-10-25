@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { sendEventResultsNow } from "@/lib/reviews/send-event-results";
 import { z } from "zod";
 
 const reviewSchema = z.object({
@@ -16,7 +15,8 @@ const reviewSchema = z.object({
 
 /**
  * POST /api/reviews
- * Отзыв о другом участнике завершённой встречи (п.20 ТЗ).
+ * Оценка завершённой встречи гостем — одна на встречу (итоги создатель
+ * получит один раз, см. sendDueEventResults).
  * Защита от повторного отзыва — unique constraint (event_id, reviewer_id,
  * reviewee_id) в БД, здесь просто аккуратно превращаем 23505 в понятную ошибку.
  */
@@ -46,8 +46,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "event_not_completed" }, { status: 422 });
   }
 
-  // Бизнес-событие: гость оценивает только организатора, один раз.
-  if (event.is_business && input.revieweeId !== event.organizer_id) {
+  // Оценивают событие, а не людей: гость ставит одну оценку встрече
+  // (она записывается на её создателя), участники друг друга не оценивают.
+  if (input.revieweeId !== event.organizer_id) {
     return NextResponse.json({ error: "business_review_organizer_only" }, { status: 422 });
   }
 
@@ -81,13 +82,6 @@ export async function POST(req: NextRequest) {
   }
 
   await admin.rpc("apply_review_to_rating", { p_user_id: input.revieweeId, p_rating: input.rating });
-
-  // Сразу же (без задержки) шлём всем участникам обновлённую сводку итогов
-  // в личный чат с ботом — по явному запросу пользователя, не в канал и
-  // не по таймеру, а прямо в момент, когда кто-то оценил встречу.
-  await sendEventResultsNow(admin, input.eventId).catch((err) =>
-    console.error("sendEventResultsNow:", err)
-  );
 
   return NextResponse.json({ status: "created" });
 }
