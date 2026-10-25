@@ -55,9 +55,9 @@ export async function GET() {
         is_business: boolean | null;
         organizer_id: string;
       };
-      // Бизнес-событие: участник оценивает ОДИН раз — только организатора,
-      // а организатор не получает просьбу оценить каждого гостя.
-      if (meta.is_business && meta.organizer_id === currentUser.userId) {
+      // Оценивают событие, а не людей: гость — один раз (оценка записывается
+      // на создателя), создатель никого не оценивает.
+      if (meta.organizer_id === currentUser.userId) {
         return { eventId, title: meta.title, eventDate: meta.event_date, reviewableMembers: [] };
       }
       const otherMembers = (allMembers ?? [])
@@ -68,7 +68,7 @@ export async function GET() {
             !!u &&
             u.id !== currentUser.userId &&
             !alreadyReviewedKeys.has(`${eventId}:${u.id}`) &&
-            (!meta.is_business || u.id === meta.organizer_id)
+            u.id === meta.organizer_id
         );
       return {
         eventId,
