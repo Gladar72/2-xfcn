@@ -39,6 +39,14 @@ export async function POST(req: NextRequest) {
     if (!data || data.length < 1000) break;
   }
 
+  // Исключить города: { excludeCities: ["Москва", ...] }
+  const exclude = new Set<string>(Array.isArray(body?.excludeCities) ? body.excludeCities.map((c: unknown) => String(c).trim().toLowerCase()) : []);
+  if (exclude.size) {
+    const kept = users.filter((u) => !exclude.has((u.city ?? "").trim().toLowerCase()));
+    users.length = 0;
+    users.push(...kept);
+  }
+
   // Кто сейчас заблокировал бота (последняя запись — blocked).
   const lastBlock = new Map<number, string>();
   for (let from = 0; ; from += 1000) {
