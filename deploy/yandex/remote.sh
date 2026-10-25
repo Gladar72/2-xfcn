@@ -188,6 +188,9 @@ deploy() {
   # Подарок «Старт» по ссылке из директа Инстаграма.
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
     < "$APP/supabase/migrations/0071_gift_direct.sql" || true
+  # Разовые рассылки от бота (кому уже ушло).
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
+    < "$APP/supabase/migrations/0072_broadcasts.sql" || true
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
@@ -383,6 +386,15 @@ giftdiag() {
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select c.code, c.title, c.plan, c.days, c.open_to_all, c.is_active, (select count(*) from gift_claims g where g.campaign_code=c.code) claims from gift_campaigns c order by c.code;" || true
 }
 
+broadcast() {
+  # Рассылка от бота: текст и dry (только посчитать) — в deploy/yandex/broadcast/current.json.
+  update_code
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 < "$APP/supabase/migrations/0072_broadcasts.sql" || true
+  curl -sS -m 900 -X POST "http://127.0.0.1:3000/api/cron/broadcast" \
+    -H "Authorization: Bearer $(envget CRON_SECRET)" -H "Content-Type: application/json" \
+    --data @"$APP/deploy/yandex/broadcast/current.json"; echo
+}
+
 health() {
   update_code
   bash "$APP/deploy/yandex/health.sh"
@@ -427,6 +439,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | giftdiag | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | giftdiag | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
