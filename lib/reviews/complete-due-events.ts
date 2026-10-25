@@ -102,6 +102,8 @@ export async function finalizeCompletedEvents(
   const { data: members } = await admin
     .from("event_members")
     .select("event_id, users(id, telegram_id)")
+    // Создатель не оценивает — просьбу «оцени встречу» получают только гости.
+    .eq("role", "participant")
     .in(
       "event_id",
       toNotify.map((e) => e.id)

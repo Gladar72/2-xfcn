@@ -11,79 +11,22 @@ import { eventTiming } from "@/lib/events/timing";
 const BUSINESS_RESULTS_DELAY_HOURS = 24;
 
 /**
- * Сразу после того, как кто-то оценил встречу, рассылает ВСЕМ участникам
- * личное сообщение от бота (в Telegram, в чат с ботом — не в общий канал)
- * с текущими итогами: средняя оценка, сколько человек уже оценили, что
- * говорят (пришли вовремя / приятное общение / встретились бы снова).
- *
- * Вызывается сразу в POST /api/reviews после сохранения отзыва — без
- * задержки. Если оценки продолжат поступать позже — каждая следующая
- * тоже разошлёт обновлённую сводку, поэтому специальной защиты "уже
- * отправляли" не нужно: это не разовое уведомление о встрече, а
- * актуальная сводка на каждый момент.
- */
-export async function sendEventResultsNow(admin: ReturnType<typeof createAdminClient>, eventId: string): Promise<void> {
-  const [{ data: event }, { data: reviews }, { data: members }] = await Promise.all([
-    admin.from("events").select("title, is_business").eq("id", eventId).maybeSingle(),
-    admin
-      .from("reviews")
-      .select("rating, arrived_on_time, pleasant_communication, would_meet_again")
-      .eq("event_id", eventId),
-    admin.from("event_members").select("user_id, users(telegram_id)").eq("event_id", eventId),
-  ]);
-
-  if (!event || !reviews || reviews.length === 0) return;
-  // Бизнес-события: никаких сводок после каждой оценки — организатор
-  // получит итоги один раз (sendDueBusinessResults), гостям сводка не нужна.
-  if (event.is_business) return;
-
-  const recipients = (members ?? [])
-    .map((m) => (m.users as unknown as { telegram_id: number } | null)?.telegram_id)
-    .filter((id): id is number => typeof id === "number");
-
-  const memberUserIds = (members ?? []).map((m) => m.user_id as string).filter(Boolean);
-
-  if (recipients.length === 0 && memberUserIds.length === 0) return;
-
-  const avgRating = reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length;
-  const onTimePct = Math.round((reviews.filter((r) => r.arrived_on_time).length / reviews.length) * 100);
-  const pleasantPct = Math.round((reviews.filter((r) => r.pleasant_communication).length / reviews.length) * 100);
-  const meetAgainPct = Math.round((reviews.filter((r) => r.would_meet_again).length / reviews.length) * 100);
-
-  const stars = "⭐".repeat(Math.round(avgRating));
-  const text =
-    `Итоги встречи «${event.title}»\n\n` +
-    `${stars} ${avgRating.toFixed(1)} из 5 (${reviews.length} ${pluralizeReviews(reviews.length)})\n\n` +
-    `Пришли вовремя: ${onTimePct}%\n` +
-    `Приятное общение: ${pleasantPct}%\n` +
-    `Хотели бы встретиться снова: ${meetAgainPct}%`;
-
-  for (const telegramId of recipients) {
-    await notifyTelegram(telegramId, text);
-  }
-
-  await sendPushToUsers(admin, memberUserIds, {
-    title: `Итоги: ${shortTitle(event.title)}`,
-    body: `${avgRating.toFixed(1)} из 5 · ${reviews.length} ${pluralizeReviews(reviews.length)} · встретились бы снова: ${meetAgainPct}%`,
-    data: { url: `/event/${eventId}`, type: "event_results", eventId },
-  });
-}
-
-/**
- * Итоги бизнес-событий — ОДИН общий итог организатору (не по каждому
- * гостю): как только оценили все гости, или через
+ * Итоги события (любого — личной встречи и бизнес-события) — ОДИН общий итог
+ * только создателю: как только оценили все гости, или через
  * BUSINESS_RESULTS_DELAY_HOURS после окончания — что наступит раньше.
+ * Гости сводок не получают: оценивают событие один раз и всё.
  * Вызывается из cron /api/cron/complete-events. Сначала ставим
  * results_sent_at (условно, только если ещё null), потом шлём —
  * повторный/параллельный запуск дубля не пришлёт.
  */
-export async function sendDueBusinessResults(admin: ReturnType<typeof createAdminClient>): Promise<number> {
+export async function sendDueEventResults(admin: ReturnType<typeof createAdminClient>): Promise<number> {
   const { data: candidates } = await admin
     .from("events")
-    .select("id, title, organizer_id, event_date, event_time, event_end_time, city, longitude")
-    .eq("is_business", true)
+    .select("id, title, is_business, organizer_id, event_date, event_time, event_end_time, city, longitude")
     .eq("status", "completed")
     .is("results_sent_at", null)
+    // Только недавние: старым встречам итоги задним числом не шлём.
+    .gte("event_date", new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
     .limit(50);
 
   const now = Date.now();
@@ -130,20 +73,23 @@ export async function sendDueBusinessResults(admin: ReturnType<typeof createAdmi
       admin.from("users").select("telegram_id").eq("id", event.organizer_id).maybeSingle(),
     ]);
 
+    // Никто не пришёл — итоги слать не о чем.
+    if (!guests) continue;
     const telegramId = organizer?.telegram_id;
 
     const list = reviews ?? [];
+    const kind = event.is_business ? "события" : "встречи";
     let text: string;
     if (list.length === 0) {
       text =
-        `Итоги события «${event.title}»\n\n` +
+        `Итоги ${kind} «${event.title}»\n\n` +
         `Гостей: ${guests ?? 0}. Оценок пока нет.`;
     } else {
       const avg = list.reduce((sum, r) => sum + r.rating, 0) / list.length;
       const pct = (f: (r: (typeof list)[number]) => boolean | null) =>
         Math.round((list.filter((r) => f(r)).length / list.length) * 100);
       text =
-        `Итоги события «${event.title}»\n\n` +
+        `Итоги ${kind} «${event.title}»\n\n` +
         `${"⭐".repeat(Math.round(avg))} ${avg.toFixed(1)} из 5 (${list.length} ${pluralizeReviews(list.length)})\n` +
         `Гостей: ${guests ?? 0}\n\n` +
         `Приятная атмосфера: ${pct((r) => r.pleasant_communication)}%\n` +
@@ -151,12 +97,12 @@ export async function sendDueBusinessResults(admin: ReturnType<typeof createAdmi
     }
     if (telegramId) await notifyTelegram(telegramId, text);
     await sendPushToUsers(admin, [event.organizer_id as string], {
-      title: `Итоги события «${shortTitle(event.title)}»`,
+      title: `Итоги ${kind} «${shortTitle(event.title)}»`,
       body:
         list.length === 0
           ? `Гостей: ${guests ?? 0}. Оценок пока нет`
           : `${(list.reduce((sum, r) => sum + r.rating, 0) / list.length).toFixed(1)} из 5 · ${list.length} ${pluralizeReviews(list.length)} · гостей: ${guests ?? 0}`,
-      data: { url: `/event/${event.id}`, type: "business_results", eventId: event.id },
+      data: { url: `/event/${event.id}`, type: event.is_business ? "business_results" : "event_results", eventId: event.id },
     });
     sent++;
   }
