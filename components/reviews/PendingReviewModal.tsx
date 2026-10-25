@@ -24,14 +24,14 @@ interface ReviewableEvent {
  * лениво переводит просроченные встречи в completed (см. lib/reviews/).
  */
 export function PendingReviewModal() {
-  const [queue, setQueue] = useState<{ eventId: string; member: ReviewableMember }[]>([]);
+  const [queue, setQueue] = useState<{ eventId: string; title: string; member: ReviewableMember }[]>([]);
 
   useEffect(() => {
     fetch("/api/reviews/reviewable")
       .then((r) => r.json())
       .then((data) => {
         const events: ReviewableEvent[] = data.events ?? [];
-        const flat = events.flatMap((e) => e.reviewableMembers.map((member) => ({ eventId: e.eventId, member })));
+        const flat = events.flatMap((e) => e.reviewableMembers.slice(0, 1).map((member) => ({ eventId: e.eventId, title: e.title, member })));
         setQueue(flat);
       })
       .catch(() => {});
@@ -67,5 +67,5 @@ export function PendingReviewModal() {
     setQueue((prev) => prev.slice(1));
   }
 
-  return <ReviewSheet open personName={currentMember.name} onSubmit={handleSubmit} onClose={handleSkip} />;
+  return <ReviewSheet open personName={current.title} onSubmit={handleSubmit} onClose={handleSkip} />;
 }
