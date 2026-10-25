@@ -46,7 +46,7 @@ export default function MyEventsPage() {
   const [day, setDay] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [reviewable, setReviewable] = useState<Reviewable[]>([]);
-  const [review, setReview] = useState<{ eventId: string; member: { id: string; name: string } } | null>(null);
+  const [review, setReview] = useState<{ eventId: string; title: string; member: { id: string; name: string } } | null>(null);
   useGuide("myEvents");
   // «Марина хочет с тобой на встречу» — намёки, которые ещё не разобраны.
   const [hints, setHints] = useState<MeetHint[]>([]);
@@ -220,7 +220,7 @@ export default function MyEventsPage() {
                     className="go-s"
                     onClick={(ev) => {
                       ev.preventDefault();
-                      setReview({ eventId: e.id, member: rv });
+                      setReview({ eventId: e.id, title: e.title, member: rv });
                     }}
                   >
                     Оценить
@@ -248,7 +248,7 @@ export default function MyEventsPage() {
           </div>
         )}
       </div>
-      <ReviewSheet open={!!review} personName={review?.member.name ?? ""} onSubmit={sendReview} onClose={() => setReview(null)} />
+      <ReviewSheet open={!!review} personName={review?.title ?? ""} onSubmit={sendReview} onClose={() => setReview(null)} />
     </Screen>
   );
 }
