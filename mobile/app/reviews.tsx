@@ -71,14 +71,14 @@ export default function ReviewsScreen() {
           <Icon name="back" />
         </RoundBtn>
         <Title plain="Отзывы " em="после встреч" size={30} style={{ marginLeft: 4 }} />
-        <Text style={styles.sub}>Оцени тех, с кем встречался — так в «Месте» остаются надёжные люди.</Text>
+        <Text style={styles.sub}>Оцени, как прошла встреча — так в «Месте» остаются хорошие события.</Text>
 
         {events === null ? <ActivityIndicator color={colors.violet} style={{ marginTop: 30 }} /> : null}
         {events && events.length === 0 ? (
           <Glass strong style={styles.empty}>
             <Mosya pose="wave" size={110} />
             <Text style={styles.emptyTitle}>Оценивать пока некого</Text>
-            <Text style={styles.sub}>После каждой встречи здесь появятся её участники.</Text>
+            <Text style={styles.sub}>После каждой встречи здесь можно будет её оценить.</Text>
           </Glass>
         ) : null}
 
@@ -96,7 +96,7 @@ export default function ReviewsScreen() {
                   <Avatar uri={m.avatar_url} name={m.name} size={44} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{m.name}</Text>
-                    <Text style={styles.muted}>Участник встречи</Text>
+                    <Text style={styles.muted}>Организатор · оцени встречу</Text>
                   </View>
                   <Pressable
                     onPress={() => setQueue([{ eventId: e.eventId, eventTitle: e.title, person: { id: m.id, name: m.name, avatarUrl: m.avatar_url } }])}
