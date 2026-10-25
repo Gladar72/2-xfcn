@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { completeDueEvents } from "@/lib/reviews/complete-due-events";
-import { sendDueBusinessResults } from "@/lib/reviews/send-event-results";
+import { sendDueEventResults } from "@/lib/reviews/send-event-results";
 
 /**
  * GET /api/cron/complete-events
@@ -25,8 +25,8 @@ export async function GET(req: NextRequest) {
 
   const admin = createAdminClient();
   const result = await completeDueEvents(admin);
-  const businessResults = await sendDueBusinessResults(admin).catch((err) => {
-    console.error("sendDueBusinessResults:", err);
+  const businessResults = await sendDueEventResults(admin).catch((err) => {
+    console.error("sendDueEventResults:", err);
     return 0;
   });
 
