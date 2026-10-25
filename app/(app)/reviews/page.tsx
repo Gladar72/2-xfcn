@@ -24,7 +24,7 @@ export default function ReviewsPage() {
   const router = useRouter();
   const [events, setEvents] = useState<ReviewableEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTarget, setActiveTarget] = useState<{ eventId: string; member: ReviewableMember } | null>(null);
+  const [activeTarget, setActiveTarget] = useState<{ eventId: string; title: string; member: ReviewableMember } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Пришли из уведомления «Оцени, как прошла встреча» — /reviews?event=<id>
   const [focusEventId, setFocusEventId] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export default function ReviewsPage() {
           list = [...list.filter((e) => e.eventId === focusId), ...list.filter((e) => e.eventId !== focusId)];
           const target = list.find((e) => e.eventId === focusId);
           const first = target?.reviewableMembers[0];
-          if (autoOpen && target && first) setActiveTarget({ eventId: target.eventId, member: first });
+          if (autoOpen && target && first) setActiveTarget({ eventId: target.eventId, title: target.title, member: first });
         }
         setEvents(list);
       })
@@ -103,7 +103,7 @@ export default function ReviewsPage() {
         Отзывы <em>после встреч</em>
       </h1>
       <p className="muted" style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.5 }}>
-        Оцени тех, с кем встречался — так в «Месте» остаются надёжные люди.
+        Оцени, как прошла встреча — так в «Месте» остаются хорошие события.
       </p>
       {loading && [0, 1].map((i) => <div key={i} className="sk" style={{ height: 64, marginTop: 10 }} />)}
       {focusDone && <div className="note gl" style={{ marginTop: 14 }}>Эту встречу ты уже оценил — спасибо!</div>}
@@ -111,7 +111,7 @@ export default function ReviewsPage() {
         <div className="empty" style={{ marginTop: 20 }}>
           <EmptyIll a={["cloud", "mint", "calm"]} b={["ball", "lilac", "smile"]} c={["star", "peach", "sly"]} />
           <b>Оценивать пока некого</b>
-          <span>После каждой встречи здесь появятся её участники.</span>
+          <span>После каждой встречи здесь можно будет её оценить.</span>
         </div>
       )}
       {events.map((e) => (
@@ -132,16 +132,16 @@ export default function ReviewsPage() {
               )}
               <div>
                 <b>{m.name}</b>
-                <span>Участник встречи</span>
+                <span>Организатор · оцени встречу</span>
               </div>
-              <button className="sm yes" onClick={() => setActiveTarget({ eventId: e.eventId, member: m })}>
+              <button className="sm yes" onClick={() => setActiveTarget({ eventId: e.eventId, title: e.title, member: m })}>
                 Оценить
               </button>
             </div>
           ))}
         </div>
       ))}
-      <ReviewSheet open={!!activeTarget} personName={activeTarget?.member.name ?? ""} onSubmit={handleSubmit} onClose={() => setActiveTarget(null)} />
+      <ReviewSheet open={!!activeTarget} personName={activeTarget?.title ?? ""} onSubmit={handleSubmit} onClose={() => setActiveTarget(null)} />
       <Toast text={toast} />
     </Screen>
   );
