@@ -102,7 +102,7 @@ export function StepCover({ form, set, presetCover, catLabel }: { form: Form; se
           : "Своё фото можно загрузить к любой встрече. Не загрузишь — будет обложка, которую подобрал Мося."}
       </Muted>
 
-      <Label extra="необязательно">Описание</Label>
+      <Label extra="что будете делать и для кого">Описание</Label>
       <Field
         value={form.description}
         onChangeText={(description) => set({ description })}
