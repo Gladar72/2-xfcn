@@ -18,6 +18,7 @@ import { StepWhen } from "@/components/create/StepWhen";
 import { StepWho } from "@/components/create/StepWho";
 import { type Kind, StepKind } from "@/components/create/StepKind";
 import { qs } from "@/lib/format";
+import { descriptionProblem, titleProblem } from "@/lib/eventQuality";
 
 /**
  * Создание (и правка) встречи в 4 шага — как CreateMeetingFlow в мини-приложении.
@@ -160,7 +161,13 @@ export default function CreateScreen() {
       if (form.categorySlug === "training" && !form.trainingTypeSlug) return "Выбери вид тренировки.";
       if (isOwn && form.own.trim().length < 2) return "Напиши одним-двумя словами, чем займёмся — например «сапы». Так встречу найдут поиском";
     }
-    if (step === 2 && form.title.trim().length < 3) return "Придумай название — хотя бы 3 буквы.";
+    if (step === 2) {
+      const own = form.own.trim();
+      const t = titleProblem(form.title);
+      if (t) return t;
+      const d = descriptionProblem([isOwn && own && !form.title.toLowerCase().includes(own.toLowerCase()) ? own : "", form.description].filter(Boolean).join(". "));
+      if (d) return d;
+    }
     if (step === 2 && isOwn && !presetCover && !useOwn)
       return "Мося не нашёл обложку под твою встречу — загрузи своё фото, чтобы люди поняли, куда зовёшь.";
     if (step === 3) {
