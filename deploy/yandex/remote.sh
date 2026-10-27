@@ -389,6 +389,19 @@ giftdiag() {
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select c.code, c.title, c.plan, c.days, c.open_to_all, c.is_active, (select count(*) from gift_claims g where g.campaign_code=c.code) claims from gift_campaigns c order by c.code;" || true
 }
 
+statsdiag() {
+  q() { sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "$1" || true; }
+  echo "## users total / city"; q "select count(*) total, count(*) filter (where telegram_id>0) tg, count(*) filter (where city ilike 'тюмень') tyumen from users;"
+  echo "## new users by month"; q "select to_char(date_trunc('month',created_at),'YYYY-MM') m, count(*) from users group by 1 order by 1;"
+  echo "## new users by week (last 10)"; q "select to_char(date_trunc('week',created_at),'YYYY-MM-DD') w, count(*) from users where created_at>now()-interval '70 days' group by 1 order by 1;"
+  echo "## active (any action: event/member/message)"; q "with a as (select organizer_id u, created_at t from events union all select user_id, joined_at from event_members union all select sender_id, created_at from messages) select count(distinct u) filter (where t>now()-interval '1 day') dau, count(distinct u) filter (where t>now()-interval '7 days') wau, count(distinct u) filter (where t>now()-interval '30 days') mau from a;"
+  echo "## events by month"; q "select to_char(date_trunc('month',created_at),'YYYY-MM') m, count(*) events, count(distinct organizer_id) organizers from events group by 1 order by 1;"
+  echo "## joins by month"; q "select to_char(date_trunc('month',joined_at),'YYYY-MM') m, count(*) from event_members where role<>'organizer' group by 1 order by 1;"
+  echo "## subscriptions"; q "select plan, status, count(*), count(*) filter (where current_period_end>now()) live from subscriptions group by 1,2 order by 1,2;"
+  echo "## payments by month"; q "select to_char(date_trunc('month',created_at),'YYYY-MM') m, status, count(*), sum(amount) rub from payments group by 1,2 order by 1,2;"
+  echo "## gift claims"; q "select count(*) from gift_claims;"
+}
+
 broadcast() {
   # Рассылка от бота: текст и dry (только посчитать) — в deploy/yandex/broadcast/current.json.
   update_code
