@@ -91,9 +91,19 @@ jobs:
         working-directory: mobile/android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
+      # Своё имя файла с версией: иначе на Mac повторные скачивания дают «app-release.apk 3»,
+      # а RuStore такой файл не принимает («Неверное расширение»).
+      - name: Имя APK с версией
+        id: apkname
+        run: |
+          V=$(node -p "require('./app.json').expo.version")
+          N="mesto-$V-${{ github.run_number }}"
+          mv android/app/build/outputs/apk/release/app-release.apk "android/app/build/outputs/apk/release/$N.apk"
+          echo "name=$N" >> "$GITHUB_OUTPUT"
+
       - name: APK в Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mesto-rustore-apk
+          name: ${{ steps.apkname.outputs.name }}
           path: mobile/android/app/build/outputs/apk/release/*.apk
           retention-days: 30
