@@ -6,7 +6,7 @@ import { LocationPicker } from "@/components/map/LocationPicker";
 import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
-import { descriptionProblem, titleProblem } from "@/lib/events/quality";
+import { businessProblem, descriptionProblem, titleProblem } from "@/lib/events/quality";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { coverFor, coverForText, isPresetCover } from "@/lib/photos/preset-cover";
 import { showGuide } from "@/lib/mosya/guide";
@@ -435,8 +435,14 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     if (step === 2) {
       const t = titleProblem(title);
       if (t) return t;
-      const d = descriptionProblem([isOwn && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". "));
+      const fullDesc = [isOwn && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". ");
+      const d = descriptionProblem(fullDesc);
       if (d) return d;
+      // Мастер-классы и платные занятия — только через «Для бизнеса».
+      if (!business) {
+        const b = businessProblem(title, fullDesc);
+        if (b) return b;
+      }
     }
     if (step === 2 && isOwn && !presetCover && (!ownPhoto || photo !== ownPhoto))
       return "Мося не нашёл обложку под твою встречу — загрузи своё фото, чтобы люди поняли, куда зовёшь.";
