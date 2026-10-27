@@ -1,7 +1,6 @@
 import { cityDates } from "@/lib/events/local-dates";
 import { NextRequest, NextResponse } from "next/server";
 import { anonGender, anonymousOrganizerName, canSeeAnonymousDetails } from "@/lib/events/anonymity";
-import { runInBackground, sendInBatches } from "@/lib/server/background";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
@@ -10,13 +9,12 @@ import { getActiveSubscriptionInfo, incrementEventsCreated } from "@/lib/subscri
 import { canCreateMoreEvents, maxGroupSize, PLAN_LIMITS } from "@/lib/subscriptions/limits";
 import { createEventSchema, type CreateEventInput } from "@/lib/validation/create-event";
 import { describeValidationError } from "@/lib/validation/describe-error";
-import { notifyN8n } from "@/lib/n8n/notify";
 import { notifyTelegram } from "@/lib/telegram/notify";
-import { sendPushToUsers } from "@/lib/push/expo";
-import { shortTitle } from "@/lib/notify/user";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { moderateImage } from "@/lib/photos/moderate-image";
+import { eventQualityProblem } from "@/lib/events/quality";
+import { announceNewEvent } from "@/lib/telegram/event-announce";
 import { cachedFeed, clearFeedCache } from "@/lib/data/feed-cache";
 import { eventTiming } from "@/lib/events/timing";
 import { activePromotions, promotedOrder } from "@/lib/promotions/server";
@@ -572,6 +570,18 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Встреча «не от балды»: понятное название, пара слов о цели и место.
+  // Мося в мастере подсказывает то же самое — здесь защита от прямых запросов.
+  const quality = eventQualityProblem({
+    title: input.title ?? "",
+    description: input.description ?? "",
+    placeName: input.placeName,
+    hasPoint: input.latitude !== undefined && input.longitude !== undefined,
+  });
+  if (quality) {
+    return NextResponse.json({ error: "event_quality", field: quality.field, message: quality.message }, { status: 422 });
+  }
+
   const plan = subscriptionInfo?.plan ?? "premium";
   const groupMax = maxGroupSize(plan, input.isBusiness);
   if (!isAdmin && groupMax !== null && input.seatsTotal > groupMax) {
@@ -743,43 +753,6 @@ export async function POST(req: NextRequest) {
   // короткое описание (если есть), сколько человек и условия участия.
   if (input.isBusiness) {
     await notifyTelegram(currentUser.telegramId, formatBusinessEventCreatedMessage(input));
-
-    // Плюс рассылка ВСЕМ зарегистрированным пользователям в этом же
-    // городе (не только тем, кто интересовался похожими встречами, как
-    // для обычных событий через n8n) — по явному запросу пользователя.
-    // Напрямую через Bot API (notifyTelegram), не через n8n — так это не
-    // зависит от того, настроен ли n8n, и было принято и для уведомления
-    // организатора чуть выше.
-    const cityUsersQuery = isRepost
-      ? { data: [] as { id: string; telegram_id: number }[] }
-      : await admin
-      .from("users")
-      .select("id, telegram_id")
-      .eq("city", organizerProfile?.city ?? "")
-      .neq("id", currentUser.userId);
-    const cityTelegramIds = (cityUsersQuery.data ?? []).map((u) => u.telegram_id).filter(Boolean);
-    const cityUserIds = (cityUsersQuery.data ?? []).map((u) => u.id as string);
-    // НЕ await — при большом числе пользователей в городе рассылка может
-    // занять несколько секунд (каждое сообщение — отдельный запрос к
-    // Bot API), и ждать её целиком перед ответом клиенту ощущалось бы
-    // как "всё долго грузит" при создании (реальная жалоба пользователя).
-    // Публикация встречи не зависит от того, дошла рассылка или нет.
-    // Раньше здесь было «void Promise.allSettled(...)» — на Vercel функция
-    // замораживается сразу после ответа, и рассылка обрывалась на первых
-    // сообщениях. Теперь — фоном через waitUntil и пачками (лимит Telegram).
-    const broadcastText = formatBusinessEventBroadcastMessage(input);
-    await runInBackground(() =>
-      sendInBatches(cityTelegramIds as number[], (telegramId) => notifyTelegram(telegramId, broadcastText))
-    );
-    if (cityUserIds.length > 0) {
-      await runInBackground(() =>
-        sendPushToUsers(admin, cityUserIds, {
-          title: "Новое событие в городе",
-          body: shortTitle(input.title, 100),
-          data: { url: `/event/${createdEvent.id}`, type: "business_event", eventId: createdEvent.id },
-        })
-      );
-    }
   }
 
   // Если у админа нет реальной подписки (типичный случай при тестировании),
@@ -788,88 +761,22 @@ export async function POST(req: NextRequest) {
     await incrementEventsCreated(admin, subscriptionInfo.subscriptionId, subscriptionInfo.currentPeriodStart);
   }
 
-  // Workflow 1 (п.27 ТЗ): находим потенциально релевантных пользователей —
-  // та же логика интересов, что и в ranking (lib/scoring), но здесь как
-  // одноразовый список получателей для n8n, а не как скоринг.
-  if (!isRepost) await runInBackground(() =>
-    notifyRelevantUsers(admin, {
+  // Анонс новой встречи всем в городе: Telegram (карточка с фото и кнопкой) + push.
+  // Без await — рассылка идёт фоном и не задерживает ответ.
+  if (!isRepost) {
+    void announceNewEvent(admin, {
       eventId: createdEvent.id,
       organizerId: currentUser.userId,
       city: organizerProfile?.city ?? "",
-      categorySlug: input.categorySlug,
-      trainingTypeSlug: input.trainingTypeSlug ?? null,
       title: input.title ?? "",
-    })
-  );
+      isBusiness: !!input.isBusiness,
+    }).catch((err) => console.error("announceNewEvent:", err));
+  }
 
   // Автор сразу видит свою встречу в ленте, не дожидаясь конца 15-секундного кэша.
   clearFeedCache();
 
   return NextResponse.json({ status: "created", eventId: createdEvent.id });
-}
-
-async function notifyRelevantUsers(
-  admin: ReturnType<typeof createAdminClient>,
-  params: {
-    eventId: string;
-    organizerId: string;
-    city: string;
-    categorySlug: string;
-    trainingTypeSlug: string | null;
-    title: string;
-  }
-) {
-  // "Релевантные пользователи" — те, у кого в интересах есть название
-  // категории или типа тренировки, живут в том же городе, не заблокированы
-  // организатором и не он сам.
-  const interestNames = [params.categorySlug, params.trainingTypeSlug].filter(Boolean) as string[];
-  if (interestNames.length === 0) return;
-
-  const { data: matchingInterests } = await admin.from("interests").select("id, name");
-  const relevantInterestIds = (matchingInterests ?? [])
-    .filter((i) => interestNames.some((n) => i.name.toLowerCase().includes(n.toLowerCase())))
-    .map((i) => i.id);
-  if (relevantInterestIds.length === 0) return;
-
-  const { data: candidateRows } = await admin
-    .from("user_interests")
-    .select("user_id, users!inner(id, telegram_id, city)")
-    .in("interest_id", relevantInterestIds);
-
-  const { data: blocks } = await admin
-    .from("blocks")
-    .select("blocker_id, blocked_id")
-    .or(`blocker_id.eq.${params.organizerId},blocked_id.eq.${params.organizerId}`);
-  const blockedIds = new Set(
-    (blocks ?? []).map((b) => (b.blocker_id === params.organizerId ? b.blocked_id : b.blocker_id))
-  );
-
-  // Map user_id → telegram_id (дедупликация по пользователю).
-  const recipients = new Map<string, number>(
-    (candidateRows ?? [])
-      .map((r) => r.users as unknown as { id: string; telegram_id: number; city: string } | null)
-      .filter(
-        (u): u is { id: string; telegram_id: number; city: string } =>
-          !!u && u.id !== params.organizerId && u.city === params.city && !blockedIds.has(u.id)
-      )
-      .map((u) => [u.id, u.telegram_id] as const)
-  );
-  const recipientUserIds = Array.from(recipients.keys());
-
-  if (recipientUserIds.length === 0) return;
-
-  // Push в мобильное приложение — тем же людям, что и рассылка n8n в Telegram.
-  await sendPushToUsers(admin, recipientUserIds, {
-    title: "Новая встреча по твоим интересам",
-    body: shortTitle(params.title, 100) || "Загляни — вдруг тебе подойдёт",
-    data: { url: `/event/${params.eventId}`, type: "event_created", eventId: params.eventId },
-  });
-
-  await notifyN8n("event-created", {
-    eventId: params.eventId,
-    title: params.title,
-    telegramIds: Array.from(recipients.values()),
-  });
 }
 
 /**
@@ -900,29 +807,6 @@ function formatBusinessEventCreatedMessage(input: CreateEventInput): string {
     `Участников: до ${input.seatsTotal} чел.`,
     `Условия: ${conditionsLabel}`,
   ].filter((line): line is string => !!line);
-
-  return lines.join("\n");
-}
-
-/**
- * Текст для рассылки ВСЕМ пользователям города при создании бизнес-события
- * — отличается от подтверждения организатору (formatBusinessEventCreatedMessage):
- * это анонс НОВОГО события для остальных, а не личное подтверждение.
- */
-function formatBusinessEventBroadcastMessage(input: CreateEventInput): string {
-  const dateLabel = new Date(`${input.eventDate}T00:00:00Z`).toLocaleDateString("ru-RU", {
-    day: "numeric",
-    month: "long",
-    timeZone: "UTC",
-  });
-  const timeLabel = input.eventEndTime ? `${input.eventTime}–${input.eventEndTime}` : input.eventTime;
-
-  const lines = [
-    `Новое событие в твоём городе: «${input.title}» 🎉`,
-    `${dateLabel}, ${timeLabel}`,
-    `Место: ${input.placeName}`,
-    `Загляни в раздел «Для бизнеса», чтобы узнать подробности и записаться.`,
-  ];
 
   return lines.join("\n");
 }
