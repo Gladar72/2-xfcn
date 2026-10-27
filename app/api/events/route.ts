@@ -577,6 +577,7 @@ export async function POST(req: NextRequest) {
     description: input.description ?? "",
     placeName: input.placeName,
     hasPoint: input.latitude !== undefined && input.longitude !== undefined,
+    isBusiness: !!input.isBusiness,
   });
   if (quality) {
     return NextResponse.json({ error: "event_quality", field: quality.field, message: quality.message }, { status: 422 });
