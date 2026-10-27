@@ -11,7 +11,7 @@ on:
         required: true
         default: status
         type: choice
-        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, storagefix, eventsdiag, bizdiag, storyshot, promodiag, promofix, giftdiag, statsdiag, broadcast, restoreevents, reauthnotify, blockedcount, blocksreport, cleanup]
+        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, storagefix, eventsdiag, bizdiag, storyshot, promodiag, promofix, bizmove, giftdiag, statsdiag, broadcast, restoreevents, reauthnotify, blockedcount, blocksreport, cleanup]
   push:
     branches: [main]
 
@@ -68,7 +68,7 @@ jobs:
           ssh deploy@"$HOST" 'bash -s' -- "$TASK" < deploy/yandex/remote.sh 2>&1 | tee run.log
 
       - name: Publish failure log to branch
-        if: failure() || endsWith(env.TASK, 'diag') || env.TASK == 'promofix' || env.TASK == 'broadcast'
+        if: failure() || endsWith(env.TASK, 'diag') || env.TASK == 'promofix' || env.TASK == 'bizmove' || env.TASK == 'status' || env.TASK == 'broadcast'
         run: |
           mkdir -p failog && tail -c 200000 run.log > failog/run.log || true
           cd failog && git init -q && git checkout -q -b deploylog
