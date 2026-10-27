@@ -221,6 +221,10 @@ cleanup() {
 }
 
 status() {
+  echo "--- система: $(. /etc/os-release; echo "$PRETTY_NAME"), ядро $(uname -r), $(uptime -p)"
+  [ -f /var/run/reboot-required ] && echo "нужна перезагрузка после обновлений" || true
+  echo "обновлений доступно: $(apt list --upgradable 2>/dev/null | grep -c upgradable || true), из них безопасности: $(apt list --upgradable 2>/dev/null | grep -c -- -security || true)"
+  echo "docker: $(sudo docker --version 2>/dev/null)"
   sudo docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
   df -h / | tail -1
   free -m | head -3
@@ -385,6 +389,15 @@ promofix() {
   $Q "select u.name, e.title, p.created_at, p.ends_at from promotions p join users u on u.id=p.user_id join events e on e.id=p.event_id where p.ends_at > now() order by u.name, p.created_at;" || true
 }
 
+bizmove() {
+  # Мастер-классы, семинары, платные занятия, созданные как обычная встреча, — в «Для бизнеса».
+  # Только предстоящие. Сначала список, потом перенос, потом что стало.
+  local Q="sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c"
+  local W="e.is_business is not true and e.status in ('published','closed') and e.event_date >= current_date - 1 and (e.title || ' ' || coalesce(e.description,'')) ~* '(мастер[ -]?класс|мастеркласс|воркшоп|workshop|семинар|вебинар|тренинг|обучени|провожу|проведу|научу|стоимость участия|предоплат)'"
+  $Q "select e.id, u.name, e.title, e.event_date, e.status from events e join users u on u.id=e.organizer_id where $W order by e.created_at;" || true
+  $Q "update events e set is_business = true, is_anonymous = false, category_id = (select id from categories where slug='custom'), business_pricing_type = coalesce(e.business_pricing_type, 'custom'), business_pricing_details = coalesce(e.business_pricing_details, 'Подробности у организатора') where $W returning e.id, e.title;" || true
+}
+
 giftdiag() {
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select c.code, c.title, c.plan, c.days, c.open_to_all, c.is_active, (select count(*) from gift_claims g where g.campaign_code=c.code) claims from gift_campaigns c order by c.code;" || true
 }
@@ -455,6 +468,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | giftdiag | statsdiag | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | giftdiag | statsdiag | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
