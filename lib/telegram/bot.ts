@@ -587,6 +587,18 @@ export function getBot(): Bot {
     await ctx.reply("Хорошо, больше не буду напоминать по утрам. Включить снова можно в настройках приложения в любой момент.");
   });
 
+  // Кнопка «🔕 Не присылать анонсы» под анонсом новой встречи (lib/telegram/event-announce.ts).
+  bot.callbackQuery("ann_off", async (ctx) => {
+    await createAdminClient().from("users").update({ event_announcements: false }).eq("telegram_id", ctx.from.id);
+    await ctx.answerCallbackQuery({ text: "Анонсы отключены" });
+    await ctx.reply("Хорошо, больше не буду присылать анонсы новых встреч 🙌 Включить снова — команда /anons");
+  });
+  bot.command("anons", async (ctx) => {
+    if (!ctx.from) return;
+    await createAdminClient().from("users").update({ event_announcements: true }).eq("telegram_id", ctx.from.id);
+    await ctx.reply("Анонсы новых встреч в твоём городе снова включены 🎉");
+  });
+
   // Кнопки «✅ Иду» / «❌ Не смогу» под напоминанием за 2 часа до встречи
   // (см. lib/telegram/event-reminders.ts).
   bot.callbackQuery(/^rsvp:(y|n):([0-9a-f-]{36})$/, async (ctx) => {
