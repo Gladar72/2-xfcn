@@ -18,7 +18,7 @@ import { StepWhen } from "@/components/create/StepWhen";
 import { StepWho } from "@/components/create/StepWho";
 import { type Kind, StepKind } from "@/components/create/StepKind";
 import { qs } from "@/lib/format";
-import { descriptionProblem, titleProblem } from "@/lib/eventQuality";
+import { businessProblem, descriptionProblem, titleProblem } from "@/lib/eventQuality";
 
 /**
  * Создание (и правка) встречи в 4 шага — как CreateMeetingFlow в мини-приложении.
@@ -165,8 +165,14 @@ export default function CreateScreen() {
       const own = form.own.trim();
       const t = titleProblem(form.title);
       if (t) return t;
-      const d = descriptionProblem([isOwn && own && !form.title.toLowerCase().includes(own.toLowerCase()) ? own : "", form.description].filter(Boolean).join(". "));
+      const fullDesc = [isOwn && own && !form.title.toLowerCase().includes(own.toLowerCase()) ? own : "", form.description].filter(Boolean).join(". ");
+      const d = descriptionProblem(fullDesc);
       if (d) return d;
+      // Мастер-классы и платные занятия — только через «Для бизнеса».
+      if (!form.business) {
+        const b = businessProblem(form.title, fullDesc);
+        if (b) return b;
+      }
     }
     if (step === 2 && isOwn && !presetCover && !useOwn)
       return "Мося не нашёл обложку под твою встречу — загрузи своё фото, чтобы люди поняли, куда зовёшь.";
