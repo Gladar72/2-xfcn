@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createMap, type MapLibreMap } from "@/lib/maps/load-maplibre";
-import { openRoute as openRouteTo } from "@/lib/maps/route";
+import { openPlace, openRoute as openRouteTo } from "@/lib/maps/route";
 
 interface EventPlaceMapProps {
   latitude: number;
@@ -18,7 +18,7 @@ interface EventPlaceMapProps {
  * «Где встречаемся» вместо картинки категории на странице встречи:
  * небольшая светлая карта (как общая карта встреч) с булавкой в точке.
  * Карта неподвижная — это картинка-превью, а не второй навигатор;
- * нажатие открывает маршрут в Яндекс Картах.
+ * нажатие открывает карту с меткой места, маршрут — только кнопкой «Маршрут ↗».
  */
 export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallbackSrc }: EventPlaceMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,16 +56,13 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
     };
   }, [latitude, longitude, markerSrc]);
 
-  function openRoute() {
-    openRouteTo(latitude, longitude);
-  }
-
   return (
-    <button
-      type="button"
-      onClick={openRoute}
-      aria-label={`Маршрут до места встречи${placeName ? `: ${placeName}` : ""}`}
-      className="relative block w-full overflow-hidden text-left"
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => openPlace(latitude, longitude)}
+      aria-label={`Место встречи на карте${placeName ? `: ${placeName}` : ""}`}
+      className="relative block w-full cursor-pointer overflow-hidden text-left"
       // isolation — всё, что рисует карта, остаётся «под» карточкой организатора.
       style={{ aspectRatio: "1.4", borderRadius: "var(--m-radius)", background: "#F1EAFF", isolation: "isolate", zIndex: 0 }}
     >
@@ -92,9 +89,16 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
       <span className="absolute left-3 top-3 rounded bg-white/70 px-1.5 py-0.5 text-[9px] leading-none text-ink-600">
         © OpenStreetMap
       </span>
-      <span className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink-900 shadow-card">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          openRouteTo(latitude, longitude);
+        }}
+        className="absolute right-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-ink-900 shadow-card"
+      >
         Маршрут ↗
-      </span>
-    </button>
+      </button>
+    </div>
   );
 }
