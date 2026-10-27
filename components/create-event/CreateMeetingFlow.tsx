@@ -6,6 +6,7 @@ import { LocationPicker } from "@/components/map/LocationPicker";
 import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
+import { descriptionProblem, titleProblem } from "@/lib/events/quality";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { coverFor, coverForText, isPresetCover } from "@/lib/photos/preset-cover";
 import { showGuide } from "@/lib/mosya/guide";
@@ -428,7 +429,12 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       if (categorySlug === "training" && !trainingTypeSlug) return "Выбери вид тренировки.";
       if (isOwn && own.trim().length < 2) return "Напиши одним-двумя словами, чем займёмся — например «сапы». Так встречу найдут поиском";
     }
-    if (step === 2 && title.trim().length < 3) return "Придумай название — хотя бы 3 буквы.";
+    if (step === 2) {
+      const t = titleProblem(title);
+      if (t) return t;
+      const d = descriptionProblem([isOwn && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". "));
+      if (d) return d;
+    }
     if (step === 2 && isOwn && !presetCover && (!ownPhoto || photo !== ownPhoto))
       return "Мося не нашёл обложку под твою встречу — загрузи своё фото, чтобы люди поняли, куда зовёшь.";
     if (step === 3) {
@@ -829,7 +835,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   : "Своё фото можно загрузить к любой встрече. Не загрузишь — будет обложка, которую подобрал Мося."}
               </p>
               <span className="lbl">
-                Описание <small className="muted">необязательно</small>
+                Описание <small className="muted">пара слов: что будете делать и для кого</small>
               </span>
               <label className="field gl ta">
                 <textarea rows={3} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Что будем делать, как узнать друг друга" />
