@@ -263,6 +263,9 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         setCategorySlug(e.category?.slug ?? null);
         setTrainingTypeSlug(e.trainingType?.slug ?? null);
         setTitle(e.title ?? "");
+        // Бизнес-события и «Своё» хранятся с категорией custom: без этого слова
+        // правка застревала на первом шаге («Напиши одним-двумя словами…»).
+        if ((e.category?.slug ?? "") === "custom") setOwn(String(e.title ?? "").slice(0, 30));
         setDescription(e.description ?? "");
         if (e.photoUrl) {
           setOwnPhoto(e.photoUrl);
