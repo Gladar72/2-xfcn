@@ -177,6 +177,8 @@ export function formFromEvent(e: any): { form: Form; minSeats: number } {
   const form: Form = {
     ...initialForm(!!e.isBusiness, e.category?.slug ?? null, e.trainingType?.slug ?? null),
     title: e.title ?? "",
+    // Бизнес-события и «Своё» — категория custom: без этого правка застревала на первом шаге.
+    own: e.category?.slug === "custom" ? String(e.title ?? "").slice(0, 30) : "",
     description: e.description ?? "",
     ownPhoto: e.photoUrl ? { uri: e.photoUrl } : null,
     useOwnPhoto: !!e.photoUrl,
