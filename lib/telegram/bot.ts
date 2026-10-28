@@ -82,7 +82,9 @@ export function getBot(): Bot {
   // без этого openAppKeyboard() ниже видел бы appUrl как `string | undefined`.
   const validatedAppUrl: string = appUrl;
 
-  const bot = new Bot(token, { client: { apiRoot: TELEGRAM_API_ROOT } });
+  // timeoutSeconds: запрос к Telegram (через прокладку) не висит дольше 20 с —
+  // иначе один зависший запрос держал напоминания о встречах до таймаута cron (240 с).
+  const bot = new Bot(token, { client: { apiRoot: TELEGRAM_API_ROOT, timeoutSeconds: 20 } });
   // Запоминаем последнее сообщение каждому человеку — чтобы видеть, после чего блокируют бота.
   trackBotSends(bot.api);
 
