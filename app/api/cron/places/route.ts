@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const report: Record<string, number> = {};
   outer: for (const city of cities) {
     for (const { category, trainingType } of WARM_KEYS) {
-      if (Date.now() - started > 270_000) break outer; // не выходим за лимит функции
+      if (Date.now() - started > 190_000) break outer; // успеть до таймаута cron (240 с); остальное — завтра
       const key = placeCacheKey(category, trainingType);
       if (!key) continue;
       const items = await searchOsm(city, category, trainingType, "", 25_000);
