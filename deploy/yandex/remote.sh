@@ -398,6 +398,15 @@ bizmove() {
   $Q "update events e set is_business = true, is_anonymous = false, category_id = (select id from categories where slug='custom'), business_pricing_type = coalesce(e.business_pricing_type, 'custom'), business_pricing_details = coalesce(e.business_pricing_details, 'Подробности у организатора') where $W returning e.id, e.title;" || true
 }
 
+osupdate() {
+  # Только обновления безопасности Ubuntu (unattended-upgrade), без смены версии системы.
+  sudo apt-get update -qq || true
+  sudo unattended-upgrade -v 2>&1 | tail -25 || true
+  echo "--- после: обновлений осталось $(apt list --upgradable 2>/dev/null | grep -c upgradable || true), из них безопасности: $(apt list --upgradable 2>/dev/null | grep -c -- -security || true)"
+  [ -f /var/run/reboot-required ] && echo "нужна перезагрузка: $(cat /var/run/reboot-required.pkgs 2>/dev/null | tr '\n' ' ')" || echo "перезагрузка не нужна"
+  curl -sS -o /dev/null -w "app: %{http_code}\n" http://127.0.0.1:3000/ || echo "app: down"
+}
+
 giftdiag() {
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select c.code, c.title, c.plan, c.days, c.open_to_all, c.is_active, (select count(*) from gift_claims g where g.campaign_code=c.code) claims from gift_campaigns c order by c.code;" || true
 }
@@ -468,6 +477,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | giftdiag | statsdiag | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
