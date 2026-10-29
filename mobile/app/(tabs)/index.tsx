@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, AppState, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, AppState, Easing, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { Image } from "expo-image";
@@ -66,8 +66,15 @@ export default function HomeScreen() {
     api<MyProfile>("/api/me/profile").then((p) => setCity(p.city)).catch(() => {});
     api<{ categories: Category[] }>("/api/categories").then((r) => setCategories(r.categories.filter((c) => c.slug !== "custom"))).catch(() => {});
     loadPeople();
-    api<{ items: { unreadCount: number }[] }>("/api/conversations")
-      .then((r) => setUnread(r.items.reduce((s, c) => s + (c.unreadCount > 0 ? 1 : 0), 0)))
+    api<{ items: { unreadCount: number; eventStatus?: string | null }[] }>("/api/conversations")
+      .then((r) =>
+        // Сколько непрочитанных сообщений; чаты прошедших/отменённых встреч не считаем.
+        setUnread(
+          r.items
+            .filter((c) => c.eventStatus !== "completed" && c.eventStatus !== "cancelled")
+            .reduce((s, c) => s + (c.unreadCount || 0), 0)
+        )
+      )
       .catch(() => {});
   }, []);
 
@@ -170,11 +177,7 @@ export default function HomeScreen() {
             </RoundBtn>
             <RoundBtn onPress={() => router.navigate("/(tabs)/chats")}>
               <Icon name="chat" />
-              {unread > 0 ? (
-                <View style={styles.cnt}>
-                  <Text style={styles.cntText}>{unread > 9 ? "9+" : unread}</Text>
-                </View>
-              ) : null}
+              {unread > 0 ? <PulseCount n={unread} /> : null}
             </RoundBtn>
           </View>
         </View>
@@ -444,6 +447,29 @@ export default function HomeScreen() {
       </ScrollView>
       <CitySheet visible={cityOpen} value={city} onPick={changeCity} onClose={() => setCityOpen(false)} />
     </View>
+  );
+}
+
+/** Цифра непрочитанных в чатах: подпрыгивает и расходится розовым кольцом. */
+function PulseCount({ n }: { n: number }) {
+  const v = useMemo(() => new Animated.Value(0), []);
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(v, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [v]);
+  const scale = v.interpolate({ inputRange: [0, 0.12, 0.26, 1], outputRange: [1, 1.28, 1, 1] });
+  const ring = v.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] });
+  const ringOp = v.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.5, 0, 0] });
+  return (
+    <>
+      <Animated.View pointerEvents="none" style={[styles.cnt, { backgroundColor: colors.pink, opacity: ringOp, transform: [{ scale: ring }] }]} />
+      <Animated.View style={[styles.cnt, { transform: [{ scale }] }]}>
+        <Text style={styles.cntText}>{n > 9 ? "9+" : n}</Text>
+      </Animated.View>
+    </>
   );
 }
 
