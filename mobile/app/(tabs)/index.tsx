@@ -132,11 +132,13 @@ export default function HomeScreen() {
     }
   }
 
-  // «Популярное сегодня»: сначала продвинутые (и бизнес тоже), потом обычные личные встречи.
+  // «Популярное сегодня»: только встречи людей, продвинутые первыми.
+  // Все бизнес-события — в «Афише заведений» (тоже продвинутые первыми).
   const list = useMemo(() => {
-    const all = events ?? [];
-    return [...all.filter((e) => e.isBoosted), ...all.filter((e) => !e.isBoosted && !e.isBusiness)];
+    const all = (events ?? []).filter((e) => !e.isBusiness);
+    return [...all.filter((e) => e.isBoosted), ...all.filter((e) => !e.isBoosted)];
   }, [events]);
+  const bizSorted = useMemo(() => [...biz.filter((e) => e.isBoosted), ...biz.filter((e) => !e.isBoosted)], [biz]);
   const promotedN = list.filter((e) => e.isBoosted).length;
   const popular = list.slice(0, Math.max(4, promotedN));
   const rest = list.slice(popular.length);
@@ -341,40 +343,54 @@ export default function HomeScreen() {
                 <Text style={styles.afAll}>Все ›</Text>
               </Pressable>
             </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.rail, { paddingHorizontal: 20 }]} style={{ marginHorizontal: -20, marginTop: 14 }}>
-              {biz.map((e) => (
-                <Pressable key={e.id} onPress={() => router.push(`/event/${e.id}`)} style={styles.acard}>
-                  {e.photoUrl ? (
-                    <Image source={{ uri: e.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                  ) : (
-                    <LinearGradient colors={["#6C3BFF", "#FF6FA0"]} style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
-                      <Image source={{ uri: eventIcon(e) }} style={{ width: 90, height: 90 }} />
-                    </LinearGradient>
-                  )}
-                  <LinearGradient colors={["rgba(0,0,0,0)", "rgba(20,8,40,0.85)"]} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
-                  <View style={styles.acTop}>
-                    <View style={styles.acOrg}>
-                      <Text style={styles.acOrgText} numberOfLines={1}>{e.organizer?.name ?? "Заведение"}</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.rail, { paddingHorizontal: 16 }]} style={{ marginHorizontal: -16, marginTop: 14 }}>
+              {bizSorted.map((e) => {
+                const left = Math.max(0, e.seatsTotal - e.seatsTaken);
+                return (
+                  <Pressable key={e.id} onPress={() => router.push(`/event/${e.id}`)} style={[styles.acard, styles.acardV]}>
+                    {e.photoUrl ? (
+                      <Image source={{ uri: e.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                    ) : (
+                      <LinearGradient colors={["#6C3BFF", "#FF6FA0"]} style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
+                        <Image source={{ uri: eventIcon(e) }} style={{ width: 90, height: 90 }} />
+                      </LinearGradient>
+                    )}
+                    <LinearGradient colors={["rgba(10,5,25,0.15)", "rgba(0,0,0,0)", "rgba(10,5,25,0.85)"]} locations={[0, 0.35, 0.8]} style={StyleSheet.absoluteFill} />
+                    <View style={styles.acTop}>
+                      {e.isLive ? (
+                        <Pill kind="live" label="Идёт сейчас" />
+                      ) : e.isBoosted ? (
+                        <View style={styles.acBoost}>
+                          <Icon name="up" size={12} color="#fff" />
+                          <Text style={styles.acBoostText}>В популярном</Text>
+                        </View>
+                      ) : null}
                     </View>
-                    {e.isLive ? (
-                      <Pill kind="live" label="Идёт сейчас" />
-                    ) : e.isBoosted ? (
-                      <Pill kind="white" label="В популярном" />
-                    ) : e.seatsTaken >= e.seatsTotal ? (
-                      <Pill kind="dark" label="Мест нет" />
-                    ) : null}
-                  </View>
-                  <View style={styles.acBody}>
-                    <Text style={styles.acTitle} numberOfLines={2}>{e.title}</Text>
-                    <Text style={styles.acMeta}>
-                      {e.eventTime.slice(0, 5)} · {dayShort(e.eventDate)} · {e.seatsTaken} из {e.seatsTotal}
-                    </Text>
-                    <View style={styles.acPrice}>
-                      <Text style={styles.acPriceText}>{costShort(e)}</Text>
+                    <View style={styles.vb}>
+                      <Text style={styles.acTitle} numberOfLines={2}>{e.title}</Text>
+                      <View style={styles.vm}>
+                        <Icon name="cal" size={13} color="rgba(255,255,255,0.85)" />
+                        <Text style={styles.acMeta}>{dayShort(e.eventDate)}, {e.eventTime.slice(0, 5)}</Text>
+                        <Text style={styles.acMeta}> • </Text>
+                        <Icon name="people" size={13} color="rgba(255,255,255,0.85)" />
+                        <Text style={styles.acMeta}>{left > 0 ? `${left} ${plural(left, "место", "места", "мест")}` : "мест нет"}</Text>
+                      </View>
+                      <View style={styles.vr}>
+                        <View style={[styles.acPrice, { marginTop: 0, flexShrink: 1 }]}>
+                          <Text style={styles.acPriceText} numberOfLines={1}>{costShort(e)}</Text>
+                        </View>
+                        {e.organizer?.avatarUrl ? (
+                          <Image source={{ uri: e.organizer.avatarUrl }} style={styles.aava} contentFit="cover" />
+                        ) : (
+                          <LinearGradient colors={["#6C3BFF", "#FF6FA0"]} style={[styles.aava, { alignItems: "center", justifyContent: "center" }]}>
+                            <Text style={styles.aavaText}>{(e.organizer?.name ?? "Б").charAt(0).toUpperCase()}</Text>
+                          </LinearGradient>
+                        )}
+                      </View>
                     </View>
-                  </View>
-                </Pressable>
-              ))}
+                  </Pressable>
+                );
+              })}
               {cityEvents.map((c) => (
                 <Pressable key={c.id} onPress={() => router.push(`/city/${c.id}` as Href)} style={styles.acard}>
                   {c.photoUrl ? (
@@ -463,7 +479,7 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: FONT, fontSize: 14, color: colors.grey, textAlign: "center" },
   emptyBtn: { marginTop: 10, backgroundColor: colors.ink, borderRadius: 999, height: 44, paddingHorizontal: 20, justifyContent: "center" },
   emptyBtnText: { fontFamily: FONT, color: "#fff", fontSize: 15, fontWeight: "500" },
-  pcard: { width: 150, height: 210, borderRadius: 26, overflow: "hidden", backgroundColor: colors.lavender100 },
+  pcard: { width: 172, height: 244, borderRadius: 28, overflow: "hidden", backgroundColor: colors.lavender100 },
   pInit: { alignItems: "center", justifyContent: "center" },
   pInitText: { fontFamily: FONT, color: "#fff", fontSize: 48, fontWeight: "500" },
   pTag: { position: "absolute", top: 10, left: 10, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999, paddingHorizontal: 9, height: 26, justifyContent: "center" },
@@ -475,9 +491,17 @@ const styles = StyleSheet.create({
   geoIc: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" },
   geoTitle: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink },
   geoText: { fontFamily: FONT, fontSize: 13, lineHeight: 17, color: colors.grey },
-  pName: { fontFamily: FONT, color: "#fff", fontSize: 16, fontWeight: "500" },
+  pName: { fontFamily: FONT, color: "#fff", fontSize: 17, fontWeight: "500" },
   pSub: { fontFamily: FONT, color: "rgba(255,255,255,0.9)", fontSize: 12 },
-  afisha: { marginTop: 26, marginHorizontal: -20, paddingHorizontal: 20, paddingTop: 22, paddingBottom: 12, overflow: "hidden" },
+  afisha: { marginTop: 26, borderRadius: 30, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 16, overflow: "hidden" },
+  acardV: { width: 210, height: 290, borderRadius: 24 },
+  acBoost: { flexDirection: "row", alignItems: "center", gap: 4, height: 26, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
+  acBoostText: { fontFamily: FONT, color: "#fff", fontSize: 11.5, fontWeight: "600" },
+  vb: { position: "absolute", left: 8, right: 8, bottom: 8, padding: 11, borderRadius: 18, backgroundColor: "rgba(18,10,40,0.55)", gap: 6 },
+  vm: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 3 },
+  vr: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 3 },
+  aava: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: "rgba(255,255,255,0.85)", overflow: "hidden" },
+  aavaText: { fontFamily: FONT, color: "#fff", fontSize: 13, fontWeight: "700" },
   afHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
   afAll: { fontFamily: FONT, color: "rgba(255,255,255,0.85)", fontSize: 14.5, fontWeight: "500" },
   invite: { backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", padding: 18, gap: 8 },
@@ -485,7 +509,7 @@ const styles = StyleSheet.create({
   invText: { fontFamily: FONT, color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "center" },
   afSmall: { fontFamily: FONT, color: "rgba(255,255,255,0.6)", fontSize: 11.5, letterSpacing: 0.8 },
   afTitle: { fontFamily: FONT, color: "#fff", fontSize: 22, fontWeight: "500", letterSpacing: -0.4, marginTop: 2 },
-  acard: { width: 230, height: 260, borderRadius: 26, overflow: "hidden", backgroundColor: "#2A1650" },
+  acard: { width: 210, height: 290, borderRadius: 24, overflow: "hidden", backgroundColor: "#2A1650" },
   acTop: { position: "absolute", top: 10, left: 10, right: 10, flexDirection: "row", gap: 6, flexWrap: "wrap" },
   acOrg: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 999, height: 28, paddingHorizontal: 10, justifyContent: "center", maxWidth: 140 },
   acOrgText: { fontFamily: FONT, color: "#fff", fontSize: 12.5, fontWeight: "500" },
