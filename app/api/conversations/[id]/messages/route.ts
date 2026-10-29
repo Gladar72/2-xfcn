@@ -8,6 +8,7 @@ import { broadcastToConversation } from "@/lib/supabase/broadcast";
 import { uploadChatPhoto } from "@/lib/photos/upload-chat-photo";
 import { sendPushPersonal } from "@/lib/push/expo";
 import { parseSticker } from "@/lib/chat/invite";
+import { anonAlias } from "@/lib/events/anonymity";
 
 const MESSAGE_HISTORY_LIMIT = 50;
 const MAX_PAGE = 100;
@@ -181,10 +182,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     last_active_at: string | null;
   }
 
+  // Анонимная встреча: настоящие профили видят только организатор и одобренный
+  // участник друг у друга; другие участники — условное имя без фото.
+  const anonEvent = conversationRow?.events as unknown as { is_anonymous: boolean | null; organizer_id: string | null } | null;
+  const anonEventId = (conversationRow as { event_id?: string | null } | null)?.event_id ?? null;
+  const viewerIsOrganizer = anonEvent?.organizer_id === currentUser.userId;
+
   const members = (otherMemberRows ?? [])
     .map((row) => {
       const user = row.user as unknown as RawMemberUser | null;
       if (!user) return null;
+      if (anonEvent?.is_anonymous && anonEventId && !viewerIsOrganizer && user.id !== anonEvent.organizer_id) {
+        return {
+          id: user.id,
+          name: anonAlias(anonEventId, user.id, user.gender),
+          avatarUrl: null,
+          age: null,
+          gender: user.gender,
+          completedMeetingsCount: 0,
+          lastReadAt: row.last_read_at as string | null,
+          lastActiveAt: null,
+          anonymous: true,
+        };
+      }
       return {
         id: user.id,
         name: user.name,
@@ -373,11 +393,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // именем и текстом, от остальных — «Новое сообщение в чате». Не шлём тем, кто заблокировал чат, и тем, у
       // кого чат открыт прямо сейчас (отметил прочитанным за последние 20 с).
       const [{ data: sender }, { data: conv }] = await Promise.all([
-        admin.from("users").select("name").eq("id", currentUser.userId).maybeSingle(),
-        admin.from("conversations").select("events(title, organizer_id)").eq("id", conversationId).maybeSingle(),
+        admin.from("users").select("name, gender").eq("id", currentUser.userId).maybeSingle(),
+        admin.from("conversations").select("event_id, events(title, organizer_id, is_anonymous)").eq("id", conversationId).maybeSingle(),
       ]);
-      const senderName = (sender?.name as string | undefined)?.trim() || "Участник";
-      const convEvent = conv?.events as unknown as { title: string; organizer_id: string } | null;
+      const convEvent = conv?.events as unknown as { title: string; organizer_id: string; is_anonymous: boolean | null } | null;
+      // Анонимная встреча: участник для остальных — условное имя (организатора участники видят).
+      const senderName =
+        convEvent?.is_anonymous && convEvent.organizer_id !== currentUser.userId && conv?.event_id
+          ? anonAlias(conv.event_id as string, currentUser.userId, sender?.gender as string | null)
+          : (sender?.name as string | undefined)?.trim() || "Участник";
       const chatTitle = convEvent?.title ?? null;
       // Текст сообщения показываем, только если пишет организатор встречи.
       // Сообщения остальных участников — просто «Новое сообщение в чате».
