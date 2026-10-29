@@ -54,7 +54,7 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
           </View>
         ) : null}
         {e.isBoosted && !e.isBusiness && !e.isLive ? (
-          <View style={styles.upb} accessibilityLabel="В популярном">
+          <View style={styles.upb} accessibilityLabel="В топе">
             <Icon name="up" size={17} color="#fff" />
           </View>
         ) : null}
@@ -64,7 +64,7 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
         {e.isLive ? <Pill kind="live" label="Идёт сейчас" /> : e.isBoosted && e.isBusiness ? (
           <View style={styles.glassBadge}>
             <Icon name="up" size={12} color="#fff" />
-            <Text style={styles.glassBadgeText}>В популярном</Text>
+            <Text style={styles.glassBadgeText}>В топе</Text>
           </View>
         ) : null}
         {e.myApplicationStatus ? <Pill kind="white" label={STATUS_LABEL[e.myApplicationStatus]} /> : null}
