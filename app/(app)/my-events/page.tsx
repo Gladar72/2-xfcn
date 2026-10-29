@@ -67,7 +67,13 @@ export default function MyEventsPage() {
   useEffect(() => {
     fetch("/api/conversations")
       .then((r) => r.json())
-      .then((d) => setUnread((d.items ?? []).reduce((s: number, i: { unreadCount?: number }) => s + (i.unreadCount || 0), 0)))
+      .then((d) =>
+        setUnread(
+          ((d.items ?? []) as { unreadCount?: number; eventStatus?: string | null }[])
+            .filter((i) => i.eventStatus !== "completed" && i.eventStatus !== "cancelled")
+            .reduce((s, i) => s + (i.unreadCount || 0), 0)
+        )
+      )
       .catch(() => {});
   }, []);
 
@@ -114,7 +120,7 @@ export default function MyEventsPage() {
         <h1 className="t">
           Мои <em>встречи</em>
         </h1>
-        <Link className="rb gl" href="/chats" aria-label="Чаты">
+        <Link className={`rb gl${unread > 0 ? " ping" : ""}`} href="/chats" aria-label="Чаты">
           <Ic n="chat" />
           {unread > 0 && <span className="cnt">{unread > 9 ? "9+" : unread}</span>}
         </Link>
