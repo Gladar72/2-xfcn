@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: "not_paid_yet" });
   }
 
-  // Разовое продвижение встречи в «Популярное сегодня».
+  // Разовое продвижение встречи в топ ленты.
   if (paymentRow.purpose === "promotion") {
     await admin.from("payments").update({ status: "succeeded" }).eq("id", paymentRow.id);
     const { data: u } = await admin.from("users").select("telegram_id").eq("id", paymentRow.user_id).maybeSingle();
@@ -81,8 +81,8 @@ export async function POST(req: Request) {
       const off = eventUtcOffsetHours(ev);
       const first = Date.parse(res.row.top_from) <= Date.now() + 60_000;
       const text = first
-        ? `Встреча «${ev.title}» первая в «Популярном сегодня» до ${promoClock(res.row.top_until, off)}`
-        : `Встреча «${ev.title}» станет первой в «Популярном сегодня» в ${promoClock(res.row.top_from, off)}`;
+        ? `Встреча «${ev.title}» первая в ленте до ${promoClock(res.row.top_until, off)}`
+        : `Встреча «${ev.title}» станет первой в ленте в ${promoClock(res.row.top_from, off)}`;
       await notifyUser(admin, paymentRow.user_id, {
         title: "Ты в популярном",
         body: text,
