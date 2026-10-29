@@ -31,6 +31,8 @@ interface Member {
   gender: string | null;
   completedMeetingsCount: number;
   lastReadAt: string | null;
+  /** Анонимная встреча: профиль скрыт — открывать нельзя. */
+  anonymous?: boolean;
 }
 
 type ParticipantsTab = "all" | "organizer" | "participants";
@@ -631,7 +633,7 @@ export default function ChatPage({ params }: ChatPageProps) {
                   isOwn={isOwn}
                   sender={sender ? { name: sender.name, avatarUrl: sender.avatarUrl } : null}
                   showSender={showSender}
-                  onSenderPress={sender ? () => setShowMiniProfileFor(sender.id) : undefined}
+                  onSenderPress={sender && !sender.anonymous ? () => setShowMiniProfileFor(sender.id) : undefined}
                   readStatus={readStatus}
                   readCaption={readCaption}
                   onOwnPress={isOwn && isGroup && !message.id.startsWith("temp-") ? () => setReadersFor(message) : undefined}
@@ -783,6 +785,7 @@ export default function ChatPage({ params }: ChatPageProps) {
                 className="apl gl"
                 style={{ width: "100%", textAlign: "left" }}
                 onClick={() => {
+                  if (m.anonymous) return;
                   setShowParticipants(false);
                   setShowMiniProfileFor(m.id);
                 }}
