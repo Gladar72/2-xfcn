@@ -250,6 +250,15 @@ export default function ChatPage({ params }: ChatPageProps) {
       if (messages.length > 0) {
         el.scrollTop = el.scrollHeight;
         firstScrollDone.current = true;
+        // iPhone (WebView Telegram): блок прокрутки, который наполнился уже после
+        // первой отрисовки, иногда не листается пальцем до первой перерисовки —
+        // например, до открытия клавиатуры. Пинаем перерисовку сразу.
+        requestAnimationFrame(() => {
+          el.style.overflowY = "hidden";
+          void el.offsetHeight;
+          el.style.overflowY = "";
+          el.scrollTop = el.scrollHeight;
+        });
       }
       return;
     }
@@ -552,7 +561,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           onTouchStart={() => (touchingRef.current = true)}
           onTouchEnd={() => (touchingRef.current = false)}
           onTouchCancel={() => (touchingRef.current = false)}
-          style={{ paddingBottom: composeH + 16 }}
+          style={{ paddingBottom: composeH + 16, touchAction: "pan-y" }}
         >
           {loadingOlder && <span className="daysep">Загружаем ранние сообщения…</span>}
           {eventTitle !== null && eventMeta && (
