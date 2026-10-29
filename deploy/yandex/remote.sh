@@ -347,7 +347,7 @@ bizdiag() {
   log "разделы бизнес-событий"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
     select biz_category, count(*) from events where is_business and event_date >= current_date group by 1 order by 2 desc;
-    select left(title,40), biz_category from events where is_business and title ilike '%ебал%';" || true
+    select left(title,40), biz_category from events where is_business and (title ilike '%бал%' or biz_category='party');" || true
   log "подборка мест по городам"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select city, category, training_type, count(*) from place_picks group by 1,2,3 order by 1,2,3;" || true
   log "города пользователей (топ-15)"
@@ -358,7 +358,7 @@ bizdiag() {
   log "API карты заведений по фильтрам"
   for d in "" today tomorrow weekend; do
     echo "--- date=$d"
-    curl -s "http://127.0.0.1:3000/api/events/map?city=%D0%A2%D1%8E%D0%BC%D0%B5%D0%BD%D1%8C&business=only&date=$d" | python3 -c "import sys,json; j=json.load(sys.stdin); [print(i.get('eventDate'), i.get('eventTime'), i.get('isCity',False), i.get('title')[:40]) for i in j.get('items',[])]; print('всего', len(j.get('items',[])), j.get('error',''))" || true
+    curl -s -o /tmp/bm.json -w "http %{http_code}\n" "http://127.0.0.1:3000/api/events/map?city=%D0%A2%D1%8E%D0%BC%D0%B5%D0%BD%D1%8C&business=only&date=$d"; head -c 200 /tmp/bm.json; echo; cat /tmp/bm.json | python3 -c "import sys,json; j=json.load(sys.stdin); [print(i.get('eventDate'), i.get('eventTime'), i.get('isCity',False), i.get('title')[:40]) for i in j.get('items',[])]; print('всего', len(j.get('items',[])), j.get('error',''))" || true
   done
   date; sudo docker exec mesto-app-1 date || true
 }

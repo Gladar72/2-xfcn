@@ -39,7 +39,7 @@ export const BIZ_CATEGORIES: BizCategory[] = [
     icon: "i_party",
     slugs: ["party"],
     kinds: ["party"],
-    words: /вечеринк|(^|[^а-яё])клуб|\bdj\b|диджей|(^|[^а-яё])пати|party|техно|рейв|дискотек|я\s+ебал/i,
+    words: /вечеринк|(^|[^а-яё])клуб|\bdj\b|диджей|(^|[^а-яё])пати|party|техно|рейв|дискотек|маскарад|(^|[^а-яё])бал([^а-яёл]|$)|хэллоуин|хеллоуин|halloween/i,
   },
   {
     key: "concerts",
