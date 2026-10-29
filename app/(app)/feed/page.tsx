@@ -344,7 +344,7 @@ function HomeScreen() {
       </div>
 
       <div className="sec">
-        <b>Популярное сегодня</b>
+        <b>Личные встречи</b>
         <Link href="/my-events" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
           <Ic n="up" c="xs" />
           Попасть сюда
