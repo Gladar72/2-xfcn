@@ -43,3 +43,20 @@ export function fuzzCoordinate(value: number | null): number | null {
   if (value === null || value === undefined) return value;
   return Math.round(value * 100) / 100;
 }
+
+/**
+ * Анонимная встреча: профили друг друга видят ТОЛЬКО организатор и одобренный
+ * участник (по решению владельца). Остальные — включая других участников и
+ * организатора до одобрения заявки — видят только пол и условное имя
+ * «Анонимная девушка №37». Номер постоянный для пары «встреча + человек»,
+ * чтобы в чате было понятно, кто есть кто. Сам человек видит себя как обычно.
+ */
+export function anonAlias(eventId: string, userId: string, gender: string | null | undefined, isOrganizer = false): string {
+  if (isOrganizer) return anonymousOrganizerName(gender);
+  let h = 0;
+  const s = `${eventId}:${userId}`;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  const n = (h % 90) + 10;
+  const x = anonGender(gender);
+  return `${x === "female" ? "Анонимная девушка" : x === "male" ? "Анонимный парень" : "Аноним"} №${n}`;
+}
