@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
         userId: e.organizer_id as string,
         message: {
           title: "Мало откликов",
-          body: `На «${shortTitle(e.title)}» пока ${e.seats_taken} из ${e.seats_total} — продвинь её в топ ленты`,
+          body: `На «${shortTitle(e.title)}» пока ${e.seats_taken} из ${e.seats_total} — подними её в топ`,
           data: { url: `/event/${e.id}`, type: "boost_suggestion", eventId: e.id },
         },
       }))
