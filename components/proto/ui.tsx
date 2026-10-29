@@ -127,7 +127,7 @@ export interface HeroEvent {
   category?: { slug: string; name?: string } | null;
   trainingType?: { slug: string; name?: string } | null;
   goingPreview?: Person[];
-  organizer?: { name: string; gender?: string | null } | null;
+  organizer?: { name: string; gender?: string | null; avatarUrl?: string | null } | null;
   /** Сколько до места от моей примерной точки (метры; null — неизвестно). */
   distanceM?: number | null;
 }
@@ -147,7 +147,7 @@ export function HeroCard({ e, full }: { e: HeroEvent; full?: boolean }) {
             Идёт сейчас
           </span>
         </span>
-      ) : e.isPromoted || e.isBoosted ? (
+      ) : (e.isPromoted || e.isBoosted) && e.isBusiness ? (
         <span className="boost">
           <Ic n="up" c="xs" />В популярном
         </span>
@@ -162,15 +162,14 @@ export function HeroCard({ e, full }: { e: HeroEvent; full?: boolean }) {
             </>
           ) : (
             <>
-              <Faces people={e.goingPreview ?? []} ring="rgba(255,255,255,.55)" /> {going} {isFull ? "· мест нет" : `из ${max}`}
+              <Ic n="people" c="xs" /> {going} {isFull ? "· мест нет" : `из ${max}`}
             </>
           )}
         </span>
-        {e.isAnonymous ? (
-          <span className="pill glass">{anonymousTag(e.organizer?.gender)}</span>
-        ) : (
-          <span className="rb glass" style={{ width: 38, height: 38 }}>
-            <Ic n="save" c="s" />
+        {e.isAnonymous && <span className="pill glass">{anonymousTag(e.organizer?.gender)}</span>}
+        {(e.isPromoted || e.isBoosted) && !e.isBusiness && !e.isLive && (
+          <span className="rb glass upb" aria-label="В популярном">
+            <Ic n="up" c="s" />
           </span>
         )}
       </div>
