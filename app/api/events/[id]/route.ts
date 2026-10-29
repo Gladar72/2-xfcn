@@ -11,7 +11,7 @@ import { sendPushToUsers } from "@/lib/push/expo";
 import { shortTitle } from "@/lib/notify/user";
 import { finalizeCompletedEvents } from "@/lib/reviews/complete-due-events";
 import { clearFeedCache } from "@/lib/data/feed-cache";
-import { anonGender, anonymousOrganizerName, canSeeAnonymousDetails, fuzzCoordinate } from "@/lib/events/anonymity";
+import { anonAlias, anonGender, anonymousOrganizerName, canSeeAnonymousDetails, fuzzCoordinate } from "@/lib/events/anonymity";
 
 /**
  * GET /api/events/[id]
@@ -52,13 +52,13 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   const { data: memberRows } = await admin
     .from("event_members")
-    .select("role, user:users(id, name, avatar_url)")
+    .select("role, user:users(id, name, avatar_url, gender)")
     .eq("event_id", eventId)
     .eq("role", "participant");
 
-  const participants = (memberRows ?? []).map((m) => {
-    const user = m.user as unknown as { id: string; name: string; avatar_url: string | null };
-    return { id: user.id, name: user.name, avatarUrl: user.avatar_url };
+  const rawParticipants = (memberRows ?? []).map((m) => {
+    const user = m.user as unknown as { id: string; name: string; avatar_url: string | null; gender: string | null };
+    return { id: user.id, name: user.name, avatarUrl: user.avatar_url, gender: user.gender };
   });
 
   let viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none" = "none";
@@ -158,6 +158,15 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     isAnonymous: event.is_anonymous,
     isOrganizer: viewerStatus === "organizer",
     applicationStatus: viewerStatus,
+  });
+
+  // Анонимная встреча: участников по-настоящему видит только организатор;
+  // остальные (и другие участники) — условное имя без фото и профиля.
+  const participants = rawParticipants.map((p) => {
+    const hide = !!event.is_anonymous && viewerStatus !== "organizer" && p.id !== currentUser?.userId;
+    return hide
+      ? { id: "anonymous", name: anonAlias(event.id, p.id, p.gender), avatarUrl: null, anonymous: true }
+      : { id: p.id, name: p.name, avatarUrl: p.avatarUrl };
   });
 
   return NextResponse.json({
