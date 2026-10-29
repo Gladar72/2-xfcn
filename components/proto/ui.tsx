@@ -81,7 +81,7 @@ const COST_SHORT: Record<string, string> = {
 export function costShort(e: { costType?: string | null; isBusiness?: boolean; businessPricingDetails?: string | null; businessPricingType?: string | null }) {
   if (e.isBusiness) {
     if (e.businessPricingType === "free") return "Бесплатно";
-    return e.businessPricingDetails?.trim().replace(/(\d)\s+(₽|руб)/g, "$1\u00a0$2") || "Билет";
+    return e.businessPricingDetails?.trim() || "Билет";
   }
   return (e.costType && COST_SHORT[e.costType]) || "за себя";
 }
@@ -94,7 +94,7 @@ export function dayShort(dateIso: string) {
   const diff = Math.round((b - a) / 86400000);
   if (diff === 0) return "сегодня";
   if (diff === 1) return "завтра";
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "").replace(" ", "\u00a0");
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
 }
 
 export function dayLong(dateIso: string) {
@@ -149,7 +149,7 @@ export function HeroCard({ e, full }: { e: HeroEvent; full?: boolean }) {
         </span>
       ) : (e.isPromoted || e.isBoosted) && e.isBusiness ? (
         <span className="boost">
-          <Ic n="up" c="xs" />В популярном
+          <Ic n="up" c="xs" />В топе
         </span>
       ) : null}
       {isFull && <span className="fullb">Заполнено</span>}
@@ -168,7 +168,7 @@ export function HeroCard({ e, full }: { e: HeroEvent; full?: boolean }) {
         </span>
         {e.isAnonymous && <span className="pill glass">{anonymousTag(e.organizer?.gender)}</span>}
         {(e.isPromoted || e.isBoosted) && !e.isBusiness && !e.isLive && (
-          <span className="rb glass upb" aria-label="В популярном">
+          <span className="rb glass upb" aria-label="В топе">
             <Ic n="up" c="s" />
           </span>
         )}
@@ -232,7 +232,7 @@ export function RowCard({
           )}
           {!e.isLive && (e.isPromoted || e.isBoosted) && (
             <span className="upb">
-              <Ic n="up" c="xs" />В популярном
+              <Ic n="up" c="xs" />В топе
             </span>
           )}
           {isFull ? (
