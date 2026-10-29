@@ -248,7 +248,7 @@ export default function HomeScreen() {
           })}
         </ScrollView>
 
-        <SectionHead title={cat ? CATEGORY_SHORT[cat] ?? "Встречи" : "Популярное сегодня"} action="Все" onAction={() => router.push("/search")} />
+        <SectionHead title={cat ? CATEGORY_SHORT[cat] ?? "Встречи" : "Личные встречи"} action="Все" onAction={() => router.push("/search")} />
         {events === null ? (
           <ActivityIndicator color={colors.violet} style={{ marginVertical: 60 }} />
         ) : popular.length === 0 ? (
