@@ -5,6 +5,7 @@ import { activateSubscription } from "@/lib/subscriptions/server";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { notifyUser } from "@/lib/notify/user";
 import type { Plan } from "@/lib/subscriptions/limits";
+import { planTitle } from "@/lib/gifts/channel-gift";
 import { recordReferralCommission } from "@/lib/subscriptions/referrals";
 import { createPromotion, loadPromoEvent } from "@/lib/promotions/server";
 import { promoClock } from "@/lib/promotions/config";
@@ -130,10 +131,10 @@ export async function POST(req: Request) {
     .maybeSingle();
   await notifyUser(admin, paymentRow.user_id, {
     title: "Оплата прошла ✅",
-    body: `Подписка «${plan.toUpperCase()}» активирована на 30 дней`,
+    body: `Подписка «${planTitle(plan)}» активирована на 30 дней`,
     url: "/profile",
     data: { type: "payment_succeeded" },
-    telegramText: `✅ Оплата прошла — подписка «${plan.toUpperCase()}» активирована на 30 дней.`,
+    telegramText: `✅ Оплата прошла — подписка «${planTitle(plan)}» активирована на 30 дней.`,
     telegramId: user?.telegram_id ?? null,
   });
 
