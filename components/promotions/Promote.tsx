@@ -33,7 +33,7 @@ const REASON: Record<string, string> = {
   event_started: "Встреча уже началась — продвигать поздно.",
   event_not_active: "Продвигать можно только опубликованную встречу.",
   no_slot_before_start: "До начала встречи первое место уже занято другими — продвинуть не получится.",
-  other_event_promoted: "В «Популярном» уже стоит другая твоя встреча — одновременно можно продвигать только одну.",
+  other_event_promoted: "В топе уже стоит другая твоя встреча — одновременно можно продвигать только одну.",
   subscription_required: "Нужна подписка — или продвинь разово.",
   boost_limit_reached: "Продвижения по тарифу закончились — можно разово.",
   invalid_contact: "Введи корректный email или номер телефона.",
@@ -118,18 +118,18 @@ export function PromoteSheet({
   return (
     <Sheet open={open} onClose={onClose}>
       <h2 className="t" style={{ fontSize: 26 }}>
-        В <em>популярное</em> сегодня
+        Поднять <em>в топ</em>
       </h2>
       <p className="muted" style={{ margin: "8px 0 0", fontSize: 14.5, lineHeight: 1.45 }}>
         {!info
           ? "Смотрим, свободно ли первое место…"
           : !slot?.ok
             ? slot?.reason === "other_event_promoted" && slot.otherTitle
-              ? `В «Популярном» уже стоит твоя встреча «${slot.otherTitle}»${slot.otherEndsAt ? ` — до ${promoClock(slot.otherEndsAt, off)}` : ""}. Одновременно можно продвигать только одну встречу.`
+              ? `В топе уже стоит твоя встреча «${slot.otherTitle}»${slot.otherEndsAt ? ` — до ${promoClock(slot.otherEndsAt, off)}` : ""}. Одновременно можно продвигать только одну встречу.`
               : REASON[slot?.reason ?? ""] ?? "Сейчас продвинуть нельзя."
             : firstNow
-              ? `Встреча встанет первой у всех ${where}. Первый час место твоё — потом она остаётся в «Популярном» до начала встречи.`
-              : `Сейчас первое место занято. Твоя встреча встанет первой в ${promoClock(slot.topFrom, off)} и пробудет там час, а до тех пор — сразу за ней. В «Популярном» — до начала встречи.`}
+              ? `Встреча встанет первой у всех ${where}. Первый час место твоё — потом она остаётся в топе до начала встречи.`
+              : `Сейчас первое место занято. Твоя встреча встанет первой в ${promoClock(slot.topFrom, off)} и пробудет там час, а до тех пор — сразу за ней. В топе — до начала встречи.`}
       </p>
       <div style={{ marginTop: 12, display: "flex", justifyContent: "center", pointerEvents: "none" }}>
         <div style={{ width: 300 }}>
@@ -176,7 +176,7 @@ export function PromoteSheet({
       {info && slot?.ok ? (
         <button className="btn v" style={{ marginTop: 16 }} disabled={busy || (needContact && !contact.trim())} onClick={go}>
           <Ic n="up" />
-          {busy ? "Секунду…" : method === "pay" ? `Оплатить ${info.price} ₽` : "В популярное"}
+          {busy ? "Секунду…" : method === "pay" ? `Оплатить ${info.price} ₽` : "Поднять в топ"}
         </button>
       ) : (
         <button className="btn k" style={{ marginTop: 16 }} onClick={onClose}>
@@ -231,18 +231,18 @@ export function PromoDone({
                 </>
               ) : (
                 <>
-                  Ты в <em>популярном</em>
+                  Встреча <em>в топе</em>
                 </>
               )}
             </h1>
             <p>
               {phase === "wait"
-                ? "Как только ЮKassa подтвердит оплату, встреча встанет в топ ленты. Обычно это пара секунд."
+                ? "Как только ЮKassa подтвердит оплату, встреча поднимется в топ. Обычно это пара секунд."
                 : phase === "queue"
-                  ? `«${title}» станет первой ${where} в ${promoClock(status!.topFrom, utcOffset)}, а пока — сразу за первой. В «Популярном» до ${promoClock(status!.endsAt, utcOffset)}.`
+                  ? `«${title}» станет первой ${where} в ${promoClock(status!.topFrom, utcOffset)}, а пока — сразу за первой. В топе до ${promoClock(status!.endsAt, utcOffset)}.`
                   : phase === "top"
-                    ? `«${title}» первая у всех ${where} до ${promoClock(status!.topUntil, utcOffset)}, а потом остаётся в «Популярном» до ${promoClock(status!.endsAt, utcOffset)}.`
-                    : `«${title}» в «Популярном» до ${promoClock(status!.endsAt, utcOffset)}.`}
+                    ? `«${title}» первая у всех ${where} до ${promoClock(status!.topUntil, utcOffset)}, а потом остаётся в топе до ${promoClock(status!.endsAt, utcOffset)}.`
+                    : `«${title}» в топе до ${promoClock(status!.endsAt, utcOffset)}.`}
             </p>
           </div>
           {status && now < ends && (
