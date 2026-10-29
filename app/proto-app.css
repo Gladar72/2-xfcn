@@ -241,3 +241,18 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .auth .sheet{overflow-y:auto}
 /* Горизонтальные ленты: свайп не закрывает приложение и не дёргает экран. */
 .P .cats,.P .chipsrow,.P .ppl,.P .quick,.P .chs.nw,.P .rail,.P .mcar,.P .plrec{overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+
+/* ── Единые шрифты и рамки (29.10): одна роль — один размер на всех экранах ── */
+/* Заголовки секций: как на главной. */
+.P .af-h b,.P .blk-h b{font-size:18px;font-weight:500;letter-spacing:-.02em}
+/* Названия на фото-карточках: 15/600, всегда не больше 2 строк. */
+.P .hero .bar .i b,.P .acard b,.P .acard .acb b,.P .acard.v .vb b{font-size:15px;font-weight:600;line-height:1.22}
+.P .mcard b{font-size:15px;font-weight:500}
+/* Плашки на карточках афиши: одна высота и шрифт у событий заведений и города. */
+.P .acard .ast,.P .afisha .acard .pill{height:26px;font-size:12px;font-weight:500;padding:0 10px}
+/* Стеклянная подложка внизу карточек афиши — одно скругление. */
+.P .acard .acb,.P .acard.v .vb{border-radius:18px}
+/* Миниатюры событий в списках и на карте — 16. */
+.P .mcard>img,.P .ci img{border-radius:16px}
+/* Обводка выбранного варианта — 2px везде. */
+.P .opt.on{box-shadow:inset 0 0 0 2px #9B5CFF,0 10px 24px -16px rgba(130,60,255,.7)}
