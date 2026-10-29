@@ -362,7 +362,7 @@ export default function HomeScreen() {
                       ) : e.isBoosted ? (
                         <View style={styles.acBoost}>
                           <Icon name="up" size={12} color="#fff" />
-                          <Text style={styles.acBoostText}>В популярном</Text>
+                          <Text style={styles.acBoostText}>В топе</Text>
                         </View>
                       ) : null}
                     </View>
