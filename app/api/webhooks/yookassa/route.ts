@@ -5,7 +5,6 @@ import { activateSubscription } from "@/lib/subscriptions/server";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { notifyUser } from "@/lib/notify/user";
 import type { Plan } from "@/lib/subscriptions/limits";
-import { planTitle } from "@/lib/gifts/channel-gift";
 import { recordReferralCommission } from "@/lib/subscriptions/referrals";
 import { createPromotion, loadPromoEvent } from "@/lib/promotions/server";
 import { promoClock } from "@/lib/promotions/config";
@@ -82,10 +81,10 @@ export async function POST(req: Request) {
       const off = eventUtcOffsetHours(ev);
       const first = Date.parse(res.row.top_from) <= Date.now() + 60_000;
       const text = first
-        ? `Встреча «${ev.title}» первая в ленте до ${promoClock(res.row.top_until, off)}`
-        : `Встреча «${ev.title}» станет первой в ленте в ${promoClock(res.row.top_from, off)}`;
+        ? `Встреча «${ev.title}» в топе до ${promoClock(res.row.top_until, off)}`
+        : `Встреча «${ev.title}» поднимется в топ в ${promoClock(res.row.top_from, off)}`;
       await notifyUser(admin, paymentRow.user_id, {
-        title: "Ты в популярном",
+        title: "Встреча в топе",
         body: text,
         url: `/events/${ev.id}`,
         data: { type: "promotion_started" },
@@ -99,10 +98,10 @@ export async function POST(req: Request) {
       }
       await notifyUser(admin, paymentRow.user_id, {
         title: "Не получилось продвинуть встречу",
-        body: `${!res.ok && res.reason === "other_event_promoted" ? "В «Популярном» уже стоит другая твоя встреча" : "Встреча уже началась или закрыта"}. Вернём деньги в течение нескольких дней.`,
+        body: `${!res.ok && res.reason === "other_event_promoted" ? "В топе уже стоит другая твоя встреча" : "Встреча уже началась или закрыта"}. Вернём деньги в течение нескольких дней.`,
         url: "/support",
         data: { type: "promotion_failed" },
-        telegramText: `Не получилось продвинуть встречу: ${!res.ok && res.reason === "other_event_promoted" ? "в «Популярном» уже стоит другая твоя встреча" : "она уже началась или закрыта"}. Вернём деньги в течение нескольких дней — если будут вопросы, напиши в поддержку.`,
+        telegramText: `Не получилось продвинуть встречу: ${!res.ok && res.reason === "other_event_promoted" ? "в топе уже стоит другая твоя встреча" : "она уже началась или закрыта"}. Вернём деньги в течение нескольких дней — если будут вопросы, напиши в поддержку.`,
         telegramId: u?.telegram_id ?? null,
       });
     }
@@ -131,10 +130,10 @@ export async function POST(req: Request) {
     .maybeSingle();
   await notifyUser(admin, paymentRow.user_id, {
     title: "Оплата прошла ✅",
-    body: `Подписка «${planTitle(plan)}» активирована на 30 дней`,
+    body: `Подписка «${plan.toUpperCase()}» активирована на 30 дней`,
     url: "/profile",
     data: { type: "payment_succeeded" },
-    telegramText: `✅ Оплата прошла — подписка «${planTitle(plan)}» активирована на 30 дней.`,
+    telegramText: `✅ Оплата прошла — подписка «${plan.toUpperCase()}» активирована на 30 дней.`,
     telegramId: user?.telegram_id ?? null,
   });
 
