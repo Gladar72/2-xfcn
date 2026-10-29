@@ -443,7 +443,7 @@ function HomeScreen() {
                   </span>
                 ) : e.isPromoted || e.isBoosted ? (
                   <span className="ast">
-                    <Ic n="up" c="xs" />В популярном
+                    <Ic n="up" c="xs" />В топе
                   </span>
                 ) : null}
                 <span className="vb">
