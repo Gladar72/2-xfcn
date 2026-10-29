@@ -106,12 +106,12 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
       const hm = (iso: string) => new Date(iso).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" });
       const p = r.promotion;
       Alert.alert(
-        "Ты в популярном!",
+        "Встреча в топе!",
         !p
-          ? "Встреча в «Популярном сегодня»."
+          ? "Встреча в топе."
           : Date.parse(p.topFrom) > Date.now() + 60_000
-            ? `Встреча станет первой в «Популярном сегодня» в ${hm(p.topFrom)} и пробудет там час, а потом останется в «Популярном» до ${hm(p.endsAt)}.`
-            : `Встреча первая в «Популярном сегодня» до ${hm(p.topUntil)}, а потом останется в «Популярном» до ${hm(p.endsAt)}.`
+            ? `Встреча станет первой в ${hm(p.topFrom)} и пробудет там час, а потом останется в топе до ${hm(p.endsAt)}.`
+            : `Встреча первая в топе до ${hm(p.topUntil)}, а потом останется в топе до ${hm(p.endsAt)}.`
       );
     } catch (e) {
       tapWarn();
@@ -210,7 +210,7 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
       {active ? (
         <View style={styles.tiles}>
           {event.status === "published" ? (
-            <Tile icon="up" title={boosting ? "Секунду…" : "В популярное"} sub="первой на главной" onPress={boosting ? undefined : boost} />
+            <Tile icon="up" title={boosting ? "Секунду…" : "Поднять в топ"} sub="первой на главной" onPress={boosting ? undefined : boost} />
           ) : (
             <Tile icon="people" title="Все заявки" sub="история и решения" onPress={() => router.push(`/applications/${event.id}` as Href)} />
           )}
