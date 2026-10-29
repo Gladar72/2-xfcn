@@ -342,8 +342,12 @@ eventsdiag() {
 bizdiag() {
   log "будущие бизнес-события"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
-    select e.id, e.status, e.event_date, left(e.title,30) title
+    select e.status, e.event_date, e.is_business biz, e.biz_category razdel, left(e.title,30) title
     from events e where e.status='published' and e.event_date >= current_date order by e.event_date limit 25;"
+  log "разделы бизнес-событий"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select biz_category, count(*) from events where is_business and event_date >= current_date group by 1 order by 2 desc;
+    select left(title,40), biz_category from events where is_business and title ilike '%ебал%';" || true
   log "подборка мест по городам"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "select city, category, training_type, count(*) from place_picks group by 1,2,3 order by 1,2,3;" || true
   log "города пользователей (топ-15)"
