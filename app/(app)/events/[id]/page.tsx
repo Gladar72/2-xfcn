@@ -59,7 +59,7 @@ interface EventDetails {
   isAnonymous?: boolean;
   /** Организатор и точный адрес скрыты, пока заявку не одобрили. */
   organizerHidden?: boolean;
-  participants: { id: string; name: string; avatarUrl: string | null }[];
+  participants: { id: string; name: string; avatarUrl: string | null; anonymous?: boolean }[];
   viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none";
   /** Приглашение от организатора (для гостя). */
   myInvite?: { id: string; status: "pending" | "accepted" | "declined"; message: string | null } | null;
@@ -679,17 +679,27 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   {anonWho ?? "Скрыт"}
                 </button>
               )}
-              {event.participants.map((p) => (
-                <Link key={p.id} href={`/people/${p.id}`}>
-                  {p.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={photoThumb(p.avatarUrl, 120)} alt="" />
-                  ) : (
-                    <span className="av">{p.name.charAt(0).toUpperCase()}</span>
-                  )}
-                  {p.name}
-                </Link>
-              ))}
+              {event.participants.map((p, i) =>
+                p.anonymous ? (
+                  // Анонимная встреча: других участников видно только условно — без фото и профиля.
+                  <button key={`anon-${i}`} onClick={() => setAnonOpen(true)}>
+                    <span className="anon">
+                      <Chr shape="ball" pal={anonPal} face="hidden" />
+                    </span>
+                    {p.name}
+                  </button>
+                ) : (
+                  <Link key={p.id} href={`/people/${p.id}`}>
+                    {p.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={photoThumb(p.avatarUrl, 120)} alt="" />
+                    ) : (
+                      <span className="av">{p.name.charAt(0).toUpperCase()}</span>
+                    )}
+                    {p.name}
+                  </Link>
+                )
+              )}
               {!isFull && st === "none" && active && (
                 <button onClick={() => setJoinPhase("confirm")}>
                   <span className="av free">
@@ -730,7 +740,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   </div>
                   {pendingWithUser.map((a) => (
                     <div key={a.id} className="apl gl">
-                      <Link href={`/people/${a.applicant.id}`}>
+                      <Link href={a.applicant.anonymous ? "#" : `/people/${a.applicant.id}`} onClick={(e) => a.applicant.anonymous && e.preventDefault()}>
                         {a.applicant.avatarUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={photoThumb(a.applicant.avatarUrl, 88)} alt="" />
@@ -742,7 +752,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                       </Link>
                       <div>
                         <b>
-                          {a.applicant.name}, {a.applicant.age}
+                          {a.applicant.name}
+                          {a.applicant.age ? `, ${a.applicant.age}` : ""}
                         </b>
                         <span>
                           {a.applicant.ratingAvg > 0 ? `★ ${a.applicant.ratingAvg.toFixed(1).replace(".", ",")} · ` : ""}
