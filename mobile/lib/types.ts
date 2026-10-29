@@ -72,7 +72,7 @@ export interface EventDetail extends Omit<FeedEvent, "isHighlighted" | "isMine" 
   longitude: number | null;
   status: string;
   hasChat: boolean;
-  participants: { id: string; name: string; avatarUrl: string | null }[];
+  participants: { id: string; name: string; avatarUrl: string | null; anonymous?: boolean }[];
   viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none";
 }
 
