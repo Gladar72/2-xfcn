@@ -1,13 +1,13 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
+import { eventUtcOffsetHours } from "@/lib/events/timing";
 
 const MIN_HOURS_AFTER_SIGNUP = 48;
-// Одно время для всех: 10:00 по Тюмени (UTC+5) = 8:00 по Москве (UTC+3),
-// т.е. 05:00 UTC — по явному запросу владельца.
-const SEND_UTC_HOUR = 5;
-const SEND_UTC_MINUTE = 0;
+// 10:00 по местному времени города человека (по запросу владельца 29.10:
+// раньше всем в 05:00 UTC, и во Владивостоке «Доброе утро!» приходило в 15:00).
+const SEND_LOCAL_HOUR = 10;
 
 /**
- * Раз в неделю — по пятницам (по явному запросу владельца), в 05:00 UTC = 8:00 МСК.
+ * Раз в неделю — по пятницам (по явному запросу владельца), в 10:00 по времени города.
  */
 const REMINDER_WEEKDAY_UTC = 5; // 0 = воскресенье … 5 = пятница
 function isReminderDay(day: Date): boolean {
@@ -29,6 +29,47 @@ async function fetchAllPages<T>(
     if (rows.length < PAGE_SIZE) break;
   }
   return all;
+}
+
+/** 10:00 по времени города человека в тот же календарный день (момент в UTC). */
+function localSendTime(day: Date, city: string | null): Date {
+  const offsetMin = Math.round(eventUtcOffsetHours({ city, longitude: null }) * 60);
+  return new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), SEND_LOCAL_HOUR, 0) - offsetMin * 60_000);
+}
+
+/**
+ * Уже запланированные, но ещё не отправленные напоминания этой недели
+ * переносим на 10:00 по времени города (их ставили по старому правилу — всем в 05:00 UTC,
+ * а ещё человек мог сменить город).
+ */
+async function moveToLocalTime(admin: ReturnType<typeof createAdminClient>, weekStartIso: string, now: Date) {
+  const rows = await fetchAllPages<{ id: string; scheduled_at: string; user: { city: string | null } | null }>((from, to) =>
+    admin
+      .from("morning_reminders")
+      .select("id, scheduled_at, user:users(city)")
+      .eq("week_start", weekStartIso)
+      .eq("status", "pending")
+      .gte("scheduled_at", now.toISOString())
+      .order("id", { ascending: true })
+      .range(from, to)
+  );
+  const byTarget = new Map<string, string[]>();
+  for (const r of rows) {
+    const at = new Date(r.scheduled_at);
+    // День напоминания — календарный день по времени города (иначе при UTC+11/12 день «уползал» бы назад).
+    const city = r.user?.city ?? null;
+    const localDay = new Date(at.getTime() + eventUtcOffsetHours({ city, longitude: null }) * 3600_000);
+    const target = localSendTime(localDay, city).toISOString();
+    if (new Date(target).getTime() === at.getTime()) continue;
+    const ids = byTarget.get(target) ?? [];
+    ids.push(r.id);
+    byTarget.set(target, ids);
+  }
+  for (const [target, ids] of byTarget) {
+    for (let i = 0; i < ids.length; i += 100) {
+      await admin.from("morning_reminders").update({ scheduled_at: target }).in("id", ids.slice(i, i + 100)).eq("status", "pending");
+    }
+  }
 }
 
 /** Понедельник ISO-недели, которой принадлежит дата (в UTC-календарных сутках). */
@@ -76,6 +117,8 @@ export async function scheduleCurrentWeekReminders(admin: ReturnType<typeof crea
     }
   }
   if (remainingDays.length === 0) return { scheduledUsers: 0, scheduledSlots: 0 };
+
+  await moveToLocalTime(admin, weekStartIso, now);
 
   // Раньше проверялось "есть ли у пользователя ХОТЬ ОДНА запись на эту
   // неделю" — и если да, пропускался целиком до следующей недели. Из-за
@@ -142,10 +185,8 @@ export async function scheduleCurrentWeekReminders(admin: ReturnType<typeof crea
       // стабильный и однозначный номер, а не просто порядок среди
       // выбранных дней (важно для проверки выше при повторных запусках).
       const slotIndex = Math.round((day.getTime() - weekStart.getTime()) / (24 * 60 * 60 * 1000));
-      // Единое время для всех городов — 05:00 UTC (10:00 Тюмень / 8:00 Москва).
-      const scheduledUtc = new Date(
-        Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), SEND_UTC_HOUR, SEND_UTC_MINUTE)
-      );
+      // 10:00 по времени города (смещение от UTC — из списка городов, иначе Москва).
+      const scheduledUtc = localSendTime(day, user.city ?? null);
       // Не планируем момент, который уже прошёл (например, сегодняшний
       // день, а случайное время внутри окна уже позади) — такой слот
       // никогда не будет отправлен, и в этом нет ничего страшного, но
