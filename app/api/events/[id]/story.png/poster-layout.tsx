@@ -57,7 +57,7 @@ export function PosterStory(d: PosterStoryData) {
     lines = Math.ceil(t.length / Math.max(1, Math.floor(940 / (size * 0.5))));
   }
 
-  const PLATES_TOP = 1380;
+  const PLATES_TOP = 1450;
   const plate = (label: string, value: string, accent?: boolean) => (
     <div
       style={{
@@ -105,7 +105,7 @@ export function PosterStory(d: PosterStoryData) {
       </div>
 
       {/* Название прижато к плашкам снизу: высоту строк считает сам Satori, текст не наезжает на плашки. */}
-      <div style={{ position: "absolute", left: 70, width: 940, top: 430, height: PLATES_TOP - 40 - 430, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+      <div style={{ position: "absolute", left: 70, width: 940, top: 430, height: PLATES_TOP - 64 - 430, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
         <div style={{ display: "flex", flexWrap: "wrap", fontFamily: "Oswald", fontSize: size, fontWeight: 700, lineHeight: 1.02, color: "#fff" }}>{t}</div>
       </div>
 
@@ -119,7 +119,7 @@ export function PosterStory(d: PosterStoryData) {
         style={{
           position: "absolute",
           left: 390,
-          top: 1560,
+          top: 1625,
           width: 300,
           height: 96,
           borderRadius: 48,
