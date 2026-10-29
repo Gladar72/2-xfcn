@@ -14,8 +14,10 @@ export interface ApplicantCardData {
     id: string;
     name: string;
     avatarUrl: string | null;
-    age: number;
+    age: number | null;
     bio: string | null;
+    /** Анонимная встреча: профиль откроется после одобрения. */
+    anonymous?: boolean;
     ratingAvg: number;
     completedMeetingsCount: number;
   } | null;
@@ -49,7 +51,7 @@ export function ApplicantCard({ application, onAccept, onReject, onRemove, proce
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-medium text-ink-900">
-            {applicant.name}, {applicant.age}
+            {applicant.name}{applicant.age ? `, ${applicant.age}` : ""}
           </div>
           {applicant.ratingAvg > 0 && (
             <div className="flex items-center gap-1 text-sm text-ink-600">
@@ -108,7 +110,7 @@ export function ApplicantCard({ application, onAccept, onReject, onRemove, proce
         </>
       )}
 
-      {showProfile && <MiniProfileSheet userId={applicant.id} onClose={() => setShowProfile(false)} />}
+      {showProfile && !applicant.anonymous && <MiniProfileSheet userId={applicant.id} onClose={() => setShowProfile(false)} />}
     </div>
   );
 }
