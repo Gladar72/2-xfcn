@@ -10,6 +10,8 @@ const IC = {
   search: `<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/>`,
   filter: `<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2.2"/><circle cx="10" cy="17" r="2.2"/>`,
   back: `<path d="M15 5l-7 7 7 7"/>`,
+  grid: `<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>`,
+  list: `<rect x="4" y="5" width="4.5" height="4.5" rx="1.4"/><rect x="4" y="14.5" width="4.5" height="4.5" rx="1.4"/><path d="M11.5 7.2H20M11.5 16.8H20"/>`,
   close: `<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>`,
   share: `<path d="M12 4v11M7.5 8.5 12 4l4.5 4.5"/><path d="M5 13v5a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-5"/>`,
   save: `<path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z"/>`,
