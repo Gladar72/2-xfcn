@@ -167,9 +167,23 @@ export function HeroCard({ e, full }: { e: HeroEvent; full?: boolean }) {
           )}
         </span>
         {e.isAnonymous && <span className="pill glass">{anonymousTag(e.organizer?.gender)}</span>}
-        {(e.isPromoted || e.isBoosted) && !e.isBusiness && !e.isLive && (
-          <span className="rb glass upb" aria-label="В топе">
-            <Ic n="up" c="s" />
+        {/* Справа: «в топе» и аватарка того, кто зовёт (у личных встреч, не у анонимных). */}
+        {(((e.isPromoted || e.isBoosted) && !e.isBusiness && !e.isLive) ||
+          (!e.isBusiness && !e.isAnonymous && !e.organizerHidden && e.organizer)) && (
+          <span className="tr">
+            {(e.isPromoted || e.isBoosted) && !e.isBusiness && !e.isLive && (
+              <span className="rb glass upb" aria-label="В топе">
+                <Ic n="up" c="s" />
+              </span>
+            )}
+            {!e.isBusiness && !e.isAnonymous && !e.organizerHidden && e.organizer && (
+              e.organizer.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img className="hava" src={photoThumb(e.organizer.avatarUrl, 96)} alt={e.organizer.name} />
+              ) : (
+                <span className="hava">{e.organizer.name.charAt(0).toUpperCase()}</span>
+              )
+            )}
           </span>
         )}
       </div>

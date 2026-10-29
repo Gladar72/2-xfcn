@@ -256,3 +256,16 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .mcard>img,.P .ci img{border-radius:16px}
 /* Обводка выбранного варианта — 2px везде. */
 .P .opt.on{box-shadow:inset 0 0 0 2px #9B5CFF,0 10px 24px -16px rgba(130,60,255,.7)}
+
+/* ── Плашки с текстом на карточках «Личные встречи» и «Афиша» — один размер (29.10) ── */
+.P .hero .bar.hb2,.P .acard.v .vb{left:10px;right:10px;bottom:10px;padding:10px;border-radius:22px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);background:rgba(22,12,48,.46);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%)}
+.P .hero .bar.hb2 .ttl,.P .acard.v .vb b{padding:0 2px;margin:0;font-size:15.5px;font-weight:600;line-height:1.22;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.P .acard.v .vb b{margin-bottom:8px}
+.P .hero .bar.hb2 .i span,.P .acard.v .vm{font-size:12.5px}
+.P .acard.v .vm{padding:0 2px}
+/* Цена — одинаковая белая «таблетка». */
+.P .hero .bar.hb2 .price,.P .acard.v .vp{height:30px;padding:0 12px;font-size:12.5px;font-weight:600}
+.P .acard.v .vr{margin-top:8px}
+/* Аватарка того, кто зовёт, — справа сверху на карточке личной встречи. */
+.P .hero .tl .tr{display:flex;align-items:center;gap:6px}
+.P .hero .hava{width:38px;height:38px;flex:none;border-radius:50%;object-fit:cover;display:grid;place-items:center;font-size:15px;font-weight:600;color:#fff;background:var(--g);box-shadow:0 0 0 2px rgba(255,255,255,.9),0 6px 14px -6px rgba(0,0,0,.5)}
