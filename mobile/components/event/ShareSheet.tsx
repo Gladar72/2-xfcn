@@ -65,7 +65,7 @@ export function ShareSheet({
   const [busy, setBusy] = useState(false);
   const link = `https://mesto-go.ru/e/${eventId}`;
   const text = `${title} — ${when}. Пойдёшь со мной? 🙌`;
-  const v = hashKey(`s2|${version ?? ""}|${title}|${when}`);
+  const v = hashKey(`s3|${version ?? ""}|${title}|${when}`);
   const storyUrl = `${API_URL}/api/events/${eventId}/story.png?v=${v}`;
   const igUrl = `${storyUrl}&ig=1`;
 

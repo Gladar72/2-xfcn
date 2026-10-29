@@ -36,8 +36,13 @@ export function PosterStory(d: PosterStoryData) {
     return { w, h, x: Math.round((W - w) / 2), y: Math.round((H - h) / 2) };
   })();
 
-  const t = d.title.replace(/\s+/g, " ").trim().toUpperCase();
-  const longest = Math.max(...t.split(" ").map((s) => s.length), 1);
+  // Число и единица («10 км», «5 мин») не разрываются по строкам — неразрывный пробел.
+  const t = d.title
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/(\d+)\s+(км|м|мин|ч|час|часа|кг|лет|года?|₽|руб\.?)(?=\s|$|[.,!?])/gi, "$1\u00a0$2")
+    .toUpperCase();
+  const longest = Math.max(...t.split(" ").map((s) => s.length), 1); // «10\u00a0КМ» считается одним словом
   // Узкий Oswald: одна буква ≈ 0,5 кегля. Слово целиком должно влезать в 940 px, строк — не больше 4.
   let size = t.length <= 12 ? 190 : t.length <= 24 ? 150 : t.length <= 40 ? 120 : 96;
   size = Math.min(size, Math.floor(940 / (longest * 0.52)));

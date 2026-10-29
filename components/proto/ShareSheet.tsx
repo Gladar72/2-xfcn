@@ -73,8 +73,8 @@ export function ShareSheet({
     const tg = getTelegramWebApp();
     setStoryOk(!!tg?.shareToStory && (tg.isVersionAtLeast?.("7.8") ?? false));
   }, [open]);
-  // s2 — версия оформления сторис: при смене дизайна старые картинки в кэше CDN не показываются.
-  const v = hashKey(`s2|${version}|${title}|${when}`);
+  // s3 — версия оформления сторис («Афиша», 29.10): при смене дизайна старые картинки в кэше CDN не показываются.
+  const v = hashKey(`s3|${version}|${title}|${when}`);
   const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
   const igUrl = `${storyUrl}&ig=1`;
   // Картинку для сторис рисуем заранее, пока человек смотрит событие: к нажатию
