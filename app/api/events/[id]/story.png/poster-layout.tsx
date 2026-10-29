@@ -104,22 +104,9 @@ export function PosterStory(d: PosterStoryData) {
         <div style={{ display: "flex", marginLeft: 16, padding: "0 14px", borderRadius: 12, background: violet }}>{d.ask}</div>
       </div>
 
-      <div
-        style={{
-          position: "absolute",
-          left: 70,
-          width: 940,
-          top: PLATES_TOP - 36 - Math.round(lines * size * 0.98),
-          display: "flex",
-          flexWrap: "wrap",
-          fontFamily: "Oswald",
-          fontSize: size,
-          fontWeight: 700,
-          lineHeight: 0.98,
-          color: "#fff",
-        }}
-      >
-        {t}
+      {/* Название прижато к плашкам снизу: высоту строк считает сам Satori, текст не наезжает на плашки. */}
+      <div style={{ position: "absolute", left: 70, width: 940, top: 430, height: PLATES_TOP - 40 - 430, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", flexWrap: "wrap", fontFamily: "Oswald", fontSize: size, fontWeight: 700, lineHeight: 1.02, color: "#fff" }}>{t}</div>
       </div>
 
       <div style={{ position: "absolute", left: 70, width: 940, top: PLATES_TOP, display: "flex" }}>
