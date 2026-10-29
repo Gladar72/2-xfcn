@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       userId: user.userId,
       plan: "promotion",
       amountRub: PROMO_PRICE_RUB,
-      description: "Продвижение встречи в «Популярное сегодня»",
+      description: "Продвижение встречи в топ ленты",
       returnUrl: body?.returnTo === "app" ? `${appUrl}/pay/return` : `${appUrl}/events/${eventId}?promoted=1`,
       contact,
     });
