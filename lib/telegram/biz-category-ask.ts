@@ -84,7 +84,8 @@ export function registerBizCategoryAsk(bot: Bot) {
   });
 
   bot.callbackQuery(/^bc:([0-9a-f-]{36}):([a-z]+)$/, async (ctx) => {
-    const [, eventId, key] = ctx.match as RegExpMatchArray;
+    const eventId = ctx.match?.[1] ?? "";
+    const key = ctx.match?.[2] ?? "";
     if (!BIZ_KEYS.has(key)) return ctx.answerCallbackQuery();
     const admin = createAdminClient();
     const { data: event } = await admin
