@@ -269,3 +269,17 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* Аватарка того, кто зовёт, — справа сверху на карточке личной встречи. */
 .P .hero .tl .tr{display:flex;align-items:center;gap:6px}
 .P .hero .hava{width:38px;height:38px;flex:none;border-radius:50%;object-fit:cover;display:grid;place-items:center;font-size:15px;font-weight:600;color:#fff;background:var(--g);box-shadow:0 0 0 2px rgba(255,255,255,.9),0 6px 14px -6px rgba(0,0,0,.5)}
+
+/* ── Все плашки одной высоты: название всегда занимает 2 строки, подписи — 1 строку (29.10) ── */
+.P .hero .bar.hb2 .ttl,.P .acard.v .vb b,.P .acard .acb b{min-height:calc(2em * 1.22)}
+.P .hero .bar.hb2 .i span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .acard.v .vm{flex-wrap:nowrap;overflow:hidden}
+.P .acard.v .vr{height:30px}
+/* «Что ещё в городе» — та же плашка, что у событий заведений. */
+.P .acard.city .acb{left:10px;right:10px;bottom:10px;padding:10px;border-radius:22px;background:rgba(22,12,48,.46);box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%)}
+.P .acard.city .acb b{padding:0 2px;margin:0 0 8px;font-size:15.5px;font-weight:600;line-height:1.22;letter-spacing:-.01em}
+.P .acard.city .acb p{margin:0;padding:0 2px;display:flex;align-items:center;gap:6px}
+.P .acard.city .acb p:first-of-type .ach{height:auto;padding:0;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;font-size:12.5px;font-weight:400;opacity:.85!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .acard.city .acb p:last-of-type{height:30px;margin-top:8px;justify-content:space-between}
+.P .acard.city .acb p:last-of-type .ach:not(.pr){height:auto;padding:0;background:none;-webkit-backdrop-filter:none;backdrop-filter:none;font-size:12.5px;font-weight:400;opacity:.85!important}
+.P .acard.city .ach.pr{height:30px;padding:0 12px;font-size:12.5px;font-weight:600}
