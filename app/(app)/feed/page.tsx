@@ -345,10 +345,7 @@ function HomeScreen() {
 
       <div className="sec">
         <b>Личные встречи</b>
-        <Link href="/my-events" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <Ic n="up" c="xs" />
-          Попасть сюда
-        </Link>
+        <Link href="/search">Все →</Link>
       </div>
       <div className="rail">
         {events === null
