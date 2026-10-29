@@ -1,12 +1,12 @@
 // Карточка встречи «hero» — как на главной мини-приложения: фото или 3D-иконка
-// категории на градиенте, сверху «1 из 4» и «Анонимно», снизу стеклянная
+// категории на градиенте, сверху «1 из 4», «Анонимно» и стрелка «в популярном», снизу стеклянная
 // плашка с названием, временем, местом и ценой.
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { router } from "expo-router";
-import { Faces, Grad, Pill } from "./brand";
+import { Grad, Pill } from "./brand";
 import { Icon } from "./Icon";
 import { colors, eventIcon, FONT } from "@/lib/theme";
 import { costShort, dayShort } from "@/lib/format";
@@ -43,7 +43,7 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
             <Text style={styles.glassText} numberOfLines={1}>{e.organizer?.name ?? "Бизнес событие"}</Text>
           ) : (
             <>
-              <Faces people={e.goingPreview ?? []} size={22} ring="rgba(255,255,255,0.55)" />
+              <Icon name="people" size={15} color="#fff" />
               <Text style={styles.glassText}>{full ? `${going} · мест нет` : `${going} из ${max}`}</Text>
             </>
           )}
@@ -53,10 +53,20 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
             <Text style={styles.glassText}>{anonymousTag(e.organizer?.gender)}</Text>
           </View>
         ) : null}
+        {e.isBoosted && !e.isBusiness && !e.isLive ? (
+          <View style={styles.upb} accessibilityLabel="В популярном">
+            <Icon name="up" size={17} color="#fff" />
+          </View>
+        ) : null}
       </View>
 
       <View style={styles.badges}>
-        {e.isLive ? <Pill kind="live" label="Идёт сейчас" /> : e.isBoosted ? <Pill kind="white" label="В популярном" icon={<Icon name="up" size={14} color={colors.violet} />} /> : null}
+        {e.isLive ? <Pill kind="live" label="Идёт сейчас" /> : e.isBoosted && e.isBusiness ? (
+          <View style={styles.glassBadge}>
+            <Icon name="up" size={12} color="#fff" />
+            <Text style={styles.glassBadgeText}>В популярном</Text>
+          </View>
+        ) : null}
         {e.myApplicationStatus ? <Pill kind="white" label={STATUS_LABEL[e.myApplicationStatus]} /> : null}
       </View>
 
@@ -100,7 +110,10 @@ const styles = StyleSheet.create({
   },
   gfx: { alignItems: "center", justifyContent: "center", paddingBottom: 70 },
   gfxIcon: { width: "62%", height: "62%" },
-  top: { position: "absolute", top: 14, left: 14, right: 14, flexDirection: "row", justifyContent: "space-between", gap: 8 },
+  top: { position: "absolute", top: 14, left: 14, right: 14, flexDirection: "row", gap: 6 },
+  upb: { marginLeft: "auto", width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
+  glassBadge: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", height: 26, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
+  glassBadgeText: { fontFamily: FONT, color: "#fff", fontSize: 11.5, fontWeight: "600" },
   glassPill: {
     flexDirection: "row",
     alignItems: "center",
