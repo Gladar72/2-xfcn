@@ -207,7 +207,7 @@ export async function sendDueEventReminders(
           if (row.role === "organizer") {
             await api.sendMessage(
               member.user.telegram_id,
-              `⏰ ${when[0]?.toUpperCase()}${when.slice(1)} ваша встреча «${event.title}» — в ${time}.\n` +
+              `⏰ ${when[0]?.toUpperCase()}${when.slice(1)} твоя встреча «${event.title}» — в ${time}.\n` +
                 placeLine(event) +
                 `\nУчастникам я отправил напоминание. Если кто-то не сможет прийти — сразу сообщу.`,
               { reply_markup: organizerKeyboard(event.id) }

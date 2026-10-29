@@ -1,3 +1,4 @@
+import { cityDates } from "@/lib/events/local-dates";
 import { InlineKeyboard, type Api } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { eventTiming } from "@/lib/events/timing";
@@ -100,8 +101,15 @@ export async function sendDueShareNudges(admin: Admin, api: Api): Promise<{ nudg
         kb.webApp("📸 Сторис", `${appUrl}?goto=eventshare_${e.id}`).row().webApp("Открыть событие", `${appUrl}?goto=event_${e.id}`);
       }
       const time = e.event_time.slice(0, 5);
+      const days = cityDates(e.city);
+      const day =
+        e.event_date === days.today
+          ? "сегодня"
+          : e.event_date === days.tomorrow
+            ? "завтра"
+            : new Date(`${e.event_date}T12:00:00Z`).toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "UTC" });
       const text =
-        `🙈 «<b>${escapeHtml(e.title)}</b>» в ${time}, а откликов пока нет.\n\n` +
+        `🙈 «<b>${escapeHtml(e.title)}</b>» ${day} в ${time}, а откликов пока нет.\n\n` +
         "Поделись событием — так его увидят друзья и друзья друзей. Сторис для Instagram и Telegram Мося уже собрал 👇";
       try {
         if (appUrl) {

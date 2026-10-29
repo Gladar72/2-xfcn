@@ -3,6 +3,8 @@
 -- Раньше раздел угадывали по названию, и «Я ебал» (вечеринка) не попадал в «Вечеринки».
 -- Идемпотентно: запускается при каждом деплое, трогает только события без раздела.
 alter table public.events add column if not exists biz_category text;
+-- Когда бот спросил организатора про раздел (/bizcat) — второй раз не спрашиваем.
+alter table public.events add column if not exists biz_category_asked_at timestamptz;
 
 do $$
 begin

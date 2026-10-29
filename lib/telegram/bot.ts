@@ -143,6 +143,11 @@ export function getBot(): Bot {
       await sendEventCard(ctx, payload.slice(EVENT_START_PREFIX.length));
       return;
     }
+    // Кнопка «Партнёрская программа» в профиле: t.me/<bot>?start=partner.
+    if (ctx.from && payload === "partner") {
+      await sendPartnerMenu(ctx);
+      return;
+    }
     // Кнопка «🎁 Забрать подписку» из поста в канале.
     if (ctx.from && payload.startsWith(GIFT_START_PREFIX)) {
       await handleGiftClaim(ctx, payload.slice(GIFT_START_PREFIX.length));
@@ -552,13 +557,12 @@ export function getBot(): Bot {
     }
 
     const admin = createAdminClient();
-    const { subscriptionId } = await activateSubscription(admin, payload.userId, payload.plan);
-
-    const { data: paymentRow } = await admin
+    // Сначала записываем платёж: у telegram_payment_charge_id уникальный индекс,
+    // поэтому повторный апдейт Telegram не продлит подписку второй раз.
+    const { data: paymentRow, error: paymentError } = await admin
       .from("payments")
       .insert({
         user_id: payload.userId,
-        subscription_id: subscriptionId,
         plan: payload.plan,
         amount: payment.total_amount,
         currency: payment.currency,
@@ -567,6 +571,11 @@ export function getBot(): Bot {
       })
       .select("id")
       .single();
+    // Такой платёж уже был (повтор апдейта) — подписку второй раз не продлеваем.
+    if (paymentError?.code === "23505") return;
+    if (paymentError) console.error("successful_payment: платёж не записался, подписку всё равно включаем:", paymentError);
+    const { subscriptionId } = await activateSubscription(admin, payload.userId, payload.plan);
+    if (paymentRow) await admin.from("payments").update({ subscription_id: subscriptionId }).eq("id", paymentRow.id);
 
     if (paymentRow) {
       await recordReferralCommission(
@@ -576,7 +585,7 @@ export function getBot(): Bot {
       );
     }
 
-    await ctx.reply(`✅ Оплата прошла — подписка «${payload.plan.toUpperCase()}» активирована на 30 дней.`, {
+    await ctx.reply(`✅ Оплата прошла — подписка «${planTitle(payload.plan)}» активирована на 30 дней.`, {
       reply_markup: openAppKeyboard(),
     });
   });
@@ -720,11 +729,11 @@ export function getBot(): Bot {
           "Рекомендуй МЕСТО своей аудитории и получай 30% с каждой оплаты подписки приведённых людей — " +
           "со всех оплат, включая продления, без ограничения по сроку.\n\n" +
           "Что ещё получаешь:\n" +
-          "• бесплатный тариф «Премиум» — все функции без ограничений;\n" +
+          "• бесплатный тариф «Премьер» — все функции без ограничений;\n" +
           "• новую аудиторию: тебя увидят люди из города, а твои встречи, тренировки и мероприятия будут на карте.\n\n" +
           "Как это работает:\n" +
           "1. Подай заявку — мы рассмотрим её в ближайшее время.\n" +
-          "2. После одобрения получишь личную ссылку и «Премиум».\n" +
+          "2. После одобрения получишь личную ссылку и «Премьер».\n" +
           "3. Все, кто перейдёт по ссылке, закрепляются за тобой.\n" +
           "4. Статистика и выплаты — прямо здесь, в боте.",
         { reply_markup: new InlineKeyboard().text("📝 Подать заявку", "ref_apply") }
@@ -902,12 +911,12 @@ export function getBot(): Bot {
 
     if (status === "approved") {
       const link = referralLink(ctx.me.username, partner.code);
-      // Партнёрам-блогерам — бесплатный Премиум (если уже зарегистрированы в
+      // Партнёрам-блогерам — бесплатный Премьер (если уже зарегистрированы в
       // приложении; иначе включится при регистрации).
       const premiumOn = await grantPartnerPremiumForPartner(admin, partner).catch(() => false);
       const premiumLine = premiumOn
-        ? "🎁 Тебе включён бесплатный тариф «Премиум» — все функции приложения без ограничений."
-        : "🎁 Тебе положен бесплатный тариф «Премиум» — он включится сразу, как зарегистрируешься в приложении.";
+        ? "🎁 Тебе включён бесплатный тариф «Премьер» — все функции приложения без ограничений."
+        : "🎁 Тебе положен бесплатный тариф «Премьер» — он включится сразу, как зарегистрируешься в приложении.";
       if (partner.telegram_id) {
         await ctx.api
           .sendMessage(Number(partner.telegram_id), `🎉 Заявка одобрена! Добро пожаловать в партнёры МЕСТО.\n\n${premiumLine}\n\n${PROJECT_BRIEF}\n\n${PARTNER_AUDIENCE}\n\n${PARTNER_TERMS}\n\n${approvedPartnerText(link)}`, {

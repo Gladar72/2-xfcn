@@ -9,7 +9,7 @@ type Admin = ReturnType<typeof createAdminClient>;
 /** За сколько дней до окончания напоминаем продлить. */
 const REMIND_BEFORE_DAYS = 3;
 
-const PLAN_TITLE: Record<Plan, string> = { start: "Старт", medium: "Медиум", premium: "Премиум" };
+const PLAN_TITLE: Record<Plan, string> = { start: "Старт", medium: "Медиум", premium: "Премьер" };
 
 interface SubRow {
   id: string;
@@ -107,7 +107,7 @@ export async function processSubscriptionExpiry(
         payload: { subscriptionId: sub.id, periodEnd: sub.current_period_end },
       });
       if (lockError) continue;
-      if (sub.user) {
+      if (sub.user?.telegram_id) {
         await api
           .sendMessage(
             Number(sub.user.telegram_id),

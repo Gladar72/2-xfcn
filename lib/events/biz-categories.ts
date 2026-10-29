@@ -92,7 +92,7 @@ export const BIZ_CATEGORIES: BizCategory[] = [
     label: "Детям",
     icon: "i_roller",
     kinds: ["kids"],
-    words: /дет(и|ск)|семейн|малыш/i,
+    words: /дет(и|ям|ск)|семейн|малыш/i,
   },
 ];
 
@@ -107,8 +107,12 @@ export const BIZ_SECTIONS: BizCategory[] = [
 export const BIZ_KEYS = new Set(BIZ_SECTIONS.map((c) => c.key));
 
 /** Ключ раздела по старому угадыванию (для событий без явного раздела). */
+// Порядок важнее, чем у плиток: «Детский мастер-класс» — это «Детям». Тот же порядок в миграции 0074.
+const GUESS_ORDER = ["kids", "party", "bars", "concerts", "theatre", "workshops", "art", "games", "cinema", "sport", "food"];
+
 export function guessBizCategory(e: BizCategorizable): string {
-  return bizCategoriesOf({ ...e, bizCategory: null })[0] ?? BIZ_OTHER.key;
+  const keys = bizCategoriesOf({ ...e, bizCategory: null });
+  return GUESS_ORDER.find((k) => keys.includes(k)) ?? BIZ_OTHER.key;
 }
 
 export function bizCategoryIcon(c: BizCategory) {

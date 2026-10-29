@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   }
 
   const admin = createAdminClient();
-  const since = new Date(Date.now() - 65 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   const { data: rows } = await admin
     .from("notifications")
     .select("type, user_id, payload, is_read, created_at")

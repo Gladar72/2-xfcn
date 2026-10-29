@@ -75,7 +75,7 @@ export async function sendPendingCityEvents(api: Bot["api"], adminId: number, al
   if (!list.length) return 0;
   await api.sendMessage(
     adminId,
-    `🔎 Мося нашёл ${list.length} событий для «Что ещё в городе». Посмотри и отметь, что ставить в ленту 👇`
+    `🔎 Мося нашёл ${list.length} ${list.length % 10 === 1 && list.length % 100 !== 11 ? "событие" : [2, 3, 4].includes(list.length % 10) && ![12, 13, 14].includes(list.length % 100) ? "события" : "событий"} для «Что ещё в городе». Посмотри и отметь, что ставить в ленту 👇`
   );
   for (const e of list) {
     const markup = reviewKeyboard(e.id as string, e.source_url as string);
