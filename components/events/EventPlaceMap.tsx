@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createMap, type MapLibreMap } from "@/lib/maps/load-maplibre";
-import { openPlace, openRoute as openRouteTo } from "@/lib/maps/route";
+import { openRoute as openRouteTo } from "@/lib/maps/route";
+import { buildEventMarkerElement, type MapEventItem } from "@/components/map/EventsMap";
 
 interface EventPlaceMapProps {
   latitude: number;
@@ -12,15 +13,19 @@ interface EventPlaceMapProps {
   placeName: string | null;
   /** Картинка-заглушка, пока карта грузится или если не загрузилась. */
   fallbackSrc: string;
+  /** Встреча целиком — тогда метка точно такая же, как на общей карте (фото/логотип в капле). */
+  markerEvent?: MapEventItem;
+  /** Нажатие на карту — открыть карту приложения с этой встречей. */
+  onOpen: () => void;
 }
 
 /**
  * «Где встречаемся» вместо картинки категории на странице встречи:
  * небольшая светлая карта (как общая карта встреч) с булавкой в точке.
  * Карта неподвижная — это картинка-превью, а не второй навигатор;
- * нажатие открывает карту с меткой места, маршрут — только кнопкой «Маршрут ↗».
+ * нажатие открывает карту приложения с этой встречей, маршрут — кнопкой «Маршрут ↗» (внешние карты).
  */
-export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallbackSrc }: EventPlaceMapProps) {
+export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallbackSrc, markerEvent, onOpen }: EventPlaceMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -42,11 +47,17 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
         const m = created as unknown as Record<string, { disable?: () => void } | undefined>;
         for (const h of ["dragPan", "scrollZoom", "boxZoom", "doubleClickZoom", "touchZoomRotate", "keyboard"]) m[h]?.disable?.();
 
-        const pin = document.createElement("img");
-        pin.src = markerSrc;
-        pin.alt = "";
-        pin.style.cssText = "width:54px;height:auto;display:block;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));";
-        new maplibregl.Marker({ element: pin, anchor: "bottom" }).setLngLat([longitude, latitude]).addTo(created);
+        if (markerEvent) {
+          // Та же метка, что на общей карте; нажатие уходит на всю карточку-карту.
+          const { el, offsetY } = buildEventMarkerElement(markerEvent, onOpen);
+          new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, offsetY] }).setLngLat([longitude, latitude]).addTo(created);
+        } else {
+          const pin = document.createElement("img");
+          pin.src = markerSrc;
+          pin.alt = "";
+          pin.style.cssText = "width:54px;height:auto;display:block;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));";
+          new maplibregl.Marker({ element: pin, anchor: "bottom" }).setLngLat([longitude, latitude]).addTo(created);
+        }
         created.once("load", () => !cancelled && setReady(true));
       })
       .catch(() => !cancelled && setFailed(true));
@@ -54,13 +65,14 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
       cancelled = true;
       map?.remove();
     };
-  }, [latitude, longitude, markerSrc]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latitude, longitude, markerSrc, markerEvent?.id, markerEvent?.markerPhoto]);
 
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() => openPlace(latitude, longitude)}
+      onClick={onOpen}
       aria-label={`Место встречи на карте${placeName ? `: ${placeName}` : ""}`}
       className="relative block w-full cursor-pointer overflow-hidden text-left"
       // isolation — всё, что рисует карта, остаётся «под» карточкой организатора.

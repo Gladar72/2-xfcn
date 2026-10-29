@@ -98,6 +98,28 @@ function MapPageContent() {
     return keys.size;
   }, [selected]);
 
+  // Переход со страницы встречи (нажали на мини-карту): /map?focus=<id> —
+  // приближаем карту к встрече и сразу открываем её карточку.
+  const focusId = searchParams.get("focus");
+  const focusDone = useRef(false);
+  useEffect(() => {
+    if (!focusId || focusDone.current || events.length === 0) return;
+    const target = events.find((e) => e.id === focusId);
+    if (!target) return;
+    focusDone.current = true;
+    setSelected([target]);
+    setVisibleCount(PAGE_SIZE);
+    // Карта могла ещё не загрузиться или сама подстроиться под город — повторяем перелёт.
+    const fly = () => mapRef.current?.fitBounds([[target.longitude, target.latitude]]);
+    fly();
+    const t1 = setTimeout(fly, 700);
+    const t2 = setTimeout(fly, 1600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [focusId, events]);
+
   function handleSelect(items: MapEventItem[]) {
     setSelected(items);
     setVisibleCount(PAGE_SIZE);

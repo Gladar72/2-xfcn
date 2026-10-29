@@ -616,6 +616,26 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                       markerSrc={markerIconFor({ isBusiness: event.isBusiness, category: event.category })}
                       placeName={event.placeName}
                       fallbackSrc={icon}
+                      markerEvent={{
+                        id: event.id,
+                        title: event.title,
+                        eventDate: event.eventDate,
+                        eventTime: event.eventTime,
+                        latitude: event.latitude,
+                        longitude: event.longitude,
+                        placeName: event.placeName,
+                        address: event.address,
+                        seatsLeft: event.seatsTotal - event.seatsTaken,
+                        category: event.category,
+                        isBusiness: event.isBusiness,
+                        // Как на общей карте: у заведений — обложка события, у людей — аватар.
+                        markerPhoto: event.isBusiness
+                          ? event.photoUrl ?? event.organizer?.avatarUrl ?? "/brand/covers/business.webp"
+                          : event.organizer?.avatarUrl ?? null,
+                      }}
+                      onOpen={() =>
+                        router.push(`/map?${event.isBusiness ? "business=only&" : ""}focus=${event.id}`)
+                      }
                     />
                   ) : (
                     <MiniMap />
