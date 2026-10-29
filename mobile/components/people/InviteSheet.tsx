@@ -9,7 +9,7 @@ import { api, type ApiError } from "@/lib/api";
 import { tapOk, tapWarn } from "@/lib/feedback";
 import { formatEventDate } from "@/lib/format";
 import { suggestMeet } from "@/lib/interests";
-import { colors, eventIcon, FONT } from "@/lib/theme";
+import { colors, eventIcon, FONT, f } from "@/lib/theme";
 
 interface MyEvent {
   id: string;
@@ -188,19 +188,19 @@ export function InviteSheet({
 }
 
 const styles = StyleSheet.create({
-  title: { fontFamily: FONT, fontSize: 22, fontWeight: "500", color: colors.ink, letterSpacing: -0.5, marginBottom: 4 },
+  title: { fontSize: 22, ...f("500"), color: colors.ink, letterSpacing: -0.5, marginBottom: 4 },
   mosya: { backgroundColor: "#fff", borderRadius: 22, padding: 12, gap: 8 },
   mosyaHead: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  label: { fontFamily: FONT, fontSize: 12, fontWeight: "600", color: colors.violet, textTransform: "uppercase", letterSpacing: 0.6 },
+  label: { fontSize: 12, ...f("600"), color: colors.violet, textTransform: "uppercase", letterSpacing: 0.6 },
   mosyaText: { fontFamily: FONT, fontSize: 14, lineHeight: 19, color: colors.ink2, marginTop: 2 },
   idea: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: colors.milk, borderRadius: 16, padding: 10 },
-  ideaTitle: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.ink },
-  section: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink, marginTop: 4 },
+  ideaTitle: { fontSize: 15, ...f("500"), color: colors.ink },
+  section: { fontSize: 16, ...f("500"), color: colors.ink, marginTop: 4 },
   muted: { fontFamily: FONT, fontSize: 13, color: colors.grey },
   event: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 18, padding: 10, borderWidth: 1.5, borderColor: "transparent" },
   eventOn: { borderColor: colors.violet },
   evIc: { width: 46, height: 46, borderRadius: 14, overflow: "hidden", backgroundColor: "#EDE5FF", alignItems: "center", justifyContent: "center" },
-  evTitle: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.ink },
+  evTitle: { fontSize: 15, ...f("500"), color: colors.ink },
   radio: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, borderColor: "rgba(108,59,255,0.3)", alignItems: "center", justifyContent: "center" },
   radioOn: { backgroundColor: colors.violet, borderColor: colors.violet },
   input: { backgroundColor: "#fff", borderRadius: 18, padding: 14, minHeight: 70, fontFamily: FONT, fontSize: 15, color: colors.ink, textAlignVertical: "top" },

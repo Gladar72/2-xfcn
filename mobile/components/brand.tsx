@@ -7,7 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import Svg, { Defs, LinearGradient as SvgLinear, Path, RadialGradient, Rect, Stop, G, Text as SvgText } from "react-native-svg";
-import { brand, brandGradient, colors, FONT, gradientEnd, gradientStart } from "@/lib/theme";
+import { brand, brandGradient, colors, FONT, gradientEnd, gradientStart, f } from "@/lib/theme";
 import { LOGO_LETTERS, LOGO_M, LOGO_VIEWBOX } from "@/lib/logo-paths";
 
 /** Фон экрана: мягкие пятна фиолетового, розового, голубого и персикового на молочном. */
@@ -161,7 +161,7 @@ export function RoundBtn({ children, onPress, dark, size = 44, style }: { childr
  * Обычная часть — обычным текстом, акцент — SVG-текстом с градиентной заливкой.
  */
 export function Title({ plain, em, size = 32, after, style }: { plain: string; em?: string; size?: number; after?: string; style?: StyleProp<TextStyle> }) {
-  const base: TextStyle = { fontFamily: FONT, fontSize: size, lineHeight: size * 1.08, fontWeight: "500", letterSpacing: -size * 0.03, color: colors.ink };
+  const base: TextStyle = { fontSize: size, lineHeight: size * 1.08, ...f("500"), letterSpacing: -size * 0.03, color: colors.ink };
   if (!em) return <Text style={[base, style]}>{plain}</Text>;
   return (
     <Text style={[base, style]}>
@@ -260,7 +260,7 @@ export function Faces({ people, size = 24, ring = "#fff" }: { people: { id: stri
             key={p.id}
             style={{ width: size, height: size, borderRadius: size / 2, marginLeft: i ? -size / 3 : 0, borderWidth: 2, borderColor: ring, backgroundColor: "#EDE5FF", alignItems: "center", justifyContent: "center" }}
           >
-            <Text style={{ fontFamily: FONT, fontSize: size * 0.42, color: colors.violet, fontWeight: "600" }}>{p.name.charAt(0).toUpperCase()}</Text>
+            <Text style={{ fontSize: size * 0.42, color: colors.violet, ...f("600") }}>{p.name.charAt(0).toUpperCase()}</Text>
           </View>
         )
       )}
@@ -272,7 +272,7 @@ export function Faces({ people, size = 24, ring = "#fff" }: { people: { id: stri
 export function SectionHead({ title, action, onAction }: { title: string; action?: string; onAction?: () => void }) {
   return (
     <View style={styles.sec}>
-      <Text style={styles.secTitle}>{title}</Text>
+      <Text style={styles.secTitle} numberOfLines={1}>{title}</Text>
       {action ? (
         <Pressable onPress={onAction} hitSlop={8} style={styles.secBtn}>
           <Text style={styles.secBtnText}>{action}</Text>
@@ -288,14 +288,14 @@ const styles = StyleSheet.create({
   btnVShadow: { shadowColor: "#8236FF", shadowOpacity: 0.55, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
   btnTgShadow: { shadowColor: colors.tg, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
   btnRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  btnText: { fontFamily: FONT, fontSize: 16, fontWeight: "500" },
+  btnText: { fontSize: 16, ...f("500") },
   round: { alignItems: "center", justifyContent: "center", borderRadius: 999 },
   pill: { flexDirection: "row", alignItems: "center", gap: 6, height: 30, paddingHorizontal: 11, borderRadius: 999, alignSelf: "flex-start" },
-  pillText: { fontFamily: FONT, fontSize: 12.5, fontWeight: "500" },
+  pillText: { fontSize: 12.5, ...f("500") },
   liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#22C55E" },
   sec: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 26, marginBottom: 12 },
-  secTitle: { fontFamily: FONT, fontSize: 19, fontWeight: "500", letterSpacing: -0.4, color: colors.ink },
+  secTitle: { flexShrink: 1, fontSize: 19, ...f("500"), letterSpacing: -0.4, color: colors.ink },
   secBtn: { backgroundColor: colors.lav, borderRadius: 999, paddingHorizontal: 12, height: 30, justifyContent: "center" },
-  secBtnText: { fontFamily: FONT, fontSize: 13.5, color: colors.violet, fontWeight: "500" },
+  secBtnText: { fontSize: 13.5, color: colors.violet, ...f("500") },
 });
 

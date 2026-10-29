@@ -5,7 +5,7 @@ import { Sheet } from "@/components/Sheet";
 import { Chip } from "@/components/ui";
 import { tapLight } from "@/lib/feedback";
 import { COST_OPTIONS, DATE_OPTIONS, EMPTY_FILTERS, GENDER_OPTIONS, TIME_OPTIONS, type Filters } from "@/lib/filters";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 /** Шторка «Фильтры» — как в мини-приложении (app/(app)/search). Категории выбираются на самом экране. */
 export function FiltersSheet({
@@ -93,8 +93,8 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  title: { fontFamily: FONT, fontSize: 22, fontWeight: "500", color: colors.ink, letterSpacing: -0.5, marginBottom: 4 },
-  label: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: colors.grey, textTransform: "uppercase", letterSpacing: 0.6 },
+  title: { fontSize: 22, ...f("500"), color: colors.ink, letterSpacing: -0.5, marginBottom: 4 },
+  label: { fontSize: 13, ...f("600"), color: colors.grey, textTransform: "uppercase", letterSpacing: 0.6 },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   input: { flex: 1, height: 48, borderRadius: 16, backgroundColor: "#fff", paddingHorizontal: 16, fontFamily: FONT, fontSize: 16, color: colors.ink },
 });

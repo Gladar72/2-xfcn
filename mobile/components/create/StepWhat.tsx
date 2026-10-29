@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { Glass } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { Chip, Field } from "@/components/ui";
-import { catIcon, CATEGORY_SHORT, colors, FONT } from "@/lib/theme";
+import { catIcon, CATEGORY_SHORT, colors, FONT, f } from "@/lib/theme";
 import type { Category, Form, SetForm, TrainingType } from "./model";
 import { Label, Muted, StepTitle } from "./parts";
 
@@ -96,7 +96,7 @@ const st = StyleSheet.create({
   tile: { borderRadius: 20, alignItems: "center", paddingTop: 10, paddingBottom: 10, paddingHorizontal: 4, gap: 4, minHeight: 96 },
   tileOn: { borderWidth: 2, borderColor: colors.violet },
   tileImg: { width: 46, height: 46 },
-  tileText: { fontFamily: FONT, fontSize: 12, lineHeight: 14, color: colors.ink, textAlign: "center", fontWeight: "500" },
+  tileText: { fontSize: 12, lineHeight: 14, color: colors.ink, textAlign: "center", ...f("500") },
   check: {
     position: "absolute",
     top: 6,
@@ -111,7 +111,7 @@ const st = StyleSheet.create({
   },
   own: { flexDirection: "row", alignItems: "center", gap: 14, borderRadius: 22, padding: 14 },
   star: { width: 46, height: 46, borderRadius: 23, backgroundColor: colors.peach, alignItems: "center", justifyContent: "center" },
-  ownTitle: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink },
+  ownTitle: { fontSize: 16, ...f("500"), color: colors.ink },
   ownText: { fontFamily: FONT, fontSize: 13, lineHeight: 18, color: colors.grey },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
 });

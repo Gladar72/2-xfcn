@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { Glass, Grad } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { Avatar, Field } from "@/components/ui";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { BIZ_PRICING, COSTS, dayChip, type Form, hhmm, type SetForm } from "./model";
 import { Label, Muted, Note, Opt, StepTitle, Stepper } from "./parts";
 
@@ -157,14 +157,14 @@ export function StepWho({
 const st = StyleSheet.create({
   hint: { marginTop: 10, marginHorizontal: 4 },
   muted: { fontFamily: FONT, fontSize: 13, lineHeight: 18, color: colors.grey },
-  link: { color: colors.violet, fontWeight: "500" },
+  link: { color: colors.violet, ...f("500") },
   list: { gap: 8 },
   price: { flexDirection: "row", alignItems: "center", height: 56, borderRadius: 999, paddingHorizontal: 18 },
   priceInput: { flex: 1, fontFamily: FONT, fontSize: 16, color: colors.ink, height: 56 },
   rub: { fontFamily: FONT, fontSize: 16, color: colors.grey },
   pv: { flexDirection: "row", gap: 12, borderRadius: 24, padding: 12, alignItems: "center" },
   pvImg: { width: 84, height: 84, borderRadius: 18, overflow: "hidden", backgroundColor: "#EDE5FF" },
-  pvTitle: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink },
+  pvTitle: { fontSize: 16, ...f("500"), color: colors.ink },
   org: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
   mask: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#EDE5FF", alignItems: "center", justifyContent: "center" },
   orgText: { flex: 1, fontFamily: FONT, fontSize: 12.5, color: colors.ink2 },

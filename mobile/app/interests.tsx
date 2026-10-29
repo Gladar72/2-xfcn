@@ -8,7 +8,7 @@ import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { tapLight, tapOk, tapWarn } from "@/lib/feedback";
 import { groupInterests, interestIcon } from "@/lib/interests";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 
 interface Interest {
@@ -100,7 +100,7 @@ export default function InterestsScreen() {
 
 const styles = StyleSheet.create({
   sub: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.grey, marginLeft: 4 },
-  group: { fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink, marginLeft: 4 },
+  group: { fontSize: 17, ...f("500"), color: colors.ink, marginLeft: 4 },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 6, paddingRight: 14, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(108,59,255,0.12)" },
   chipOn: { backgroundColor: colors.violet, borderColor: colors.violet },

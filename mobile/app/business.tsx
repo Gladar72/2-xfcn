@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { cityEventIcon, cityWhen, KIND_LABEL, type CityEvent } from "@/lib/cityEvents";
 import { BizCatRow } from "@/components/BizCategories";
 import { bizCategoryCounts, matchesBizCategory } from "@/lib/bizCategories";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import type { FeedEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 
@@ -123,7 +123,7 @@ export default function BusinessScreen() {
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.kind}>{KIND_LABEL[c.kind ?? ""] ?? "Событие"}</Text>
+                    <Text style={styles.kind} numberOfLines={1}>{KIND_LABEL[c.kind ?? ""] ?? "Событие"}</Text>
                     <Text style={styles.rowT} numberOfLines={2}>
                       {c.title}
                     </Text>
@@ -162,22 +162,22 @@ const styles = StyleSheet.create({
   how: { borderRadius: 24, padding: 14, gap: 12 },
   step: { flexDirection: "row", alignItems: "center", gap: 12 },
   num: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  numText: { fontFamily: FONT, fontSize: 15, fontWeight: "700", color: "#fff" },
-  stepT: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink },
+  numText: { fontSize: 15, ...f("700"), color: "#fff" },
+  stepT: { fontSize: 15.5, ...f("500"), color: colors.ink },
   muted: { fontFamily: FONT, fontSize: 13, color: colors.grey },
   secRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 6, marginLeft: 4 },
-  section: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink, letterSpacing: -0.4 },
-  count: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: colors.violet, backgroundColor: colors.lav, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2, overflow: "hidden" },
+  section: { fontSize: 19, ...f("500"), color: colors.ink, letterSpacing: -0.4 },
+  count: { fontSize: 13, ...f("600"), color: colors.violet, backgroundColor: colors.lav, borderRadius: 999, paddingHorizontal: 9, paddingVertical: 2, overflow: "hidden" },
   empty: { borderRadius: 22, padding: 18, gap: 4, alignItems: "center" },
-  emptyT: { fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink },
+  emptyT: { fontSize: 18, ...f("500"), color: colors.ink },
   list: { borderRadius: 22, paddingHorizontal: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(108,59,255,0.15)" },
   thumb: { width: 58, height: 58, borderRadius: 16, overflow: "hidden", backgroundColor: "#EDE5FF", alignItems: "center", justifyContent: "center" },
-  kind: { fontFamily: FONT, fontSize: 11.5, fontWeight: "600", color: colors.violet, textTransform: "uppercase", letterSpacing: 0.5 },
-  rowT: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.ink },
-  price: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: colors.ink, maxWidth: 90 },
+  kind: { fontSize: 11.5, ...f("600"), color: colors.violet, textTransform: "uppercase", letterSpacing: 0.5 },
+  rowT: { fontSize: 15, ...f("500"), color: colors.ink },
+  price: { fontSize: 13, ...f("600"), color: colors.ink, maxWidth: 90 },
   fabWrap: { position: "absolute", left: 0, right: 0, alignItems: "center" },
   fab: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.ink, borderRadius: 999, height: 50, paddingHorizontal: 22, shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 6 },
-  fabText: { fontFamily: FONT, fontSize: 15.5, fontWeight: "600", color: "#fff" },
+  fabText: { fontSize: 15.5, ...f("600"), color: "#fff" },
 });

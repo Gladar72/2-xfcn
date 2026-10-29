@@ -15,7 +15,7 @@ import { getMyId } from "@/lib/me";
 import { stickerUrl } from "@/lib/stickers";
 import { STORE } from "@/lib/store";
 import { PLAN_FEATURES, PLAN_NAME, PLAN_PRICE_RUB, untilLabel, type Plan, type Subscription } from "@/lib/subscription";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { useGuide } from "@/lib/guide";
 
 /**
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   lead: { fontFamily: FONT, fontSize: 15, color: colors.ink2, textAlign: "center", lineHeight: 21, paddingHorizontal: 10 },
   current: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 22, padding: 14 },
   currentIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(34,181,115,0.14)", alignItems: "center", justifyContent: "center" },
-  currentTitle: { fontFamily: FONT, fontSize: 16, fontWeight: "600", color: colors.ink },
+  currentTitle: { fontSize: 16, ...f("600"), color: colors.ink },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey, lineHeight: 19 },
   plan: { borderRadius: 24, padding: 16, borderWidth: 1.5, borderColor: "transparent" },
   planOn: { borderColor: colors.violet },
@@ -344,20 +344,20 @@ const styles = StyleSheet.create({
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: "rgba(108,59,255,0.3)", alignItems: "center", justifyContent: "center" },
   radioOn: { borderColor: colors.violet },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.violet },
-  planName: { fontFamily: FONT, fontSize: 18, fontWeight: "600", color: colors.ink },
+  planName: { fontSize: 18, ...f("600"), color: colors.ink },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: colors.lav },
-  badgeText: { fontFamily: FONT, fontSize: 11.5, fontWeight: "600", color: colors.violet },
-  price: { fontFamily: FONT, fontSize: 15, fontWeight: "600", color: colors.ink2 },
+  badgeText: { fontSize: 11.5, ...f("600"), color: colors.violet },
+  price: { fontSize: 15, ...f("600"), color: colors.ink2 },
   feature: { flexDirection: "row", alignItems: "center", gap: 8 },
   featureText: { fontFamily: FONT, fontSize: 14.5, color: colors.ink2, flex: 1 },
   note: { borderRadius: 20, padding: 14 },
   links: { flexDirection: "row", justifyContent: "center", gap: 22 },
-  link: { fontFamily: FONT, fontSize: 14, fontWeight: "500", color: colors.violet },
+  link: { fontSize: 14, ...f("500"), color: colors.violet },
   legal: { fontFamily: FONT, fontSize: 12, color: colors.grey, textAlign: "center", lineHeight: 17, paddingHorizontal: 8 },
   legalLink: { color: colors.ink2, textDecorationLine: "underline" },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(22,18,31,0.9)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 18, maxWidth: "90%" },
   toastText: { fontFamily: FONT, fontSize: 14, color: "#fff", textAlign: "center" },
-  sheetTitle: { fontFamily: FONT, fontSize: 19, fontWeight: "600", color: colors.ink, marginBottom: 4 },
+  sheetTitle: { fontSize: 19, ...f("600"), color: colors.ink, marginBottom: 4 },
   inputWrap: { borderRadius: 18, paddingHorizontal: 16, marginVertical: 12 },
   input: { fontFamily: FONT, fontSize: 16, color: colors.ink, paddingVertical: 14 },
 });

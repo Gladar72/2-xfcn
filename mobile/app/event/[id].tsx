@@ -16,7 +16,7 @@ import { manageErrorText, tapOk, tapWarn } from "@/lib/feedback";
 import { api, type ApiError } from "@/lib/api";
 import { costShort, formatEventDate, seatsLeft } from "@/lib/format";
 import { openRoute } from "@/lib/route";
-import { CATEGORY_SHORT, colors, eventIcon, FONT } from "@/lib/theme";
+import { CATEGORY_SHORT, colors, eventIcon, FONT, f } from "@/lib/theme";
 import { anonymousTag, type EventDetail } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 
@@ -428,7 +428,7 @@ const styles = StyleSheet.create({
   heroTop: { position: "absolute", left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" },
   body: { padding: 20, gap: 14 },
   badges: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  title: { fontFamily: FONT, fontSize: 28, lineHeight: 31, fontWeight: "500", letterSpacing: -0.8, color: colors.ink },
+  title: { fontSize: 28, lineHeight: 31, ...f("500"), letterSpacing: -0.8, color: colors.ink },
   info: { borderRadius: 26, paddingHorizontal: 14 },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
   infoSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(108,59,255,0.15)" },
@@ -438,16 +438,16 @@ const styles = StyleSheet.create({
   desc: { fontFamily: FONT, fontSize: 15.5, lineHeight: 22, color: colors.ink2 },
   org: { flexDirection: "row", alignItems: "center", gap: 12 },
   maskAva: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#EDE5FF", alignItems: "center", justifyContent: "center" },
-  orgName: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink },
+  orgName: { fontSize: 16, ...f("500"), color: colors.ink },
   muted: { fontFamily: FONT, fontSize: 13, color: colors.grey, marginTop: 2 },
-  section: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink, letterSpacing: -0.4 },
+  section: { fontSize: 19, ...f("500"), color: colors.ink, letterSpacing: -0.4 },
   pName: { fontFamily: FONT, fontSize: 12, color: colors.ink2 },
   banner: { borderRadius: 26, padding: 16, gap: 10 },
   bannerHead: { flexDirection: "row", alignItems: "center", gap: 12 },
-  bannerTitle: { flex: 1, fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink, letterSpacing: -0.3 },
+  bannerTitle: { flex: 1, fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
   bannerText: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.ink2 },
   bannerBtns: { flexDirection: "row", gap: 10, marginTop: 2 },
   quietLink: { alignSelf: "center", paddingVertical: 10 },
-  quietText: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.danger },
+  quietText: { fontSize: 15, ...f("500"), color: colors.danger },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
 });

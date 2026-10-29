@@ -5,7 +5,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { Sheet } from "@/components/Sheet";
 import { api } from "@/lib/api";
 import { tapOk, tapWarn } from "@/lib/feedback";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 const REASONS: { id: string; label: string; icon: IconName }[] = [
   { id: "no_show", label: "Не пришёл на встречу", icon: "clock" },
@@ -85,7 +85,7 @@ export function ReportSheet({
 }
 
 const styles = StyleSheet.create({
-  title: { fontFamily: FONT, fontSize: 22, fontWeight: "500", color: colors.ink, letterSpacing: -0.5 },
+  title: { fontSize: 22, ...f("500"), color: colors.ink, letterSpacing: -0.5 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 18, padding: 12 },
   ic: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   label: { fontFamily: FONT, fontSize: 15.5, color: colors.ink },

@@ -9,7 +9,7 @@ import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { cityEventIcon, cityTiles, hostOf, KIND_LABEL, type CityEvent } from "@/lib/cityEvents";
 import { openRoute } from "@/lib/route";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { useGuide } from "@/lib/guide";
 
 /** Событие из городской афиши (app/(app)/city/[id]). «Найти компанию» — создать встречу с подставленными данными. */
@@ -140,19 +140,19 @@ export default function CityEventScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 6, padding: 24 },
   backAbs: { position: "absolute", left: 16 },
-  h: { fontFamily: FONT, fontSize: 20, fontWeight: "500", color: colors.ink },
+  h: { fontSize: 18, ...f("500"), color: colors.ink },
   hero: { height: 330, borderBottomLeftRadius: 36, borderBottomRightRadius: 36, overflow: "hidden", backgroundColor: colors.violet },
   heroTop: { position: "absolute", left: 16 },
   body: { padding: 20, gap: 14 },
   badges: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  title: { fontFamily: FONT, fontSize: 27, lineHeight: 31, fontWeight: "500", letterSpacing: -0.8, color: colors.ink },
+  title: { fontSize: 27, lineHeight: 31, ...f("500"), letterSpacing: -0.8, color: colors.ink },
   tiles: { flexDirection: "row", gap: 10 },
   tile: { flex: 1, borderRadius: 22, padding: 14, gap: 4 },
-  tileB: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink, marginTop: 4 },
+  tileB: { fontSize: 16, ...f("500"), color: colors.ink, marginTop: 4 },
   muted: { fontFamily: FONT, fontSize: 13, color: colors.grey },
   place: { borderRadius: 22, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
   ic: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
-  placeName: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink },
+  placeName: { fontSize: 15.5, ...f("500"), color: colors.ink },
   card: { borderRadius: 22, padding: 16 },
   desc: { fontFamily: FONT, fontSize: 15, lineHeight: 22, color: colors.ink2 },
   note: { fontFamily: FONT, fontSize: 13.5, lineHeight: 19, color: colors.ink2 },

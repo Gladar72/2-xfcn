@@ -10,7 +10,7 @@ import { isOnline, ms } from "@/components/chat/types";
 import { api } from "@/lib/api";
 import { animateNext, tapLight } from "@/lib/feedback";
 import { plural } from "@/lib/format";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { useGuide } from "@/lib/guide";
 
 interface ChatItem {
@@ -235,19 +235,19 @@ export default function ChatsScreen() {
 const styles = StyleSheet.create({
   tabs: { flexDirection: "row", borderRadius: 22, padding: 4, marginBottom: 6 },
   tabBtn: { flex: 1, height: 38, borderRadius: 18, overflow: "hidden", alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 6 },
-  tabText: { fontFamily: FONT, fontSize: 14.5, fontWeight: "600", color: colors.ink2 },
+  tabText: { fontSize: 14.5, ...f("600"), color: colors.ink2 },
   tabDot: { minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.violet, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 },
-  tabDotText: { fontFamily: FONT, fontSize: 11, fontWeight: "700", color: "#fff" },
+  tabDotText: { fontSize: 11, ...f("700"), color: "#fff" },
   row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 26, alignItems: "center" },
   avatar: { width: 54, height: 54, borderRadius: 18 },
   onlineDot: { position: "absolute", right: -1, bottom: -1, width: 14, height: 14, borderRadius: 7, backgroundColor: colors.ok, borderWidth: 2.5, borderColor: "#fff" },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
-  name: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink, flex: 1 },
+  name: { fontSize: 16, ...f("500"), color: colors.ink, flex: 1 },
   time: { fontFamily: FONT, fontSize: 12, color: colors.grey },
   last: { fontFamily: FONT, fontSize: 14, color: colors.grey, flex: 1 },
   badge: { minWidth: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", paddingHorizontal: 6 },
-  badgeText: { fontFamily: FONT, color: "#fff", fontSize: 12, fontWeight: "600" },
+  badgeText: { color: "#fff", fontSize: 12, ...f("600") },
   empty: { alignItems: "center", marginTop: 50, gap: 8, paddingHorizontal: 24 },
-  emptyTitle: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink },
+  emptyTitle: { fontSize: 18, ...f("500"), color: colors.ink },
   emptyText: { fontFamily: FONT, fontSize: 14, color: colors.grey, textAlign: "center" },
 });

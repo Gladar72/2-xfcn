@@ -8,7 +8,7 @@ import { ReviewSheet } from "@/components/reviews/ReviewSheet";
 import { Avatar } from "@/components/ui";
 import { animateNext } from "@/lib/feedback";
 import { fetchReviewable, longDate, toTargets, type ReviewableEvent, type ReviewTarget } from "@/lib/reviews";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 /** «Отзывы после встреч» (app/(app)/reviews). ?event=<id> — сразу открыть оценку этой встречи. */
 export default function ReviewsScreen() {
@@ -127,14 +127,14 @@ export default function ReviewsScreen() {
 const styles = StyleSheet.create({
   sub: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.grey, marginLeft: 4 },
   empty: { borderRadius: 26, padding: 22, alignItems: "center", gap: 8, marginTop: 10 },
-  emptyTitle: { fontFamily: FONT, fontSize: 18, fontWeight: "500", color: colors.ink },
+  emptyTitle: { fontSize: 18, ...f("500"), color: colors.ink },
   evHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginHorizontal: 4, marginTop: 6 },
-  evTitle: { flex: 1, fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink },
+  evTitle: { flex: 1, fontSize: 17, ...f("500"), color: colors.ink },
   muted: { fontFamily: FONT, fontSize: 13, color: colors.grey },
   list: { borderRadius: 22, paddingHorizontal: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(108,59,255,0.15)" },
-  name: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink },
+  name: { fontSize: 15.5, ...f("500"), color: colors.ink },
   rate: { backgroundColor: colors.violet, borderRadius: 999, height: 38, paddingHorizontal: 16, justifyContent: "center" },
-  rateText: { fontFamily: FONT, fontSize: 14.5, fontWeight: "600", color: "#fff" },
+  rateText: { fontSize: 14.5, ...f("600"), color: "#fff" },
 });

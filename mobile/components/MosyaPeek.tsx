@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { onGuide, type Tip } from "@/lib/guide";
 import { stickerUrl } from "@/lib/stickers";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 /**
  * Мося выглядывает снизу справа с облачком (как в веб-версии): выпрыгивает с пружиной,
@@ -131,6 +131,6 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   text: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.ink },
-  more: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: colors.violet, marginTop: 6, textAlign: "right" },
+  more: { fontSize: 13, ...f("600"), color: colors.violet, marginTop: 6, textAlign: "right" },
   mosya: { width: 108, height: 108 },
 });

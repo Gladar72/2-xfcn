@@ -45,7 +45,7 @@ import { getMyId } from "@/lib/me";
 import { plural, qs } from "@/lib/format";
 import { subscribeConversation } from "@/lib/realtime";
 import { stickerContent, stickerUrl } from "@/lib/stickers";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 const PAGE = 50;
 const EDIT_WINDOW_MS = 48 * 3600_000;
@@ -835,15 +835,15 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 12, paddingBottom: 10, borderRadius: 0, zIndex: 2 },
   headerMain: { flex: 1, flexDirection: "row", alignItems: "center", gap: 10 },
   headerPic: { width: 40, height: 40, borderRadius: 14 },
-  headerTitle: { fontFamily: FONT, fontSize: 16.5, fontWeight: "600", color: colors.ink },
+  headerTitle: { fontSize: 16.5, ...f("600"), color: colors.ink },
   headerSub: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, marginTop: 1 },
   onlineDot: { position: "absolute", right: 0, bottom: 0, width: 12, height: 12, borderRadius: 6, backgroundColor: colors.ok, borderWidth: 2, borderColor: "#fff" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 8 },
   empty: { fontFamily: FONT, fontSize: 15, color: colors.grey, textAlign: "center" },
   dayWrap: { alignItems: "center", marginVertical: 10 },
-  day: { fontFamily: FONT, fontSize: 12.5, fontWeight: "500", color: colors.ink2, backgroundColor: "rgba(255,255,255,0.75)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, overflow: "hidden" },
+  day: { fontSize: 12.5, ...f("500"), color: colors.ink2, backgroundColor: "rgba(255,255,255,0.75)", paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, overflow: "hidden" },
   compose: { flexDirection: "row", alignItems: "center", gap: 10, marginHorizontal: 12, marginBottom: 6, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.9)" },
-  composeTitle: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: colors.violet },
+  composeTitle: { fontSize: 13, ...f("600"), color: colors.violet },
   composeText: { fontFamily: FONT, fontSize: 13, color: colors.ink2 },
   inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 10, paddingTop: 6, paddingBottom: 4 },
   sideBtn: { width: 40, height: 48, alignItems: "center", justifyContent: "center" },

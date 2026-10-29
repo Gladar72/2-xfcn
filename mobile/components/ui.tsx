@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from "react-native";
 import { Image } from "expo-image";
 import { Btn, Glass } from "./brand";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 export function Button({
   title,
@@ -26,7 +26,7 @@ export function Button({
   if (variant === "ghost") {
     return (
       <Pressable onPress={onPress} disabled={disabled} style={[{ height: 48, alignItems: "center", justifyContent: "center" }, style]}>
-        <Text style={{ fontFamily: FONT, fontSize: 16, color: colors.grey, fontWeight: "500" }}>{title}</Text>
+        <Text style={{ fontSize: 16, color: colors.grey, ...f("500") }}>{title}</Text>
       </Pressable>
     );
   }
@@ -49,7 +49,7 @@ export function Avatar({ uri, size = 40, name }: { uri?: string | null; size?: n
   if (uri) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" />;
   return (
     <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#EDE5FF", alignItems: "center", justifyContent: "center" }}>
-      <Text style={{ fontFamily: FONT, color: colors.violet, fontWeight: "600", fontSize: size * 0.4 }}>{(name ?? "?").slice(0, 1).toUpperCase()}</Text>
+      <Text style={{ color: colors.violet, ...f("600"), fontSize: size * 0.4 }}>{(name ?? "?").slice(0, 1).toUpperCase()}</Text>
     </View>
   );
 }
@@ -76,9 +76,9 @@ export function ErrorText({ children }: { children?: string | null }) {
 }
 
 const styles = StyleSheet.create({
-  label: { fontFamily: FONT, fontSize: 13.5, color: colors.grey, fontWeight: "500", marginLeft: 6 },
+  label: { fontSize: 13.5, color: colors.grey, ...f("500"), marginLeft: 6 },
   field: { height: 56, borderRadius: 999, paddingHorizontal: 18, justifyContent: "center" },
   input: { fontFamily: FONT, fontSize: 16, color: colors.ink, height: 56 },
   chip: { paddingHorizontal: 16, height: 40, borderRadius: 999, justifyContent: "center" },
-  chipText: { fontFamily: FONT, fontSize: 14, color: colors.ink, fontWeight: "500" },
+  chipText: { fontSize: 14, color: colors.ink, ...f("500") },
 });

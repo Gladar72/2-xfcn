@@ -11,7 +11,7 @@ import { Chip } from "@/components/ui";
 import { api } from "@/lib/api";
 import { animateNext, tapLight } from "@/lib/feedback";
 import { activeCount, EMPTY_FILTERS, toQuery, type Filters } from "@/lib/filters";
-import { catIcon, CATEGORY_SHORT, colors, FONT } from "@/lib/theme";
+import { catIcon, CATEGORY_SHORT, colors, FONT, f } from "@/lib/theme";
 import type { Category, FeedEvent } from "@/lib/types";
 
 interface TrainingType {
@@ -233,15 +233,15 @@ const styles = StyleSheet.create({
   field: { flex: 1, height: 46, borderRadius: 999, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 },
   input: { flex: 1, fontFamily: FONT, fontSize: 15.5, color: colors.ink, height: 46 },
   badge: { position: "absolute", top: 2, right: 2, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.pink, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  badgeText: { fontFamily: FONT, fontSize: 10.5, fontWeight: "700", color: "#fff" },
+  badgeText: { fontSize: 10.5, ...f("700"), color: "#fff" },
   cats: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   cat: { width: Math.floor((Dimensions.get("window").width - 32 - 24) / 4), alignItems: "center", gap: 4, paddingVertical: 8, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.7)" },
   catOn: { backgroundColor: colors.ink },
-  catText: { fontFamily: FONT, fontSize: 12, color: colors.ink, fontWeight: "500" },
+  catText: { fontSize: 12, color: colors.ink, ...f("500") },
   resRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 },
-  section: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink, letterSpacing: -0.4 },
-  reset: { fontFamily: FONT, fontSize: 14.5, fontWeight: "600", color: colors.violet },
+  section: { fontSize: 19, ...f("500"), color: colors.ink, letterSpacing: -0.4 },
+  reset: { fontSize: 14.5, ...f("600"), color: colors.violet },
   empty: { borderRadius: 28, padding: 22, alignItems: "center", gap: 6 },
-  emptyTitle: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink },
+  emptyTitle: { fontSize: 18, ...f("500"), color: colors.ink },
   emptyText: { fontFamily: FONT, fontSize: 14, lineHeight: 20, color: colors.grey, textAlign: "center" },
 });

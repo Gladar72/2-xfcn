@@ -10,7 +10,7 @@ import { api, type ApiError } from "@/lib/api";
 import { useAuth, type AuthResult } from "@/lib/auth";
 import { loginWithTelegram } from "@/lib/telegramLogin";
 import { Aurora, Glass, Title } from "@/components/brand";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { CitySheet } from "@/components/CitySheet";
 import { Icon } from "@/components/Icon";
 import { startGuideTour } from "@/lib/guide";
@@ -141,7 +141,7 @@ export default function RegisterScreen() {
           {photo ? (
             <Image source={{ uri: photo.uri }} style={{ width: "100%", height: "100%" }} />
           ) : (
-            <Text style={{ color: colors.accent, fontWeight: "700", textAlign: "center" }}>+ Фото{"\n"}обязательно</Text>
+            <Text style={{ color: colors.accent, ...f("700"), textAlign: "center" }}>+ Фото{"\n"}обязательно</Text>
           )}
         </Pressable>
 
@@ -227,7 +227,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   wrap: { padding: 20, gap: 12, paddingBottom: 40 },
   sub: { fontFamily: FONT, fontSize: 15, color: colors.grey, marginBottom: 8 },
-  label: { fontFamily: FONT, fontSize: 13.5, color: colors.grey, fontWeight: "500", marginLeft: 6 },
+  label: { fontSize: 13.5, color: colors.grey, ...f("500"), marginLeft: 6 },
   cityBtn: { height: 54, borderRadius: 18, backgroundColor: "#fff", paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cityText: { fontFamily: FONT, fontSize: 16, color: colors.ink },
   wrapRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   tgBox: { borderRadius: 26, padding: 16, gap: 8, marginBottom: 8 },
-  tgTitle: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink },
+  tgTitle: { fontSize: 16, ...f("500"), color: colors.ink },
   tgText: { fontFamily: FONT, fontSize: 14, color: colors.grey },
   terms: { flexDirection: "row", gap: 12, alignItems: "center", marginVertical: 8 },
   check: { width: 26, height: 26, borderRadius: 9, borderWidth: 2, borderColor: "rgba(108,59,255,0.35)", alignItems: "center", justifyContent: "center" },

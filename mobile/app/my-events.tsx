@@ -11,7 +11,7 @@ import { formatEventDate } from "@/lib/format";
 import { animateNext, tapLight } from "@/lib/feedback";
 import { fetchReviewable, toTargets, type ReviewTarget } from "@/lib/reviews";
 import { ReviewSheet } from "@/components/reviews/ReviewSheet";
-import { colors, eventIcon, FONT } from "@/lib/theme";
+import { colors, eventIcon, FONT, f } from "@/lib/theme";
 import { useGuide } from "@/lib/guide";
 
 /** Ответ GET /api/me/events (app/api/me/events/route.ts). */
@@ -178,9 +178,9 @@ export default function MyEventsScreen() {
                     {formatEventDate(e.eventDate, e.eventTime)}
                     {e.placeName ? ` · ${e.placeName}` : ""}
                   </Text>
-                  <Text style={styles.meta}>
+                  <Text style={styles.meta} numberOfLines={1}>
                     <Text style={{ color: colors.grey }}>{e.role === "organizer" ? "Организатор" : "Участник"} · </Text>
-                    <Text style={{ color: st.color, fontWeight: "600" }}>{st.label}</Text>
+                    <Text style={{ color: st.color, ...f("600") }}>{st.label}</Text>
                   </Text>
                 </View>
                 {rate ? (
@@ -214,8 +214,8 @@ const styles = StyleSheet.create({
   cover: { width: 72, height: 72 },
   clip: { ...StyleSheet.absoluteFillObject, borderRadius: 18, overflow: "hidden" },
   count: { position: "absolute", top: -6, right: -6, minWidth: 22, height: 22, borderRadius: 11, backgroundColor: colors.live, alignItems: "center", justifyContent: "center", paddingHorizontal: 6, borderWidth: 2, borderColor: "#fff" },
-  countText: { fontFamily: FONT, fontSize: 12, fontWeight: "700", color: "#fff" },
-  title: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink, letterSpacing: -0.2 },
+  countText: { fontSize: 12, ...f("700"), color: "#fff" },
+  title: { fontSize: 16, ...f("500"), color: colors.ink, letterSpacing: -0.2 },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey },
   meta: { fontFamily: FONT, fontSize: 13 },
   week: { flexDirection: "row", justifyContent: "space-between", gap: 6 },
@@ -223,10 +223,10 @@ const styles = StyleSheet.create({
   dayOn: { backgroundColor: "#fff" },
   dayPicked: { backgroundColor: colors.violet },
   wd: { fontFamily: FONT, fontSize: 11.5, color: colors.grey },
-  num: { fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink },
+  num: { fontSize: 17, ...f("500"), color: colors.ink },
   dot: { width: 5, height: 5, borderRadius: 3, backgroundColor: colors.pink },
   rateBtn: { backgroundColor: colors.violet, borderRadius: 999, height: 34, paddingHorizontal: 12, justifyContent: "center" },
-  rateText: { fontFamily: FONT, fontSize: 13.5, fontWeight: "600", color: "#fff" },
+  rateText: { fontSize: 13.5, ...f("600"), color: "#fff" },
   empty: { borderRadius: 26, padding: 22, alignItems: "center", gap: 8 },
-  emptyTitle: { fontFamily: FONT, fontSize: 18, fontWeight: "500", color: colors.ink, textAlign: "center" },
+  emptyTitle: { fontSize: 18, ...f("500"), color: colors.ink, textAlign: "center" },
 });

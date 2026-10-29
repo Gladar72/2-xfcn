@@ -7,7 +7,7 @@ import { Wordmark } from "@/components/brand";
 import { HEART, Pop, charXml } from "@/components/LoadingScenes";
 import type { Face, Palette, Shape } from "@/lib/characters";
 import { API_URL } from "@/lib/config";
-import { FONT } from "@/lib/theme";
+import { FONT, f } from "@/lib/theme";
 
 /**
  * Экраны входа, вариант «Яркий градиент»: фиолетовый фон с розовым свечением,
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 14,
   },
-  h1: { fontFamily: FONT, fontSize: 30, lineHeight: 32, fontWeight: "800", color: AUTH.text, textAlign: "center", letterSpacing: -0.6, marginBottom: 8 },
+  h1: { fontSize: 30, lineHeight: 32, ...f("800"), color: AUTH.text, textAlign: "center", letterSpacing: -0.6, marginBottom: 8 },
   sub: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: AUTH.sub, textAlign: "center", marginBottom: 16 },
   legal: { fontFamily: FONT, textAlign: "center", color: AUTH.muted, fontSize: 11.5, marginTop: 14 },
   link: { color: AUTH.text, textDecorationLine: "underline" },
@@ -153,5 +153,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.35)",
   },
-  glassText: { fontFamily: FONT, fontSize: 16, fontWeight: "600", color: "#fff" },
+  glassText: { fontSize: 16, ...f("600"), color: "#fff" },
 });

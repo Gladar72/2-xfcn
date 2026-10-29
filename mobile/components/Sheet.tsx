@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Animated, Dimensions, Easing, KeyboardAvoidingView, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Btn } from "@/components/brand";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 /**
  * Нижняя шторка с плавным появлением: фон затемняется, панель выезжает пружиной.
@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
     elevation: 16,
   },
   grip: { alignSelf: "center", width: 40, height: 5, borderRadius: 3, backgroundColor: "rgba(22,18,31,0.15)", marginBottom: 10 },
-  title: { fontFamily: FONT, fontSize: 22, fontWeight: "500", color: colors.ink, letterSpacing: -0.5 },
+  title: { fontSize: 22, ...f("500"), color: colors.ink, letterSpacing: -0.5 },
   text: { fontFamily: FONT, fontSize: 15, lineHeight: 21, color: colors.ink2 },
   danger: { height: 56, borderRadius: 999, alignItems: "center", justifyContent: "center" },
-  dangerText: { fontFamily: FONT, fontSize: 16.5, fontWeight: "600", color: "#fff" },
+  dangerText: { fontSize: 16.5, ...f("600"), color: "#fff" },
 });

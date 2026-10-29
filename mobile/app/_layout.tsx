@@ -11,14 +11,21 @@ import { MosyaPeekHost } from "@/components/MosyaPeek";
 import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
 import { LoadingScenes } from "@/components/LoadingScenes";
-import { brand, colors, FONT } from "@/lib/theme";
+import { colors, fonts, FONT } from "@/lib/theme";
 
-/** Шрифт Golos Text берём с сайта; если сети нет — через 3 секунды продолжаем на системном. */
+/** Шрифт Golos Text — статические файлы по насыщенностям (assets/fonts); не загрузился за 3 с — продолжаем на системном. */
 function useBrandFont() {
   const [done, setDone] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setDone(true), 3000);
-    Font.loadAsync({ [FONT]: brand.font })
+    Font.loadAsync({
+      [fonts["400"]]: require("../assets/fonts/Golos-Regular.ttf"),
+      [fonts["500"]]: require("../assets/fonts/Golos-Medium.ttf"),
+      [fonts["600"]]: require("../assets/fonts/Golos-SemiBold.ttf"),
+      [fonts["700"]]: require("../assets/fonts/Golos-Bold.ttf"),
+      [fonts["800"]]: require("../assets/fonts/Golos-ExtraBold.ttf"),
+      [fonts["900"]]: require("../assets/fonts/Golos-Black.ttf"),
+    })
       .catch(() => {})
       .finally(() => {
         clearTimeout(t);
@@ -156,6 +163,6 @@ export default function RootLayout() {
 
 const styles = StyleSheet.create({
   splash: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
-  tagline: { fontSize: 15, color: colors.ink2 },
+  tagline: { fontFamily: FONT, fontSize: 15, color: colors.ink2 },
   track: { width: 120, height: 5, borderRadius: 3, backgroundColor: "rgba(108,59,255,0.12)", overflow: "hidden", marginTop: 24 },
 });

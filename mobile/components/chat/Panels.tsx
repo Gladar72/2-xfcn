@@ -6,7 +6,7 @@ import { Avatar } from "@/components/ui";
 import { Icon, type IconName } from "@/components/Icon";
 import { tapLight } from "@/lib/feedback";
 import { INTEREST_STICKERS, MOSYA_STICKERS, REACTIONS, stickerUrl, type Sticker } from "@/lib/stickers";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { type ChatMember, type ChatMessage, hasRead, timeOf } from "./types";
 
 /** Панель стикеров под полем ввода (вместо клавиатуры): вкладки «Мося» и «Интересы». */
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: "row", gap: 6, paddingHorizontal: 12, paddingVertical: 8 },
   tab: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14 },
   tabOn: { backgroundColor: colors.lav },
-  tabText: { fontFamily: FONT, fontSize: 14, fontWeight: "600", color: colors.grey },
+  tabText: { fontSize: 14, ...f("600"), color: colors.grey },
   cell: { alignItems: "center", justifyContent: "center" },
   cellLabel: { fontFamily: FONT, fontSize: 10.5, color: colors.grey, marginTop: -2 },
   reactRow: { gap: 6, paddingHorizontal: 4, paddingVertical: 4 },
@@ -183,8 +183,8 @@ const styles = StyleSheet.create({
   reactBtnOn: { backgroundColor: "#E7DCFF", borderWidth: 2, borderColor: colors.violet },
   action: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, paddingHorizontal: 8, borderRadius: 14 },
   actionText: { fontFamily: FONT, fontSize: 16, color: colors.ink },
-  sheetTitle: { fontFamily: FONT, fontSize: 18, fontWeight: "600", color: colors.ink, marginBottom: 10 },
+  sheetTitle: { fontSize: 18, ...f("600"), color: colors.ink, marginBottom: 10 },
   reader: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8 },
-  readerName: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.ink },
+  readerName: { fontSize: 15, ...f("500"), color: colors.ink },
   readerSub: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, marginTop: 1 },
 });

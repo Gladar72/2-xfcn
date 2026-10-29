@@ -4,7 +4,7 @@ import { SvgXml } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Grad, Wordmark } from "@/components/brand";
 import { characterSvg, type Face, type Palette, type Shape } from "@/lib/characters";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 /**
  * Заставка загрузки — та же, что в мини-приложении (components/brand/LoadingScenes.tsx на сайте):
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   clouds: { position: "absolute", left: "-10%", right: "-10%", top: "55%", height: "14%", zIndex: 1 },
   cloud: { position: "absolute", bottom: 0, borderRadius: 999, backgroundColor: "#EFEBFA" },
   txt: { position: "absolute", left: 0, right: 0, top: "63%", bottom: 0, backgroundColor: "#EFEBFA", zIndex: 2, paddingTop: 28, paddingHorizontal: 28 },
-  h1: { fontFamily: FONT, fontSize: 32, lineHeight: 34, fontWeight: "800", color: colors.ink, textAlign: "center", marginBottom: 12, letterSpacing: -0.6 },
+  h1: { fontSize: 32, lineHeight: 34, ...f("800"), color: colors.ink, textAlign: "center", marginBottom: 12, letterSpacing: -0.6 },
   p: { fontFamily: FONT, fontSize: 15, lineHeight: 22, color: colors.ink2, textAlign: "center" },
   track: { position: "absolute", left: "50%", marginLeft: -60, width: 120, height: 4, borderRadius: 3, backgroundColor: "#DCD5F3", overflow: "hidden" },
 });

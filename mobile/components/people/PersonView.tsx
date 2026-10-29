@@ -13,7 +13,7 @@ import { getMyId } from "@/lib/me";
 import { tapLight, tapWarn } from "@/lib/feedback";
 import { plural } from "@/lib/format";
 import { distanceLabel, interestIcon } from "@/lib/interests";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 /** Ответ GET /api/users/[id] (app/api/users/[id]/route.ts). */
 export interface Person {
@@ -281,14 +281,14 @@ const styles = StyleSheet.create({
   noPhoto: { alignItems: "center", justifyContent: "center" },
   zones: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
   overlay: { height: 150, justifyContent: "flex-end", paddingHorizontal: 20, paddingBottom: 22, gap: 10 },
-  name: { fontFamily: FONT, fontSize: 32, lineHeight: 36, fontWeight: "500", color: "#fff", letterSpacing: -0.8 },
+  name: { fontSize: 32, lineHeight: 36, ...f("500"), color: "#fff", letterSpacing: -0.8 },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   tag: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.22)", borderColor: "rgba(255,255,255,0.35)", borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  tagText: { fontFamily: FONT, fontSize: 13, color: "#fff", fontWeight: "500" },
+  tagText: { fontSize: 13, color: "#fff", ...f("500") },
   body: { padding: 16, gap: 12, marginTop: -6, backgroundColor: colors.milk, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
   card: { borderRadius: 24, padding: 16, gap: 10 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  cardTitle: { fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink, letterSpacing: -0.3 },
+  cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
   bio: { fontFamily: FONT, fontSize: 15.5, lineHeight: 22, color: colors.ink2 },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { Avatar } from "@/components/ui";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { plural } from "@/lib/format";
 
 /** Заявка из GET /api/events/[id]/applications. */
@@ -132,12 +132,12 @@ export function SmallBtn({
 const styles = StyleSheet.create({
   row: { backgroundColor: "rgba(255,255,255,0.8)", borderRadius: 22, padding: 12, gap: 10 },
   head: { flexDirection: "row", alignItems: "center", gap: 12 },
-  name: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink },
+  name: { fontSize: 16, ...f("500"), color: colors.ink },
   meta: { fontFamily: FONT, fontSize: 13, color: colors.grey, marginTop: 2 },
   bio: { fontFamily: FONT, fontSize: 14, lineHeight: 19, color: colors.ink2 },
   btns: { flexDirection: "row", gap: 8 },
   small: { flex: 1, height: 42, borderRadius: 999, alignItems: "center", justifyContent: "center" },
-  smallText: { fontFamily: FONT, fontSize: 15, fontWeight: "600" },
+  smallText: { fontSize: 15, ...f("600") },
   badge: { borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
-  badgeText: { fontFamily: FONT, fontSize: 12, fontWeight: "600" },
+  badgeText: { fontSize: 12, ...f("600") },
 });

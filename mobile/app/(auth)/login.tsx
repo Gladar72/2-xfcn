@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { appleLoginAvailable, loginWithApple } from "@/lib/appleLogin";
 import { loginWithTelegram } from "@/lib/telegramLogin";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 // Вход через Apple (app.json → extra.appleLogin). App Store требует его, если есть вход через Telegram.
 const APPLE_ENABLED = Platform.OS === "ios" && !!(Constants.expoConfig?.extra as { appleLogin?: boolean } | undefined)?.appleLogin;
@@ -135,6 +135,6 @@ const styles = StyleSheet.create({
     borderWidth: 0,
   },
   input: { flex: 1, fontFamily: FONT, fontSize: 16, color: colors.ink, height: 56 },
-  back: { fontFamily: FONT, fontSize: 14, color: AUTH.text, textAlign: "center", marginTop: 4, fontWeight: "500" },
+  back: { fontSize: 14, color: AUTH.text, textAlign: "center", marginTop: 4, ...f("500") },
   error: { fontFamily: FONT, color: AUTH.error, fontSize: 14, textAlign: "center" },
 });

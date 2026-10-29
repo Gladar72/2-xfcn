@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Glass, Title } from "@/components/brand";
 import { Chip } from "@/components/ui";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 export function StepTitle({ plain, em, after, sub }: { plain: string; em: string; after?: string; sub: string }) {
   return (
@@ -116,24 +116,24 @@ export function Note({ icon, children }: { icon?: ReactNode; children: string })
 
 export const s = StyleSheet.create({
   sub: { fontFamily: FONT, fontSize: 15, lineHeight: 21, color: colors.grey },
-  label: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.ink, marginTop: 22, marginBottom: 10, marginLeft: 4 },
-  labelExtra: { fontSize: 13, fontWeight: "400", color: colors.grey },
+  label: { fontSize: 15, ...f("500"), color: colors.ink, marginTop: 22, marginBottom: 10, marginLeft: 4 },
+  labelExtra: { fontSize: 13, ...f("400"), color: colors.grey },
   muted: { fontFamily: FONT, fontSize: 13, lineHeight: 18, color: colors.grey },
   opt: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 14 },
   optOn: { borderWidth: 2, borderColor: colors.violet },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: "rgba(108,59,255,0.35)", alignItems: "center", justifyContent: "center" },
   radioOn: { borderColor: colors.violet },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.violet },
-  optTitle: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink },
+  optTitle: { fontSize: 15.5, ...f("500"), color: colors.ink },
   optText: { fontFamily: FONT, fontSize: 13, lineHeight: 18, color: colors.grey },
   chipsWrap: { marginHorizontal: -20 },
   chips: { gap: 8, paddingHorizontal: 20, paddingVertical: 4 },
   stepper: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   stepBtn: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   stepBtnSmall: { width: 56 },
-  stepBtnText: { fontFamily: FONT, fontSize: 22, color: colors.ink, fontWeight: "500" },
+  stepBtnText: { fontSize: 22, color: colors.ink, ...f("500") },
   stepVal: { minWidth: 96, height: 56, borderRadius: 20, alignItems: "center", justifyContent: "center", paddingHorizontal: 14 },
-  stepValText: { fontFamily: FONT, fontSize: 24, fontWeight: "500", color: colors.ink, letterSpacing: -0.5 },
+  stepValText: { fontSize: 24, ...f("500"), color: colors.ink, letterSpacing: -0.5 },
   note: { flexDirection: "row", gap: 10, alignItems: "flex-start", backgroundColor: colors.lav, borderRadius: 18, padding: 12, marginTop: 8 },
   noteText: { flex: 1, fontFamily: FONT, fontSize: 13, lineHeight: 18, color: colors.ink2 },
 });

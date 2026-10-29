@@ -8,7 +8,7 @@ import { Icon } from "@/components/Icon";
 import { PersonView } from "@/components/people/PersonView";
 import { api } from "@/lib/api";
 import { animateNext } from "@/lib/feedback";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import type { PersonCard } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   backAbs: { position: "absolute", left: 16 },
   end: { flex: 1, alignItems: "center", paddingHorizontal: 24, gap: 10 },
-  endTitle: { fontFamily: FONT, fontSize: 26, fontWeight: "500", color: colors.ink, letterSpacing: -0.6, textAlign: "center" },
+  endTitle: { fontSize: 26, ...f("500"), color: colors.ink, letterSpacing: -0.6, textAlign: "center" },
   endText: { fontFamily: FONT, fontSize: 15, lineHeight: 21, color: colors.ink2, textAlign: "center" },
   geo: { position: "absolute", left: 12, right: 12, borderRadius: 24, padding: 12, flexDirection: "row", alignItems: "center", gap: 10 },
   geoIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },

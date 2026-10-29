@@ -4,7 +4,7 @@ import { Glass } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { tapLight } from "@/lib/feedback";
 import { stickerUrl } from "@/lib/stickers";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { StepTitle } from "./parts";
 
 /** Первый шаг создания: что создаём — открытую встречу, анонимную или событие для бизнеса. */
@@ -55,7 +55,7 @@ const s = StyleSheet.create({
   card: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 24, padding: 14, borderWidth: 1.5, borderColor: "transparent" },
   cardOn: { borderColor: colors.violet },
   img: { width: 64, height: 64 },
-  title: { fontFamily: FONT, fontSize: 17, fontWeight: "600", color: colors.ink },
+  title: { fontSize: 17, ...f("600"), color: colors.ink },
   text: { fontFamily: FONT, fontSize: 13.5, lineHeight: 19, color: colors.grey },
   check: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: "rgba(108,59,255,0.25)", alignItems: "center", justifyContent: "center" },
   checkOn: { backgroundColor: colors.violet, borderColor: colors.violet },

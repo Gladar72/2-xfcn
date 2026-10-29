@@ -4,7 +4,7 @@ import { Stack, router } from "expo-router";
 import { Button, ErrorText, Field } from "@/components/ui";
 import { api } from "@/lib/api";
 import { formatPhoneInput } from "@/lib/format";
-import { colors, font } from "@/lib/theme";
+import { colors, font, FONT } from "@/lib/theme";
 
 /**
  * Привязка номера к текущему профилю: после этого в приложение можно входить
@@ -78,5 +78,5 @@ export default function LinkPhoneScreen() {
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, padding: 20, gap: 16, backgroundColor: colors.background },
-  sub: { fontSize: font.sm, color: colors.ink600 },
+  sub: { fontFamily: FONT, fontSize: font.sm, color: colors.ink600 },
 });

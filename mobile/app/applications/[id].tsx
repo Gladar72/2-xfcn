@@ -8,7 +8,7 @@ import { ConfirmSheet } from "@/components/Sheet";
 import { ApplicantRow, type Application } from "@/components/event/Applicant";
 import { api, type ApiError } from "@/lib/api";
 import { animateNext, manageErrorText, tapOk, tapWarn } from "@/lib/feedback";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 interface Resp {
   event: { id: string; title: string; seatsTotal: number; seatsTaken: number };
@@ -167,7 +167,7 @@ export default function ApplicationsScreen() {
 
 const styles = StyleSheet.create({
   sub: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.grey, marginLeft: 4 },
-  section: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink, letterSpacing: -0.4, marginLeft: 4 },
+  section: { fontSize: 19, ...f("500"), color: colors.ink, letterSpacing: -0.4, marginLeft: 4 },
   empty: { borderRadius: 26, padding: 22, alignItems: "center", gap: 8, marginTop: 10 },
-  emptyTitle: { fontFamily: FONT, fontSize: 18, fontWeight: "500", color: colors.ink },
+  emptyTitle: { fontSize: 18, ...f("500"), color: colors.ink },
 });

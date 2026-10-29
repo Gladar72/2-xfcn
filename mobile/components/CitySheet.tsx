@@ -3,7 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from "react-na
 import { Sheet } from "@/components/Sheet";
 import { Icon } from "@/components/Icon";
 import { RUSSIAN_CITIES } from "@/lib/cities";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 const POPULAR = ["Тюмень", "Москва", "Санкт-Петербург", "Екатеринбург", "Новосибирск", "Казань"];
 
@@ -53,7 +53,7 @@ export function CitySheet({
             }}
             style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.lav }]}
           >
-            <Text style={[styles.city, item === value && { color: colors.violet, fontWeight: "600" }]}>{item}</Text>
+            <Text style={[styles.city, item === value && { color: colors.violet, ...f("600") }]}>{item}</Text>
             {item === value ? <Icon name="check" size={18} color={colors.violet} /> : null}
           </Pressable>
         )}
@@ -63,7 +63,7 @@ export function CitySheet({
 }
 
 const styles = StyleSheet.create({
-  title: { fontFamily: FONT, fontSize: 22, fontWeight: "500", color: colors.ink, letterSpacing: -0.5 },
+  title: { fontSize: 22, ...f("500"), color: colors.ink, letterSpacing: -0.5 },
   search: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#fff", borderRadius: 999, height: 46, paddingHorizontal: 16, marginVertical: 6 },
   input: { flex: 1, fontFamily: FONT, fontSize: 16, color: colors.ink },
   row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 13, paddingHorizontal: 8, borderRadius: 14 },

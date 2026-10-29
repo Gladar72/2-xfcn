@@ -13,7 +13,7 @@ import { useAuth } from "@/lib/auth";
 import { API_URL } from "@/lib/config";
 import { tapLight, tapOk, tapWarn } from "@/lib/feedback";
 import { PLAN_NAME, untilLabel, type Subscription } from "@/lib/subscription";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 
@@ -242,7 +242,7 @@ function Row({ icon, label, sub, onPress, last }: { icon: IconName; label: strin
 }
 
 const styles = StyleSheet.create({
-  section: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: colors.grey, textTransform: "uppercase", letterSpacing: 0.6, marginLeft: 8, marginTop: 6 },
+  section: { fontSize: 13, ...f("600"), color: colors.grey, textTransform: "uppercase", letterSpacing: 0.6, marginLeft: 8, marginTop: 6 },
   list: { borderRadius: 24, paddingHorizontal: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
   sep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(108,59,255,0.15)" },
@@ -250,10 +250,10 @@ const styles = StyleSheet.create({
   label: { fontFamily: FONT, fontSize: 15.5, color: colors.ink },
   sub: { fontFamily: FONT, fontSize: 12.5, lineHeight: 17, color: colors.grey, marginTop: 1 },
   logout: { alignItems: "center", paddingVertical: 16, marginTop: 4 },
-  logoutText: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.danger },
+  logoutText: { fontSize: 15.5, ...f("500"), color: colors.danger },
   about: { alignItems: "center", gap: 6, marginTop: 4 },
   tagline: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
-  sheetTitle: { fontFamily: FONT, fontSize: 19, fontWeight: "600", color: colors.ink, marginBottom: 4 },
+  sheetTitle: { fontSize: 19, ...f("600"), color: colors.ink, marginBottom: 4 },
   refInput: { borderRadius: 18, paddingHorizontal: 16, marginVertical: 12 },
   refText: { fontFamily: FONT, fontSize: 20, letterSpacing: 2, color: colors.ink, paddingVertical: 12, textAlign: "center" },
 });

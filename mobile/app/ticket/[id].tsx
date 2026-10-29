@@ -11,7 +11,7 @@ import { api } from "@/lib/api";
 import { manageErrorText, tapOk, tapWarn } from "@/lib/feedback";
 import { formatEventDate } from "@/lib/format";
 import { openRoute } from "@/lib/route";
-import { brandGradient, colors, FONT, gradientEnd, gradientStart } from "@/lib/theme";
+import { brandGradient, colors, FONT, gradientEnd, gradientStart, f } from "@/lib/theme";
 
 interface TicketResp {
   ticketCode: string;
@@ -194,8 +194,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: 30, overflow: "hidden" },
   cover: { height: 190, justifyContent: "flex-end", padding: 16, gap: 10, overflow: "hidden" },
   badge: { position: "absolute", top: 14, left: 14, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
-  badgeText: { fontFamily: FONT, fontSize: 12.5, fontWeight: "600", color: colors.ok },
-  title: { fontFamily: FONT, fontSize: 24, lineHeight: 28, fontWeight: "500", color: "#fff", letterSpacing: -0.5 },
+  badgeText: { fontSize: 12.5, ...f("600"), color: colors.ok },
+  title: { fontSize: 24, lineHeight: 28, ...f("500"), color: "#fff", letterSpacing: -0.5 },
   body: { padding: 16, gap: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   ic: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
@@ -204,9 +204,9 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(108,59,255,0.18)" },
   codeBox: { alignItems: "center", paddingVertical: 20, paddingHorizontal: 16, gap: 4 },
   codeLabel: { fontFamily: FONT, fontSize: 13, color: colors.grey, textTransform: "uppercase", letterSpacing: 1 },
-  code: { fontFamily: FONT, fontSize: 40, fontWeight: "800", color: colors.violet, letterSpacing: 4 },
+  code: { fontSize: 40, ...f("800"), color: colors.violet, letterSpacing: 4 },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey, textAlign: "center" },
   cancel: { alignSelf: "center", paddingVertical: 8 },
-  cancelText: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.danger },
+  cancelText: { fontSize: 15, ...f("500"), color: colors.danger },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
 });

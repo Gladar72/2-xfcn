@@ -9,7 +9,7 @@ import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { tapLight } from "@/lib/feedback";
 import { stickerUrl } from "@/lib/stickers";
-import { brandGradient, colors, FONT, gradientEnd, gradientStart } from "@/lib/theme";
+import { brandGradient, colors, FONT, gradientEnd, gradientStart, f } from "@/lib/theme";
 
 /**
  * «Помощь»: Мося-помощник (ИИ) отвечает сразу, сложные вопросы уходят команде.
@@ -177,14 +177,14 @@ export default function SupportScreen() {
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 12, paddingBottom: 10, borderRadius: 0 },
   avatar: { width: 42, height: 42 },
-  title: { fontFamily: FONT, fontSize: 17, fontWeight: "600", color: colors.ink },
+  title: { fontSize: 17, ...f("600"), color: colors.ink },
   sub: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   bubble: { maxWidth: "84%", borderRadius: 20, paddingHorizontal: 13, paddingVertical: 9 },
   mine: { alignSelf: "flex-end", borderBottomRightRadius: 6 },
   theirs: { alignSelf: "flex-start", borderBottomLeftRadius: 6, backgroundColor: "rgba(255,255,255,0.92)" },
   team: { borderWidth: 1.5, borderColor: "rgba(34,181,115,0.45)" },
-  from: { fontFamily: FONT, fontSize: 12.5, fontWeight: "600", color: colors.violet, marginBottom: 2 },
+  from: { fontSize: 12.5, ...f("600"), color: colors.violet, marginBottom: 2 },
   text: { fontFamily: FONT, fontSize: 15.5, color: colors.ink, lineHeight: 21 },
   chips: { gap: 8, paddingVertical: 10 },
   chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.9)", borderWidth: 1, borderColor: "rgba(108,59,255,0.14)" },

@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { AUTH, AuthShell } from "@/components/AuthShell";
 import { api } from "@/lib/api";
 import { useAuth, type AuthResult } from "@/lib/auth";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 export default function CodeScreen() {
   const { email } = useLocalSearchParams<{ email: string }>();
@@ -88,9 +88,9 @@ const styles = StyleSheet.create({
   boxes: { flexDirection: "row", gap: 10, justifyContent: "center", marginBottom: 4 },
   box: { width: 60, height: 68, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "#fff", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.5)" },
   boxActive: { borderWidth: 2.5, borderColor: AUTH.accent },
-  digit: { fontFamily: FONT, fontSize: 28, fontWeight: "700", color: colors.ink },
+  digit: { fontSize: 28, ...f("700"), color: colors.ink },
   hidden: { position: "absolute", opacity: 0, height: 1, width: 1 },
   sub: { fontFamily: FONT, fontSize: 13, color: AUTH.muted, textAlign: "center" },
   error: { fontFamily: FONT, color: AUTH.error, fontSize: 14, textAlign: "center" },
-  link: { fontFamily: FONT, color: AUTH.text, fontWeight: "500", fontSize: 14, textAlign: "center" },
+  link: { color: AUTH.text, ...f("500"), fontSize: 14, textAlign: "center" },
 });

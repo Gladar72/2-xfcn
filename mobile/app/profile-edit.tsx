@@ -10,7 +10,7 @@ import { Icon } from "@/components/Icon";
 import { api, type ApiError } from "@/lib/api";
 import { animateNext, tapOk, tapWarn } from "@/lib/feedback";
 import { interestIcon } from "@/lib/interests";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 
 const PHOTO_ERRORS: Record<string, string> = {
@@ -262,12 +262,12 @@ const styles = StyleSheet.create({
   slotOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(22,18,31,0.35)", alignItems: "center", justifyContent: "center" },
   plus: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   mainBadge: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  mainText: { fontFamily: FONT, fontSize: 12, fontWeight: "600", color: colors.violet },
+  mainText: { fontSize: 12, ...f("600"), color: colors.violet },
   card: { borderRadius: 22, padding: 14, gap: 8 },
   labelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  label: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: colors.grey, textTransform: "uppercase", letterSpacing: 0.6 },
+  label: { fontSize: 13, ...f("600"), color: colors.grey, textTransform: "uppercase", letterSpacing: 0.6 },
   counter: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
-  link: { fontFamily: FONT, fontSize: 14.5, fontWeight: "600", color: colors.violet },
+  link: { fontSize: 14.5, ...f("600"), color: colors.violet },
   input: { fontFamily: FONT, fontSize: 16, color: colors.ink, paddingVertical: 4 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#fff", borderRadius: 999, paddingLeft: 5, paddingRight: 10, paddingVertical: 4 },

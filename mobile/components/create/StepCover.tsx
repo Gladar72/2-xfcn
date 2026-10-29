@@ -8,7 +8,7 @@ import { Glass } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { Field } from "@/components/ui";
 import { coverUri } from "@/lib/covers";
-import { colors, FONT } from "@/lib/theme";
+import { colors, f } from "@/lib/theme";
 import type { Form, SetForm } from "./model";
 import { Label, Muted, StepTitle } from "./parts";
 
@@ -116,16 +116,16 @@ export function StepCover({ form, set, presetCover, catLabel }: { form: Form; se
 
 const st = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 22, marginBottom: 10, marginHorizontal: 4 },
-  headLbl: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.ink },
+  headLbl: { fontSize: 15, ...f("500"), color: colors.ink },
   tag: { backgroundColor: colors.lav, borderRadius: 999, paddingHorizontal: 10, height: 26, justifyContent: "center", flexShrink: 1 },
-  tagText: { fontFamily: FONT, fontSize: 12, color: colors.violet, fontWeight: "500" },
+  tagText: { fontSize: 12, color: colors.violet, ...f("500") },
   cover: { aspectRatio: 1.5, borderRadius: 22, overflow: "hidden", backgroundColor: "#EDE5FF", borderWidth: 3, borderColor: "transparent" },
   on: { borderColor: colors.violet },
   badge: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(255,255,255,0.88)", borderRadius: 999, paddingHorizontal: 10, height: 26, justifyContent: "center" },
-  badgeText: { fontFamily: FONT, fontSize: 12, color: colors.violet, fontWeight: "500" },
+  badgeText: { fontSize: 12, color: colors.violet, ...f("500") },
   row: { flexDirection: "row", gap: 8, marginTop: 8 },
   cell: { width: "32%" },
   up: { aspectRatio: 1, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 6 },
-  upText: { fontFamily: FONT, fontSize: 13, color: colors.ink, fontWeight: "500" },
-  thumb: { aspectRatio: 1, borderRadius: 18, overflow: "hidden", backgroundColor: "#EDE5FF", borderWidth: 3, borderColor: "transparent" },
+  upText: { fontSize: 13, color: colors.ink, ...f("500") },
+  thumb: { aspectRatio: 1, borderRadius: 18, overflow: "hidden", backgroundColor: "#EDE5FF", borderWidth: 2, borderColor: "transparent" },
 });

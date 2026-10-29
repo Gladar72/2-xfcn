@@ -7,7 +7,7 @@ import { Avatar } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { tapLight } from "@/lib/feedback";
 import { parseInvite, parseSticker, stickerUrl } from "@/lib/stickers";
-import { brandGradient, colors, FONT, gradientEnd, gradientStart } from "@/lib/theme";
+import { brandGradient, colors, FONT, gradientEnd, gradientStart, f } from "@/lib/theme";
 import { type ChatMember, type ChatMessage, timeOf } from "./types";
 
 export type ReadState = "pending" | "failed" | "sent" | "partial" | "read";
@@ -75,7 +75,7 @@ function Reactions({ msg, mine, onReact }: { msg: ChatMessage; mine: boolean; on
           {r.emoji.startsWith("mosya_") ? (
             <Image source={{ uri: stickerUrl(r.emoji) }} style={{ width: 22, height: 22 }} contentFit="contain" />
           ) : (
-            <Text style={{ fontSize: 15 }}>{r.emoji}</Text>
+            <Text style={{ fontFamily: FONT, fontSize: 15 }}>{r.emoji}</Text>
           )}
           {r.count > 1 ? <Text style={[styles.reactCount, r.mine && { color: colors.violet }]}>{r.count}</Text> : null}
         </Pressable>
@@ -241,9 +241,9 @@ const styles = StyleSheet.create({
   bubble: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 8, minWidth: 72 },
   theirs: { backgroundColor: "rgba(255,255,255,0.92)", borderWidth: 1, borderColor: "rgba(255,255,255,1)" },
   imageOnly: { padding: 4, paddingBottom: 4 },
-  sender: { fontFamily: FONT, fontSize: 13, color: colors.violet, fontWeight: "600", marginBottom: 2 },
+  sender: { fontSize: 13, color: colors.violet, ...f("600"), marginBottom: 2 },
   text: { fontFamily: FONT, fontSize: 16, color: colors.ink, lineHeight: 21 },
-  spacer: { fontSize: 11, color: "transparent" },
+  spacer: { fontFamily: FONT, fontSize: 11, color: "transparent" },
   deleted: { fontFamily: FONT, fontSize: 15, fontStyle: "italic", color: colors.grey, paddingRight: 52 },
   image: { width: 230, height: 230, borderRadius: 16, marginBottom: 2 },
   metaAbs: { position: "absolute", right: 10, bottom: 6 },
@@ -253,17 +253,17 @@ const styles = StyleSheet.create({
   sticker: { width: 150, height: 150 },
   stickerMeta: { backgroundColor: "rgba(255,255,255,0.8)", borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2, marginTop: -6 },
   invite: { flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderRadius: 14, backgroundColor: colors.lav, minWidth: 220, marginBottom: 14 },
-  inviteTitle: { fontFamily: FONT, fontSize: 15, fontWeight: "600", color: colors.ink },
+  inviteTitle: { fontSize: 15, ...f("600"), color: colors.ink },
   inviteSub: { fontFamily: FONT, fontSize: 12, color: colors.grey, marginTop: 1 },
   reactions: { flexDirection: "row", flexWrap: "wrap", gap: 4, marginTop: 3 },
   reactChip: { flexDirection: "row", alignItems: "center", gap: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.92)", borderWidth: 1, borderColor: "rgba(108,59,255,0.12)" },
   reactChipMine: { borderColor: colors.violet, backgroundColor: "#F1EBFF" },
-  reactCount: { fontFamily: FONT, fontSize: 12, color: colors.ink2, fontWeight: "600" },
+  reactCount: { fontSize: 12, color: colors.ink2, ...f("600") },
   failed: { fontFamily: FONT, fontSize: 11, color: colors.danger, marginTop: 2, textAlign: "right" },
   quote: { flexDirection: "row", alignItems: "center", gap: 8, borderLeftWidth: 3, borderRadius: 8, paddingVertical: 4, paddingHorizontal: 8, marginBottom: 5 },
   quoteMine: { borderLeftColor: "#fff", backgroundColor: "rgba(255,255,255,0.18)" },
   quoteTheirs: { borderLeftColor: colors.violet, backgroundColor: colors.lav },
   quoteThumb: { width: 32, height: 32, borderRadius: 6 },
-  quoteName: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: colors.violet },
+  quoteName: { fontSize: 13, ...f("600"), color: colors.violet },
   quoteText: { fontFamily: FONT, fontSize: 13, color: colors.ink2 },
 });

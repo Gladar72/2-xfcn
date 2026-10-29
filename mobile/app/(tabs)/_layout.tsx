@@ -5,7 +5,7 @@ import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Glass, Grad } from "@/components/brand";
 import { Icon, type IconName } from "@/components/Icon";
-import { FONT } from "@/lib/theme";
+import { f } from "@/lib/theme";
 import { PendingReviews } from "@/components/reviews/PendingReviews";
 import { fetchPendingApplications } from "@/lib/pending";
 
@@ -88,7 +88,7 @@ const styles = StyleSheet.create({
   row: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8 },
   tab: { width: 62, height: 54, borderRadius: 999, alignItems: "center", justifyContent: "center", gap: 3 },
   tabOn: { backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
-  label: { fontFamily: FONT, fontSize: 10.5, fontWeight: "500" },
+  label: { fontSize: 10.5, ...f("500") },
   badge: {
     position: "absolute",
     top: 3,
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "rgba(22,18,31,0.85)",
   },
-  badgeText: { fontFamily: FONT, color: "#fff", fontSize: 10.5, fontWeight: "700" },
+  badgeText: { color: "#fff", fontSize: 10.5, ...f("700") },
   plusRing: { width: 68, height: 68, borderRadius: 34, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center", marginTop: -2 },
   plus: {
     width: 56,

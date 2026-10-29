@@ -8,7 +8,7 @@ import { BlurView } from "expo-blur";
 import { router } from "expo-router";
 import { Grad, Pill } from "./brand";
 import { Icon } from "./Icon";
-import { colors, eventIcon, FONT } from "@/lib/theme";
+import { colors, eventIcon, FONT, f } from "@/lib/theme";
 import { costShort, dayShort } from "@/lib/format";
 import { distanceShort } from "@/lib/interests";
 import { anonymousTag, type FeedEvent } from "@/lib/types";
@@ -44,13 +44,13 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
           ) : (
             <>
               <Icon name="people" size={15} color="#fff" />
-              <Text style={styles.glassText}>{full ? `${going} · мест нет` : `${going} из ${max}`}</Text>
+              <Text style={styles.glassText} numberOfLines={1}>{full ? `${going} · мест нет` : `${going} из ${max}`}</Text>
             </>
           )}
         </View>
         {e.isAnonymous ? (
           <View style={styles.glassPill}>
-            <Text style={styles.glassText}>{anonymousTag(e.organizer?.gender)}</Text>
+            <Text style={styles.glassText} numberOfLines={1}>{anonymousTag(e.organizer?.gender)}</Text>
           </View>
         ) : null}
         {e.isBoosted && !e.isBusiness && !e.isLive ? (
@@ -79,7 +79,7 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
         <View style={styles.barRow}>
           <View style={styles.dt}>
             <Text style={styles.dtTime}>{e.eventTime.slice(0, 5)}</Text>
-            <Text style={styles.dtDay}>{dayShort(e.eventDate)}</Text>
+            <Text style={styles.dtDay} numberOfLines={1}>{dayShort(e.eventDate)}</Text>
           </View>
           <View style={styles.place}>
             <Icon name="pin" size={15} color="#fff" />
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   top: { position: "absolute", top: 14, left: 14, right: 14, flexDirection: "row", gap: 6 },
   upb: { marginLeft: "auto", width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
   glassBadge: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", height: 26, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
-  glassBadgeText: { fontFamily: FONT, color: "#fff", fontSize: 11.5, fontWeight: "600" },
+  glassBadgeText: { color: "#fff", fontSize: 11.5, ...f("600") },
   glassPill: {
     flexDirection: "row",
     alignItems: "center",
@@ -126,17 +126,17 @@ const styles = StyleSheet.create({
     borderColor: "rgba(255,255,255,0.3)",
     maxWidth: "70%",
   },
-  glassText: { fontFamily: FONT, color: "#fff", fontSize: 13, fontWeight: "500" },
+  glassText: { color: "#fff", fontSize: 13, ...f("500") },
   badges: { position: "absolute", top: 56, left: 14, gap: 6 },
   bar: { position: "absolute", left: 10, right: 10, bottom: 10, borderRadius: 24, overflow: "hidden", padding: 10, gap: 8 },
   barTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(40,16,90,0.32)", borderRadius: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
-  title: { fontFamily: FONT, color: "#fff", fontSize: 17, fontWeight: "500", letterSpacing: -0.2, paddingHorizontal: 4 },
+  title: { color: "#fff", fontSize: 17, lineHeight: 21, ...f("500"), letterSpacing: -0.2, paddingHorizontal: 4 },
   barRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   dt: { width: 52, height: 52, borderRadius: 18, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  dtTime: { fontFamily: FONT, fontSize: 15, fontWeight: "600", color: colors.ink },
+  dtTime: { fontSize: 15, ...f("600"), color: colors.ink },
   dtDay: { fontFamily: FONT, fontSize: 10.5, color: colors.grey, marginTop: 2 },
   place: { flex: 1, flexDirection: "row", alignItems: "center", gap: 4, minWidth: 0 },
   placeText: { fontFamily: FONT, color: "#fff", fontSize: 12.5, opacity: 0.92, flexShrink: 1 },
   price: { height: 36, paddingHorizontal: 13, borderRadius: 999, backgroundColor: "#fff", justifyContent: "center", maxWidth: 110 },
-  priceText: { fontFamily: FONT, fontSize: 13, fontWeight: "500", color: colors.ink },
+  priceText: { fontSize: 13, ...f("500"), color: colors.ink },
 });

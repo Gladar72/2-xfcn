@@ -11,7 +11,7 @@ import { Chip } from "@/components/ui";
 import { api } from "@/lib/api";
 import { tapLight } from "@/lib/feedback";
 import { plural, qs, timePill } from "@/lib/format";
-import { colors, eventIcon, FONT, pinIcon } from "@/lib/theme";
+import { colors, eventIcon, FONT, pinIcon, f } from "@/lib/theme";
 import { coverUri } from "@/lib/covers";
 import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
@@ -195,7 +195,7 @@ export default function MapScreen() {
                   {bizOnly ? "Заведения" : "Что рядом?"}
                   {city ? ` · ${city}` : ""}
                 </Text>
-                <Text style={styles.sub}>{error ?? (shownCount ? `${shownCount} ${word} на карте` : events.length ? "В этой категории пусто" : "Загружаем…")}</Text>
+                <Text style={styles.sub} numberOfLines={1}>{error ?? (shownCount ? `${shownCount} ${word} на карте` : events.length ? "В этой категории пусто" : "Загружаем…")}</Text>
               </View>
             </Glass>
           </Pressable>
@@ -242,15 +242,15 @@ const styles = StyleSheet.create({
   top: { position: "absolute", left: 16, right: 16, gap: 10 },
   bar: { flexDirection: "row", alignItems: "center", gap: 8 },
   titleBox: { borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 10 },
-  title: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink },
+  title: { fontSize: 16, ...f("500"), color: colors.ink },
   sub: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, marginTop: 1 },
   note: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   noteText: { fontFamily: FONT, fontSize: 13, color: colors.ink2 },
   retry: { alignSelf: "flex-start", backgroundColor: colors.ink, borderRadius: 999, paddingHorizontal: 16, height: 38, justifyContent: "center" },
-  retryText: { fontFamily: FONT, fontSize: 14, fontWeight: "600", color: "#fff" },
+  retryText: { fontSize: 14, ...f("600"), color: "#fff" },
   pin: { alignItems: "center" },
   pill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginBottom: 2 },
-  pillText: { fontFamily: FONT, color: "#fff", fontSize: 11.5, fontWeight: "500" },
+  pillText: { color: "#fff", fontSize: 11.5, ...f("500") },
   pinImg: { width: 48, height: 60 },
   drop: { width: 52, height: 52, marginBottom: 10 },
   dropShape: {

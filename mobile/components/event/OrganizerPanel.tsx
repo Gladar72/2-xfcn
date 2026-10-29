@@ -9,7 +9,7 @@ import { ApplicantRow, SmallBtn, type Application } from "@/components/event/App
 import { api } from "@/lib/api";
 import { animateNext, manageErrorText, tapOk, tapWarn } from "@/lib/feedback";
 import { plural } from "@/lib/format";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 export interface OrganizerEvent {
   id: string;
@@ -310,24 +310,24 @@ function LinkRow({ icon, title, sub, onPress }: { icon: IconName; title: string;
 
 const styles = StyleSheet.create({
   hint: { borderRadius: 22, padding: 14, flexDirection: "row", alignItems: "center", gap: 12 },
-  hintTitle: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink },
+  hintTitle: { fontSize: 15.5, ...f("500"), color: colors.ink },
   muted: { fontFamily: FONT, fontSize: 13, color: colors.grey, marginTop: 2 },
   ic: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   secRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  section: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink, letterSpacing: -0.4 },
+  section: { fontSize: 19, ...f("500"), color: colors.ink, letterSpacing: -0.4 },
   count: { minWidth: 24, height: 24, borderRadius: 12, backgroundColor: colors.live, alignItems: "center", justifyContent: "center", paddingHorizontal: 7 },
-  countText: { fontFamily: FONT, fontSize: 13, fontWeight: "700", color: "#fff" },
+  countText: { fontSize: 13, ...f("700"), color: "#fff" },
   list: { borderRadius: 22, paddingHorizontal: 12 },
   person: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(108,59,255,0.15)" },
   personTap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
   personName: { flex: 1, fontFamily: FONT, fontSize: 15.5, color: colors.ink },
-  status: { fontFamily: FONT, fontSize: 13, fontWeight: "600" },
-  remove: { fontFamily: FONT, fontSize: 14, fontWeight: "600", color: colors.danger },
+  status: { fontSize: 13, ...f("600") },
+  remove: { fontSize: 14, ...f("600"), color: colors.danger },
   tiles: { flexDirection: "row", gap: 10 },
   tile: { borderRadius: 22, padding: 14, gap: 6, minHeight: 112 },
-  tileTitle: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink, marginTop: 4 },
+  tileTitle: { fontSize: 15.5, ...f("500"), color: colors.ink, marginTop: 4 },
   link: { borderRadius: 22, padding: 12, flexDirection: "row", alignItems: "center", gap: 12 },
   cancelLink: { alignSelf: "center", paddingVertical: 8 },
-  cancelText: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.danger },
+  cancelText: { fontSize: 15, ...f("500"), color: colors.danger },
 });

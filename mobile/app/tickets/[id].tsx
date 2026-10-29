@@ -7,7 +7,7 @@ import { Icon } from "@/components/Icon";
 import { Avatar, Chip } from "@/components/ui";
 import { api } from "@/lib/api";
 import { manageErrorText, tapLight, tapOk, tapWarn } from "@/lib/feedback";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 interface Ticket {
   userId: string;
@@ -197,18 +197,18 @@ export default function TicketsScreen() {
 const styles = StyleSheet.create({
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   listBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.glass2, borderRadius: 999, paddingHorizontal: 14, height: 40 },
-  listText: { fontFamily: FONT, fontSize: 14.5, fontWeight: "600", color: colors.violet },
+  listText: { fontSize: 14.5, ...f("600"), color: colors.violet },
   sub: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.grey, marginLeft: 4 },
   search: { borderRadius: 999, height: 48, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", gap: 10 },
   input: { flex: 1, fontFamily: FONT, fontSize: 16, color: colors.ink },
   row: { borderRadius: 22, padding: 10, flexDirection: "row", alignItems: "center", gap: 12 },
   rowOk: { backgroundColor: "rgba(34,181,115,0.10)" },
-  code: { fontFamily: FONT, fontSize: 16, fontWeight: "700", color: colors.ink, letterSpacing: 0.5 },
+  code: { fontSize: 16, ...f("700"), color: colors.ink, letterSpacing: 0.5 },
   name: { fontFamily: FONT, fontSize: 14, color: colors.ink2, marginTop: 1 },
   mark: { height: 40, borderRadius: 999, paddingHorizontal: 16, alignItems: "center", justifyContent: "center" },
   markWait: { backgroundColor: colors.lav },
   markOk: { backgroundColor: colors.ok },
-  markText: { fontFamily: FONT, fontSize: 14.5, fontWeight: "600" },
+  markText: { fontSize: 14.5, ...f("600") },
   empty: { borderRadius: 26, padding: 22, alignItems: "center", gap: 6 },
-  emptyTitle: { fontFamily: FONT, fontSize: 18, fontWeight: "500", color: colors.ink },
+  emptyTitle: { fontSize: 18, ...f("500"), color: colors.ink },
 });

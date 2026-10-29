@@ -9,7 +9,7 @@ import { Avatar } from "@/components/ui";
 import { api } from "@/lib/api";
 import { plural } from "@/lib/format";
 import { PLAN_NAME, untilLabel, type Subscription } from "@/lib/subscription";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 
@@ -164,28 +164,28 @@ function Row({ icon, label, onPress, last }: { icon: IconName; label: string; on
 
 const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4 },
-  h1: { fontFamily: FONT, fontSize: 30, fontWeight: "500", color: colors.ink, letterSpacing: -0.8 },
+  h1: { fontSize: 30, ...f("500"), color: colors.ink, letterSpacing: -0.8 },
   card: { borderRadius: 32, padding: 20, paddingTop: 24, alignItems: "center", gap: 4, overflow: "hidden" },
   mosya: { position: "absolute", right: -6, top: -4, opacity: 0.95 },
   avaRing: { padding: 4, borderRadius: 60, backgroundColor: "rgba(255,255,255,0.35)" },
   camBadge: { position: "absolute", right: 2, bottom: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  name: { fontFamily: FONT, fontSize: 24, fontWeight: "500", color: "#fff", marginTop: 8, letterSpacing: -0.5 },
+  name: { fontSize: 24, ...f("500"), color: "#fff", marginTop: 8, letterSpacing: -0.5 },
   city: { fontFamily: FONT, fontSize: 14, color: "rgba(255,255,255,0.88)", textAlign: "center" },
   bio: { fontFamily: FONT, fontSize: 14, color: "#fff", textAlign: "center", marginTop: 6, opacity: 0.95 },
   fill: { alignSelf: "stretch", marginTop: 14, gap: 6 },
   fillRow: { flexDirection: "row", justifyContent: "space-between" },
-  fillText: { fontFamily: FONT, fontSize: 13, color: "#fff", fontWeight: "500" },
+  fillText: { fontSize: 13, color: "#fff", ...f("500") },
   fillTip: { fontFamily: FONT, fontSize: 13, color: "rgba(255,255,255,0.85)" },
   track: { height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden" },
   trackOn: { height: 8, borderRadius: 4, backgroundColor: "#fff" },
   btns: { flexDirection: "row", gap: 8, alignSelf: "stretch", marginTop: 14 },
   ghost: { flex: 1, height: 44, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.6)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  ghostText: { fontFamily: FONT, fontSize: 14.5, fontWeight: "600", color: "#fff" },
+  ghostText: { fontSize: 14.5, ...f("600"), color: "#fff" },
   solid: { flex: 1, height: 44, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  solidText: { fontFamily: FONT, fontSize: 14.5, fontWeight: "600", color: colors.violet },
+  solidText: { fontSize: 14.5, ...f("600"), color: colors.violet },
   stats: { flexDirection: "row", gap: 8 },
   stat: { flex: 1, borderRadius: 22, paddingVertical: 12, alignItems: "center" },
-  statValue: { fontFamily: FONT, fontSize: 22, fontWeight: "500", color: colors.ink },
+  statValue: { fontSize: 22, ...f("500"), color: colors.ink },
   muted: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, marginTop: 1 },
   sub: { borderRadius: 24, padding: 12, flexDirection: "row", alignItems: "center", gap: 12 },
   list: { borderRadius: 26, paddingHorizontal: 12 },

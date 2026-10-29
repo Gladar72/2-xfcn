@@ -5,7 +5,7 @@ import { Sheet } from "@/components/Sheet";
 import { Avatar } from "@/components/ui";
 import { tapLight, tapOk, tapWarn } from "@/lib/feedback";
 import { sendReview, type ReviewInput, type ReviewTarget } from "@/lib/reviews";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 const TOGGLES: { key: Exclude<keyof ReviewInput, "rating">; label: string }[] = [
   { key: "meetingHappened", label: "Встреча состоялась" },
@@ -115,10 +115,10 @@ export function ReviewSheet({
 
 const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 },
-  title: { fontFamily: FONT, fontSize: 20, lineHeight: 24, fontWeight: "500", color: colors.ink, letterSpacing: -0.4 },
+  title: { fontSize: 20, lineHeight: 24, ...f("500"), color: colors.ink, letterSpacing: -0.4 },
   muted: { fontFamily: FONT, fontSize: 13, color: colors.grey, marginTop: 2 },
   stars: { flexDirection: "row", justifyContent: "center", gap: 10, marginVertical: 6 },
-  star: { fontSize: 44, lineHeight: 52 },
+  star: { fontFamily: FONT, fontSize: 44, lineHeight: 52 },
   toggles: { backgroundColor: "#fff", borderRadius: 20, paddingHorizontal: 14, marginBottom: 6 },
   toggle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 },
   sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(108,59,255,0.15)" },

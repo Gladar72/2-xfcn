@@ -12,7 +12,7 @@ import { API_URL } from "@/lib/config";
 import { CitySheet } from "@/components/CitySheet";
 import { cityEventIcon, cityWhen, KIND_LABEL, type CityEvent } from "@/lib/cityEvents";
 import { tapOk } from "@/lib/feedback";
-import { catIcon, CATEGORY_SHORT, colors, eventIcon, FONT } from "@/lib/theme";
+import { catIcon, CATEGORY_SHORT, colors, eventIcon, FONT, f } from "@/lib/theme";
 import { costShort, dayShort, plural } from "@/lib/format";
 import type { Category, FeedEvent, MyProfile, PersonCard } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
@@ -370,10 +370,10 @@ export default function HomeScreen() {
                       <Text style={styles.acTitle} numberOfLines={2}>{e.title}</Text>
                       <View style={styles.vm}>
                         <Icon name="cal" size={13} color="rgba(255,255,255,0.85)" />
-                        <Text style={styles.acMeta}>{dayShort(e.eventDate)}, {e.eventTime.slice(0, 5)}</Text>
+                        <Text style={styles.acMeta} numberOfLines={1}>{dayShort(e.eventDate)}, {e.eventTime.slice(0, 5)}</Text>
                         <Text style={styles.acMeta}> • </Text>
                         <Icon name="people" size={13} color="rgba(255,255,255,0.85)" />
-                        <Text style={styles.acMeta}>{left > 0 ? `${left} ${plural(left, "место", "места", "мест")}` : "мест нет"}</Text>
+                        <Text style={styles.acMeta} numberOfLines={1}>{left > 0 ? `${left} ${plural(left, "место", "места", "мест")}` : "мест нет"}</Text>
                       </View>
                       <View style={styles.vr}>
                         <View style={[styles.acPrice, { marginTop: 0, flexShrink: 1 }]}>
@@ -452,19 +452,19 @@ const styles = StyleSheet.create({
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   locSmall: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
   locRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  locCity: { fontFamily: FONT, fontSize: 17, fontWeight: "500", color: colors.ink },
+  locCity: { fontSize: 17, ...f("500"), color: colors.ink },
   cnt: { position: "absolute", top: 3, right: 3, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.pink, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  cntText: { fontFamily: FONT, color: "#fff", fontSize: 10.5, fontWeight: "600" },
+  cntText: { color: "#fff", fontSize: 10.5, ...f("600") },
   ttl: { marginTop: 18 },
   reqWrap: { marginTop: 16 },
   req: { borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingLeft: 12, paddingRight: 14 },
   reqAva: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: "#fff" },
   reqAvaEmpty: { backgroundColor: "rgba(255,255,255,0.25)", alignItems: "center", justifyContent: "center" },
-  reqAvaText: { fontFamily: FONT, color: "#fff", fontSize: 18, fontWeight: "700" },
+  reqAvaText: { color: "#fff", fontSize: 18, ...f("700") },
   reqCnt: { position: "absolute", right: -7, bottom: -4, backgroundColor: "#fff", borderRadius: 99, paddingHorizontal: 5, paddingVertical: 1 },
-  reqCntText: { fontFamily: FONT, color: colors.violet, fontSize: 11, fontWeight: "800" },
+  reqCntText: { color: colors.violet, fontSize: 11, ...f("800") },
   reqSmall: { fontFamily: FONT, color: "rgba(255,255,255,0.85)", fontSize: 12.5 },
-  reqBig: { fontFamily: FONT, color: "#fff", fontSize: 15.5, fontWeight: "600" },
+  reqBig: { color: "#fff", fontSize: 15.5, ...f("600") },
   search: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
   sfield: { flex: 1, height: 50, borderRadius: 999, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16 },
   sinput: { flex: 1, fontFamily: FONT, fontSize: 15, color: colors.ink, height: 50 },
@@ -472,50 +472,50 @@ const styles = StyleSheet.create({
   cats: { gap: 8, paddingHorizontal: 20, paddingVertical: 4, marginTop: 10 },
   cat: { flexDirection: "row", alignItems: "center", gap: 6, height: 46, paddingLeft: 6, paddingRight: 16, borderRadius: 999 },
   catIcon: { width: 38, height: 38 },
-  catText: { fontFamily: FONT, fontSize: 14, fontWeight: "500", color: colors.ink },
+  catText: { fontSize: 14, ...f("500"), color: colors.ink },
   rail: { gap: 12, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 14 },
   empty: { borderRadius: 32, padding: 24, alignItems: "center", gap: 6 },
-  emptyTitle: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink },
+  emptyTitle: { fontSize: 18, ...f("500"), color: colors.ink },
   emptyText: { fontFamily: FONT, fontSize: 14, color: colors.grey, textAlign: "center" },
   emptyBtn: { marginTop: 10, backgroundColor: colors.ink, borderRadius: 999, height: 44, paddingHorizontal: 20, justifyContent: "center" },
-  emptyBtnText: { fontFamily: FONT, color: "#fff", fontSize: 15, fontWeight: "500" },
+  emptyBtnText: { color: "#fff", fontSize: 15, ...f("500") },
   pcard: { width: 172, height: 244, borderRadius: 28, overflow: "hidden", backgroundColor: colors.lavender100 },
   pInit: { alignItems: "center", justifyContent: "center" },
-  pInitText: { fontFamily: FONT, color: "#fff", fontSize: 48, fontWeight: "500" },
+  pInitText: { color: "#fff", fontSize: 48, ...f("500") },
   pTag: { position: "absolute", top: 10, left: 10, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999, paddingHorizontal: 9, height: 26, justifyContent: "center" },
   pTagText: { fontFamily: FONT, color: "#fff", fontSize: 11.5 },
   pInfo: { position: "absolute", left: 12, right: 12, bottom: 10 },
   pDist: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999, paddingLeft: 6, paddingRight: 8, height: 22, marginBottom: 4 },
-  pDistText: { fontFamily: FONT, color: "#fff", fontSize: 11.5, fontWeight: "600" },
+  pDistText: { color: "#fff", fontSize: 11.5, ...f("600") },
   geo: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 24, paddingVertical: 8, paddingLeft: 8, paddingRight: 14 },
   geoIc: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" },
-  geoTitle: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink },
+  geoTitle: { fontSize: 15.5, ...f("500"), color: colors.ink },
   geoText: { fontFamily: FONT, fontSize: 13, lineHeight: 17, color: colors.grey },
-  pName: { fontFamily: FONT, color: "#fff", fontSize: 17, fontWeight: "500" },
+  pName: { color: "#fff", fontSize: 17, ...f("500") },
   pSub: { fontFamily: FONT, color: "rgba(255,255,255,0.9)", fontSize: 12 },
   afisha: { marginTop: 26, borderRadius: 30, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 16, overflow: "hidden" },
   acardV: { width: 210, height: 290, borderRadius: 24 },
   acBoost: { flexDirection: "row", alignItems: "center", gap: 4, height: 26, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
-  acBoostText: { fontFamily: FONT, color: "#fff", fontSize: 11.5, fontWeight: "600" },
+  acBoostText: { color: "#fff", fontSize: 11.5, ...f("600") },
   vb: { position: "absolute", left: 8, right: 8, bottom: 8, padding: 11, borderRadius: 18, backgroundColor: "rgba(18,10,40,0.55)", gap: 6 },
   vm: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 3 },
   vr: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 3 },
   aava: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: "rgba(255,255,255,0.85)", overflow: "hidden" },
-  aavaText: { fontFamily: FONT, color: "#fff", fontSize: 13, fontWeight: "700" },
+  aavaText: { color: "#fff", fontSize: 13, ...f("700") },
   afHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  afAll: { fontFamily: FONT, color: "rgba(255,255,255,0.85)", fontSize: 14.5, fontWeight: "500" },
+  afAll: { color: "rgba(255,255,255,0.85)", fontSize: 14.5, ...f("500") },
   invite: { backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", padding: 18, gap: 8 },
-  invTitle: { fontFamily: FONT, color: "#fff", fontSize: 16, fontWeight: "500", textAlign: "center" },
+  invTitle: { color: "#fff", fontSize: 16, ...f("500"), textAlign: "center" },
   invText: { fontFamily: FONT, color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "center" },
   afSmall: { fontFamily: FONT, color: "rgba(255,255,255,0.6)", fontSize: 11.5, letterSpacing: 0.8 },
-  afTitle: { fontFamily: FONT, color: "#fff", fontSize: 22, fontWeight: "500", letterSpacing: -0.4, marginTop: 2 },
+  afTitle: { color: "#fff", fontSize: 19, ...f("500"), letterSpacing: -0.4, marginTop: 2 },
   acard: { width: 210, height: 290, borderRadius: 24, overflow: "hidden", backgroundColor: "#2A1650" },
   acTop: { position: "absolute", top: 10, left: 10, right: 10, flexDirection: "row", gap: 6, flexWrap: "wrap" },
   acOrg: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 999, height: 28, paddingHorizontal: 10, justifyContent: "center", maxWidth: 140 },
-  acOrgText: { fontFamily: FONT, color: "#fff", fontSize: 12.5, fontWeight: "500" },
+  acOrgText: { color: "#fff", fontSize: 12.5, ...f("500") },
   acBody: { position: "absolute", left: 12, right: 12, bottom: 12, gap: 4 },
-  acTitle: { fontFamily: FONT, color: "#fff", fontSize: 16, fontWeight: "500" },
+  acTitle: { color: "#fff", fontSize: 16, lineHeight: 20, ...f("500") },
   acMeta: { fontFamily: FONT, color: "rgba(255,255,255,0.85)", fontSize: 12.5 },
   acPrice: { alignSelf: "flex-start", backgroundColor: "#fff", borderRadius: 999, height: 28, paddingHorizontal: 11, justifyContent: "center", marginTop: 4 },
-  acPriceText: { fontFamily: FONT, fontSize: 12.5, fontWeight: "500", color: colors.ink },
+  acPriceText: { fontSize: 12.5, ...f("500"), color: colors.ink },
 });

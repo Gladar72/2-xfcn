@@ -5,7 +5,7 @@ import { Glass } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { Chip, Field } from "@/components/ui";
 import { api } from "@/lib/api";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { type AddressSuggestion, dayChip, dayLong, DURS, type Form, hhmm, nextDays, type PlaceSuggestion, type SetForm } from "./model";
 import { ChipRow, Label, Muted, StepTitle, Stepper } from "./parts";
 import { qs } from "@/lib/format";
@@ -161,7 +161,7 @@ export function StepWhen({ form, set, catLabel, city }: { form: Form; set: SetFo
                       {p.name}
                     </Text>
                     {p.rating ? (
-                      <Text style={[st.recText, { color: colors.ink, fontWeight: "600" }]} numberOfLines={1}>
+                      <Text style={[st.recText, { color: colors.ink, ...f("600") }]} numberOfLines={1}>
                         ★ {p.rating.toFixed(1).replace(".", ",")}
                         {p.reviews ? ` · ${p.reviews.toLocaleString("ru-RU")} отз.` : ""}
                       </Text>
@@ -239,19 +239,19 @@ function Row({ icon, title, text, onPress }: { icon: "pin" | "nav"; title: strin
 const st = StyleSheet.create({
   sum: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 22, padding: 14, marginTop: 14 },
   sumSmall: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
-  sumText: { fontFamily: FONT, fontSize: 16, fontWeight: "500", color: colors.ink },
+  sumText: { fontSize: 16, ...f("500"), color: colors.ink },
   hWrap: { marginHorizontal: -20 },
   hRow: { gap: 8, paddingHorizontal: 20, paddingVertical: 4 },
   drop: { borderRadius: 20, marginTop: 8, paddingVertical: 4 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 14, paddingVertical: 10 },
   empty: { fontFamily: FONT, fontSize: 13.5, color: colors.grey, padding: 14 },
   tag: { alignSelf: "flex-start", backgroundColor: colors.lav, borderRadius: 999, paddingHorizontal: 10, height: 26, justifyContent: "center", marginTop: 14, marginBottom: 8 },
-  tagText: { fontFamily: FONT, fontSize: 12, color: colors.violet, fontWeight: "500" },
+  tagText: { fontSize: 12, color: colors.violet, ...f("500") },
   rec: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 11, gap: 2 },
   recOn: { borderWidth: 2, borderColor: colors.violet },
-  recTitle: { fontFamily: FONT, fontSize: 15, fontWeight: "500", color: colors.ink },
+  recTitle: { fontSize: 15, ...f("500"), color: colors.ink },
   recText: { fontFamily: FONT, fontSize: 13, color: colors.grey },
   picked: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 22, padding: 14, marginTop: 12 },
   pin: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.violet, alignItems: "center", justifyContent: "center" },
-  link: { fontFamily: FONT, fontSize: 14, color: colors.violet, fontWeight: "500" },
+  link: { fontSize: 14, color: colors.violet, ...f("500") },
 });

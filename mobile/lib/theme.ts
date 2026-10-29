@@ -44,8 +44,26 @@ export const gradientEnd = { x: 1, y: 0.8 };
 
 export const radius = { card: 24, hero: 32, pill: 999, input: 18 };
 
-/** Шрифт Golos Text — грузится при старте (lib/fonts.ts); пока не загрузился — системный. */
+/** Шрифт Golos Text — грузится при старте (app/_layout.tsx) из assets/fonts.
+ *  Android не умеет брать насыщенность из одного вариативного файла, поэтому
+ *  у каждой насыщенности свой статический файл и своё имя семейства. */
 export const FONT = "Golos";
+
+export const fonts = {
+  "400": FONT,
+  "500": "Golos-Medium",
+  "600": "Golos-SemiBold",
+  "700": "Golos-Bold",
+  "800": "Golos-ExtraBold",
+  "900": "Golos-Black",
+} as const;
+
+export type Weight = keyof typeof fonts;
+
+/** Насыщенность → нужное семейство Golos (вместо fontWeight, который Android игнорирует). */
+export function f(weight: Weight = "400") {
+  return { fontFamily: fonts[weight] };
+}
 
 export const font = {
   display: 32,
@@ -58,9 +76,9 @@ export const font = {
 
 /** Текстовые стили: у Golos средняя насыщенность (500) — основная для заголовков. */
 export const type = {
-  display: { fontFamily: FONT, fontSize: 32, lineHeight: 34, fontWeight: "500" as const, letterSpacing: -0.9, color: colors.ink },
-  title: { fontFamily: FONT, fontSize: 24, lineHeight: 27, fontWeight: "500" as const, letterSpacing: -0.6, color: colors.ink },
-  h2: { fontFamily: FONT, fontSize: 19, fontWeight: "500" as const, letterSpacing: -0.4, color: colors.ink },
+  display: { ...f("500"), fontSize: 32, lineHeight: 34, letterSpacing: -0.9, color: colors.ink },
+  title: { ...f("500"), fontSize: 24, lineHeight: 27, letterSpacing: -0.6, color: colors.ink },
+  h2: { ...f("500"), fontSize: 19, letterSpacing: -0.4, color: colors.ink },
   body: { fontFamily: FONT, fontSize: 15, color: colors.ink },
   small: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
 };
@@ -69,7 +87,6 @@ export const type = {
 const B = `${API_URL}/brand`;
 export const brand = {
   mosya: (pose: "stand" | "wave" | "jump" | "run" | "sit" | "phone" | "think" | "glasses") => `${B}/mosya/mosya_${pose}.webp`,
-  font: `${B}/fonts/GolosText-Variable.ttf`,
 };
 
 const CAT: Record<string, string> = {

@@ -10,7 +10,7 @@ import { Icon } from "@/components/Icon";
 import { Sheet } from "@/components/Sheet";
 import { API_URL } from "@/lib/config";
 import { tapOk } from "@/lib/feedback";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 /**
  * «Поделиться событием» — как в мини-приложении: картинка для сторис от сервера
@@ -197,25 +197,25 @@ export function ShareSheet({
 }
 
 const styles = StyleSheet.create({
-  h: { fontFamily: FONT, fontSize: 24, fontWeight: "500", color: colors.ink, letterSpacing: -0.6 },
+  h: { fontSize: 24, ...f("500"), color: colors.ink, letterSpacing: -0.6 },
   preview: { flexDirection: "row", gap: 14, alignItems: "center", borderRadius: 20, padding: 12 },
   thumb: { width: 92, height: 164, borderRadius: 12, backgroundColor: "#1B1230" },
   thumbBig: { width: 110, height: 196, borderRadius: 14, backgroundColor: "#1B1230" },
-  pTitle: { fontFamily: FONT, fontSize: 15.5, fontWeight: "600", color: colors.ink, lineHeight: 20 },
+  pTitle: { fontSize: 15.5, ...f("600"), color: colors.ink, lineHeight: 20 },
   pText: { fontFamily: FONT, fontSize: 13.5, color: colors.ink2, lineHeight: 19 },
   row: { flexDirection: "row", justifyContent: "space-between" },
   target: { alignItems: "center", gap: 7, width: 62 },
   tIcon: { width: 56, height: 56, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   tLabel: { fontFamily: FONT, fontSize: 11.5, lineHeight: 14, textAlign: "center", color: colors.ink2 },
-  glyphText: { fontFamily: FONT, fontSize: 17, fontWeight: "800", color: "#fff", letterSpacing: -0.3 },
+  glyphText: { fontSize: 17, ...f("800"), color: "#fff", letterSpacing: -0.3 },
   okPill: { alignSelf: "flex-start", backgroundColor: "#E3F7EA", borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5 },
-  okText: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: "#1E8A4C" },
+  okText: { fontSize: 13, ...f("600"), color: "#1E8A4C" },
   steps: { borderRadius: 20, padding: 16, gap: 12 },
   step: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
   stepN: { width: 28, height: 28, borderRadius: 10, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" },
-  stepNText: { fontFamily: FONT, fontSize: 14, fontWeight: "700", color: "#fff" },
-  stepT: { fontFamily: FONT, fontSize: 15, fontWeight: "600", color: colors.ink },
+  stepNText: { fontSize: 14, ...f("700"), color: "#fff" },
+  stepT: { fontSize: 15, ...f("600"), color: colors.ink },
   stepS: { fontFamily: FONT, fontSize: 13.5, lineHeight: 19, color: colors.ink2 },
   igBtn: { height: 56, borderRadius: 999, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10 },
-  igText: { fontFamily: FONT, fontSize: 16.5, fontWeight: "600", color: "#fff" },
+  igText: { fontSize: 16.5, ...f("600"), color: "#fff" },
 });

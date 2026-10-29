@@ -7,7 +7,7 @@ import { Aurora, Glass, Mosya, RoundBtn, Title } from "@/components/brand";
 import { Icon, type IconName } from "@/components/Icon";
 import { Chip } from "@/components/ui";
 import { api } from "@/lib/api";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 import { useGuide } from "@/lib/guide";
 
 /** Ответ GET /api/notifications (app/api/notifications/route.ts). */
@@ -240,18 +240,18 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   tabs: { flexDirection: "row", gap: 8 },
-  label: { fontFamily: FONT, fontSize: 13, fontWeight: "500", color: colors.grey, marginTop: 6, marginLeft: 6 },
+  label: { fontSize: 13, ...f("500"), color: colors.grey, marginTop: 6, marginLeft: 6 },
   row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 24, alignItems: "center" },
   unread: { borderWidth: 1, borderColor: "rgba(108,59,255,0.35)" },
   thumb: { width: 50, height: 50, borderRadius: 16 },
   iconBox: { backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
-  title: { fontFamily: FONT, fontSize: 15.5, fontWeight: "500", color: colors.ink, flex: 1 },
+  title: { fontSize: 15.5, ...f("500"), color: colors.ink, flex: 1 },
   time: { fontFamily: FONT, fontSize: 12, color: colors.grey },
   text: { fontFamily: FONT, fontSize: 14, lineHeight: 19, color: colors.ink2 },
   ticket: { fontFamily: FONT, fontSize: 13, color: colors.violet, marginTop: 2 },
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.pink },
   empty: { alignItems: "center", marginTop: 50, gap: 8, paddingHorizontal: 24 },
-  emptyTitle: { fontFamily: FONT, fontSize: 19, fontWeight: "500", color: colors.ink },
+  emptyTitle: { fontSize: 18, ...f("500"), color: colors.ink },
   emptyText: { fontFamily: FONT, fontSize: 14, color: colors.grey, textAlign: "center" },
 });

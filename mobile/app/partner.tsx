@@ -10,7 +10,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { api, ApiError } from "@/lib/api";
 import { tapOk, tapWarn } from "@/lib/feedback";
 import { stickerUrl } from "@/lib/stickers";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 /** Партнёрская программа для блогеров и пабликов: 30% с каждой оплаты приведённых людей. */
 
@@ -169,7 +169,7 @@ export default function PartnerScreen() {
                 {info.link}
               </Text>
               <Text style={styles.muted}>
-                Код приглашения: <Text style={{ color: colors.violet, fontWeight: "700" }}>{info.code}</Text> — его можно ввести в приложении в настройках
+                Код приглашения: <Text style={{ color: colors.violet, ...f("700") }}>{info.code}</Text> — его можно ввести в приложении в настройках
               </Text>
               <View style={styles.row2}>
                 <View style={{ flex: 1 }}>
@@ -297,25 +297,25 @@ const styles = StyleSheet.create({
   top: { flexDirection: "row" },
   lead: { fontFamily: FONT, fontSize: 16, color: colors.ink2, textAlign: "center", lineHeight: 22, paddingHorizontal: 6 },
   card: { borderRadius: 24, padding: 16, gap: 10 },
-  label: { fontFamily: FONT, fontSize: 13, fontWeight: "600", color: colors.grey, textTransform: "uppercase", letterSpacing: 0.5 },
-  link: { fontFamily: FONT, fontSize: 17, fontWeight: "600", color: colors.violet },
-  big: { fontFamily: FONT, fontSize: 30, fontWeight: "700", color: colors.ink },
+  label: { fontSize: 13, ...f("600"), color: colors.grey, textTransform: "uppercase", letterSpacing: 0.5 },
+  link: { fontSize: 17, ...f("600"), color: colors.violet },
+  big: { fontSize: 30, ...f("700"), color: colors.ink },
   text: { fontFamily: FONT, fontSize: 15, color: colors.ink2, lineHeight: 21 },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey, lineHeight: 19 },
   row2: { flexDirection: "row", gap: 10 },
   grid: { flexDirection: "row", gap: 10 },
   stat: { flex: 1, borderRadius: 20, paddingVertical: 14, alignItems: "center" },
-  statValue: { fontFamily: FONT, fontSize: 24, fontWeight: "700", color: colors.ink },
+  statValue: { fontSize: 24, ...f("700"), color: colors.ink },
   statLabel: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
   moneyRow: { flexDirection: "row", gap: 8, marginBottom: 4 },
-  moneyValue: { fontFamily: FONT, fontSize: 15, fontWeight: "600", color: colors.ink },
+  moneyValue: { fontSize: 15, ...f("600"), color: colors.ink },
   perk: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 22, padding: 14 },
   perkIc: { width: 42, height: 42, borderRadius: 14, alignItems: "center", justifyContent: "center" },
-  perkTitle: { fontFamily: FONT, fontSize: 16, fontWeight: "600", color: colors.ink },
+  perkTitle: { fontSize: 16, ...f("600"), color: colors.ink },
   error: { fontFamily: FONT, fontSize: 14, color: colors.danger, textAlign: "center" },
   toast: { position: "absolute", alignSelf: "center", backgroundColor: "rgba(22,18,31,0.9)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 18, maxWidth: "90%" },
   toastText: { fontFamily: FONT, fontSize: 14, color: "#fff", textAlign: "center" },
-  sheetTitle: { fontFamily: FONT, fontSize: 19, fontWeight: "600", color: colors.ink, marginBottom: 4 },
+  sheetTitle: { fontSize: 19, ...f("600"), color: colors.ink, marginBottom: 4 },
   inputWrap: { borderRadius: 18, paddingHorizontal: 14, marginVertical: 12 },
   input: { fontFamily: FONT, minHeight: 70, fontSize: 16, color: colors.ink, paddingVertical: 12, textAlignVertical: "top" },
 });
