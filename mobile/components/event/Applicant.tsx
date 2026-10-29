@@ -14,8 +14,10 @@ export interface Application {
     id: string;
     name: string;
     avatarUrl: string | null;
-    age: number;
+    age: number | null;
     bio: string | null;
+    /** Анонимная встреча: профиль откроется после одобрения. */
+    anonymous?: boolean;
     ratingAvg: number;
     completedMeetingsCount: number;
   } | null;
@@ -64,7 +66,7 @@ export function ApplicantRow({
 
   return (
     <View style={styles.row}>
-      <Pressable style={styles.head} onPress={() => router.push(`/person/${a.id}` as Href)}>
+      <Pressable style={styles.head} disabled={!!a.anonymous} onPress={() => router.push(`/person/${a.id}` as Href)}>
         <Avatar uri={a.avatarUrl} name={a.name} size={48} />
         <View style={{ flex: 1 }}>
           <Text style={styles.name} numberOfLines={1}>
