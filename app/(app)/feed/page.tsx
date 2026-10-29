@@ -244,8 +244,11 @@ function HomeScreen() {
 
   // «Популярное сегодня»: сначала все продвинутые встречи города (и бизнес тоже) в порядке
   // с сервера, за ними — все обычные личные встречи (бизнес без продвижения — только в «Афише»).
-  const promoted = (events ?? []).filter((e) => e.isPromoted);
-  const pop = [...promoted, ...(events ?? []).filter((e) => !e.isPromoted && !e.isBusiness)];
+  // «Популярное сегодня» — только встречи людей (продвинутые первыми);
+  // все бизнес-события — в «Афише заведений» (тоже продвинутые первыми).
+  const personal = (events ?? []).filter((e) => !e.isBusiness);
+  const pop = [...personal.filter((e) => e.isPromoted), ...personal.filter((e) => !e.isPromoted)];
+  const bizSorted = [...biz.filter((e) => e.isPromoted || e.isBoosted), ...biz.filter((e) => !(e.isPromoted || e.isBoosted))];
   const nearN = (events ?? []).filter((e) => !e.isBusiness && !e.isMine).length;
   const cats = categories.filter((c) => c.slug !== "custom");
   const training = categories.find((c) => c.slug === "training");
@@ -426,45 +429,45 @@ function HomeScreen() {
           </Link>
         </div>
         <div className="rail">
-          {biz.map((e) => (
-            <Link key={e.id} className="acard" href={`/events/${e.id}`}>
-              <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} thumb={480} />
-              <span className="pill glass">
-                <span className="bzl">{(e.organizer?.name ?? "Б").charAt(0).toUpperCase()}</span>
-                {e.organizer?.name ?? "Заведение"}
-              </span>
-              {e.isLive ? (
-                <span className="ast lv">
-                  <span className="live">
-                    <i />
-                    Идёт сейчас
+          {bizSorted.map((e) => {
+            const left = Math.max(0, e.seatsTotal - e.seatsTaken);
+            return (
+              <Link key={e.id} className="acard v" href={`/events/${e.id}`}>
+                <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} thumb={480} />
+                {e.isLive ? (
+                  <span className="ast lv">
+                    <span className="live">
+                      <i />
+                      Идёт сейчас
+                    </span>
                   </span>
-                </span>
-              ) : e.isPromoted || e.isBoosted ? (
-                <span className="ast">
-                  <Ic n="up" c="xs" />В популярном
-                </span>
-              ) : e.seatsTaken >= e.seatsTotal ? (
-                <span className="ast full">Мест нет</span>
-              ) : null}
-              <div className="acb">
-                <b>{e.title}</b>
-                <p>
-                  <span className="ach">
+                ) : e.isPromoted || e.isBoosted ? (
+                  <span className="ast">
+                    <Ic n="up" c="xs" />В популярном
+                  </span>
+                ) : null}
+                <span className="vb">
+                  <b>{e.title}</b>
+                  <span className="vm">
                     <Ic n="cal" c="xs" />
-                    {whenShort(e.eventDate, e.eventTime)}
-                  </span>
-                </p>
-                <p>
-                  <span className="ach">
+                    {whenShort(e.eventDate, e.eventTime).replace(" · ", ", ")}
+                    <i />
                     <Ic n="people" c="xs" />
-                    {e.seatsTaken} из {e.seatsTotal}
+                    {left > 0 ? `${left} ${plural(left, "место", "места", "мест")}` : "мест нет"}
                   </span>
-                  <span className="ach pr">{e.businessPricingType === "free" ? "Бесплатно" : e.businessPricingDetails?.trim() || "Бесплатно"}</span>
-                </p>
-              </div>
-            </Link>
-          ))}
+                  <span className="vr">
+                    <span className="vp">{e.businessPricingType === "free" ? "Бесплатно" : e.businessPricingDetails?.trim() || "Бесплатно"}</span>
+                    {e.organizer?.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img className="aava" src={photoThumb(e.organizer.avatarUrl, 80)} alt="" />
+                    ) : (
+                      <span className="aava">{(e.organizer?.name ?? "Б").charAt(0).toUpperCase()}</span>
+                    )}
+                  </span>
+                </span>
+              </Link>
+            );
+          })}
           {/* «Что ещё в городе»: события из открытых источников (после одобрения). */}
           {cityEv.map((c) => (
             <Link key={c.id} className="acard city" href={`/city/${c.id}`}>
