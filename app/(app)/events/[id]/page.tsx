@@ -846,7 +846,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 {event.status === "published" ? (
                   <button className={`gl ${promo?.status ? "pron" : ""}`} onClick={() => (promo?.status ? setPromoDone(true) : setPromoOpen(true))}>
                     <Ic n="up" />
-                    <b>{promo?.status ? "В популярном" : "В популярное"}</b>
+                    <b>{promo?.status ? "В топе" : "Поднять в топ"}</b>
                     <span>
                       {promo?.status
                         ? Date.now() < Date.parse(promo.status.topFrom)
