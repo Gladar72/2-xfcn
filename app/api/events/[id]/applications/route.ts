@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { anonAlias } from "@/lib/events/anonymity";
 
 /**
  * GET /api/events/[id]/applications
@@ -16,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: event } = await admin
     .from("events")
-    .select("id, organizer_id, seats_total, seats_taken, title")
+    .select("id, organizer_id, seats_total, seats_taken, title, is_anonymous")
     .eq("id", eventId)
     .maybeSingle();
 
@@ -30,7 +31,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     .select(
       `
       id, status, created_at,
-      applicant:users(id, name, avatar_url, birth_date, bio, rating_avg, completed_meetings_count)
+      applicant:users(id, name, avatar_url, birth_date, bio, gender, rating_avg, completed_meetings_count)
       `
     )
     .eq("event_id", eventId)
@@ -45,6 +46,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       avatar_url: string | null;
       birth_date: string;
       bio: string | null;
+      gender: string | null;
       rating_avg: number;
       completed_meetings_count: number;
     } | null;
@@ -54,7 +56,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       status: app.status,
       createdAt: app.created_at,
       applicant: applicant
-        ? {
+        ? event.is_anonymous && app.status !== "accepted"
+          ? {
+              // Анонимная встреча: профиль откроется организатору только после одобрения.
+              id: "anonymous",
+              name: anonAlias(event.id, applicant.id, applicant.gender),
+              avatarUrl: null,
+              age: null,
+              bio: null,
+              anonymous: true,
+              ratingAvg: applicant.rating_avg,
+              completedMeetingsCount: applicant.completed_meetings_count,
+            }
+          : {
             id: applicant.id,
             name: applicant.name,
             avatarUrl: applicant.avatar_url,
