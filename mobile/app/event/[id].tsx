@@ -343,8 +343,9 @@ export default function EventScreen() {
             <View style={{ gap: 10 }}>
               <Text style={styles.section}>Уже идут</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
-                {event.participants.map((p) => (
-                  <Pressable key={p.id} onPress={() => router.push(`/person/${p.id}` as Href)} style={{ alignItems: "center", width: 62, gap: 4 }}>
+                {event.participants.map((p, i) => (
+                  // Анонимная встреча: других участников видно только условно — профиль не открывается.
+                  <Pressable key={p.anonymous ? `anon-${i}` : p.id} disabled={!!p.anonymous} onPress={() => router.push(`/person/${p.id}` as Href)} style={{ alignItems: "center", width: 62, gap: 4 }}>
                     <Avatar uri={p.avatarUrl} name={p.name} size={52} />
                     <Text numberOfLines={1} style={styles.pName}>
                       {p.name}
