@@ -179,7 +179,14 @@ function HomeScreen() {
     loadPeople();
     fetch("/api/conversations")
       .then((r) => r.json())
-      .then((d) => setUnreadChats((d.items ?? []).reduce((s: number, i: { unreadCount?: number }) => s + (i.unreadCount || 0), 0)))
+      .then((d) =>
+        // Непрочитанные сообщения во всех чатах; чаты прошедших/отменённых встреч не считаем.
+        setUnreadChats(
+          ((d.items ?? []) as { unreadCount?: number; eventStatus?: string | null }[])
+            .filter((i) => i.eventStatus !== "completed" && i.eventStatus !== "cancelled")
+            .reduce((s, i) => s + (i.unreadCount || 0), 0)
+        )
+      )
       .catch(() => {});
     fetch("/api/notifications")
       .then((r) => r.json())
@@ -263,7 +270,7 @@ function HomeScreen() {
           </b>
         </button>
         <div style={{ display: "flex", gap: 8 }}>
-          <Link className="rb gl" href="/chats" aria-label="Чаты">
+          <Link className={`rb gl${unreadChats > 0 ? " ping" : ""}`} href="/chats" aria-label="Чаты">
             <Ic n="chat" />
             {unreadChats > 0 && <span className="cnt">{unreadChats > 9 ? "9+" : unreadChats}</span>}
           </Link>
