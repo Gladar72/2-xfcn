@@ -105,7 +105,7 @@ export default function SubscriptionsPage() {
             </span>
           </div>
         ))}
-        <small className="muted">Продвижение ставит встречу первой в «Популярном сегодня» на час, а потом держит её там до начала</small>
+        <small className="muted">Продвижение ставит встречу первой в ленте на час, а потом держит её там до начала</small>
       </div>
       <button className="btn v" style={{ marginTop: 14 }} onClick={() => setChangingPlan(true)}>
         Сменить тариф
