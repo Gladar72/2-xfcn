@@ -7,6 +7,7 @@ import { cityDates } from "@/lib/events/local-dates";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { PhoneStory } from "./phone-layout";
 import { InviteStory } from "./invite-layout";
+import { PosterStory } from "./poster-layout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -156,9 +157,10 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   if (!e || !["published", "closed"].includes(e.status)) return new Response("not found", { status: 404 });
 
   const tDb = Date.now() - t0;
-  // По умолчанию — приглашение (согласовано 20.10); ?layout=phone — телефон, ?layout=old — прежний вид.
+  // По умолчанию — «Афиша» (согласовано 29.10); ?layout=invite — приглашение (20.10),
+  // ?layout=phone — телефон, ?layout=old — прежний вид.
   const layout = reqUrl.searchParams.get("layout");
-  if (layout !== "old") return phoneStoryResponse(e, ig, origin, tDb, layout === "phone" ? "phone" : "invite");
+  if (layout !== "old") return phoneStoryResponse(e, ig, origin, tDb, layout === "phone" ? "phone" : layout === "invite" ? "invite" : "poster");
   // Обложка и её размытая копия — параллельно, а не одна за другой.
   const src = coverSource(e.photo_url);
   const [bold, medium, wordmark, shRect, shRound, glowMaskBuf, cover, blurRaw] = await Promise.all([
@@ -406,7 +408,7 @@ function ageOf(birth: string | null | undefined): number | null {
   return a > 0 && a < 120 ? a : null;
 }
 
-async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tDb: number, kind: "phone" | "invite" = "phone") {
+async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tDb: number, kind: "phone" | "invite" | "poster" = "phone") {
   const t1 = Date.now();
   const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
   const org = one(e.organizer as unknown as { name: string | null; avatar_url: string | null; birth_date: string | null; gender: string | null } | null);
@@ -452,6 +454,30 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
     { name: "Golos", data: bold, weight: 700 as const, style: "normal" as const },
   ];
   const headers = { "Server-Timing": `db;dur=${tDb}, img;dur=${Date.now() - t1}`, "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400" };
+  if (kind === "poster") {
+    const oswald = await asset("Oswald-Bold.ttf");
+    const time = String(e.event_time).slice(0, 5);
+    const dayMonth = date.toLocaleDateString("ru-RU", { day: "numeric", month: "short", timeZone: "UTC" }).replace(/\./g, "");
+    const when = dateTop === "сегодня" || dateTop === "завтра" ? `${dateTop}, ${time}` : `${dayMonth}, ${time}`;
+    const place = placeName.replace(new RegExp(`^${city || "—"}[,\\s]+|[,\\s]+${city || "—"}$`, "gi"), "");
+    const firstName = orgName.split(/\s+/)[0] ?? orgName;
+    const whoText = e.is_anonymous ? `${anonymousOrganizerName(org?.gender ?? null)} зовёт` : e.is_business ? place || orgName : `${firstName} зовёт`;
+    const logoWhite = wordmark.toString().replace(/#16121F/gi, "#FFFFFF");
+    return new ImageResponse(
+      PosterStory({
+        who: whoText,
+        ask: e.is_business ? "приходи" : "пойдёшь?",
+        title: e.title ?? "",
+        coverUrl: cover?.dataUrl ?? null,
+        coverRatio: cover?.ratio ?? 3 / 4,
+        when,
+        where: e.is_anonymous ? "скрыто" : place || street.replace(/^ул(ица)?\.?\s*/i, "") || "на карте",
+        seats: free > 0 ? `${free} ${seatsWord(free)}` : "мест нет",
+        logo: `data:image/svg+xml;base64,${Buffer.from(logoWhite).toString("base64")}`,
+      }),
+      { width: 1080, height: 1920, fonts: [...fonts, { name: "Oswald", data: oswald, weight: 700 as const, style: "normal" as const }], headers }
+    );
+  }
   if (kind === "invite") {
     const blur = cover ? blurRaw : null;
     const ratio = cover?.ratio ?? 4 / 3;
