@@ -95,7 +95,7 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
     if (!u) return null;
     return (
       <div key={app.id} className="apl gl">
-        <Link href={`/people/${u.id}`}>
+        <Link href={u.anonymous ? "#" : `/people/${u.id}`} onClick={(e) => u.anonymous && e.preventDefault()}>
           {u.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={photoThumb(u.avatarUrl, 88)} alt="" />
@@ -107,7 +107,8 @@ export default function EventApplicationsPage({ params }: EventApplicationsPageP
         </Link>
         <div>
           <b>
-            {u.name}, {u.age}
+            {u.name}
+            {u.age ? `, ${u.age}` : ""}
           </b>
           <span>
             {u.ratingAvg > 0 ? `★ ${u.ratingAvg.toFixed(1).replace(".", ",")} · ` : ""}
