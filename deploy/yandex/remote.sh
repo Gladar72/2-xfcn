@@ -194,6 +194,9 @@ deploy() {
   # Анонсы новых встреч: можно отключить кнопкой (идемпотентно).
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
     < "$APP/supabase/migrations/0073_event_announcements.sql" || true
+  # Раздел бизнес-события (Бары, Вечеринки и клубы…) + раскладка старых событий (идемпотентно).
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
+    < "$APP/supabase/migrations/0074_biz_category.sql" || true
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"

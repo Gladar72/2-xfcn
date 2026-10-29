@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     .from("events")
     .select(
       `
-      id, title, event_date, event_time, event_end_time, city, latitude, longitude, place_name, address, seats_total, seats_taken, cost_type, is_business,
+      id, title, event_date, event_time, event_end_time, city, latitude, longitude, place_name, address, seats_total, seats_taken, cost_type, is_business, biz_category,
       is_anonymous, organizer_id, photo_url,
       category:categories(slug, name, emoji),
       organizer:users(name, avatar_url, birth_date, gender)
@@ -177,6 +177,7 @@ export async function GET(req: NextRequest) {
     seatsLeft: e.seats_total - e.seats_taken,
     category: e.category as unknown as { slug: string; name: string; emoji: string | null } | null,
     isBusiness: e.is_business,
+    bizCategory: (e as { biz_category?: string | null }).biz_category ?? null,
     // Для меток над булавкой в стиле Invitor («сейчас», «через 1 ч», «20:30», «завтра»):
     // начало/конец в UTC и пояс города — «сегодня/завтра» считаем по времени города.
     ...(() => {

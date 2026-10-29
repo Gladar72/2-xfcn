@@ -19,6 +19,7 @@ import { mosyaSrc } from "@/components/brand/Mosya";
 import { PhotoCropModal } from "./PhotoCropModal";
 import { goBack } from "@/lib/nav/back";
 import { maxGroupSize, type Plan } from "@/lib/subscriptions/limits";
+import { BIZ_SECTIONS, BIZ_KEYS, bizCategoryIcon } from "@/lib/events/biz-categories";
 
 /**
  * Создание встречи в 4 шага — разметка и анимации из прототипа (SCR.create):
@@ -147,6 +148,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
 
   const [categorySlug, setCategorySlug] = useState<string | null>(searchParams.get("category"));
   const [trainingTypeSlug, setTrainingTypeSlug] = useState<string | null>(searchParams.get("type"));
+  // Раздел бизнес-события (Бары, Вечеринки и клубы…) — обязателен, по нему фильтры «Для бизнеса».
+  const [bizCategory, setBizCategory] = useState<string | null>(null);
   const [own, setOwn] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -261,6 +264,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         if (e.error) return;
         setBusiness(!!e.isBusiness);
         setCategorySlug(e.category?.slug ?? null);
+        if (e.bizCategory && BIZ_KEYS.has(e.bizCategory)) setBizCategory(e.bizCategory);
         setTrainingTypeSlug(e.trainingType?.slug ?? null);
         setTitle(e.title ?? "");
         // Бизнес-события и «Своё» хранятся с категорией custom: без этого слова
@@ -322,11 +326,14 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     return () => clearTimeout(t);
   }, [step]);
 
-  const isOwn = categorySlug === "custom";
-  const iconSrc =
-    categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/cat3d/i_games.webp" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
-  const catLabel =
-    categorySlug === "training"
+  const isOwn = !business && categorySlug === "custom";
+  const bizSection = business ? BIZ_SECTIONS.find((c) => c.key === bizCategory) ?? null : null;
+  const iconSrc = bizSection
+    ? bizCategoryIcon(bizSection)
+    : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/cat3d/i_games.webp" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
+  const catLabel = bizSection
+    ? bizSection.label
+    : categorySlug === "training"
       ? trainingTypes.find((t) => t.slug === trainingTypeSlug)?.name ?? "Тренировка"
       : isOwn
         ? own || "Своё"
@@ -427,7 +434,9 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   }
 
   function problem(): string | null {
-    if (step === 1) {
+    if (step === 1 && business) {
+      if (!bizCategory) return "Без раздела дальше не пущу 😉 Если не уверен — выбери самое близкое, поменять можно потом.";
+    } else if (step === 1) {
       if (!categorySlug) return "Выбери, что планируешь.";
       if (categorySlug === "training" && !trainingTypeSlug) return "Выбери вид тренировки.";
       if (isOwn && own.trim().length < 2) return "Напиши одним-двумя словами, чем займёмся — например «сапы». Так встречу найдут поиском";
@@ -500,7 +509,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...(editId ? { action: "update" } : {}),
-          categorySlug: editId && business ? undefined : categorySlug,
+          categorySlug: business ? undefined : categorySlug,
+          bizCategory: business ? bizCategory ?? undefined : undefined,
           trainingTypeSlug: trainingTypeSlug ?? undefined,
           placeName,
           address,
@@ -527,6 +537,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       if (!res.ok) {
         const map: Record<string, number> = {
           categorySlug: 1,
+          bizCategory: 1,
           trainingTypeSlug: 1,
           title: 2,
           description: 2,
@@ -693,9 +704,9 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               {business ? (
                 <>
                   <h1 className="t">
-                    Какое <em>событие</em>?
+                    Куда <em>зовёшь</em>?
                   </h1>
-                  <p className="sub">Выбери ближе всего подходящее. Название напишешь на следующем шаге.</p>
+                  <p className="sub">Выбери раздел — в нём гости найдут событие в «Для бизнеса». Название напишешь на следующем шаге.</p>
                 </>
               ) : (
                 <>
@@ -705,6 +716,20 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   <p className="sub">Выбери, во что будет встреча. Так её найдут люди с похожими интересами.</p>
                 </>
               )}
+              {business ? (
+                <div className="grid4">
+                  {BIZ_SECTIONS.map((c) => (
+                    <button key={c.key} className={`it gl ${bizCategory === c.key ? "sel" : ""}`} onClick={() => setBizCategory(c.key)}>
+                      <span className="ck">
+                        <Ic n="check" />
+                      </span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={bizCategoryIcon(c)} alt="" />
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              ) : (
               <div className="grid4">
                 {cats.map((c) => (
                   <button
@@ -724,7 +749,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   </button>
                 ))}
               </div>
-              {hasCustom && (
+              )}
+              {!business && hasCustom && (
                 <button
                   className={`ownw gl ${isOwn ? "sel" : ""}`}
                   onClick={(e) => {
@@ -748,7 +774,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   </div>
                 </button>
               )}
-              {categorySlug === "training" && (
+              {!business && categorySlug === "training" && (
                 <div className="rv">
                   <span className="lbl">Какая тренировка?</span>
                   <div className="cats" style={{ flexWrap: "wrap", margin: 0, padding: 0 }}>

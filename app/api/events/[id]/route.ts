@@ -1,3 +1,4 @@
+import { BIZ_KEYS } from "@/lib/events/biz-categories";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -29,7 +30,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       `
       id, title, description, city, latitude, longitude, place_name, address,
       event_date, event_time, event_end_time, seats_total, seats_taken, status, organizer_id,
-      cost_type, is_business, business_pricing_type, business_pricing_details, has_chat, photo_url, is_anonymous, created_at,
+      cost_type, is_business, biz_category, business_pricing_type, business_pricing_details, has_chat, photo_url, is_anonymous, created_at,
       category:categories(slug, name, emoji),
       training_type:training_types(slug, name, emoji),
       organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count)
@@ -194,6 +195,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     status: event.status,
     costType: event.cost_type,
     isBusiness: event.is_business,
+    bizCategory: event.biz_category ?? null,
     businessPricingType: event.business_pricing_type,
     businessPricingDetails: event.business_pricing_details,
     hasChat: event.has_chat,
@@ -466,6 +468,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
     }
 
     if (event.is_business) {
+      if (typeof body.bizCategory === "string" && BIZ_KEYS.has(body.bizCategory)) {
+        updatePayload.biz_category = body.bizCategory;
+      }
       if (typeof body.businessPricingType === "string") {
         updatePayload.business_pricing_type = body.businessPricingType;
       }

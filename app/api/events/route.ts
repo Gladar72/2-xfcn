@@ -7,6 +7,7 @@ import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import { rankEvents, type EventForScoring, type SubscriptionPlan } from "@/lib/scoring/rank-events";
 import { getActiveSubscriptionInfo, incrementEventsCreated } from "@/lib/subscriptions/server";
 import { canCreateMoreEvents, maxGroupSize, PLAN_LIMITS } from "@/lib/subscriptions/limits";
+import { guessBizCategory } from "@/lib/events/biz-categories";
 import { createEventSchema, type CreateEventInput } from "@/lib/validation/create-event";
 import { describeValidationError } from "@/lib/validation/describe-error";
 import { notifyTelegram } from "@/lib/telegram/notify";
@@ -126,7 +127,7 @@ export async function GET(req: NextRequest) {
         `
         id, title, description, city, latitude, longitude, place_name, address,
         event_date, event_time, event_end_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
-        is_business, has_chat, business_pricing_type, business_pricing_details, photo_url, is_anonymous,
+        is_business, biz_category, has_chat, business_pricing_type, business_pricing_details, photo_url, is_anonymous,
         category:categories(slug, name, emoji),
         training_type:training_types(slug, name, emoji),
         organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count, telegram_id)
@@ -360,6 +361,7 @@ export async function GET(req: NextRequest) {
       seatsTaken: _row.seats_taken,
       costType: _row.cost_type,
       isBusiness: _row.is_business,
+      bizCategory: _row.biz_category ?? null,
       hasChat: _row.has_chat,
       businessPricingType: _row.business_pricing_type,
       businessPricingDetails: _row.business_pricing_details,
@@ -714,6 +716,7 @@ export async function POST(req: NextRequest) {
       cost_type: input.costType,
       status: "published",
       is_business: input.isBusiness,
+      biz_category: input.isBusiness ? input.bizCategory ?? guessBizCategory({ title: input.title }) : null,
       business_pricing_type: input.isBusiness ? input.businessPricingType ?? null : null,
       business_pricing_details: input.isBusiness ? input.businessPricingDetails ?? null : null,
       has_chat: hasChat,

@@ -39,6 +39,12 @@ export const createEventSchema = z
       })
       .optional(),
     isBusiness: z.boolean().optional().default(false),
+    // Раздел бизнес-события (Бары, Вечеринки и клубы…). Нет — сервер угадает по названию.
+    bizCategory: z
+      .enum(["bars", "party", "concerts", "food", "workshops", "kids", "theatre", "art", "games", "cinema", "sport", "other"], {
+        errorMap: () => ({ message: "Выбери раздел события" }),
+      })
+      .optional(),
     hasChat: z.boolean().optional().default(true),
     // Анонимная встреча: организатор и точный адрес скрыты до одобрения заявки.
     isAnonymous: z.boolean().optional().default(false),

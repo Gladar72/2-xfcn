@@ -6,6 +6,7 @@ import { recordBlock, trackBotSends } from "@/lib/telegram/bot-blocks";
 import { activateSubscription } from "@/lib/subscriptions/server";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import { registerCityEventReview } from "@/lib/telegram/city-events-review";
+import { registerBizCategoryAsk } from "@/lib/telegram/biz-category-ask";
 import { handleRsvpAnswer } from "@/lib/telegram/event-reminders";
 import { respondToInvite } from "@/lib/invites/respond";
 import { EVENT_START_PREFIX, buildEventCard } from "@/lib/telegram/event-card";
@@ -410,6 +411,7 @@ export function getBot(): Bot {
   });
 
   registerCityEventReview(bot);
+  registerBizCategoryAsk(bot);
 
   bot.command("admin", async (ctx) => {
     if (!isAdminTelegramId(ctx.from?.id ?? 0)) return;

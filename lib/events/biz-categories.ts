@@ -1,10 +1,9 @@
 /**
  * Категории «Для бизнеса» — фильтр карты заведений и списка событий.
  *
- * Отдельного поля «тип заведения» у событий нет, поэтому категорию
- * определяем по тому, что есть: категория встречи (slug), тип события
- * города (kind: concert, theatre…) и слова в названии. Одно событие может
- * попасть в несколько категорий (например, «Джаз-концерт в баре»).
+ * У бизнес-события раздел выбирает организатор (events.biz_category) —
+ * он главный. Для событий города и старых событий без раздела угадываем
+ * по категории встречи (slug), типу события (kind) и словам в названии.
  */
 export interface BizCategory {
   key: string;
@@ -25,11 +24,18 @@ export const BIZ_CATEGORIES: BizCategory[] = [
   },
   {
     key: "bars",
-    label: "Бары и вечеринки",
+    label: "Бары",
     icon: "i_bar",
+    kinds: ["karaoke"],
+    words: /(^|[^а-яё])бар(?!бер|абан|хат)|коктейл|караоке|(^|[^а-яё])паб([^а-яё]|$)|лаунж|кальян/i,
+  },
+  {
+    key: "party",
+    label: "Вечеринки и клубы",
+    icon: "i_party",
     slugs: ["party"],
-    kinds: ["party", "karaoke"],
-    words: /(^|[^а-яё])бар(?!бер|абан|хат)|коктейл|вечеринк|\bdj\b|диджей|караоке|(^|[^а-яё])пати|party|(^|[^а-яё])паб([^а-яё]|$)|лаунж|кальян/i,
+    kinds: ["party"],
+    words: /вечеринк|(^|[^а-яё])клуб|\bdj\b|диджей|(^|[^а-яё])пати|party|техно|рейв|дискотек|я\s+ебал/i,
   },
   {
     key: "concerts",
@@ -54,7 +60,7 @@ export const BIZ_CATEGORIES: BizCategory[] = [
   },
   {
     key: "art",
-    label: "Выставки и экскурсии",
+    label: "Выставки",
     icon: "i_art",
     kinds: ["exhibition", "excursion", "fashion"],
     words: /выставк|экскурси|музей|галере|(^|[^а-яё])арт([^а-яё]|-|$)|маркет|ярмарк/i,
@@ -84,7 +90,7 @@ export const BIZ_CATEGORIES: BizCategory[] = [
   {
     key: "kids",
     label: "Детям",
-    icon: "i_games",
+    icon: "i_roller",
     kinds: ["kids"],
     words: /дет(и|ск)|семейн|малыш/i,
   },
@@ -93,11 +99,25 @@ export const BIZ_CATEGORIES: BizCategory[] = [
 /** «Другое» — событие не подошло ни под одну категорию. */
 export const BIZ_OTHER: BizCategory = { key: "other", label: "Другое", icon: "i_biz" };
 
+/** Все 12 разделов в порядке плиток при создании события. */
+export const BIZ_SECTIONS: BizCategory[] = [
+  "bars", "party", "concerts", "food", "workshops", "kids", "theatre", "art", "games", "cinema", "sport",
+].map((k) => BIZ_CATEGORIES.find((c) => c.key === k)!).concat(BIZ_OTHER);
+
+export const BIZ_KEYS = new Set(BIZ_SECTIONS.map((c) => c.key));
+
+/** Ключ раздела по старому угадыванию (для событий без явного раздела). */
+export function guessBizCategory(e: BizCategorizable): string {
+  return bizCategoriesOf({ ...e, bizCategory: null })[0] ?? BIZ_OTHER.key;
+}
+
 export function bizCategoryIcon(c: BizCategory) {
   return `/brand/cat3d/${c.icon}.webp`;
 }
 
 export interface BizCategorizable {
+  /** Раздел, который выбрал организатор (events.biz_category). */
+  bizCategory?: string | null;
   title?: string | null;
   category?: { slug?: string | null } | null;
   kind?: string | null;
@@ -105,6 +125,7 @@ export interface BizCategorizable {
 
 /** Ключи категорий, в которые попадает событие (хотя бы одна — иначе «other»). */
 export function bizCategoriesOf(e: BizCategorizable): string[] {
+  if (e.bizCategory && BIZ_KEYS.has(e.bizCategory)) return [e.bizCategory];
   const slug = e.category?.slug ?? "";
   const kind = e.kind ?? "";
   const title = e.title ?? "";
