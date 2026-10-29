@@ -237,7 +237,7 @@ export function PromoDone({
             </h1>
             <p>
               {phase === "wait"
-                ? "Как только ЮKassa подтвердит оплату, встреча встанет в «Популярное сегодня». Обычно это пара секунд."
+                ? "Как только ЮKassa подтвердит оплату, встреча встанет в топ ленты. Обычно это пара секунд."
                 : phase === "queue"
                   ? `«${title}» станет первой ${where} в ${promoClock(status!.topFrom, utcOffset)}, а пока — сразу за первой. В «Популярном» до ${promoClock(status!.endsAt, utcOffset)}.`
                   : phase === "top"
