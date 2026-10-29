@@ -81,7 +81,7 @@ const COST_SHORT: Record<string, string> = {
 export function costShort(e: { costType?: string | null; isBusiness?: boolean; businessPricingDetails?: string | null; businessPricingType?: string | null }) {
   if (e.isBusiness) {
     if (e.businessPricingType === "free") return "Бесплатно";
-    return e.businessPricingDetails?.trim() || "Билет";
+    return e.businessPricingDetails?.trim().replace(/(\d)\s+(₽|руб)/g, "$1\u00a0$2") || "Билет";
   }
   return (e.costType && COST_SHORT[e.costType]) || "за себя";
 }
@@ -94,7 +94,7 @@ export function dayShort(dateIso: string) {
   const diff = Math.round((b - a) / 86400000);
   if (diff === 0) return "сегодня";
   if (diff === 1) return "завтра";
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "").replace(" ", "\u00a0");
 }
 
 export function dayLong(dateIso: string) {

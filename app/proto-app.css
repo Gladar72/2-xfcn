@@ -160,9 +160,9 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .pr.deck .gal{height:100%!important}
 .P .pr.deck .gal::after{background:linear-gradient(180deg,rgba(40,10,90,.4),transparent 22%,transparent 55%,rgba(20,6,40,.82))}
 .P .pr.deck .gal .nm{bottom:calc(var(--bot) + 108px);right:76px}
-.P .pr.deck .body .sheet2{margin-top:100vh!important}
+.P .pr.deck .body .sheet2{margin-top:var(--tg-viewport-stable-height,100dvh)!important}
 .P .pr .upk{display:none}
-.P .pr.deck .upk{display:grid;place-items:center;position:absolute;right:20px;top:calc(100vh - var(--bot) - 166px);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.22);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#fff;pointer-events:auto;z-index:2;animation:upk 2.4s ease-in-out infinite}
+.P .pr.deck .upk{display:grid;place-items:center;position:absolute;right:20px;top:calc(var(--tg-viewport-stable-height,100dvh) - var(--bot) - 166px);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.22);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:#fff;pointer-events:auto;z-index:2;animation:upk 2.4s ease-in-out infinite}
 .P .pr.deck .cta{background:none}
 @keyframes dkR{from{transform:scale(.96)}to{transform:none}}
 @keyframes dkL{from{transform:translateX(-40%) scale(.94);opacity:0}to{transform:none;opacity:1}}
@@ -230,3 +230,14 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .hero .upb .ic{width:17px;height:17px;stroke-width:2.4}
 .P .pcard{width:172px;height:244px;border-radius:28px}
 .P .pcard b{font-size:17px}
+
+/* ── Переносы и прокрутка без глюков (29.10) ── */
+/* Длинные слова и ссылки не вылезают за край; абзацы описания сохраняются. */
+.P .t,.P .about,.P .row .i b{overflow-wrap:anywhere}
+.P .about{white-space:pre-wrap}
+/* Прокрутка внутри шторки и чата не утаскивает за собой экран. */
+.P .msgs2{overscroll-behavior-y:contain}
+/* Экран входа на маленьких телефонах: кнопки не уходят за край. */
+.P .auth .sheet{overflow-y:auto}
+/* Горизонтальные ленты: свайп не закрывает приложение и не дёргает экран. */
+.P .cats,.P .chipsrow,.P .ppl,.P .quick,.P .chs.nw,.P .rail,.P .mcar,.P .plrec{overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}

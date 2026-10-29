@@ -63,7 +63,7 @@ export function distanceLabel(km: number | null | undefined): string | null {
 export function distanceShort(m: number | null | undefined): string | null {
   if (m == null) return null;
   if (m <= 0) return "рядом";
-  if (m < 1000) return `${m} м`;
-  if (m < 10_000) return `${(m / 1000).toFixed(1).replace(".", ",").replace(",0", "")} км`;
-  return `${Math.round(m / 1000)} км`;
+  if (m < 1000) return `${m}\u00a0м`; // неразрывный пробел: «700 м» не рвётся по строкам
+  if (m < 10_000) return `${(m / 1000).toFixed(1).replace(".", ",").replace(",0", "")}\u00a0км`;
+  return `${Math.round(m / 1000)}\u00a0км`;
 }

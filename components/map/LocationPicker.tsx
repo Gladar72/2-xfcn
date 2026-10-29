@@ -173,7 +173,7 @@ export function LocationPicker({
         </p>
       )}
       {resolvingAddress && (
-        <p className="shrink-0 bg-white px-3 py-1.5 text-center text-xs text-ink-400">Определяем адрес...</p>
+        <p className="shrink-0 bg-white px-3 py-1.5 text-center text-xs text-ink-400">Определяем адрес…</p>
       )}
     </div>
   );
