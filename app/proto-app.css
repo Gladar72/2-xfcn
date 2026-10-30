@@ -315,3 +315,48 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 }
 @keyframes chatPing{0%{box-shadow:0 0 0 0 rgba(255,111,160,.55)}70%{box-shadow:0 0 0 12px rgba(255,111,160,0)}100%{box-shadow:0 0 0 0 rgba(255,111,160,0)}}
 @keyframes cntPop{0%,100%{transform:scale(1)}12%{transform:scale(1.28)}26%{transform:scale(1)}}
+/* Чат как в Telegram: реакции Моси, ответы, меню сообщения, стикеры, повтор отправки */
+.P .mwrap{display:flex;flex-direction:column;gap:8px;border-radius:14px;transition:background .4s}
+.P .m .bb.hl{box-shadow:0 0 0 3px rgba(108,59,255,.35)}
+.P .m .bb.stk{background:none;box-shadow:none;padding:0}
+.P .m.me .bb.stk{background:none;color:var(--ink)}
+.P .m .bb.stk .mt{color:var(--grey);opacity:1}
+.P .m .bb{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.P .mq{display:block;width:100%;text-align:left;margin:0 0 6px;padding:5px 9px;border-radius:10px;border-left:3px solid var(--violet);background:rgba(108,59,255,.08);font-size:13px;line-height:1.3;color:inherit}
+.P .m.me .mq{border-left-color:#fff;background:rgba(255,255,255,.18)}
+.P .mq b{display:block;font-weight:600;font-size:12.5px;color:var(--violet)}
+.P .m.me .mq b{color:#fff}
+.P .mq span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+.P .mrx{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.P .mrc{display:inline-flex;align-items:center;gap:2px;height:30px;padding:0 6px 0 3px;border-radius:999px;background:rgba(108,59,255,.1);font-size:12.5px;font-weight:600;color:var(--violet)}
+.P .m.me .mrc{background:rgba(255,255,255,.22);color:#fff}
+.P .mrc.on{background:var(--violet);color:#fff}
+.P .m.me .mrc.on{background:#fff;color:var(--violet)}
+.P .m .mrc img{width:26px;height:26px;border-radius:0;object-fit:contain}
+.P .mrc i{font-style:normal}
+.P .mpend{display:inline-block;width:11px;height:11px;border-radius:50%;border:1.5px solid currentColor;border-right-color:transparent;animation:mspin .8s linear infinite}
+@keyframes mspin{to{transform:rotate(360deg)}}
+.P .mfail{align-self:flex-end;font-size:12.5px;font-weight:600;color:#e5484d;margin:-4px 4px 0;padding:2px 0}
+.P .rbar{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;border-radius:16px;color:var(--violet)}
+.P .rbar div{flex:1;min-width:0;border-left:3px solid var(--violet);padding-left:8px}
+.P .rbar b{display:block;font-size:13px;font-weight:600}
+.P .rbar span{display:block;font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .stkbtn{flex:none;width:34px;height:34px;display:grid;place-items:center}
+.P .stkbtn img{width:32px;height:32px;object-fit:contain}
+.P .rxrow{display:flex;justify-content:space-between;gap:4px;padding:4px 2px 8px}
+.P .rxrow button{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;transition:transform .3s var(--spring),background .2s}
+.P .rxrow button:active{transform:scale(.85)}
+.P .rxrow button.on{background:var(--lav)}
+.P .rxrow img{width:46px;height:46px;object-fit:contain}
+.P .mmenu{display:grid;border-radius:18px;overflow:hidden;background:var(--glass-2);box-shadow:inset 0 0 0 1px var(--stroke)}
+.P .mmenu button{display:flex;align-items:center;gap:12px;height:52px;padding:0 16px;font-size:16px;color:var(--ink);text-align:left}
+.P .mmenu button+button{border-top:1px solid rgba(120,100,170,.12)}
+.P .mmenu button.del{color:#e5484d}
+.P .stkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:52vh;overflow-y:auto;padding-bottom:6px}
+.P .stkgrid button{display:grid;justify-items:center;gap:2px;padding:6px 2px;border-radius:14px;transition:transform .3s var(--spring)}
+.P .stkgrid button:active{transform:scale(.88);background:var(--lav)}
+.P .stkgrid img{width:64px;height:64px;object-fit:contain}
+.P .stkgrid span{font-size:11px;color:var(--grey);text-align:center;line-height:1.2}
+.P .ctoast{position:absolute;left:50%;top:calc(var(--top) + 76px);transform:translateX(-50%);z-index:30;max-width:86%;padding:10px 16px;border-radius:16px;font-size:14px;text-align:center;color:var(--ink);box-shadow:0 10px 30px rgba(40,20,100,.18);animation:msgIn .35s var(--spring)}
+.P .m .bb{min-width:0;max-width:100%}
+.P .mq{max-width:100%;overflow:hidden}
