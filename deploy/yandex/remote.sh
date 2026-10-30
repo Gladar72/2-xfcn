@@ -431,6 +431,34 @@ statsdiag() {
   echo "## gift claims"; q "select count(*) from gift_claims;"
 }
 
+# Уведомления, ошибки и скорость. Только счётчики и обезличенные строки — лог уходит в публичную ветку deploylog.
+notifydiag() {
+  prepare_env
+  q() { sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "$1" || true; }
+  echo "## уведомления в приложении: типы за 24ч / 7д"
+  q "select type, count(*) filter (where created_at>now()-interval '1 day') d1, count(*) filter (where created_at>now()-interval '7 days') d7, round(100.0*avg(is_read::int) filter (where created_at>now()-interval '7 days'))::int read_pct from notifications group by 1 order by d7 desc limit 25;"
+  echo "## последнее уведомление"; q "select max(created_at) last_created, now() now from notifications;"
+  echo "## пуш-токены (мобильное приложение)"; q "select coalesce(platform,'?') platform, count(*) total, count(*) filter (where updated_at>now()-interval '7 days') fresh7d from push_tokens group by 1;"
+  echo "## заблокировали бота"; q "select count(*) total from bot_blocks;" 
+  echo "## анонсы новых встреч: включены у"; q "select count(*) filter (where event_announcements) on_, count(*) filter (where not event_announcements) off_ from users;"
+  echo "## Telegram"; tgcheck 2>&1 | grep -v "^==> скрипт" || true
+  echo "## cron: сбои за 24ч"
+  awk -v since="$(date -u -d '24 hours ago' +%FT%TZ)" '$2=="fail" && $1>=since {print $3}' "$ROOT/cron.log" 2>/dev/null | sort | uniq -c | sort -rn | head -20
+  echo "## ошибки приложения за 24ч (обезличено)"
+  sudo docker logs --since 24h mesto-app-1 2>&1 | grep -iE "error|fail|timeout|unhandled|ECONN|429|500" |
+    sed -E 's/[0-9a-f]{8}-[0-9a-f-]{27}/<id>/g; s/[0-9]{4,}/<n>/g; s/[[:alnum:]._%+-]+@[[:alnum:].-]+/<email>/g; s/bot[^/ ]+/bot<t>/g' |
+    cut -c1-140 | sort | uniq -c | sort -rn | head -25 || true
+  echo "## скорость ответов (секунды, 3 замера)"
+  local UA="Mozilla/5.0 (diag)" h; h=$(envget APP_HOSTS | cut -d, -f1)
+  for path in / /feed /api/categories "/api/events?page=0&city=%D0%A2%D1%8E%D0%BC%D0%B5%D0%BD%D1%8C" "/api/events?business=true&city=%D0%A2%D1%8E%D0%BC%D0%B5%D0%BD%D1%8C"; do
+    for i in 1 2 3; do curl -sS -A "$UA" -o /dev/null -m 30 --resolve "$h:443:127.0.0.1" -w "%{http_code} %{time_total}s  " "https://$h$path" || echo -n "fail  "; done; echo " ← $path"
+  done
+  echo "## нагрузка"; echo "CPU: $(nproc), load: $(cut -d' ' -f1-3 /proc/loadavg)"; free -m | head -2; df -h / | tail -1
+  sudo docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}' 2>/dev/null | head -15 || true
+  echo "## база: долгие запросы сейчас"; q "select count(*) filter (where state='active' and now()-query_start>interval '5 seconds') slow_active, count(*) connections from pg_stat_activity;"
+  echo "## рестарты контейнеров"; sudo docker ps --format '{{.Names}}\t{{.Status}}' | head -30
+}
+
 broadcast() {
   # Рассылка от бота: текст и dry (только посчитать) — в deploy/yandex/broadcast/current.json.
   update_code
@@ -484,6 +512,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
