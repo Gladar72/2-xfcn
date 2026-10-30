@@ -91,6 +91,9 @@ export default function ChatPage({ params }: ChatPageProps) {
     toastTimerRef.current = setTimeout(() => setToast(null), 2600);
   }, []);
   const myIdRef = useRef<string | null>(null);
+  // Сообщения, загруженные из истории, — без анимации появления (иначе при входе дёргается весь список).
+  const quietIdsRef = useRef(new Set<string>());
+  const markQuiet = (list: { id: string }[]) => list.forEach((m) => quietIdsRef.current.add(m.id));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accessBlocked, setAccessBlocked] = useState(false);
@@ -148,6 +151,7 @@ export default function ChatPage({ params }: ChatPageProps) {
 
         setMyUserId(me.userId);
         myIdRef.current = me.userId;
+        markQuiet(history.messages ?? []);
         setMessages(((history.messages ?? []) as MessageData[]).map(normMessage));
         setHasMore(!!history.hasMore);
         setEventTitle(history.eventTitle ?? null);
@@ -187,7 +191,10 @@ export default function ChatPage({ params }: ChatPageProps) {
                   m.content === row.content &&
                   !!m.imageUrl === !!row.imageUrl
               );
-              if (tempIndex !== -1) return prev.map((m, i) => (i === tempIndex ? incoming : m));
+              if (tempIndex !== -1) {
+                quietIdsRef.current.add(incoming.id);
+                return prev.map((m, i) => (i === tempIndex ? incoming : m));
+              }
               return [...prev, incoming];
             });
             // Чат открыт — отмечаем входящие прочитанными (не чаще раза в 3 с).
@@ -347,6 +354,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       if (!r.ok) return;
       const d = (await r.json()) as { messages?: MessageData[]; hasMore?: boolean };
       const older = (d.messages ?? []).map(normMessage);
+      markQuiet(older);
       const el = listRef.current;
       if (el) prependRef.current = { height: el.scrollHeight, top: el.scrollTop };
       setMessages((prev) => {
@@ -457,6 +465,7 @@ export default function ChatPage({ params }: ChatPageProps) {
             (m) => m.senderId === myIdRef.current && m.content === body.content && Date.parse(m.createdAt) >= startedAt - 60_000 && !!m.imageUrl === !!body.image
           );
           if (found) {
+            quietIdsRef.current.add(found.id);
             setMessages((prev) => (prev.some((m) => m.id === found.id) ? prev.filter((m) => m.id !== tempId) : prev.map((m) => (m.id === tempId ? normMessage(found) : m))));
             bodiesRef.current.delete(tempId);
             return;
@@ -472,6 +481,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.messageId) {
           bodiesRef.current.delete(tempId);
+          quietIdsRef.current.add(data.messageId);
           setMessages((prev) =>
             prev.some((m) => m.id === data.messageId)
               ? prev.filter((m) => m.id !== tempId)
@@ -737,6 +747,9 @@ export default function ChatPage({ params }: ChatPageProps) {
           onTouchCancel={() => (touchingRef.current = false)}
           style={{ paddingBottom: composeH + 16, touchAction: "pan-y", overflowY: "scroll" }}
         >
+          {/* iPhone: содержимое всегда чуть выше окна — блок прокрутки «живой» с первого кадра
+              и листается пальцем сразу при входе (без первого нажатия). Мало сообщений — прижаты к низу. */}
+          <div className="msgsin">
           {loadingOlder && <span className="daysep">Загружаем ранние сообщения…</span>}
           {eventTitle !== null && eventMeta && (
             <>
@@ -826,11 +839,13 @@ export default function ChatPage({ params }: ChatPageProps) {
                   onReplyPress={message.replyTo ? () => jumpTo(message.replyTo!.id) : undefined}
                   onRetry={() => retryMessage(message)}
                   highlighted={highlightId === message.id}
+                  animate={!quietIdsRef.current.has(message.id)}
                 />
               </div>
             );
           })}
           <div ref={scrollRef} />
+          </div>
         </div>
 
         {!atBottom && (
