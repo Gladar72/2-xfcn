@@ -77,7 +77,7 @@ function EntryPageInner() {
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.status === "authenticated") {
-          const allowedGotoPaths = new Set(["subscriptions", "admin"]);
+          const allowedGotoPaths = new Set(["subscriptions", "admin", "create"]);
           // Кнопка «Открыть встречу» под напоминанием в боте: ?goto=event_<id>.
           // «📸 Сторис» под напоминанием «никто не откликнулся»: ?goto=eventshare_<id> — сразу окно «Поделиться».
           const eventMatch = goto?.match(/^event(share)?_([0-9a-f-]{36})$/);
