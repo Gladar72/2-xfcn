@@ -26,11 +26,18 @@ if [ "$MODE" = "--alert" ] || [ "$MODE" = "--watch" ]; then
   for c in $(sudo docker ps -a --format '{{.Names}} {{.Status}}' | grep -E ' (Exited \([1-9]|Dead|Created)' | awk '{print $1}'); do
     sudo docker start "$c" >/dev/null 2>&1 && FIXED+=("Запустил упавший контейнер $c")
   done
-  alive=0
+  # Живо, если сайт отдаёт хоть что-то (не 000 и не 5xx) — локально или через HTTPS. 3 попытки за ~1 мин.
+  alive=0; codes=""
   for _ in 1 2 3; do
-    curl -fsS -o /dev/null -m 15 http://127.0.0.1:3000/api/categories 2>/dev/null && { alive=1; break; }
-    sleep 10
+    c1=$(curl -sS -o /dev/null -m 15 -w "%{http_code}" http://127.0.0.1:3000/ 2>/dev/null || true)
+    c2=$(curl -sS -o /dev/null -m 15 -w "%{http_code}" --resolve "$HOST:443:127.0.0.1" "https://$HOST/" 2>/dev/null || true)
+    codes="$codes ${c1:-000}/${c2:-000}"
+    case "${c1:-000}" in [1-4][0-9][0-9]) alive=1 ;; esac
+    case "${c2:-000}" in [1-4][0-9][0-9]) alive=1 ;; esac
+    [ "$alive" = 1 ] && break
+    sleep 20
   done
+  echo "проверка жизни приложения:$codes"
   if [ "$alive" = 0 ] && sudo docker ps --format '{{.Names}}' | grep -qx mesto-app-1; then
     sudo docker restart mesto-app-1 >/dev/null 2>&1 && FIXED+=("Приложение не отвечало — перезапустил")
     sleep 20
@@ -109,9 +116,13 @@ fails=$(awk -v since="$(date -u -d '24 hours ago' +%FT%TZ)" '$2=="fail" && $1>=s
 
 # 8б. Скорость ответов (лаги): главная и API, среднее из 3 замеров.
 for path in / /feed /api/categories; do
-  t=$(for _ in 1 2 3; do curl -sS -o /dev/null -m 20 -w "%{time_total}\n" "http://127.0.0.1:3000$path" 2>/dev/null || echo 20; done | awk '{s+=$1} END {printf "%.2f", s/NR}')
-  ms=$(awk -v t="$t" 'BEGIN{printf "%d", t*1000}')
-  if [ "$ms" -ge 3000 ]; then BAD+=("Тормозит $path: ${ms} мс"); elif [ "$ms" -ge 1000 ]; then WARN+=("Медленно $path: ${ms} мс"); else OK+=("$path: ${ms} мс"); fi
+  r=$(for _ in 1 2 3; do curl -sS -A "$UA" -o /dev/null -m 20 --resolve "$HOST:443:127.0.0.1" -w "%{http_code} %{time_total}\n" "https://$HOST$path" 2>/dev/null || echo "000 20"; done |
+    awk '{s+=$2; c=$1} END {printf "%s %d", c, s/NR*1000}')
+  read -r code ms <<<"$r"
+  if [ "$code" = 000 ] || [ "${code:0:1}" = 5 ]; then BAD+=("$path не отвечает (код $code)")
+  elif [ "$ms" -ge 3000 ]; then BAD+=("Тормозит $path: ${ms} мс")
+  elif [ "$ms" -ge 1000 ]; then WARN+=("Медленно $path: ${ms} мс")
+  else OK+=("$path: ${ms} мс (код $code)"); fi
 done
 # 8в. Ошибки приложения за последний час.
 errh=$(sudo docker logs --since 1h mesto-app-1 2>&1 | grep -ciE 'error|exception|unhandled' || true)
