@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
-import { MessageBubble, formatDayLabel, type MessageData } from "@/components/chat/MessageBubble";
+import { MessageBubble, formatDayLabel, quoteText, stickerSrc, type MessageData, type MessageReaction } from "@/components/chat/MessageBubble";
+import { parseInvite, parseSticker } from "@/lib/chat/invite";
 import { MiniProfileSheet } from "@/components/chat/MiniProfileSheet";
 import { CATEGORY_ICON } from "@/lib/data/category-icons";
 import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
@@ -74,6 +75,22 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [preparingImage, setPreparingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sending, setSending] = useState(false);
+  // Меню сообщения (реакции, ответить, изменить, удалить), ответ, правка, стикеры.
+  const [menuFor, setMenuFor] = useState<MessageData | null>(null);
+  const [replyTo, setReplyTo] = useState<MessageData | null>(null);
+  const [editing, setEditing] = useState<MessageData | null>(null);
+  const [deleteFor, setDeleteFor] = useState<MessageData | null>(null);
+  const [stickersOpen, setStickersOpen] = useState(false);
+  const [stickerTab, setStickerTab] = useState<"mosya" | "interests">("mosya");
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showToast = useCallback((t: string) => {
+    setToast(t);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToast(null), 2600);
+  }, []);
+  const myIdRef = useRef<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [accessBlocked, setAccessBlocked] = useState(false);
@@ -130,7 +147,8 @@ export default function ChatPage({ params }: ChatPageProps) {
         if (cancelled) return;
 
         setMyUserId(me.userId);
-        setMessages(history.messages ?? []);
+        myIdRef.current = me.userId;
+        setMessages(((history.messages ?? []) as MessageData[]).map(normMessage));
         setHasMore(!!history.hasMore);
         setEventTitle(history.eventTitle ?? null);
         setEventStatus(history.eventStatus ?? null);
@@ -155,23 +173,11 @@ export default function ChatPage({ params }: ChatPageProps) {
         const channel = client
           .channel(`conversation:${conversationId}`, { config: { private: true } })
           .on("broadcast", { event: "message" }, ({ payload }) => {
-            const row = payload as {
-              id: string;
-              senderId: string;
-              content: string;
-              imageUrl?: string | null;
-              createdAt: string;
-            };
+            const row = payload as MessageData & { reactions?: { emoji: string; userIds: string[] }[] };
             if (!row?.id) return;
+            const incoming = normMessage({ ...row, reactions: shapeReactions(row.reactions, me.userId) });
             setMessages((prev) => {
               if (prev.some((m) => m.id === row.id)) return prev;
-              const incoming: MessageData = {
-                id: row.id,
-                senderId: row.senderId,
-                content: row.content,
-                imageUrl: row.imageUrl ?? null,
-                createdAt: row.createdAt,
-              };
               // Своё сообщение может прийти по каналу раньше ответа POST —
               // тогда заменяем им временную копию, а не дублируем.
               const tempIndex = prev.findIndex(
@@ -195,6 +201,21 @@ export default function ChatPage({ params }: ChatPageProps) {
                 }).catch(() => {});
               }, 3000);
             }
+          })
+          .on("broadcast", { event: "edit" }, ({ payload }) => {
+            const p = payload as { id: string; content: string; editedAt: string };
+            if (!p?.id) return;
+            setMessages((prev) => prev.map((m) => (m.id === p.id ? { ...m, content: p.content, editedAt: p.editedAt } : m)));
+          })
+          .on("broadcast", { event: "delete" }, ({ payload }) => {
+            const p = payload as { id: string };
+            if (!p?.id) return;
+            setMessages((prev) => prev.map((m) => (m.id === p.id ? { ...m, deleted: true, content: "", imageUrl: null, reactions: [] } : m)));
+          })
+          .on("broadcast", { event: "reaction" }, ({ payload }) => {
+            const p = payload as { id: string; reactions: { emoji: string; userIds: string[] }[] };
+            if (!p?.id) return;
+            setMessages((prev) => prev.map((m) => (m.id === p.id ? { ...m, reactions: shapeReactions(p.reactions, me.userId) } : m)));
           })
           .on("broadcast", { event: "read" }, ({ payload }) => {
             const row = payload as { userId: string; lastReadAt: string | null };
@@ -256,7 +277,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         requestAnimationFrame(() => {
           el.style.overflowY = "hidden";
           void el.offsetHeight;
-          el.style.overflowY = "";
+          el.style.overflowY = "scroll";
           el.scrollTop = el.scrollHeight;
         });
       }
@@ -271,6 +292,27 @@ export default function ChatPage({ params }: ChatPageProps) {
       setUnseen((n) => n + added);
     }
   }, [messages, myUserId, scrollToBottom]);
+
+  // iPhone: блок прокрутки, который наполнился после первой отрисовки, иногда не
+  // листается пальцем до первого касания поля ввода. Ещё раз «пинаем» после загрузки.
+  useEffect(() => {
+    if (loading) return;
+    const el = listRef.current;
+    if (!el) return;
+    const nudge = () => {
+      const bottom = atBottomRef.current;
+      el.style.overflowY = "hidden";
+      void el.offsetHeight;
+      el.style.overflowY = "scroll";
+      if (bottom) el.scrollTop = el.scrollHeight;
+    };
+    const t1 = setTimeout(nudge, 60);
+    const t2 = setTimeout(nudge, 600);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [loading]);
 
   // Открылась/закрылась клавиатура или выросло поле ввода: если были внизу — остаёмся внизу.
   // Пока палец на экране — не трогаем: иначе чат возвращало вниз и вверх было не пролистать.
@@ -304,7 +346,7 @@ export default function ChatPage({ params }: ChatPageProps) {
       const r = await fetch(`/api/conversations/${conversationId}/messages?before=${encodeURIComponent(first.createdAt)}&limit=50`);
       if (!r.ok) return;
       const d = (await r.json()) as { messages?: MessageData[]; hasMore?: boolean };
-      const older = d.messages ?? [];
+      const older = (d.messages ?? []).map(normMessage);
       const el = listRef.current;
       if (el) prependRef.current = { height: el.scrollHeight, top: el.scrollTop };
       setMessages((prev) => {
@@ -335,11 +377,13 @@ export default function ChatPage({ params }: ChatPageProps) {
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { messages?: MessageData[] } | null) => {
           if (!d?.messages) return;
+          const server = new Map(d.messages.map((m) => [m.id, normMessage(m)]));
           setMessages((prev) => {
             const ids = new Set(prev.map((m) => m.id));
-            const fresh = d.messages!.filter((m) => !ids.has(m.id));
-            if (!fresh.length) return prev;
-            return [...prev, ...fresh].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
+            const fresh = [...server.values()].filter((m) => !ids.has(m.id));
+            // Пока были в фоне: правки, удаления и реакции тоже обновляем.
+            const merged = prev.map((m) => server.get(m.id) ?? m);
+            return [...merged, ...fresh].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
           });
         })
         .catch(() => {});
@@ -394,75 +438,205 @@ export default function ChatPage({ params }: ChatPageProps) {
     }
   }
 
-  async function handleSend() {
-    const content = draft.trim();
-    const image = pendingImage;
-    if ((!content && !image) || sending || !myUserId || isEventClosed) return;
+  // Отправка как в Telegram: сообщение сразу в ленте; при сбое сети — повторы,
+  // а если так и не ушло — остаётся с «Не отправлено · Повторить» (не пропадает).
+  const bodiesRef = useRef(new Map<string, { content: string; image?: string; replyToId?: string }>());
 
-    const tempId = `temp-${Date.now()}`;
+  async function postMessage(tempId: string, body: { content: string; image?: string; replyToId?: string }) {
+    bodiesRef.current.set(tempId, body);
+    setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: true, failed: false } : m)));
+    const startedAt = Date.now();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (attempt > 0) {
+        await sleep(attempt === 1 ? 1200 : 3000);
+        // Ответ мог потеряться, а сообщение — сохраниться: проверяем, чтобы не задвоить.
+        try {
+          const r = await fetch(`/api/conversations/${conversationId}/messages?limit=20`);
+          const d = r.ok ? ((await r.json()) as { messages?: MessageData[] }) : null;
+          const found = d?.messages?.find(
+            (m) => m.senderId === myIdRef.current && m.content === body.content && Date.parse(m.createdAt) >= startedAt - 60_000 && !!m.imageUrl === !!body.image
+          );
+          if (found) {
+            setMessages((prev) => (prev.some((m) => m.id === found.id) ? prev.filter((m) => m.id !== tempId) : prev.map((m) => (m.id === tempId ? normMessage(found) : m))));
+            bodiesRef.current.delete(tempId);
+            return;
+          }
+        } catch {}
+      }
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.messageId) {
+          bodiesRef.current.delete(tempId);
+          setMessages((prev) =>
+            prev.some((m) => m.id === data.messageId)
+              ? prev.filter((m) => m.id !== tempId)
+              : prev.map((m) =>
+                  m.id === tempId
+                    ? { ...m, id: data.messageId, createdAt: data.createdAt ?? m.createdAt, imageUrl: data.imageUrl ?? m.imageUrl, uploading: false, pending: false, failed: false }
+                    : m
+                )
+          );
+          return;
+        }
+        // Ошибки, которые повтором не исправить: убираем и возвращаем текст в поле.
+        if (res.status >= 400 && res.status < 500) {
+          bodiesRef.current.delete(tempId);
+          setMessages((prev) => prev.filter((m) => m.id !== tempId));
+          setDraft((d) => d || body.content);
+          if (body.image) setPendingImage((p) => p ?? body.image ?? null);
+          showToast(
+            data.error === "photo_rejected"
+              ? "Фото не прошло проверку и не может быть отправлено."
+              : data.error === "photo_too_large"
+                ? "Фото слишком большое."
+                : data.error === "photo_invalid"
+                  ? "Этот формат фото не поддерживается."
+                  : data.error === "event_closed"
+                    ? "Событие закрыто — писать в чат уже нельзя."
+                    : data.error === "message_too_long"
+                      ? "Слишком длинное сообщение."
+                      : res.status === 401
+                        ? "Сессия устарела — перезапусти приложение."
+                        : "Не получилось отправить сообщение."
+          );
+          return;
+        }
+      } catch {
+        // сеть — пробуем ещё раз
+      }
+    }
+    setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: false, failed: true } : m)));
+    showToast("Нет связи — сообщение не отправлено. Нажми «Повторить».");
+  }
+
+  function retryMessage(m: MessageData) {
+    const body = bodiesRef.current.get(m.id) ?? { content: m.content, replyToId: m.replyTo?.id };
+    postMessage(m.id, body);
+  }
+
+  function sendNew(content: string, image?: string | null) {
+    if (!myUserId || isEventClosed) return;
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const reply = replyTo;
     setMessages((prev) => [
       ...prev,
       {
         id: tempId,
         senderId: myUserId,
         content,
-        imageUrl: image,
+        imageUrl: image ?? null,
         uploading: !!image,
         createdAt: new Date().toISOString(),
+        editedAt: null,
+        deleted: false,
+        replyTo: reply ? { id: reply.id, senderId: reply.senderId, content: reply.content.slice(0, 200), imageUrl: reply.imageUrl ?? null, deleted: !!reply.deleted } : null,
+        reactions: [],
+        pending: true,
       },
     ]);
-    setSending(true);
     atBottomRef.current = true;
+    setReplyTo(null);
+    postMessage(tempId, { content, ...(image ? { image } : {}), ...(reply ? { replyToId: reply.id } : {}) });
+  }
+
+  async function handleSend() {
+    const content = draft.trim();
+    const image = pendingImage;
+    if ((!content && !image) || !myUserId || isEventClosed) return;
+    if (editing) {
+      const target = editing;
+      setEditing(null);
+      setDraft("");
+      if (content === target.content) return;
+      setMessages((prev) => prev.map((m) => (m.id === target.id ? { ...m, content, editedAt: new Date().toISOString() } : m)));
+      setSending(true);
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}/messages/${target.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setMessages((prev) => prev.map((m) => (m.id === target.id ? { ...m, content: target.content, editedAt: target.editedAt } : m)));
+          showToast(data.error === "edit_expired" ? "Изменить можно в течение 48 часов" : "Не удалось изменить");
+        }
+      } catch {
+        setMessages((prev) => prev.map((m) => (m.id === target.id ? { ...m, content: target.content, editedAt: target.editedAt } : m)));
+        showToast("Нет связи — не удалось изменить");
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
     setDraft("");
     setPendingImage(null);
-    const restore = () => {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
-      setDraft(content);
-      setPendingImage(image);
-    };
+    sendNew(content, image);
+  }
+
+  function sendSticker(slug: string) {
+    setStickersOpen(false);
+    sendNew(`[[sticker:${slug}]]`);
+  }
+
+  async function toggleReaction(m: MessageData, emoji: string) {
+    if (!myUserId || m.id.startsWith("temp-") || isEventClosed) return;
+    const before = m.reactions ?? [];
+    const had = before.find((r) => r.mine)?.emoji;
+    const lists = before.map((r) => ({ emoji: r.emoji, userIds: r.userIds.filter((u) => u !== myUserId) }));
+    if (had !== emoji) {
+      const g = lists.find((r) => r.emoji === emoji);
+      if (g) g.userIds.push(myUserId);
+      else lists.push({ emoji, userIds: [myUserId] });
+    }
+    setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, reactions: shapeReactions(lists, myUserId) } : x)));
     try {
-      const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+      const res = await fetch(`/api/conversations/${conversationId}/messages/${m.id}/reactions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(image ? { content, image } : { content }),
+        body: JSON.stringify({ emoji }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(
-          data.error === "photo_rejected"
-            ? "Фото не прошло проверку и не может быть отправлено."
-            : data.error === "photo_too_large"
-              ? "Фото слишком большое."
-              : data.error === "photo_invalid"
-                ? "Этот формат фото не поддерживается."
-                : "Не получилось отправить сообщение."
-        );
-        restore();
-        return;
-      }
-      if (data.messageId && data.createdAt) {
-        setMessages((prev) =>
-          prev.some((m) => m.id === data.messageId)
-            ? prev.filter((m) => m.id !== tempId)
-            : prev.map((m) =>
-                m.id === tempId
-                  ? {
-                      ...m,
-                      id: data.messageId,
-                      createdAt: data.createdAt,
-                      imageUrl: data.imageUrl ?? m.imageUrl,
-                      uploading: false,
-                    }
-                  : m
-              )
-        );
-      }
+      if (!res.ok) throw new Error();
+      const data = (await res.json()) as { reactions: { emoji: string; userIds: string[] }[] };
+      setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, reactions: shapeReactions(data.reactions, myUserId) } : x)));
     } catch {
-      setError("Проблема с соединением.");
-      restore();
-    } finally {
-      setSending(false);
+      setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, reactions: before } : x)));
+      showToast("Не удалось поставить реакцию");
     }
+  }
+
+  async function deleteMessage(m: MessageData) {
+    setDeleteFor(null);
+    const before = m;
+    setMessages((prev) => prev.map((x) => (x.id === m.id ? { ...x, deleted: true, content: "", imageUrl: null, reactions: [] } : x)));
+    try {
+      const res = await fetch(`/api/conversations/${conversationId}/messages/${m.id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setMessages((prev) => prev.map((x) => (x.id === m.id ? before : x)));
+      showToast("Не удалось удалить");
+    }
+  }
+
+  function jumpTo(id: string) {
+    const el = document.getElementById(`m-${id}`);
+    if (!el) {
+      showToast("Сообщение выше — пролистай историю");
+      return;
+    }
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightId(id);
+    setTimeout(() => setHighlightId((h) => (h === id ? null : h)), 1400);
+  }
+
+  function nameOf(userId: string): string {
+    if (userId === myUserId) return "Ты";
+    return members.find((m) => m.id === userId)?.name ?? "Участник";
   }
 
   function openParticipants() {
@@ -561,7 +735,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           onTouchStart={() => (touchingRef.current = true)}
           onTouchEnd={() => (touchingRef.current = false)}
           onTouchCancel={() => (touchingRef.current = false)}
-          style={{ paddingBottom: composeH + 16, touchAction: "pan-y" }}
+          style={{ paddingBottom: composeH + 16, touchAction: "pan-y", overflowY: "scroll" }}
         >
           {loadingOlder && <span className="daysep">Загружаем ранние сообщения…</span>}
           {eventTitle !== null && eventMeta && (
@@ -635,7 +809,7 @@ export default function ChatPage({ params }: ChatPageProps) {
             const sender = members.find((m) => m.id === message.senderId);
             const showSender = !isOwn && isGroup && (!prev || prev.senderId !== message.senderId || showDaySeparator);
             return (
-              <div key={message.id} style={{ display: "contents" }}>
+              <div key={message.id} id={`m-${message.id}`} className="mwrap">
                 {showDaySeparator && <span className="daysep">{formatDayLabel(message.createdAt)}</span>}
                 <MessageBubble
                   message={message}
@@ -646,6 +820,12 @@ export default function ChatPage({ params }: ChatPageProps) {
                   readStatus={readStatus}
                   readCaption={readCaption}
                   onOwnPress={isOwn && isGroup && !message.id.startsWith("temp-") ? () => setReadersFor(message) : undefined}
+                  onMenu={!message.id.startsWith("temp-") ? () => setMenuFor(message) : undefined}
+                  onReact={(emoji) => toggleReaction(message, emoji)}
+                  replyName={message.replyTo ? nameOf(message.replyTo.senderId) : undefined}
+                  onReplyPress={message.replyTo ? () => jumpTo(message.replyTo!.id) : undefined}
+                  onRetry={() => retryMessage(message)}
+                  highlighted={highlightId === message.id}
                 />
               </div>
             );
@@ -675,7 +855,28 @@ export default function ChatPage({ params }: ChatPageProps) {
             </p>
           ) : (
             <>
-              {pendingImage ? (
+              {(replyTo || editing) && (
+                <div className="rbar gl">
+                  <Ic n={editing ? "edit" : "chat"} c="s" />
+                  <div>
+                    <b>{editing ? "Изменить сообщение" : `Ответ: ${nameOf(replyTo!.senderId)}`}</b>
+                    <span>{quoteText((editing ?? replyTo)!)}</span>
+                  </div>
+                  <button
+                    className="rb gl"
+                    style={{ width: 30, height: 30 }}
+                    onClick={() => {
+                      if (editing) setDraft("");
+                      setEditing(null);
+                      setReplyTo(null);
+                    }}
+                    aria-label="Отменить"
+                  >
+                    <Ic n="close" c="xs" />
+                  </button>
+                </div>
+              )}
+              {replyTo || editing ? null : pendingImage ? (
                 <div className="plq gl">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={pendingImage} alt="Выбранное фото" style={{ width: 44, height: 44, borderRadius: 12, objectFit: "cover" }} />
@@ -699,7 +900,7 @@ export default function ChatPage({ params }: ChatPageProps) {
               <div className="inrow">
                 <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handlePickImage} />
                 <label className="field gl">
-                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={sending || preparingImage} aria-label="Прикрепить фото" style={{ color: "var(--grey)", display: "grid", alignSelf: "flex-end", marginBottom: 13 }}>
+                  <button type="button" onClick={() => fileInputRef.current?.click()} disabled={preparingImage || !!editing} aria-label="Прикрепить фото" style={{ color: "var(--grey)", display: "grid", alignSelf: "flex-end", marginBottom: 13 }}>
                     <Ic n="camera" c="s" />
                   </button>
                   <textarea
@@ -718,19 +919,158 @@ export default function ChatPage({ params }: ChatPageProps) {
                     placeholder={pendingImage ? "Подпись к фото…" : "Сообщение"}
                     style={{ resize: "none", lineHeight: "20px", padding: "13px 0", maxHeight: 120, overflowY: "auto", background: "transparent", border: 0, outline: "none", flex: 1, font: "inherit", fontSize: 16, color: "inherit", minWidth: 0, width: "100%" }}
                   />
+                  {!editing && (
+                    <button type="button" className="stkbtn" onClick={() => setStickersOpen(true)} aria-label="Стикеры" style={{ alignSelf: "flex-end", marginBottom: 7 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/brand/stickers/mosya_wave.webp" alt="" />
+                    </button>
+                  )}
                 </label>
                 <button
                   className="send"
                   // Не забираем фокус у поля — клавиатура не закрывается после отправки (как в Telegram).
                   onPointerDown={(e) => e.preventDefault()}
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={handleSend} disabled={sending || (!draft.trim() && !pendingImage)} aria-label="Отправить">
-                  <Ic n="send" />
+                  onClick={handleSend} disabled={(!!editing && sending) || (!draft.trim() && !pendingImage)} aria-label={editing ? "Сохранить" : "Отправить"}>
+                  <Ic n={editing ? "check" : "send"} />
                 </button>
               </div>
             </>
           )}
         </div>
+
+        {menuFor && (
+          // Как в Telegram: фон размывается, сверху — реакции Моси, под ними само сообщение и действия.
+          <div className={`mpop ${menuFor.senderId === myUserId ? "me" : ""}`} onClick={() => setMenuFor(null)}>
+            <div className="mpopin" onClick={(e) => e.stopPropagation()}>
+              {!isEventClosed && (
+                <div className="rxrow">
+                  {REACTIONS.map((r) => (
+                    <button
+                      key={r}
+                      className={(menuFor.reactions ?? []).some((x) => x.emoji === r && x.mine) ? "on" : ""}
+                      onClick={() => {
+                        const m = menuFor;
+                        setMenuFor(null);
+                        toggleReaction(m, r);
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={stickerSrc(r)} alt="" />
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="mpopmsg">
+                <MessageBubble message={menuFor} isOwn={menuFor.senderId === myUserId} sender={null} showSender={false} readStatus="sent" />
+              </div>
+              <div className="mmenu">
+                {!isEventClosed && (
+                  <button
+                    onClick={() => {
+                      setReplyTo(menuFor);
+                      setEditing(null);
+                      setMenuFor(null);
+                      setTimeout(() => inputRef.current?.focus(), 350);
+                    }}
+                  >
+                    <Ic n="chat" c="s" />
+                    Ответить
+                  </button>
+                )}
+                {menuFor.content && !parseSticker(menuFor.content) && !parseInvite(menuFor.content) && (
+                  <button
+                    onClick={() => {
+                      const t = menuFor.content;
+                      setMenuFor(null);
+                      navigator.clipboard?.writeText(t).then(() => showToast("Скопировано"), () => showToast("Не удалось скопировать"));
+                    }}
+                  >
+                    <Ic n="copy" c="s" />
+                    Скопировать
+                  </button>
+                )}
+                {menuFor.senderId === myUserId &&
+                  !isEventClosed &&
+                  menuFor.content &&
+                  !parseSticker(menuFor.content) &&
+                  !parseInvite(menuFor.content) &&
+                  Date.now() - Date.parse(menuFor.createdAt) < EDIT_WINDOW_MS && (
+                    <button
+                      onClick={() => {
+                        setEditing(menuFor);
+                        setReplyTo(null);
+                        setDraft(menuFor.content);
+                        setMenuFor(null);
+                        setTimeout(() => inputRef.current?.focus(), 350);
+                      }}
+                    >
+                      <Ic n="edit" c="s" />
+                      Изменить
+                    </button>
+                  )}
+                {menuFor.senderId === myUserId && members.length > 1 && (
+                  <button
+                    onClick={() => {
+                      setReadersFor(menuFor);
+                      setMenuFor(null);
+                    }}
+                  >
+                    <Ic n="eye" c="s" />
+                    Кто прочитал
+                  </button>
+                )}
+                {menuFor.senderId === myUserId && (
+                  <button
+                    className="del"
+                    onClick={() => {
+                      setDeleteFor(menuFor);
+                      setMenuFor(null);
+                    }}
+                  >
+                    <Ic n="close" c="s" />
+                    Удалить
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Sheet open={!!deleteFor} onClose={() => setDeleteFor(null)}>
+          <h2 className="t">Удалить сообщение?</h2>
+          <p className="muted" style={{ margin: "-6px 0 0", fontSize: 14 }}>
+            Оно исчезнет у всех участников чата.
+          </p>
+          <button className="btn v" style={{ width: "100%", background: "#e5484d" }} onClick={() => deleteFor && deleteMessage(deleteFor)}>
+            Удалить
+          </button>
+          <button className="btn o" style={{ width: "100%" }} onClick={() => setDeleteFor(null)}>
+            Отмена
+          </button>
+        </Sheet>
+
+        <Sheet open={stickersOpen} onClose={() => setStickersOpen(false)}>
+          <div className="chs">
+            <button className={stickerTab === "mosya" ? "on" : "gl"} onClick={() => setStickerTab("mosya")}>
+              Мося
+            </button>
+            <button className={stickerTab === "interests" ? "on" : "gl"} onClick={() => setStickerTab("interests")}>
+              Интересы
+            </button>
+          </div>
+          <div className="stkgrid">
+            {(stickerTab === "mosya" ? MOSYA_STICKERS : INTEREST_STICKERS.map((x) => [x, ""] as [string, string])).map(([slug, label]) => (
+              <button key={slug} onClick={() => sendSticker(slug)} aria-label={label || "Стикер"}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={stickerSrc(slug)} alt="" loading="lazy" />
+                {label && <span>{label}</span>}
+              </button>
+            ))}
+          </div>
+        </Sheet>
+
+        {toast && <div className="ctoast gl">{toast}</div>}
 
         {showMiniProfileFor && <MiniProfileSheet userId={showMiniProfileFor} onClose={() => setShowMiniProfileFor(null)} />}
 
@@ -899,3 +1239,39 @@ async function compressImage(file: File): Promise<string> {
     URL.revokeObjectURL(objectUrl);
   }
 }
+
+/** Реакции — 6 анимированных Моси (как в мобильном приложении). В БД хранится slug. */
+const REACTIONS = ["mosya_love", "mosya_lol", "mosya_clap", "mosya_wow", "mosya_sad", "mosya_angry"];
+
+/** Стикеры Моси для панели (порядок = порядок в панели). */
+const MOSYA_STICKERS: [string, string][] = [
+  ["mosya_wave", "Привет!"], ["mosya_stand", "Я на месте"], ["mosya_run", "Бегу!"], ["mosya_late", "Опаздываю"],
+  ["mosya_coffee", "На кофе?"], ["mosya_jump", "Ура!"], ["mosya_lol", "Ха-ха"], ["mosya_love", "Люблю"],
+  ["mosya_shy", "Стесняюсь"], ["mosya_clap", "Браво"], ["mosya_wow", "Ого!"], ["mosya_think", "Хм…"],
+  ["mosya_facepalm", "Ну как так"], ["mosya_sad", "Грущу"], ["mosya_angry", "Злюсь"], ["mosya_cool", "Крутой"],
+  ["mosya_glasses", "Умник"], ["mosya_phone", "На связи"], ["mosya_selfie", "Селфи"], ["mosya_sit", "Жду"],
+  ["mosya_sleep", "Сплю"], ["mosya_party", "Праздник"], ["mosya_bday", "С днём рождения"], ["mosya_gift", "Подарок"],
+  ["mosya_music", "Кайфую"], ["mosya_gym", "Качаюсь"], ["mosya_sport", "Спорт"], ["mosya_travel", "В путь"],
+  ["mosya_winter", "Холодно"], ["mosya_rich", "Богач"], ["mosya_gold", "Король"], ["mosya_pin", "Наше место"],
+];
+const INTEREST_STICKERS = [
+  "kofe", "zavtrak", "uzhin", "pizza", "bar", "party", "karaoke", "concert", "music", "guitar",
+  "kino", "theatre", "art", "photo", "books", "lang", "games", "biz", "cook", "banya",
+  "run", "gym", "yoga", "bike", "football", "tennis", "swim", "box", "ski", "roller",
+  "hike", "camp", "trip", "travel", "world", "dogs",
+].map((x) => `i_${x}`);
+
+const EDIT_WINDOW_MS = 48 * 3600_000;
+
+function shapeReactions(list: { emoji: string; userIds: string[] }[] | undefined, meId: string | null): MessageReaction[] {
+  return (list ?? [])
+    .filter((r) => r.userIds.length > 0)
+    .map((r) => ({ emoji: r.emoji, userIds: r.userIds, count: r.userIds.length, mine: !!meId && r.userIds.includes(meId) }));
+}
+
+/** Сообщение с сервера/канала → единый вид (старые ответы API без новых полей тоже ок). */
+function normMessage(m: MessageData): MessageData {
+  return { ...m, imageUrl: m.imageUrl ?? null, editedAt: m.editedAt ?? null, deleted: !!m.deleted, replyTo: m.replyTo ?? null, reactions: m.reactions ?? [] };
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
