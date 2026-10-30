@@ -5,6 +5,7 @@ import { buildEventCard } from "@/lib/telegram/event-card";
 import { sendPushToUsers } from "@/lib/push/expo";
 import { shortTitle } from "@/lib/notify/user";
 import { sendInBatches } from "@/lib/server/background";
+import { photoInput } from "@/lib/telegram/photo-input";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -67,8 +68,10 @@ export async function announceNewEvent(
 
   // Фото: обложки-пресеты лежат на сайте (относительный путь) — делаем ссылку полной.
   // После первой отправки шлём уже file_id Telegram, чтобы он не качал фото заново.
-  let photo: string | null = card.photoUrl ? (card.photoUrl.startsWith("/") ? `${appUrl}${card.photoUrl}` : card.photoUrl) : null;
-  if (photo && !/^https?:\/\//.test(photo)) photo = null;
+  let photoUrl: string | null = card.photoUrl ? (card.photoUrl.startsWith("/") ? `${appUrl}${card.photoUrl}` : card.photoUrl) : null;
+  if (photoUrl && !/^https?:\/\//.test(photoUrl)) photoUrl = null;
+  // Первую отправку — файлом (Telegram часто не может скачать фото с нашего сервера по ссылке).
+  let photo: Awaited<ReturnType<typeof photoInput>> | null = photoUrl ? await photoInput(photoUrl) : null;
   const canCaption = text.length <= 1024;
 
   const api = getBot().api;

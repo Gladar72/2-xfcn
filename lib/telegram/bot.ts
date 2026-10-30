@@ -10,6 +10,7 @@ import { registerBizCategoryAsk } from "@/lib/telegram/biz-category-ask";
 import { handleRsvpAnswer } from "@/lib/telegram/event-reminders";
 import { respondToInvite } from "@/lib/invites/respond";
 import { EVENT_START_PREFIX, buildEventCard } from "@/lib/telegram/event-card";
+import { photoInput } from "@/lib/telegram/photo-input";
 import type { Plan } from "@/lib/subscriptions/limits";
 import {
   REFERRAL_START_PREFIX,
@@ -189,7 +190,7 @@ export function getBot(): Bot {
       : openAppKeyboard();
     if (card.photoUrl) {
       try {
-        await ctx.replyWithPhoto(card.photoUrl, { caption: card.text, parse_mode: "HTML", reply_markup: kb });
+        await ctx.replyWithPhoto(await photoInput(card.photoUrl), { caption: card.text, parse_mode: "HTML", reply_markup: kb });
         return;
       } catch (err) {
         console.error("event card photo failed:", err);
