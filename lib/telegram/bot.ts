@@ -1,4 +1,4 @@
-import { Bot, InlineKeyboard, Keyboard, type Context } from "grammy";
+import { Bot, InputFile, InlineKeyboard, Keyboard, type Context } from "grammy";
 import { TELEGRAM_API_ROOT } from "@/lib/telegram/api-root";
 import { getSupportAiReply } from "@/lib/telegram/support-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -108,18 +108,26 @@ export function getBot(): Bot {
   // и уже подтверждённо работает у /subscribe (см. ниже) с тем же самым
   // ?goto=subscriptions.
   const WELCOME_TEXT =
-    "Привет! Это <b>МЕСТО</b> 👋\n\n" +
-    "Здесь находят компанию на сегодня — кофе, пробежка, кино, ужин или вечеринка в твоём городе.\n\n" +
-    "• Смотри, кто куда идёт, и присоединяйся\n" +
-    "• Создай свою встречу за минуту — люди откликнутся сами\n" +
-    "• Я напишу, когда кто-то захочет пойти с тобой";
+    "<b>МЕСТО</b> — для тех, кому надоело сидеть дома и ждать приглашения 🙌\n\n" +
+    "Не пиши больше в Threads «хочу на свидание» — у нас всё есть: кофе, кино, спорт, вечеринки и свидания.\n\n" +
+    "А если у тебя своё дело — здесь можно качнуть бизнес: размести событие, и о нём узнает весь город 🚀";
+  // Два приветственных кружка от основателя — перед текстом. После первой отправки
+  // шлём уже file_id Telegram (не загружаем видео каждый раз).
+  const welcomeNoteIds: (string | null)[] = [null, null];
+  async function sendWelcomeNotes(ctx: Context) {
+    for (let i = 0; i < welcomeNoteIds.length; i++) {
+      try {
+        const src = welcomeNoteIds[i] ?? new InputFile(`${process.cwd()}/public/brand/mosya/welcome-${i + 1}.mp4`);
+        const m = await ctx.replyWithVideoNote(src, { length: 400 });
+        welcomeNoteIds[i] = m.video_note?.file_id ?? welcomeNoteIds[i];
+      } catch (err) {
+        console.error("welcome video note failed:", err);
+      }
+    }
+  }
   function startKeyboard(isAdmin: boolean) {
     const kb = new InlineKeyboard();
-    kb.webApp("🚀 Найти компанию", validatedAppUrl);
-    kb.row();
-    kb.webApp("➕ Создать встречу", `${validatedAppUrl}?goto=create`);
-    kb.row();
-    kb.text("🤝 Партнёрская программа", "ref_menu");
+    kb.webApp("🚀 Открыть МЕСТО", validatedAppUrl);
     if (isAdmin) {
       kb.row();
       kb.webApp("📊 Админ-панель", `${validatedAppUrl}?goto=admin`);
@@ -181,6 +189,7 @@ export function getBot(): Bot {
     }
     const isAdmin = isAdminTelegramId(ctx.from?.id ?? 0);
     // Одно понятное сообщение: что это и зачем бот (раньше после «Кнопки закреплены внизу» многие блокировали бота).
+    await sendWelcomeNotes(ctx);
     await ctx.reply(WELCOME_TEXT, { parse_mode: "HTML", reply_markup: startKeyboard(isAdmin) });
     if (isAdmin) await ctx.reply("Кнопки закреплены внизу 👇", { reply_markup: pinnedKeyboard(isAdmin) });
   });
