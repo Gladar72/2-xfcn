@@ -88,15 +88,25 @@ if [ "$MODE" != "--alert" ]; then
       (select count(*) from events where created_at > now() - interval '24 hours'),
       (select count(*) from events where status = 'published' and event_date >= current_date)" 2>/dev/null)
   errs=$(sudo docker logs --since 24h mesto-app-1 2>&1 | grep -ciE 'error|exception' || true)
-  # Работа сервиса за сутки.
+  # Работа сервиса: сегодня (последние 24 ч) и вчера (24–48 ч назад) — для динамики.
   WORK=$(sudo docker exec supabase-db psql -U postgres -d postgres -tA -F ' ' -c "
-    with a as (select organizer_id u, created_at t from events union all select user_id, joined_at from event_members union all select sender_id, created_at from messages)
+    with a as (select organizer_id u, created_at t from events union all select user_id, joined_at from event_members union all select sender_id, created_at from messages),
+    w(k, f, t) as (values (0, now() - interval '24 hours', now()), (1, now() - interval '48 hours', now() - interval '24 hours'))
     select
-      (select count(distinct u) from a where t > now() - interval '24 hours'),
-      (select count(*) from applications where created_at > now() - interval '24 hours'),
-      (select count(*) from applications where status = 'accepted' and updated_at > now() - interval '24 hours'),
-      (select count(*) from messages where created_at > now() - interval '24 hours'),
-      (select count(*) from notifications where created_at > now() - interval '24 hours')" 2>/dev/null)
+      (select count(*) from users where created_at > f and created_at <= t),
+      (select count(*) from events where created_at > f and created_at <= t),
+      (select count(distinct u) from a where a.t > w.f and a.t <= w.t),
+      (select count(*) from applications where created_at > f and created_at <= t),
+      (select count(*) from applications where status = 'accepted' and updated_at > f and updated_at <= t),
+      (select count(*) from messages where created_at > f and created_at <= t),
+      (select count(*) from notifications where created_at > f and created_at <= t),
+      (select count(*) from payments where status = 'succeeded' and created_at > f and created_at <= t),
+      (select coalesce(sum(amount), 0) from payments where status = 'succeeded' and currency = 'RUB' and created_at > f and created_at <= t)
+    from w order by k" 2>/dev/null)
+  # Подборка встреч (18:00 по городу): скольким ушла за сутки и сколько из них потом заходили в приложение.
+  DIGEST=$(sudo docker exec supabase-db psql -U postgres -d postgres -tA -F ' ' -c "
+    select count(*), count(*) filter (where last_active_at > last_digest_at)
+      from users where last_digest_at > now() - interval '24 hours'" 2>/dev/null)
   # Блокировки бота за сутки — после какого сообщения.
   BLOCKS=$(sudo docker exec supabase-db psql -U postgres -d postgres -tA -F '|' -c "
     select case
@@ -119,12 +129,26 @@ fi
     if [ -n "$STATS" ]; then
       read -r nu tu ne ae <<<"$STATS"
       echo ""
-      echo "За сутки: новых людей $nu (всего $tu), новых встреч $ne, активных встреч $ae"
+      echo "Всего людей: $tu, активных встреч: $ae"
     fi
     if [ -n "${WORK:-}" ]; then
-      read -r dau apps acc msgs notif <<<"$WORK"
+      # Стрелка динамики к вчерашнему дню: ↑ +3 / ↓ −2 / = 
+      dyn() { local c=$1 p=$2 d=$(( $1 - $2 )); if [ "$d" -gt 0 ]; then echo "$c ↑+$d"; elif [ "$d" -lt 0 ]; then echo "$c ↓$d"; else echo "$c ="; fi; }
+      { read -r nu ne dau apps acc msgs notif pays sum; read -r nu0 ne0 dau0 apps0 acc0 msgs0 notif0 pays0 sum0; } <<<"$WORK"
       echo ""
-      echo "Работа за сутки: активных людей $dau, заявок $apps (одобрено $acc), сообщений в чатах $msgs, уведомлений $notif"
+      echo "За сутки (к вчера):"
+      echo "• новых людей: $(dyn "$nu" "${nu0:-0}")"
+      echo "• активных людей: $(dyn "$dau" "${dau0:-0}")"
+      echo "• новых встреч: $(dyn "$ne" "${ne0:-0}")"
+      echo "• заявок: $(dyn "$apps" "${apps0:-0}"), одобрено: $(dyn "$acc" "${acc0:-0}")"
+      echo "• сообщений в чатах: $(dyn "$msgs" "${msgs0:-0}")"
+      echo "• уведомлений: $(dyn "$notif" "${notif0:-0}")"
+      echo ""
+      echo "💰 Деньги за сутки: оплат $(dyn "$pays" "${pays0:-0}"), сумма $(dyn "$sum" "${sum0:-0}") ₽"
+    fi
+    if [ -n "${DIGEST:-}" ]; then
+      read -r dsent dopen <<<"$DIGEST"
+      echo "🗓 Подборка встреч: получили $dsent, потом зашли в приложение $dopen"
     fi
     echo ""
     if [ -n "${BLOCKS:-}" ]; then
