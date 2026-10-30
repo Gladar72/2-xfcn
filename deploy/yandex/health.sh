@@ -88,6 +88,26 @@ if [ "$MODE" != "--alert" ]; then
       (select count(*) from events where created_at > now() - interval '24 hours'),
       (select count(*) from events where status = 'published' and event_date >= current_date)" 2>/dev/null)
   errs=$(sudo docker logs --since 24h mesto-app-1 2>&1 | grep -ciE 'error|exception' || true)
+  # Работа сервиса за сутки.
+  WORK=$(sudo docker exec supabase-db psql -U postgres -d postgres -tA -F ' ' -c "
+    with a as (select organizer_id u, created_at t from events union all select user_id, joined_at from event_members union all select sender_id, created_at from messages)
+    select
+      (select count(distinct u) from a where t > now() - interval '24 hours'),
+      (select count(*) from applications where created_at > now() - interval '24 hours'),
+      (select count(*) from applications where status = 'accepted' and updated_at > now() - interval '24 hours'),
+      (select count(*) from messages where created_at > now() - interval '24 hours'),
+      (select count(*) from notifications where created_at > now() - interval '24 hours')" 2>/dev/null)
+  # Блокировки бота за сутки — после какого сообщения.
+  BLOCKS=$(sudo docker exec supabase-db psql -U postgres -d postgres -tA -F '|' -c "
+    select case
+        when last_preview is null then 'без сообщений от бота'
+        when last_preview ~* '(Новое событие|Новая встреча|Что интересного)' then 'после анонса'
+        when last_preview ~* '(Кнопки закреплены|запустим наше|Привет! Это)' then 'после приветствия'
+        when last_preview ~* '(Через .* встреча|Напоминаю)' then 'после напоминания о встрече'
+        else 'после другого сообщения' end, count(*)
+      from bot_blocks where status = 'blocked' and at > now() - interval '24 hours' group by 1 order by 2 desc" 2>/dev/null)
+  unblocked=$(sudo docker exec supabase-db psql -U postgres -d postgres -tA -c "select count(*) from bot_blocks where status = 'unblocked' and at > now() - interval '24 hours'" 2>/dev/null)
+  tgto=$(sudo docker logs --since 24h mesto-app-1 2>&1 | grep -c "timed out after" || true)
 fi
 
 {
@@ -101,7 +121,20 @@ fi
       echo ""
       echo "За сутки: новых людей $nu (всего $tu), новых встреч $ne, активных встреч $ae"
     fi
-    echo "Ошибок в логах сайта за сутки: ${errs:-?}"
+    if [ -n "${WORK:-}" ]; then
+      read -r dau apps acc msgs notif <<<"$WORK"
+      echo ""
+      echo "Работа за сутки: активных людей $dau, заявок $apps (одобрено $acc), сообщений в чатах $msgs, уведомлений $notif"
+    fi
+    echo ""
+    if [ -n "${BLOCKS:-}" ]; then
+      echo "Заблокировали бота за сутки:"
+      while IFS='|' read -r why n; do [ -n "$why" ] && echo "• $why — $n"; done <<<"$BLOCKS"
+    else
+      echo "Заблокировали бота за сутки: никто"
+    fi
+    [ "${unblocked:-0}" -gt 0 ] 2>/dev/null && echo "Разблокировали: $unblocked"
+    echo "Ошибок в логах сайта за сутки: ${errs:-?}, задержек Telegram: ${tgto:-?}"
   fi
 } >/tmp/mesto-health.txt
 
