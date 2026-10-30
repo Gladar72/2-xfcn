@@ -360,3 +360,18 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .ctoast{position:absolute;left:50%;top:calc(var(--top) + 76px);transform:translateX(-50%);z-index:30;max-width:86%;padding:10px 16px;border-radius:16px;font-size:14px;text-align:center;color:var(--ink);box-shadow:0 10px 30px rgba(40,20,100,.18);animation:msgIn .35s var(--spring)}
 .P .m .bb{min-width:0;max-width:100%}
 .P .mq{max-width:100%;overflow:hidden}
+/* Меню сообщения как в Telegram: размытый фон, реакции сверху, сообщение, действия */
+.P .mpop{position:absolute;inset:0;z-index:40;background:rgba(30,16,60,.28);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:flex-start;padding:16px;animation:mpopIn .22s ease-out}
+.P .mpop.me{justify-content:flex-end}
+.P .mpopin{display:grid;gap:8px;width:min(330px,100%);animation:mpopUp .32s var(--spring)}
+.P .mpop.me .mpopin{justify-items:end}
+.P .mpop .rxrow{background:rgba(255,255,255,.92);border-radius:999px;padding:4px 8px;box-shadow:0 10px 30px rgba(40,20,100,.18);width:100%}
+.P .mpop .rxrow button{width:46px;height:46px;border-radius:50%}
+.P .mpop .rxrow img{width:40px;height:40px}
+.P .mpopmsg{display:flex;flex-direction:column;width:100%;pointer-events:none}
+.P .mpop.me .mpopmsg{align-items:flex-end}
+.P .mpopmsg .m{max-width:100%}
+.P .mpop .mmenu{width:250px;background:rgba(255,255,255,.95);box-shadow:0 10px 30px rgba(40,20,100,.18)}
+.P .mpop .mmenu button{height:46px;font-size:15.5px}
+@keyframes mpopIn{from{opacity:0}to{opacity:1}}
+@keyframes mpopUp{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
