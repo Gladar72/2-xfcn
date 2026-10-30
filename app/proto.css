@@ -648,7 +648,7 @@
 .P .apl b{display:block;font-weight:500;font-size:14.5px}
 .P .apl span{font-size:12.5px;color:var(--grey)}
 .P .apl .sm{height:34px;padding:0 12px;font-size:13px}
-.P .apl .sm.x{width:34px;padding:0;font-size:14px;flex:none}
+.P .apl .sm.x{width:34px;min-width:34px;max-width:34px;height:34px;padding:0;font-size:14px;line-height:1;flex:none;display:grid;place-items:center;text-align:center;border-radius:50%}
 .P .apl div>span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .P .blk-h .redn{color:#fff}
 .P .sm.yes{background:var(--g);color:#fff}
