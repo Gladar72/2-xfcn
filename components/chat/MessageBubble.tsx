@@ -76,10 +76,12 @@ interface MessageBubbleProps {
   /** Не ушло — повторить отправку. */
   onRetry?: () => void;
   highlighted?: boolean;
+  /** Анимация появления — только для новых сообщений. */
+  animate?: boolean;
 }
 
 /** Сообщение (.m/.bb прототипа): свои — градиент справа, чужие — стекло слева с аватаром. */
-export function MessageBubble({ message, isOwn, sender, showSender, onSenderPress, readStatus, readCaption, onOwnPress, onMenu, onReact, replyName, onReplyPress, onRetry, highlighted }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, sender, showSender, onSenderPress, readStatus, readCaption, onOwnPress, onMenu, onReact, replyName, onReplyPress, onRetry, highlighted, animate = true }: MessageBubbleProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const inviteId = parseInvite(message.content);
   const sticker = message.deleted ? null : parseSticker(message.content);
@@ -91,7 +93,7 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
 
   return (
     <>
-      <div className={clsx("m", isOwn && "me", "new")}>
+      <div className={clsx("m", isOwn && "me", animate && "new")}>
         {!isOwn &&
           (sender?.avatarUrl ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -168,7 +170,7 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
               aria-label="Открыть фото"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={photoThumb(message.imageUrl, 240)} alt="Фото" style={message.uploading ? { opacity: 0.6 } : undefined} />
+              <img src={photoThumb(message.imageUrl, 240)} alt="Фото" decoding="async" style={message.uploading ? { opacity: 0.6 } : undefined} />
             </button>
           )}
           {message.deleted ? (
@@ -178,6 +180,8 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
             <img
               src={stickerSrc(sticker)}
               alt="Стикер"
+              loading="lazy"
+              decoding="async"
               style={{ width: 140, height: 140, objectFit: "contain", display: "block" }}
             />
           ) : inviteId ? (
@@ -208,7 +212,7 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
                   }}
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={stickerSrc(r.emoji)} alt="" />
+                  <img src={stickerSrc(r.emoji)} alt="" decoding="async" />
                   {r.count > 1 && <i>{r.count}</i>}
                 </button>
               ))}
