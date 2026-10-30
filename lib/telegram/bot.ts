@@ -119,15 +119,29 @@ export function getBot(): Bot {
     "📲 Скоро «Место» появится в App Store, а на Android оно уже есть в RuStore.";
   // Два приветственных кружка от основателя — перед текстом. После первой отправки
   // шлём уже file_id Telegram (не загружаем видео каждый раз).
+  // Если у человека в настройках приватности запрещены голосовые/видеосообщения
+  // (VOICE_MESSAGES_FORBIDDEN) — кружок не дойдёт, шлём то же видео обычным видео.
   const welcomeNoteIds: (string | null)[] = [null, null];
+  const welcomeVideoIds: (string | null)[] = [null, null];
   async function sendWelcomeNotes(ctx: Context) {
+    let notesForbidden = false;
     for (let i = 0; i < welcomeNoteIds.length; i++) {
+      const file = () => new InputFile(`${process.cwd()}/public/brand/mosya/welcome-${i + 1}.mp4`);
+      if (!notesForbidden) {
+        try {
+          const m = await ctx.replyWithVideoNote(welcomeNoteIds[i] ?? file(), { length: 400 });
+          welcomeNoteIds[i] = m.video_note?.file_id ?? welcomeNoteIds[i];
+          continue;
+        } catch (err) {
+          if (String((err as Error)?.message ?? err).includes("VOICE_MESSAGES_FORBIDDEN")) notesForbidden = true;
+          else { console.error("welcome video note failed:", err); continue; }
+        }
+      }
       try {
-        const src = welcomeNoteIds[i] ?? new InputFile(`${process.cwd()}/public/brand/mosya/welcome-${i + 1}.mp4`);
-        const m = await ctx.replyWithVideoNote(src, { length: 400 });
-        welcomeNoteIds[i] = m.video_note?.file_id ?? welcomeNoteIds[i];
+        const m = await ctx.replyWithVideo(welcomeVideoIds[i] ?? file(), { width: 400, height: 400, supports_streaming: true });
+        welcomeVideoIds[i] = m.video?.file_id ?? welcomeVideoIds[i];
       } catch (err) {
-        console.error("welcome video note failed:", err);
+        console.error("welcome video failed:", err);
       }
     }
   }
