@@ -2,6 +2,8 @@
 # Сводка о состоянии сервера «Места» админам в Telegram-бота (ADMIN_TELEGRAM_IDS).
 #   health.sh          — ежедневная сводка (всегда пишет)
 #   health.sh --alert  — ежечасная проверка: пишет, только если что-то сломалось
+#   health.sh --watch  — ежечасный отчёт для GitHub (watchlog): только итоги, без данных людей
+#   В режимах --alert и --watch сервер сам чинит простое: перезапускает упавшее, чистит кэш при нехватке диска.
 # Ключи и токены берутся из /opt/mesto/.env и никуда не выводятся.
 set -uo pipefail
 ENV=/opt/mesto/.env
@@ -17,6 +19,36 @@ UA="Mozilla/5.0 (mesto health)"
 BAD=()   # критичные проблемы — из-за них приходит тревога
 WARN=()  # стоит посмотреть, но сайт работает
 OK=()
+FIXED=() # что сервер исправил сам
+
+# 0. Самолечение (раз в час): упавшие контейнеры, зависшее приложение, переполненный диск.
+if [ "$MODE" = "--alert" ] || [ "$MODE" = "--watch" ]; then
+  for c in $(sudo docker ps -a --format '{{.Names}} {{.Status}}' | grep -E ' (Exited \([1-9]|Dead|Created)' | awk '{print $1}'); do
+    sudo docker start "$c" >/dev/null 2>&1 && FIXED+=("Запустил упавший контейнер $c")
+  done
+  alive=0
+  for _ in 1 2 3; do
+    curl -fsS -o /dev/null -m 15 http://127.0.0.1:3000/api/categories 2>/dev/null && { alive=1; break; }
+    sleep 10
+  done
+  if [ "$alive" = 0 ] && sudo docker ps --format '{{.Names}}' | grep -qx mesto-app-1; then
+    sudo docker restart mesto-app-1 >/dev/null 2>&1 && FIXED+=("Приложение не отвечало — перезапустил")
+    sleep 20
+  fi
+  appmem=$(sudo docker stats --no-stream --format '{{.MemUsage}}' mesto-app-1 2>/dev/null | awk '{v=$1; if (v ~ /GiB/) {sub(/GiB/,"",v); v*=1024} else sub(/MiB/,"",v); printf "%d", v}')
+  if [ "${appmem:-0}" -gt 1500 ] 2>/dev/null; then
+    sudo docker restart mesto-app-1 >/dev/null 2>&1 && FIXED+=("Приложение заняло ${appmem} МБ памяти — перезапустил")
+    sleep 20
+  fi
+  d0=$(df --output=pcent / | tail -1 | tr -dc 0-9)
+  if [ "$d0" -ge 80 ] || [ "$(date -u +%H)" = 04 ]; then
+    sudo docker image prune -f >/dev/null 2>&1 || true
+    sudo docker builder prune -af --filter until=48h >/dev/null 2>&1 || true
+    sudo journalctl --vacuum-size=200M >/dev/null 2>&1 || true
+    d1=$(df --output=pcent / | tail -1 | tr -dc 0-9)
+    [ "$d0" -ge 80 ] && FIXED+=("Почистил кэш Docker и журналы: диск $d0% → $d1%")
+  fi
+fi
 
 # 1. Сайт снаружи (через HTTPS на этом сервере) и приложение внутри.
 code=$(curl -sS -A "$UA" -o /dev/null -m 20 --resolve "$HOST:443:127.0.0.1" -w "%{http_code}" "https://$HOST/" 2>/dev/null || echo 000)
@@ -75,8 +107,36 @@ fi
 fails=$(awk -v since="$(date -u -d '24 hours ago' +%FT%TZ)" '$2=="fail" && $1>=since' /opt/mesto/cron.log 2>/dev/null | wc -l)
 [ "$fails" -gt 3 ] && WARN+=("Фоновые задачи: $fails сбоев за сутки") || OK+=("Фоновые задачи: сбоев за сутки — $fails")
 
-# Ежечасная проверка: молчим, если нет критичных проблем.
-if [ "$MODE" = "--alert" ] && [ ${#BAD[@]} -eq 0 ]; then exit 0; fi
+# 8б. Скорость ответов (лаги): главная и API, среднее из 3 замеров.
+for path in / /feed /api/categories; do
+  t=$(for _ in 1 2 3; do curl -sS -o /dev/null -m 20 -w "%{time_total}\n" "http://127.0.0.1:3000$path" 2>/dev/null || echo 20; done | awk '{s+=$1} END {printf "%.2f", s/NR}')
+  ms=$(awk -v t="$t" 'BEGIN{printf "%d", t*1000}')
+  if [ "$ms" -ge 3000 ]; then BAD+=("Тормозит $path: ${ms} мс"); elif [ "$ms" -ge 1000 ]; then WARN+=("Медленно $path: ${ms} мс"); else OK+=("$path: ${ms} мс"); fi
+done
+# 8в. Ошибки приложения за последний час.
+errh=$(sudo docker logs --since 1h mesto-app-1 2>&1 | grep -ciE 'error|exception|unhandled' || true)
+[ "${errh:-0}" -ge 30 ] && WARN+=("Ошибок в логах за час: $errh") || OK+=("Ошибок в логах за час: ${errh:-0}")
+
+# Отчёт для GitHub: только итоги проверок (без имён и данных людей) и обезличенные ошибки.
+if [ "$MODE" = "--watch" ]; then
+  echo "время: $(date -u +%FT%TZ)"
+  for x in "${FIXED[@]}"; do echo "FIXED $x"; done
+  for x in "${BAD[@]}"; do echo "BAD $x"; done
+  for x in "${WARN[@]}"; do echo "WARN $x"; done
+  for x in "${OK[@]}"; do echo "OK $x"; done
+  echo "--- нагрузка: $(cut -d' ' -f1-3 /proc/loadavg), приложение: ${appmem:-?} МБ"
+  echo "--- ошибки приложения за час (обезличено, по типам)"
+  sudo docker logs --since 1h mesto-app-1 2>&1 | grep -iE 'error|exception|unhandled|timed out' |
+    sed -E 's#bot[0-9]+:[A-Za-z0-9_-]+#bot<token>#g; s/[0-9a-f]{8}-[0-9a-f-]{27}/<id>/g; s/[0-9]{5,}/<n>/g; s/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/<email>/g; s/"[^"]{40,}"/"<…>"/g; s/\x27[^\x27]*\x27/<…>/g' |
+    cut -c1-180 | sort | uniq -c | sort -rn | head -25
+  echo "--- фоновые задачи: сбои за час"
+  awk -v since="$(date -u -d '1 hour ago' +%FT%TZ)" '$2=="fail" && $1>=since {print $3}' /opt/mesto/cron.log 2>/dev/null | sort | uniq -c
+  # Админу в бота пишет ежечасный cron (--alert), здесь не дублируем.
+  exit 0
+fi
+
+# Ежечасная проверка: молчим, если нет критичных проблем и ничего не чинили.
+if [ "$MODE" = "--alert" ] && [ ${#BAD[@]} -eq 0 ] && [ ${#FIXED[@]} -eq 0 ]; then exit 0; fi
 
 # 9. Для ежедневной сводки — немного цифр за сутки.
 STATS=""
@@ -121,7 +181,9 @@ if [ "$MODE" != "--alert" ]; then
 fi
 
 {
-  if [ "$MODE" = "--alert" ]; then echo "🚨 Место: проблема на сервере"; else echo "📊 Место: состояние сервера"; fi
+  if [ "$MODE" = "--alert" ] && [ ${#BAD[@]} -eq 0 ]; then echo "🛠 Место: сервер сам исправил"
+  elif [ "$MODE" = "--alert" ]; then echo "🚨 Место: проблема на сервере"; else echo "📊 Место: состояние сервера"; fi
+  for x in "${FIXED[@]}"; do echo "🛠 $x"; done
   for x in "${BAD[@]}"; do echo "❌ $x"; done
   for x in "${WARN[@]}"; do echo "⚠️ $x"; done
   if [ "$MODE" != "--alert" ]; then
