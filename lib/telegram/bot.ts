@@ -107,16 +107,20 @@ export function getBot(): Bot {
   // передача initData у web_app кнопок этого типа надёжнее задокументирована
   // и уже подтверждённо работает у /subscribe (см. ниже) с тем же самым
   // ?goto=subscriptions.
+  // Приветствие — одно сообщение с кнопками (раньше было несколько подряд).
   const WELCOME_TEXT =
     "<b>МЕСТО</b> — для тех, кому надоело сидеть дома и ждать приглашения 🙌\n\n" +
-    "Не пиши больше в Threads «хочу на свидание» — у нас всё есть: кофе, кино, спорт, вечеринки и свидания.\n\n" +
-    "А если у тебя своё дело — здесь можно качнуть бизнес: размести событие, и о нём узнает весь город 🚀";
-  // Последнее сообщение приветствия: закрепить чат, поддержка, магазины приложений.
-  const WELCOME_PS =
-    "📌 Закрепи этот чат, чтобы не потерять нас среди переписок — кнопка «Открыть МЕСТО» всегда будет рядом.\n\n" +
-    "💬 Есть вопросы — пиши в поддержку в разделе «Профиль». Там же всё о твоём профиле, интересах и подписке. " +
-    "Подскажи, что сделать лучше: ты становишься частью истории нового проекта ✨\n\n" +
-    "📲 Скоро «Место» появится в App Store, а на Android оно уже есть в RuStore.";
+    "Здесь люди из твоего города собираются вместе: кофе, кино, спорт, настолки, прогулки, вечеринки и свидания.\n\n" +
+    "<b>Как это работает:</b>\n" +
+    "• Найди встречу по интересам и подай заявку — организатор одобрит, и откроется общий чат\n" +
+    "• Или создай свою: «кто со мной в кино в пятницу?» — и собери компанию за пару минут\n" +
+    "• По вечерам — подборка новых встреч по твоим интересам\n\n" +
+    "Не пиши больше в Threads «хочу на свидание» — у нас всё есть 😉\n\n" +
+    "🚀 Своё дело? Размести событие в афише — о нём узнает весь город.\n\n" +
+    "📌 Закрепи этот чат — кнопка «Открыть МЕСТО» всегда будет рядом.\n" +
+    "💬 Вопросы и идеи — в поддержку в «Профиле». Ты — часть истории нового проекта ✨\n" +
+    "📲 Скоро в App Store, на Android — уже в RuStore.";
+  const INVITE_TEXT = "Зову тебя в МЕСТО — находим компанию на кофе, кино, спорт и вечеринки 👇";
   // Два приветственных кружка от основателя — перед текстом. После первой отправки
   // шлём уже file_id Telegram (не загружаем видео каждый раз).
   // Если у человека в настройках приватности запрещены голосовые/видеосообщения
@@ -145,9 +149,13 @@ export function getBot(): Bot {
       }
     }
   }
-  function startKeyboard(isAdmin: boolean) {
+  function startKeyboard(isAdmin: boolean, botUsername?: string) {
     const kb = new InlineKeyboard();
     kb.webApp("🚀 Открыть МЕСТО", validatedAppUrl);
+    if (botUsername) {
+      const share = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${botUsername}`)}&text=${encodeURIComponent(INVITE_TEXT)}`;
+      kb.row().url("🎁 Пригласить друга", share);
+    }
     if (isAdmin) {
       kb.row();
       kb.webApp("📊 Админ-панель", `${validatedAppUrl}?goto=admin`);
@@ -210,9 +218,7 @@ export function getBot(): Bot {
     const isAdmin = isAdminTelegramId(ctx.from?.id ?? 0);
     // Одно понятное сообщение: что это и зачем бот (раньше после «Кнопки закреплены внизу» многие блокировали бота).
     await sendWelcomeNotes(ctx);
-    await ctx.reply(WELCOME_TEXT, { parse_mode: "HTML", reply_markup: startKeyboard(isAdmin) });
-    await ctx.reply(WELCOME_PS);
-    if (isAdmin) await ctx.reply("Кнопки закреплены внизу 👇", { reply_markup: pinnedKeyboard(isAdmin) });
+    await ctx.reply(WELCOME_TEXT, { parse_mode: "HTML", reply_markup: startKeyboard(isAdmin, ctx.me?.username) });
   });
 
   async function sendEventCard(ctx: Context, eventId: string) {
