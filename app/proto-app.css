@@ -375,3 +375,11 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .mpop .mmenu button{height:46px;font-size:15.5px}
 @keyframes mpopIn{from{opacity:0}to{opacity:1}}
 @keyframes mpopUp{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+/* Чат: плавная прокрутка как в Telegram.
+   .msgsin всегда чуть выше окна — на iPhone список листается сразу при входе.
+   Без размытия фона под шапкой и полем ввода: на iPhone размытие поверх
+   прокручиваемого списка пересчитывается каждый кадр и даёт рывки. */
+.P .msgsin{display:flex;flex-direction:column;gap:8px;justify-content:flex-end;min-height:calc(100% + 1px)}
+.P .chat .hd{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(248,244,255,.97)}
+.P .chat .compose{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(248,244,255,.97)}
+.P .chat .msgs .gl,.P .chat .compose .gl{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.85)}
