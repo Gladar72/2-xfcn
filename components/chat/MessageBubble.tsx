@@ -115,6 +115,7 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
           }}
           onTouchStart={(e) => {
             const t = e.touches[0];
+            if (!t) return;
             press.current.fired = false;
             press.current.x = t.clientX;
             press.current.y = t.clientY;
@@ -130,6 +131,7 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
           }}
           onTouchMove={(e) => {
             const t = e.touches[0];
+            if (!t) return;
             if (Math.abs(t.clientX - press.current.x) + Math.abs(t.clientY - press.current.y) > 10 && press.current.t) {
               clearTimeout(press.current.t);
               press.current.t = null;
