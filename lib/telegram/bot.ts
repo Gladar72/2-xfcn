@@ -107,11 +107,17 @@ export function getBot(): Bot {
   // передача initData у web_app кнопок этого типа надёжнее задокументирована
   // и уже подтверждённо работает у /subscribe (см. ниже) с тем же самым
   // ?goto=subscriptions.
+  const WELCOME_TEXT =
+    "Привет! Это <b>МЕСТО</b> 👋\n\n" +
+    "Здесь находят компанию на сегодня — кофе, пробежка, кино, ужин или вечеринка в твоём городе.\n\n" +
+    "• Смотри, кто куда идёт, и присоединяйся\n" +
+    "• Создай свою встречу за минуту — люди откликнутся сами\n" +
+    "• Я напишу, когда кто-то захочет пойти с тобой";
   function startKeyboard(isAdmin: boolean) {
     const kb = new InlineKeyboard();
-    kb.webApp("Открыть приложение", validatedAppUrl);
+    kb.webApp("🚀 Найти компанию", validatedAppUrl);
     kb.row();
-    kb.webApp("Купить подписку", `${validatedAppUrl}?goto=subscriptions`);
+    kb.webApp("➕ Создать встречу", `${validatedAppUrl}?goto=create`);
     kb.row();
     kb.text("🤝 Партнёрская программа", "ref_menu");
     if (isAdmin) {
@@ -174,10 +180,9 @@ export function getBot(): Bot {
       }
     }
     const isAdmin = isAdminTelegramId(ctx.from?.id ?? 0);
-    await ctx.reply("Отлично, теперь запустим наше МЕСТО! 🚀🧡", {
-      reply_markup: startKeyboard(isAdmin),
-    });
-    await ctx.reply("Кнопки закреплены внизу 👇", { reply_markup: pinnedKeyboard(isAdmin) });
+    // Одно понятное сообщение: что это и зачем бот (раньше после «Кнопки закреплены внизу» многие блокировали бота).
+    await ctx.reply(WELCOME_TEXT, { parse_mode: "HTML", reply_markup: startKeyboard(isAdmin) });
+    if (isAdmin) await ctx.reply("Кнопки закреплены внизу 👇", { reply_markup: pinnedKeyboard(isAdmin) });
   });
 
   async function sendEventCard(ctx: Context, eventId: string) {
@@ -604,13 +609,19 @@ export function getBot(): Bot {
   // Кнопка «🔕 Не присылать анонсы» под анонсом новой встречи (lib/telegram/event-announce.ts).
   bot.callbackQuery("ann_off", async (ctx) => {
     await createAdminClient().from("users").update({ event_announcements: false }).eq("telegram_id", ctx.from.id);
-    await ctx.answerCallbackQuery({ text: "Анонсы отключены" });
-    await ctx.reply("Хорошо, больше не буду присылать анонсы новых встреч 🙌 Включить снова — команда /anons");
+    await ctx.answerCallbackQuery({ text: "Подборка отключена" });
+    await ctx.reply("Хорошо, больше не буду присылать подборку встреч 🙌 Включить снова — команда /anons");
   });
   bot.command("anons", async (ctx) => {
     if (!ctx.from) return;
-    await createAdminClient().from("users").update({ event_announcements: true }).eq("telegram_id", ctx.from.id);
-    await ctx.reply("Анонсы новых встреч в твоём городе снова включены 🎉");
+    await createAdminClient().from("users").update({ event_announcements: true, announce_every_days: 1 }).eq("telegram_id", ctx.from.id);
+    await ctx.reply("Подборка встреч в твоём городе снова включена — раз в день, в 18:00 🎉");
+  });
+  // Кнопка «🔕 Реже» под подборкой (lib/telegram/event-digest.ts) — раз в 3 дня.
+  bot.callbackQuery("dig_less", async (ctx) => {
+    await createAdminClient().from("users").update({ announce_every_days: 3 }).eq("telegram_id", ctx.from.id);
+    await ctx.answerCallbackQuery({ text: "Буду присылать раз в 3 дня" });
+    await ctx.reply("Хорошо, подборка будет приходить раз в 3 дня 🙌 Каждый день — команда /anons");
   });
 
   // Кнопки «✅ Иду» / «❌ Не смогу» под напоминанием за 2 часа до встречи
