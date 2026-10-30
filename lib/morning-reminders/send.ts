@@ -223,7 +223,10 @@ async function sendOne(
     });
     return "sent";
   } catch (err) {
-    const blocked = err instanceof GrammyError && err.error_code === 403;
+    // 403 — заблокировал бота; 400 «chat not found» / «user is deactivated» — чата нет и не будет.
+    const blocked =
+      err instanceof GrammyError &&
+      (err.error_code === 403 || (err.error_code === 400 && /chat not found|user is deactivated|PEER_ID_INVALID/i.test(err.description)));
     if (blocked) {
       // Заблокировал бота или удалил аккаунт — прекращаем попытки насовсем.
       await admin.from("users").update({ morning_reminders_enabled: false }).eq("id", user.id);
