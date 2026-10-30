@@ -292,6 +292,22 @@ blocksreport() {
            round(avg(extract(epoch from at - last_sent_at)/3600)::numeric,1) hours_after,
            round(avg(extract(epoch from at - user_created_at)/86400)::numeric,1) days_since_signup
     from bot_blocks where status='blocked' group by 1 order by 2 desc limit 25;"
+  echo "## по типу последнего сообщения"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select coalesce(last_method,'—') method, count(*) n from bot_blocks where status='blocked' group by 1 order by 2 desc;"
+  echo "## по неделям"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select to_char(date_trunc('week',at),'YYYY-MM-DD') week, count(*) n from bot_blocks where status='blocked' group by 1 order by 1;"
+  echo "## как быстро после регистрации"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select case when user_created_at is null then 'неизвестно' when at-user_created_at<interval '1 day' then '< 1 дня'
+                when at-user_created_at<interval '7 days' then '1–7 дней' when at-user_created_at<interval '30 days' then '7–30 дней' else '> 30 дней' end bucket,
+           count(*) n from bot_blocks where status='blocked' group by 1 order by 2 desc;"
+  echo "## сколько сообщений бот прислал за 7 дней до блокировки (по журналу уведомлений)"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -c "
+    select case when c=0 then '0' when c<=3 then '1–3' when c<=10 then '4–10' else '> 10' end msgs, count(*) n from (
+      select b.id, (select count(*) from notifications n where n.user_id=b.user_id and n.created_at between b.at-interval '7 days' and b.at) c
+      from bot_blocks b where b.status='blocked' and b.user_id is not null) t group by 1 order by 1;"
 }
 
 # Сколько людей заблокировали бота (только числа).
