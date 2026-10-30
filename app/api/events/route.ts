@@ -15,7 +15,6 @@ import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { moderateImage } from "@/lib/photos/moderate-image";
 import { eventQualityProblem } from "@/lib/events/quality";
-import { announceNewEvent } from "@/lib/telegram/event-announce";
 import { cachedFeed, clearFeedCache } from "@/lib/data/feed-cache";
 import { eventTiming } from "@/lib/events/timing";
 import { activePromotions, promotedOrder } from "@/lib/promotions/server";
@@ -691,10 +690,6 @@ export async function POST(req: NextRequest) {
   if (duplicate && (duplicate.status === "published" || duplicate.status === "closed")) {
     return NextResponse.json({ status: "created", eventId: duplicate.id });
   }
-  // Такую же встречу только что создали и отменили — новую создаём, но
-  // людям про неё второй раз не пишем.
-  const isRepost = !!duplicate;
-
   const { data: createdEvent, error: insertError } = await admin
     .from("events")
     .insert({
@@ -765,17 +760,8 @@ export async function POST(req: NextRequest) {
     await incrementEventsCreated(admin, subscriptionInfo.subscriptionId, subscriptionInfo.currentPeriodStart);
   }
 
-  // Анонс новой встречи всем в городе: Telegram (карточка с фото и кнопкой) + push.
-  // Без await — рассылка идёт фоном и не задерживает ответ.
-  if (!isRepost) {
-    void announceNewEvent(admin, {
-      eventId: createdEvent.id,
-      organizerId: currentUser.userId,
-      city: organizerProfile?.city ?? "",
-      title: input.title ?? "",
-      isBusiness: !!input.isBusiness,
-    }).catch((err) => console.error("announceNewEvent:", err));
-  }
+  // Анонса каждой новой встречи больше нет — раз в день приходит подборка по интересам
+  // (lib/telegram/event-digest.ts).
 
   // Автор сразу видит свою встречу в ленте, не дожидаясь конца 15-секундного кэша.
   clearFeedCache();
