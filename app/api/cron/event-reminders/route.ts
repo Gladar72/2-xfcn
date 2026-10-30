@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
 import { sendDueEventReminders } from "@/lib/telegram/event-reminders";
 import { sendDueShareNudges } from "@/lib/telegram/share-nudge";
+import { sendDueDigests } from "@/lib/telegram/event-digest";
 
 export const maxDuration = 300;
 export const dynamic = "force-dynamic";
@@ -28,5 +29,10 @@ export async function GET(req: NextRequest) {
     console.error("share-nudge", e);
     return { nudged: 0 };
   });
-  return NextResponse.json({ ...result, ...nudges });
+  // Подборка встреч по интересам: в 18:00 по городу, раз в день / раз в 3 дня (lib/telegram/event-digest.ts).
+  const digest = await sendDueDigests(admin).catch((e) => {
+    console.error("event-digest", e);
+    return { users: 0, sent: 0 };
+  });
+  return NextResponse.json({ ...result, ...nudges, digest });
 }
