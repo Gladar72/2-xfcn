@@ -11,9 +11,12 @@ on:
         required: true
         default: status
         type: choice
-        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, storagefix, eventsdiag, bizdiag, storyshot, promodiag, promofix, bizmove, osupdate, giftdiag, statsdiag, notifydiag, broadcast, restoreevents, reauthnotify, blockedcount, blocksreport, cleanup]
+        options: [status, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, storagefix, eventsdiag, bizdiag, storyshot, promodiag, promofix, bizmove, osupdate, giftdiag, statsdiag, notifydiag, watch, broadcast, restoreevents, reauthnotify, blockedcount, blocksreport, cleanup]
   push:
     branches: [main]
+  # Ежечасный присмотр за сервером: самолечение и отчёт в ветку watchlog.
+  schedule:
+    - cron: "41 * * * *"
 
 concurrency:
   group: yandex-server
@@ -21,13 +24,13 @@ concurrency:
 
 jobs:
   run:
-    if: github.event_name == 'workflow_dispatch' || vars.YC_AUTODEPLOY == 'on'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || vars.YC_AUTODEPLOY == 'on'
     runs-on: ubuntu-latest
     permissions:
       contents: write
     timeout-minutes: 40
     env:
-      TASK: ${{ github.event.inputs.task || 'deploy' }}
+      TASK: ${{ github.event.inputs.task || (github.event_name == 'schedule' && 'watch') || 'deploy' }}
       HOST: ${{ secrets.YC_HOST }}
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +77,14 @@ jobs:
           cd failog && git init -q && git checkout -q -b deploylog
           git -c user.name=bot -c user.email=bot@users.noreply.github.com add . && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm deploylog
           git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" deploylog
+
+      - name: Publish watch log to branch
+        if: always() && env.TASK == 'watch'
+        run: |
+          mkdir -p wlog && tail -c 100000 run.log > wlog/watch.log || true
+          cd wlog && git init -q && git checkout -q -b watchlog
+          git -c user.name=bot -c user.email=bot@users.noreply.github.com add . && git -c user.name=bot -c user.email=bot@users.noreply.github.com commit -qm watchlog
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" watchlog
 
       - name: Fetch story renders
         if: env.TASK == 'storyshot'
