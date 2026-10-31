@@ -250,6 +250,41 @@ status() {
   tail -5 "$ROOT/cron.log" 2>/dev/null || true
 }
 
+# Read-only capacity report. No credentials, user rows, message text or query text:
+# diagnostic output is published to the public deploylog branch by the workflow.
+capacitydiag() {
+  echo "time: $(date -u +%FT%TZ)"
+  echo "CPU: $(nproc); load: $(cut -d' ' -f1-3 /proc/loadavg)"
+  free -m
+  df -h /
+  df -i /
+  vmstat 1 5
+  sudo docker stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}\t{{.PIDs}}'
+  for c in mesto-app-1 supabase-db supabase-rest realtime-dev.supabase-realtime supabase-storage; do
+    sudo docker inspect --format '{{.Name}} restarts={{.RestartCount}} OOM={{.State.OOMKilled}} image={{.Config.Image}}' "$c"
+  done
+  q() {
+    sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -v ON_ERROR_STOP=1 \
+      -c "BEGIN READ ONLY; SET LOCAL statement_timeout='5s'; $1; COMMIT;" || echo "diagnostic query unavailable"
+  }
+  q "select name, setting, unit from pg_settings where name in ('max_connections','shared_buffers','effective_cache_size','work_mem','max_wal_size') order by name"
+  q "select pg_size_pretty(pg_database_size(current_database())) database_size, count(*) connections, count(*) filter (where state='active' and pid<>pg_backend_pid()) active, count(*) filter (where state='active' and now()-query_start>interval '5 seconds' and pid<>pg_backend_pid()) slow_active from pg_stat_activity"
+  q "select relname, n_live_tup estimated_rows, n_dead_tup dead_rows, pg_size_pretty(pg_total_relation_size(relid)) total_size, last_autovacuum, last_autoanalyze from pg_stat_user_tables where schemaname='public' order by pg_total_relation_size(relid) desc limit 15"
+  q "select numbackends, xact_commit, xact_rollback, deadlocks, temp_bytes, stats_reset from pg_stat_database where datname=current_database()"
+  q "select count(*) users from public.users"
+  q "select bucket_id, count(*) files, sum(case when metadata->>'size' ~ '^[0-9]+$' then (metadata->>'size')::bigint else 0 end) bytes from storage.objects group by bucket_id order by bucket_id"
+  q "select to_jsonb(t)->'max_concurrent_users' max_concurrent_users, to_jsonb(t)->'max_events_per_second' max_events_per_second, to_jsonb(t)->'max_joins_per_second' max_joins_per_second, to_jsonb(t)->'max_channels_per_client' max_channels_per_client, to_jsonb(t)->'max_bytes_per_second' max_bytes_per_second from _realtime.tenants t"
+  echo "--- failed background routes in the last 24h (counts only)"
+  awk -v since="$(date -u -d '24 hours ago' +%FT%TZ)" '$2=="fail" && $1>=since {print $3}' "$ROOT/cron.log" 2>/dev/null | sort | uniq -c || true
+  echo "--- app error categories in the last 24h (counts only)"
+  sudo docker logs --since 24h mesto-app-1 2>&1 | awk '
+    /Failed to find Server Action/ {actions++; next}
+    /bot was blocked by the user/ {blocked++; next}
+    /timed out|timeout|ETIMEDOUT/ {timeouts++; next}
+    /error|Error|exception|unhandled/ {other++}
+    END {print "unknown_server_action", actions+0; print "blocked_bot", blocked+0; print "timeouts", timeouts+0; print "other_error_lines", other+0}'
+}
+
 logs() {
   sudo docker logs --tail 80 mesto-app-1 2>&1 | tail -80 || true
   for c in supabase-kong supabase-rest supabase-storage realtime-dev.supabase-realtime supabase-db; do
@@ -537,6 +572,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | capacitydiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac

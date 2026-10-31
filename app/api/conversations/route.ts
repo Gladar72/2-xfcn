@@ -31,7 +31,7 @@ export async function GET() {
   const conversationIds = (memberships ?? []).map((m) => m.conversation_id);
   if (conversationIds.length === 0) return NextResponse.json({ items: [] });
 
-  const [{ data: otherMembers }, { data: lastMessages }] = await Promise.all([
+  const [{ data: otherMembers, error: membersError }, { data: lastMessages, error: messagesError }] = await Promise.all([
     admin
       .from("conversation_members")
       .select("conversation_id, last_read_at, users(id, name, avatar_url, last_active_at)")
@@ -41,6 +41,8 @@ export async function GET() {
     // раньше сюда грузилась вся история всех чатов пользователя.
     admin.rpc("last_messages", { p_conversation_ids: conversationIds }),
   ]);
+  // A failed preview query must not turn existing conversations into blank chats.
+  if (membersError || messagesError) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
 
   const otherMembersByConversation = new Map<
     string,

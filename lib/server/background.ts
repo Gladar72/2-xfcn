@@ -5,20 +5,21 @@
  * функция ответила, её выполнение замораживается, и недоделанная работа
  * (например, рассылка в Telegram) молча обрывается. Vercel даёт для этого
  * waitUntil — то же, что делает пакет @vercel/functions, только без
- * лишней зависимости. Вне Vercel (локально) просто дожидаемся промиса.
+ * лишней зависимости. В постоянно работающем Node-сервере (Yandex Cloud)
+ * не ждём внешние push/Telegram-запросы перед ответом отправителю.
+ * Это best-effort уведомления: при остановке процесса незавершённые задачи
+ * могут пропасть; само сообщение уже сохранено до вызова этой функции.
  */
 type RequestContext = { get?: () => { waitUntil?: (p: Promise<unknown>) => void } | undefined };
 
 export async function runInBackground(task: () => Promise<unknown>): Promise<void> {
-  const promise = task().catch((err) => console.error("runInBackground:", err));
+  const promise = Promise.resolve().then(task).catch((err) => console.error("runInBackground:", err));
   const ctx = (globalThis as unknown as Record<symbol, RequestContext | undefined>)[
     Symbol.for("@vercel/request-context")
   ]?.get?.();
   if (ctx?.waitUntil) {
     ctx.waitUntil(promise);
-    return;
   }
-  await promise;
 }
 
 /**

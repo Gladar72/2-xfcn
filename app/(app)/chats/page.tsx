@@ -9,6 +9,7 @@ import { parseInvite, parseSticker } from "@/lib/chat/invite";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Screen, eventIcon } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
+import { getJson } from "@/lib/http/get-json";
 
 type Tab = "ev" | "pm" | "ar";
 const isClosed = (c: ChatListItemData) => c.eventStatus === "completed" || c.eventStatus === "cancelled";
@@ -18,13 +19,28 @@ export default function ChatsPage() {
   const router = useRouter();
   const [chats, setChats] = useState<ChatListItemData[] | null>(null);
   const [tab, setTab] = useState<Tab>("ev");
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useGuide("chats");
 
   useEffect(() => {
-    fetch("/api/conversations")
-      .then((r) => r.json())
-      .then((data) => setChats(data.items ?? []))
-      .catch(() => setChats([]));
+    const controller = new AbortController();
+    setError(false);
+    getJson<{ items: ChatListItemData[] }>("/api/conversations", controller.signal)
+      .then((data) => { if (!controller.signal.aborted) setChats(data.items ?? []); })
+      .catch(() => { if (!controller.signal.aborted) setError(true); });
+    return () => controller.abort();
+  }, [attempt]);
+
+  // Returning from Telegram/background should refresh unread counts without polling every chat.
+  useEffect(() => {
+    const refresh = () => { if (document.visibilityState === "visible") setAttempt((n) => n + 1); };
+    document.addEventListener("visibilitychange", refresh);
+    window.addEventListener("online", refresh);
+    return () => {
+      document.removeEventListener("visibilitychange", refresh);
+      window.removeEventListener("online", refresh);
+    };
   }, []);
 
   const list = useMemo(() => {
@@ -62,7 +78,11 @@ export default function ChatsPage() {
         ))}
       </div>
       <div className="clist">
-        {chats === null && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 66 }} />)}
+        {error && <div className="empty" role="alert">
+          <b>Не удалось загрузить чаты.</b>
+          <button className="btn v" onClick={() => setAttempt((n) => n + 1)}>Попробовать снова</button>
+        </div>}
+        {chats === null && !error && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 66 }} />)}
         {list.map((c) => {
           const personal = c.eventTitle === null;
           const title = personal ? c.otherUser?.name ?? "Личный чат" : c.eventTitle!;
@@ -94,7 +114,7 @@ export default function ChatsPage() {
             </Link>
           );
         })}
-        {chats !== null && list.length === 0 && (
+        {chats !== null && !error && list.length === 0 && (
           <div className="empty">
             <EmptyIll a={["cloud", "mint", "calm"]} b={["ball", "lilac", "calm"]} c={["squ", "pink", "smile"]} />
             <span>
