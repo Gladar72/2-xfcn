@@ -6,6 +6,7 @@ on:
     branches: [fix/event-notification-spam]
     paths:
       - deploy/yandex/spam-diagnostic.sql
+      - deploy/yandex/spam-readonly.sh
       - deploy/yandex/diagnostic-public.pem
       - .github/workflows/spam-diagnostic.yml
 
@@ -36,6 +37,8 @@ jobs:
           set +e
           ssh deploy@"$HOST" 'sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -v ON_ERROR_STOP=1' < deploy/yandex/spam-diagnostic.sql > report.txt 2>&1
           RESULT=$?
+          ssh deploy@"$HOST" 'bash -s' < deploy/yandex/spam-readonly.sh >> report.txt 2>&1
+          if [ "$?" != 0 ]; then RESULT=1; fi
           set -e
           openssl cms -encrypt -binary -aes-256-cbc -in report.txt -out report.enc -outform DER deploy/yandex/diagnostic-public.pem
           echo 'ENCRYPTED_DIAGNOSTIC_START'
