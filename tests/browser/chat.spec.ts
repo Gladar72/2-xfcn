@@ -96,6 +96,88 @@ const anchor = (page: Page) => page.locator(".msgs").evaluate((list) => {
 });
 const offset = (page: Page, id: string) => page.locator(`#${id}`).evaluate((row) => row.getBoundingClientRect().top - row.closest(".msgs")!.getBoundingClientRect().top);
 
+test("fast scrollbar drags through a long conversation in both directions", async ({ page }, testInfo) => {
+  await openChat(page, { messages: Array.from({ length: 300 }, (_, i) => message(i)) });
+  const thumb = page.getByRole("scrollbar", { name: "Прокрутка переписки" });
+  await expect(thumb).toBeVisible();
+  const track = (await page.locator(".chat-scrollbar").boundingBox())!;
+  const start = (await thumb.boundingBox())!;
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(track.x + track.width / 2, track.y + track.height / 2, { steps: 8 });
+  await expect.poll(() => distanceFromBottom(page)).toBeGreaterThan(3000);
+  await page.mouse.move(track.x + track.width / 2, track.y - 50, { steps: 8 });
+  await expect.poll(() => page.locator(".msgs").evaluate(el => el.scrollTop)).toBeLessThan(2);
+  await page.mouse.move(track.x + track.width / 2, track.y + track.height + 50, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);
+  await expect(page.locator(".mpop")).toHaveCount(0);
+  expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  await page.screenshot({ path: testInfo.outputPath("chat-fast-scroll.png") });
+});
+
+test("fast scrollbar supports keyboard navigation and follows the actual position", async ({ page }) => {
+  await openChat(page);
+  const thumb = page.getByRole("scrollbar", { name: "Прокрутка переписки" });
+  await thumb.focus();
+  await thumb.press("Home");
+  await expect.poll(() => page.locator(".msgs").evaluate(el => el.scrollTop)).toBeLessThan(2);
+  await expect(thumb).toHaveAttribute("aria-valuenow", "0");
+  await thumb.press("End");
+  await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);
+  await thumb.press("PageUp");
+  await expect.poll(() => distanceFromBottom(page)).toBeGreaterThan(200);
+  await thumb.press("PageDown");
+  await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);
+  const actual = await page.locator(".msgs").evaluate(el => Math.round(el.scrollTop));
+  await expect(thumb).toHaveAttribute("aria-valuenow", String(actual));
+});
+
+test("short chats hide the scrollbar and new content makes it usable", async ({ page }) => {
+  const chat = await openChat(page, { messages: [message(1)] });
+  await expect(page.getByRole("scrollbar")).toHaveCount(0);
+  await chat.broadcast("message", { ...message(2), senderId: "other", content: "Большое сообщение\n".repeat(100) });
+  await expect(page.getByRole("scrollbar")).toBeVisible();
+  await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);
+  const thumb = (await page.getByRole("scrollbar").boundingBox())!;
+  const list = (await page.locator(".msgs").boundingBox())!;
+  expect(thumb.y + thumb.height).toBeLessThanOrEqual(list.y + list.height);
+});
+
+test("fast scrollbar reaches earlier pages without duplicate loads", async ({ page }) => {
+  const chat = await openChat(page, { older: true });
+  const thumb = page.getByRole("scrollbar");
+  await thumb.press("Home");
+  await expect.poll(chat.historyRequests).toBe(1);
+  chat.releaseHistory();
+  await expect(page.locator("#m-message-0")).toBeAttached();
+  await thumb.press("Home");
+  await expect(page.locator("#m-message-0")).toBeVisible();
+  await thumb.press("End");
+  await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);
+  expect(chat.historyRequests()).toBe(1);
+});
+
+test("native touch can drag the fast scrollbar without opening a message", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "CDP touch injection is only available in Chromium");
+  await openChat(page);
+  const client = await page.context().newCDPSession(page);
+  const thumb = (await page.getByRole("scrollbar").boundingBox())!;
+  const track = (await page.locator(".chat-scrollbar").boundingBox())!;
+  const start = thumb.y + thumb.height / 2;
+  const end = track.y + track.height / 2;
+  const points = (y: number) => [{ x: thumb.x + thumb.width / 2, y, id: 0 }];
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points(start) });
+  for (let step = 1; step <= 10; step++) {
+    await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: points(start + (end - start) * step / 10) });
+    await page.waitForTimeout(20);
+  }
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect.poll(() => distanceFromBottom(page)).toBeGreaterThan(1000);
+  await expect(page.locator(".chat-scroll-thumb.dragging")).toHaveCount(0);
+  await expect(page.locator(".mpop")).toHaveCount(0);
+});
+
 test("initial history is reachable in both directions without touching the input", async ({ page }, testInfo) => {
   await openChat(page);
   await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);

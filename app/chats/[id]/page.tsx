@@ -18,6 +18,7 @@ import { EmptyIll, Ic, Sheet } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
 import { ApiReadError, getJson } from "@/lib/http/get-json";
 import { markCachedChatRead } from "@/lib/chat/list-cache";
+import { ChatScrollbar } from "@/components/chat/ChatScrollbar";
 
 interface ChatPageProps {
   // Next.js 14 (в этом проекте) передаёт params клиентским компонентам
@@ -734,8 +735,10 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
           ) : null}
         </div>
 
+        <div className="chat-history">
         <div
           className="msgs"
+          id="chat-messages"
           ref={listRef}
           onScroll={handleScroll}
           onPointerDown={interruptScroll}
@@ -845,6 +848,9 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
             );
           })}
           </div>
+        </div>
+
+        <ChatScrollbar listRef={listRef} contentRef={contentRef} onNavigate={interruptScroll} enabled={!loading && !accessBlocked} />
         </div>
 
         {!atBottom && (
