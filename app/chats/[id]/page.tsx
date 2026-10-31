@@ -11,6 +11,7 @@ import { createBrowserRealtimeClient } from "@/lib/supabase/browser-realtime";
 import { useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
 import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
+import { useChatScroll } from "@/lib/hooks/use-chat-scroll";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Sheet } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
@@ -41,7 +42,10 @@ type ParticipantsTab = "all" | "organizer" | "participants";
 const PARTICIPANTS_PAGE_SIZE = 7;
 
 export default function ChatPage({ params }: ChatPageProps) {
-  const { id: conversationId } = params;
+  return <ChatConversation key={params.id} conversationId={params.id} />;
+}
+
+function ChatConversation({ conversationId }: { conversationId: string }) {
   const router = useRouter();
   useLockBodyScroll();
 
@@ -98,18 +102,13 @@ export default function ChatPage({ params }: ChatPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [accessBlocked, setAccessBlocked] = useState(false);
 
-  const scrollRef = useRef<HTMLDivElement>(null);
-  // Прокрутка как в Telegram: вниз уезжаем сами, только если человек и так внизу
-  // (или отправил сообщение сам). Читает историю — не дёргаем, показываем «↓ N».
-  const listRef = useRef<HTMLDivElement>(null);
   const composeRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const atBottomRef = useRef(true);
-  const firstScrollDone = useRef(false);
-  const prevCountRef = useRef(0);
-  const prependRef = useRef<{ height: number; top: number } | null>(null);
-  const [atBottom, setAtBottom] = useState(true);
-  const [unseen, setUnseen] = useState(0);
+  const {
+    listRef, contentRef, atBottom, unseen, handleScroll: updateScrollPosition,
+    interruptScroll, scrollToBottom, followOutput, preservePosition,
+  } = useChatScroll(messages, myUserId, !loading && myUserId !== null && !accessBlocked);
+  const loadingOlderRef = useRef(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [composeH, setComposeH] = useState(150);
@@ -255,87 +254,7 @@ export default function ChatPage({ params }: ChatPageProps) {
     };
   }, [conversationId]);
 
-  const scrollToBottom = useCallback((smooth = false) => {
-    const el = listRef.current;
-    if (!el) return;
-    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
-  }, []);
-
-  // Новые сообщения: вниз — только если были внизу или это своё сообщение.
-  useLayoutEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    // Подгрузили старые сверху — сохраняем место, на котором человек читал.
-    if (prependRef.current) {
-      el.scrollTop = el.scrollHeight - prependRef.current.height + prependRef.current.top;
-      prependRef.current = null;
-      prevCountRef.current = messages.length;
-      return;
-    }
-    const added = messages.length - prevCountRef.current;
-    prevCountRef.current = messages.length;
-    if (!firstScrollDone.current) {
-      if (messages.length > 0) {
-        el.scrollTop = el.scrollHeight;
-        firstScrollDone.current = true;
-        // iPhone (WebView Telegram): блок прокрутки, который наполнился уже после
-        // первой отрисовки, иногда не листается пальцем до первой перерисовки —
-        // например, до открытия клавиатуры. Пинаем перерисовку сразу.
-        requestAnimationFrame(() => {
-          el.style.overflowY = "hidden";
-          void el.offsetHeight;
-          el.style.overflowY = "scroll";
-          el.scrollTop = el.scrollHeight;
-        });
-      }
-      return;
-    }
-    if (added <= 0) return;
-    const last = messages[messages.length - 1];
-    if (atBottomRef.current || (last && last.senderId === myUserId)) {
-      scrollToBottom(true);
-      setUnseen(0);
-    } else {
-      setUnseen((n) => n + added);
-    }
-  }, [messages, myUserId, scrollToBottom]);
-
-  // iPhone: блок прокрутки, который наполнился после первой отрисовки, иногда не
-  // листается пальцем до первого касания поля ввода. Ещё раз «пинаем» после загрузки.
-  useEffect(() => {
-    if (loading) return;
-    const el = listRef.current;
-    if (!el) return;
-    const nudge = () => {
-      const bottom = atBottomRef.current;
-      el.style.overflowY = "hidden";
-      void el.offsetHeight;
-      el.style.overflowY = "scroll";
-      if (bottom) el.scrollTop = el.scrollHeight;
-    };
-    const t1 = setTimeout(nudge, 60);
-    const t2 = setTimeout(nudge, 600);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [loading]);
-
-  // Открылась/закрылась клавиатура или выросло поле ввода: если были внизу — остаёмся внизу.
-  // Пока палец на экране — не трогаем: иначе чат возвращало вниз и вверх было не пролистать.
-  // Мелкие колебания высоты (iOS при прокрутке) не трогаем — только клавиатура (≥ 60px) и поле ввода.
-  const touchingRef = useRef(false);
-  const prevHeightRef = useRef<number | null>(null);
-  const prevComposeRef = useRef(0);
-  useLayoutEffect(() => {
-    const dh = liveHeight != null && prevHeightRef.current != null ? Math.abs(liveHeight - prevHeightRef.current) : 0;
-    const dc = composeH !== prevComposeRef.current;
-    prevHeightRef.current = liveHeight;
-    prevComposeRef.current = composeH;
-    if ((dh >= 60 || dc) && atBottomRef.current && !touchingRef.current) scrollToBottom(false);
-  }, [liveHeight, composeH, scrollToBottom]);
-
-  // Высота нижней панели (подсказки, фото, многострочный текст) — чтобы сообщения не прятались под ней.
+  // Высота панели нужна только для расположения кнопки «вниз»; сообщения занимают оставшееся место через flex.
   useEffect(() => {
     const el = composeRef.current;
     if (!el || typeof ResizeObserver === "undefined") return;
@@ -345,36 +264,36 @@ export default function ChatPage({ params }: ChatPageProps) {
   }, []);
 
   const loadOlder = useCallback(async () => {
-    if (!hasMore || loadingOlder || messages.length === 0) return;
+    if (!hasMore || loadingOlderRef.current || messages.length === 0) return;
     const first = messages.find((m) => !m.id.startsWith("temp-"));
     if (!first) return;
+    loadingOlderRef.current = true;
     setLoadingOlder(true);
     try {
       const r = await fetch(`/api/conversations/${conversationId}/messages?before=${encodeURIComponent(first.createdAt)}&limit=50`);
-      if (!r.ok) return;
+      if (!r.ok) throw new Error("history_request_failed");
       const d = (await r.json()) as { messages?: MessageData[]; hasMore?: boolean };
       const older = (d.messages ?? []).map(normMessage);
       markQuiet(older);
-      const el = listRef.current;
-      if (el) prependRef.current = { height: el.scrollHeight, top: el.scrollTop };
+      // Capture after the request: the reader may have moved while it was loading.
+      preservePosition();
       setMessages((prev) => {
         const ids = new Set(prev.map((m) => m.id));
         return [...older.filter((m) => !ids.has(m.id)), ...prev];
       });
       setHasMore(!!d.hasMore);
+    } catch {
+      showToast("Не удалось загрузить историю. Попробуй ещё раз.");
     } finally {
+      loadingOlderRef.current = false;
       setLoadingOlder(false);
     }
-  }, [hasMore, loadingOlder, messages, conversationId]);
+  }, [hasMore, messages, conversationId, preservePosition, showToast]);
 
   function handleScroll() {
+    updateScrollPosition();
     const el = listRef.current;
-    if (!el) return;
-    const bottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
-    atBottomRef.current = bottom;
-    if (bottom !== atBottom) setAtBottom(bottom);
-    if (bottom && unseen) setUnseen(0);
-    if (el.scrollTop < 300) loadOlder();
+    if (el && !loading && el.scrollTop < 240) void loadOlder();
   }
 
   // Вернулись в приложение (телефон спал, переключались) — догружаем пропущенное.
@@ -549,7 +468,7 @@ export default function ChatPage({ params }: ChatPageProps) {
         pending: true,
       },
     ]);
-    atBottomRef.current = true;
+    followOutput();
     setReplyTo(null);
     postMessage(tempId, { content, ...(image ? { image } : {}), ...(reply ? { replyToId: reply.id } : {}) });
   }
@@ -639,7 +558,13 @@ export default function ChatPage({ params }: ChatPageProps) {
       showToast("Сообщение выше — пролистай историю");
       return;
     }
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    const list = listRef.current;
+    if (!list) return;
+    interruptScroll();
+    list.scrollTo({
+      top: list.scrollTop + el.getBoundingClientRect().top - list.getBoundingClientRect().top - (list.clientHeight - el.offsetHeight) / 2,
+      behavior: "smooth",
+    });
     setHighlightId(id);
     setTimeout(() => setHighlightId((h) => (h === id ? null : h)), 1400);
   }
@@ -742,15 +667,18 @@ export default function ChatPage({ params }: ChatPageProps) {
           className="msgs"
           ref={listRef}
           onScroll={handleScroll}
-          onTouchStart={() => (touchingRef.current = true)}
-          onTouchEnd={() => (touchingRef.current = false)}
-          onTouchCancel={() => (touchingRef.current = false)}
-          style={{ paddingBottom: composeH + 16, touchAction: "pan-y", overflowY: "scroll" }}
+          onPointerDown={interruptScroll}
+          onWheel={interruptScroll}
+          role="region"
+          aria-label="Сообщения"
+          tabIndex={0}
         >
-          {/* iPhone: содержимое всегда чуть выше окна — блок прокрутки «живой» с первого кадра
-              и листается пальцем сразу при входе (без первого нажатия). Мало сообщений — прижаты к низу. */}
-          <div className="msgsin">
-          {loadingOlder && <span className="daysep">Загружаем ранние сообщения…</span>}
+          <div className="msgsin" ref={contentRef}>
+          {hasMore && (
+            <button className="history-more" onClick={() => void loadOlder()} disabled={loadingOlder}>
+              {loadingOlder ? "Загружаем ранние сообщения…" : "Загрузить предыдущие сообщения"}
+            </button>
+          )}
           {eventTitle !== null && eventMeta && (
             <>
               <div className="evpin gl">
@@ -822,7 +750,7 @@ export default function ChatPage({ params }: ChatPageProps) {
             const sender = members.find((m) => m.id === message.senderId);
             const showSender = !isOwn && isGroup && (!prev || prev.senderId !== message.senderId || showDaySeparator);
             return (
-              <div key={message.id} id={`m-${message.id}`} className="mwrap">
+              <div key={message.id} id={`m-${message.id}`} className="mwrap" data-message-id={message.id}>
                 {showDaySeparator && <span className="daysep">{formatDayLabel(message.createdAt)}</span>}
                 <MessageBubble
                   message={message}
@@ -844,7 +772,6 @@ export default function ChatPage({ params }: ChatPageProps) {
               </div>
             );
           })}
-          <div ref={scrollRef} />
           </div>
         </div>
 
@@ -852,10 +779,7 @@ export default function ChatPage({ params }: ChatPageProps) {
           <button
             className="tobot gl"
             style={{ bottom: composeH + 12 }}
-            onClick={() => {
-              scrollToBottom(true);
-              setUnseen(0);
-            }}
+            onClick={() => scrollToBottom(true)}
             aria-label="К последним сообщениям"
           >
             {unseen > 0 && <span className="cnt">{unseen > 99 ? "99+" : unseen}</span>}

@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "migrate": "supabase db push",
-    "bot:set-webhook": "tsx scripts/set-telegram-webhook.ts"
+    "bot:set-webhook": "tsx scripts/set-telegram-webhook.ts",
+    "test:browser": "playwright test"
   },
   "dependencies": {
     "next": "14.2.35",
@@ -40,7 +41,8 @@
     "vitest": "2.0.5",
     "tsx": "4.16.5",
     "dotenv": "16.4.5",
-    "supabase": "1.191.3"
+    "supabase": "1.191.3",
+    "@playwright/test": "1.56.1"
   },
   "engines": {
     "node": ">=18.18.0"

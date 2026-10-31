@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parseInvite, parseSticker } from "@/lib/chat/invite";
 import clsx from "clsx";
 import { ReadTicks } from "./ReadTicks";
@@ -90,6 +90,10 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
   // Долгое нажатие (как в Telegram) — меню; короткое тоже открывает меню, если не прокрутка.
   const press = useRef<{ t: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean }>({ t: null, x: 0, y: 0, fired: false });
   const openMenu = onMenu && !message.deleted && !message.pending && !message.failed ? onMenu : undefined;
+  useEffect(() => {
+    const gesture = press.current;
+    return () => { if (gesture.t) clearTimeout(gesture.t); };
+  }, []);
 
   return (
     <>
@@ -134,14 +138,21 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
           onTouchMove={(e) => {
             const t = e.touches[0];
             if (!t) return;
-            if (Math.abs(t.clientX - press.current.x) + Math.abs(t.clientY - press.current.y) > 10 && press.current.t) {
-              clearTimeout(press.current.t);
+            if (Math.abs(t.clientX - press.current.x) + Math.abs(t.clientY - press.current.y) > 10) {
+              if (press.current.t) clearTimeout(press.current.t);
               press.current.t = null;
+              press.current.fired = true; // A swipe must not also open the menu.
             }
           }}
           onTouchEnd={() => {
             if (press.current.t) clearTimeout(press.current.t);
             press.current.t = null;
+          }}
+          onTouchCancel={() => {
+            // Safari cancels the touch when its native scroller takes over.
+            if (press.current.t) clearTimeout(press.current.t);
+            press.current.t = null;
+            press.current.fired = true;
           }}
           style={openMenu || (isOwn && onOwnPress) ? { cursor: "pointer" } : undefined}
         >
