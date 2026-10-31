@@ -1,0 +1,44 @@
+name: Private notification diagnostic
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/event-notification-spam]
+    paths:
+      - deploy/yandex/spam-diagnostic.sql
+      - deploy/yandex/diagnostic-public.pem
+      - .github/workflows/spam-diagnostic.yml
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare SSH
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+          SSH_KEY: ${{ secrets.YC_SSH_KEY }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          ssh-keyscan -T 15 -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Read counts and encrypt result
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+        run: |
+          umask 077
+          trap 'rm -f report.txt ~/.ssh/id_ed25519' EXIT
+          set +e
+          ssh deploy@"$HOST" 'sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -v ON_ERROR_STOP=1' < deploy/yandex/spam-diagnostic.sql > report.txt 2>&1
+          RESULT=$?
+          set -e
+          openssl cms -encrypt -binary -aes-256-cbc -in report.txt -out report.enc -outform DER deploy/yandex/diagnostic-public.pem
+          echo 'ENCRYPTED_DIAGNOSTIC_START'
+          base64 -w 120 report.enc
+          echo 'ENCRYPTED_DIAGNOSTIC_END'
+          exit "$RESULT"
