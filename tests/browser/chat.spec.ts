@@ -1,4 +1,8 @@
 import { test, expect, type Page, type WebSocketRoute } from "@playwright/test";
+import { readdirSync } from "node:fs";
+import type { MessageData } from "../../components/chat/MessageBubble";
+
+const mosya = readdirSync("public/brand/stickers").filter((file) => file.endsWith(".webp")).map((file) => file.replace(".webp", ""));
 
 const START = Date.parse("2026-10-30T10:00:00Z");
 const message = (n: number) => ({
@@ -7,13 +11,15 @@ const message = (n: number) => ({
   createdAt: new Date(START + n * 60_000).toISOString(), reactions: [],
 });
 
-async function openChat(page: Page, options: { older?: boolean; failOlder?: boolean; empty?: boolean } = {}) {
+async function openChat(page: Page, options: { older?: boolean; failOlder?: boolean; empty?: boolean; messages?: MessageData[] } = {}) {
   const sockets = new Map<WebSocketRoute, string>();
   let historyRequests = 0;
   let failOlder = !!options.failOlder;
   let releaseHistory = () => {};
   const historyGate = new Promise<void>((resolve) => { releaseHistory = resolve; });
-  const initial = options.empty ? [] : Array.from({ length: 50 }, (_, i) => message(i + 50));
+  const initial = options.messages ?? (options.empty ? [] : Array.from({ length: 50 }, (_, i) => message(i + 50)));
+  const sent: { content: string; replyToId?: string }[] = [];
+  const reactions: string[] = [];
   await page.routeWebSocket(/\/realtime\/v1\/websocket/, (socket) => {
     socket.onMessage((raw) => {
       const m = JSON.parse(String(raw));
@@ -35,7 +41,10 @@ async function openChat(page: Page, options: { older?: boolean; failOlder?: bool
       const payload = Buffer.from(JSON.stringify({ sub: "me", role: "authenticated", exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url");
       data = { token: `eyJhbGciOiJIUzI1NiJ9.${payload}.test` };
     } else if (url.pathname.endsWith("/messages")) {
-      if (request.method() === "POST") data = { messageId: "sent-message", createdAt: new Date().toISOString() };
+      if (request.method() === "POST") {
+        sent.push(request.postDataJSON());
+        data = { messageId: sent.length === 1 ? "sent-message" : `sent-message-${sent.length}`, createdAt: new Date().toISOString() };
+      }
       else if (url.searchParams.has("before")) {
         historyRequests++;
         await historyGate;
@@ -48,16 +57,22 @@ async function openChat(page: Page, options: { older?: boolean; failOlder?: bool
         messages: initial, hasMore: !!options.older,
         members: [{ id: "other", name: "Алексей", avatarUrl: null, lastReadAt: null }],
       };
+    } else if (url.pathname.endsWith("/reactions") && request.method() === "POST") {
+      const { emoji } = request.postDataJSON();
+      reactions.push(emoji);
+      data = { reactions: [{ emoji, userIds: ["me"] }] };
     }
     await route.fulfill({ json: data });
   });
   await page.goto("/chats/test-chat");
-  if (!options.empty) await expect(page.locator("#m-message-99")).toBeVisible();
+  if (initial.length) await expect(page.locator(`#m-${initial[initial.length - 1]!.id}`)).toBeVisible();
   else await expect(page.getByText("Начни с приветствия или сразу позови на встречу")).toBeVisible();
   await expect.poll(() => sockets.size).toBeGreaterThan(0);
   return {
     releaseHistory,
     historyRequests: () => historyRequests,
+    sent,
+    reactions,
     broadcast: async (event: string, payload: unknown) => {
       for (const [socket, topic] of sockets) socket.send(JSON.stringify({ topic, event: "broadcast", payload: { type: "broadcast", event, payload } }));
     },
@@ -231,4 +246,150 @@ test("an empty conversation follows the first incoming message", async ({ page }
   await expect(page.locator("#m-message-100")).toBeVisible();
   await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);
   await expect(page.locator(".tobot")).toHaveCount(0);
+});
+
+test("a single tap on the empty area beside a sticker closes its menu", async ({ page }) => {
+  const chat = await openChat(page, { empty: true });
+  await chat.broadcast("message", { ...message(100), content: "[[sticker:mosya_sport]]", senderId: "other" });
+  await page.locator("#m-message-100 .bb").tap();
+  await expect(page.locator(".mpop")).toBeVisible();
+  // This is inside the menu's layout column, but outside the actual message.
+  const column = await page.locator(".mpopin").boundingBox();
+  const sticker = await page.locator(".mpopmsg .bb").boundingBox();
+  await page.touchscreen.tap(column!.x + column!.width - 8, sticker!.y + sticker!.height / 2);
+  await expect(page.locator(".mpop")).toHaveCount(0);
+});
+
+test("sticker artwork is not clipped by the avatar's circular border", async ({ page }) => {
+  const chat = await openChat(page, { empty: true });
+  await chat.broadcast("message", { ...message(100), content: "[[sticker:mosya_sport]]" });
+  const image = page.locator("#m-message-100 .bb img[alt='Стикер']");
+  await expect(image).toBeVisible();
+  await expect(image).toHaveCSS("border-radius", "0px");
+});
+
+test("all Mosya stickers have equal frames within incoming and outgoing bubbles", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 680 });
+  await openChat(page, { messages: mosya.flatMap((slug, i) => [
+    { ...message(i * 2), content: `[[sticker:${slug}]]`, senderId: "me" },
+    { ...message(i * 2 + 1), content: `[[sticker:${slug}]]`, senderId: "other" },
+  ]) });
+  const frames = await page.locator(".msgs .sticker-art").evaluateAll((elements) => elements.map((el) => {
+    const frame = el.getBoundingClientRect();
+    const bubble = el.closest(".bb")!.getBoundingClientRect();
+    const row = el.closest(".m")!.getBoundingClientRect();
+    return { width: frame.width, height: frame.height, inside: frame.left >= bubble.left - 1 && frame.right <= bubble.right + 1 && frame.left >= row.left - 1 && frame.right <= row.right + 1, right: row.right };
+  }));
+  expect(frames).toHaveLength(mosya.length * 2);
+  for (const frame of frames) {
+    expect(frame.width).toBeCloseTo(184, 0);
+    expect(frame.height).toBeCloseTo(144, 0);
+    expect(frame.inside).toBe(true);
+    expect(frame.right).toBeLessThanOrEqual(320);
+  }
+  await page.screenshot({ path: testInfo.outputPath("mosya-messages.png"), animations: "disabled" });
+});
+
+test("the picker fits narrow screens, scrolls through every sticker and sends once", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  const chat = await openChat(page);
+  await scrollTo(page, 1000);
+  const before = await anchor(page);
+  const input = page.getByRole("textbox", { name: "Сообщение", exact: true });
+  await input.fill("Мой черновик");
+  await page.getByRole("button", { name: "Стикеры", exact: true }).tap();
+  const picker = page.getByRole("dialog", { name: "Стикеры", exact: true });
+  await expect(picker).toBeVisible();
+  await expect(input).not.toBeFocused();
+  await expect(page.locator(".stkgrid button")).toHaveCount(mosya.length);
+  for (const slug of mosya) {
+    const frame = picker.locator(`[data-sticker="${slug}"]`);
+    await frame.scrollIntoViewIfNeeded();
+    await expect.poll(() => frame.locator("img").evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
+    const geometry = await frame.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const button = el.closest("button")!.getBoundingClientRect();
+      return { left: box.left, right: box.right, width: box.width, inside: box.left >= button.left && box.right <= button.right && box.top >= button.top && box.bottom <= button.bottom };
+    });
+    expect(geometry.left).toBeGreaterThanOrEqual(0);
+    expect(geometry.right).toBeLessThanOrEqual(320);
+    expect(geometry.width).toBeLessThanOrEqual(68);
+    expect(geometry.inside).toBe(true);
+  }
+  await picker.getByRole("button", { name: "Наше место", exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: testInfo.outputPath("mosya-picker.png"), animations: "disabled" });
+  await picker.getByRole("button", { name: "Наше место", exact: true }).tap();
+  await expect(picker).toHaveCount(0);
+  await expect.poll(() => chat.sent.length).toBe(1);
+  expect(chat.sent[0]!.content).toBe("[[sticker:mosya_pin]]");
+  await expect(input).toHaveValue("Мой черновик");
+  await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);
+  // Cancelling the next picker keeps a historical reading position intact.
+  await scrollTo(page, 1000);
+  await expect.poll(() => offset(page, before.id)).toBeCloseTo(before.offset, 0);
+  await page.getByRole("button", { name: "Стикеры", exact: true }).tap();
+  await page.getByRole("button", { name: "Закрыть: Стикеры", exact: true }).tap({ position: { x: 12, y: 80 } });
+  await expect(picker).toHaveCount(0);
+  await expect.poll(() => offset(page, before.id)).toBeCloseTo(before.offset, 0);
+});
+
+test("picker closes on the first background tap repeatedly and Escape dismisses it", async ({ page }) => {
+  await openChat(page);
+  const picker = page.getByRole("dialog", { name: "Стикеры", exact: true });
+  for (let i = 0; i < 3; i++) {
+    await page.getByRole("button", { name: "Стикеры", exact: true }).tap();
+    await expect(picker).toBeVisible();
+    await page.getByRole("button", { name: "Закрыть: Стикеры", exact: true }).tap({ position: { x: 10, y: 70 } });
+    await expect(picker).toHaveCount(0);
+    await expect(page.locator(".mpop")).toHaveCount(0);
+  }
+  await page.getByRole("button", { name: "Стикеры", exact: true }).tap();
+  await expect(picker).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(picker).toHaveCount(0);
+});
+
+test("sticker reactions and replies work without reopening the dismissed menu", async ({ page }, testInfo) => {
+  const chat = await openChat(page, { messages: [{ ...message(100), content: "[[sticker:mosya_sport]]", senderId: "other" }] });
+  const bubble = page.locator("#m-message-100 .bb");
+  await bubble.tap();
+  const menu = page.getByRole("dialog", { name: "Меню сообщения", exact: true });
+  await expect(menu).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("mosya-menu.png"), animations: "disabled" });
+  await menu.getByRole("button", { name: "Реакция: Люблю", exact: true }).tap();
+  await expect(menu).toHaveCount(0);
+  await expect.poll(() => chat.reactions).toEqual(["mosya_love"]);
+  await expect(bubble.locator(".mrc.on")).toHaveCount(1);
+  await bubble.tap();
+  await menu.getByRole("button", { name: "Ответить", exact: true }).tap();
+  await expect(menu).toHaveCount(0);
+  await expect(page.locator(".rbar")).toContainText("Стикер");
+  await page.getByRole("button", { name: "Стикеры", exact: true }).tap();
+  await page.getByRole("dialog", { name: "Стикеры", exact: true }).getByRole("button", { name: "Привет!", exact: true }).tap();
+  await expect.poll(() => chat.sent.length).toBe(1);
+  expect(chat.sent[0]).toMatchObject({ content: "[[sticker:mosya_wave]]", replyToId: "message-100" });
+  await expect(page.locator("#m-sent-message .mq")).toContainText("Стикер");
+  await expect(page.locator(".mpop")).toHaveCount(0);
+});
+
+test("message actions stay within a small viewport even for a long message", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 360 });
+  await openChat(page, { messages: [{ ...message(100), content: "Длинное сообщение. ".repeat(100), senderId: "me", createdAt: new Date().toISOString() }] });
+  const row = (await page.locator("#m-message-100 .bb").boundingBox())!;
+  const list = (await page.locator(".msgs").boundingBox())!;
+  await page.touchscreen.tap(row.x + 20, list.y + list.height / 2);
+  const menu = page.getByRole("dialog", { name: "Меню сообщения", exact: true });
+  await expect(menu).toBeVisible();
+  const controls = await menu.locator(".rxrow, .mmenu").evaluateAll((elements) => elements.map((el) => {
+    const r = el.getBoundingClientRect();
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
+  }));
+  for (const rect of controls) {
+    expect(rect.left).toBeGreaterThanOrEqual(0);
+    expect(rect.right).toBeLessThanOrEqual(320);
+    expect(rect.top).toBeGreaterThanOrEqual(0);
+    expect(rect.bottom).toBeLessThanOrEqual(360);
+  }
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
 });

@@ -318,9 +318,16 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* Чат как в Telegram: реакции Моси, ответы, меню сообщения, стикеры, повтор отправки */
 .P .mwrap{display:flex;flex-direction:column;gap:8px;border-radius:14px;transition:background .4s}
 .P .m .bb.hl{box-shadow:0 0 0 3px rgba(108,59,255,.35)}
-.P .m .bb.stk{background:none;box-shadow:none;padding:0}
+.P .m .bb.stk{background:none;box-shadow:none;padding:0;width:184px;max-width:100%}
 .P .m.me .bb.stk{background:none;color:var(--ink)}
 .P .m .bb.stk .mt{color:var(--grey);opacity:1}
+.P .sticker-art{position:relative;display:block;flex:none;width:184px;max-width:100%;aspect-ratio:23/18;overflow:hidden;contain:paint;pointer-events:none}
+.P .sticker-art img{display:block;object-fit:contain;-webkit-user-select:none;user-select:none}
+.P .m .bb.stk small{overflow-wrap:anywhere}
+.P .m.me .bb.stk .mq{border-left-color:var(--violet);background:rgba(108,59,255,.08)}
+.P .m.me .bb.stk .mq b{color:var(--violet)}
+.P .m.me .bb.stk .mrc{background:rgba(108,59,255,.1);color:var(--violet)}
+.P .m.me .bb.stk .mrc.on{background:var(--violet);color:#fff}
 .P .m .bb{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 .P .mq{display:block;width:100%;text-align:left;margin:0 0 6px;padding:5px 9px;border-radius:10px;border-left:3px solid var(--violet);background:rgba(108,59,255,.08);font-size:13px;line-height:1.3;color:inherit}
 .P .m.me .mq{border-left-color:#fff;background:rgba(255,255,255,.18)}
@@ -332,7 +339,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .m.me .mrc{background:rgba(255,255,255,.22);color:#fff}
 .P .mrc.on{background:var(--violet);color:#fff}
 .P .m.me .mrc.on{background:#fff;color:var(--violet)}
-.P .m .mrc img{width:26px;height:26px;border-radius:0;object-fit:contain}
+.P .mrc .sticker-art{width:32px}
 .P .mrc i{font-style:normal}
 .P .mpend{display:inline-block;width:11px;height:11px;border-radius:50%;border:1.5px solid currentColor;border-right-color:transparent;animation:mspin .8s linear infinite}
 @keyframes mspin{to{transform:rotate(360deg)}}
@@ -342,36 +349,39 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .rbar b{display:block;font-size:13px;font-weight:600}
 .P .rbar span{display:block;font-size:13px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .P .stkbtn{flex:none;width:34px;height:34px;display:grid;place-items:center}
-.P .stkbtn img{width:32px;height:32px;object-fit:contain}
+.P .stkbtn .sticker-art{width:34px}
 .P .rxrow{display:flex;justify-content:space-between;gap:4px;padding:4px 2px 8px}
 .P .rxrow button{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;transition:transform .3s var(--spring),background .2s}
 .P .rxrow button:active{transform:scale(.85)}
 .P .rxrow button.on{background:var(--lav)}
-.P .rxrow img{width:46px;height:46px;object-fit:contain}
+.P .rxrow .sticker-art{width:100%}
 .P .mmenu{display:grid;border-radius:18px;overflow:hidden;background:var(--glass-2);box-shadow:inset 0 0 0 1px var(--stroke)}
 .P .mmenu button{display:flex;align-items:center;gap:12px;height:52px;padding:0 16px;font-size:16px;color:var(--ink);text-align:left}
 .P .mmenu button+button{border-top:1px solid rgba(120,100,170,.12)}
 .P .mmenu button.del{color:#e5484d}
-.P .stkgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:52vh;overflow-y:auto;padding-bottom:6px}
-.P .stkgrid button{display:grid;justify-items:center;gap:2px;padding:6px 2px;border-radius:14px;transition:transform .3s var(--spring)}
+.P .sheetx.sticker-sheet{display:flex;flex-direction:column;overflow:hidden}
+.P .sticker-sheet>.grab{align-self:center;flex:none}
+.P .sticker-sheet>.chs{flex:none}
+.P .stkgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:max-content;gap:6px;min-height:0;max-height:52dvh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;padding-bottom:6px}
+.P .stkgrid button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;padding:6px 2px;border-radius:14px;transition:transform .3s var(--spring)}
 .P .stkgrid button:active{transform:scale(.88);background:var(--lav)}
-.P .stkgrid img{width:64px;height:64px;object-fit:contain}
-.P .stkgrid span{font-size:11px;color:var(--grey);text-align:center;line-height:1.2}
+.P .stkgrid .sticker-art{width:100%;max-width:88px}
+.P .stkgrid button>span:not(.sticker-art){width:100%;min-height:2.4em;font-size:11px;color:var(--grey);text-align:center;line-height:1.2;overflow-wrap:anywhere}
 .P .ctoast{position:absolute;left:50%;top:calc(var(--top) + 76px);transform:translateX(-50%);z-index:30;max-width:86%;padding:10px 16px;border-radius:16px;font-size:14px;text-align:center;color:var(--ink);box-shadow:0 10px 30px rgba(40,20,100,.18);animation:msgIn .35s var(--spring)}
 .P .m .bb{min-width:0;max-width:100%}
 .P .mq{max-width:100%;overflow:hidden}
 /* Меню сообщения как в Telegram: размытый фон, реакции сверху, сообщение, действия */
-.P .mpop{position:absolute;inset:0;z-index:40;background:rgba(30,16,60,.28);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:flex-start;padding:16px;animation:mpopIn .22s ease-out}
+.P .mpop{position:absolute;inset:0;z-index:40;background:rgba(30,16,60,.28);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:flex-start;padding:max(12px,var(--top)) 16px calc(var(--bot) + 12px);animation:mpopIn .22s ease-out}
+.P .mpop-backdrop{position:absolute;inset:0;width:100%;height:100%;touch-action:manipulation}
 .P .mpop.me{justify-content:flex-end}
-.P .mpopin{display:grid;gap:8px;width:min(330px,100%);animation:mpopUp .32s var(--spring)}
-.P .mpop.me .mpopin{justify-items:end}
-.P .mpop .rxrow{background:rgba(255,255,255,.92);border-radius:999px;padding:4px 8px;box-shadow:0 10px 30px rgba(40,20,100,.18);width:100%}
-.P .mpop .rxrow button{width:46px;height:46px;border-radius:50%}
-.P .mpop .rxrow img{width:40px;height:40px}
-.P .mpopmsg{display:flex;flex-direction:column;width:100%;pointer-events:none}
+.P .mpopin{position:relative;display:flex;flex-direction:column;gap:8px;min-width:0;width:min(330px,100%);max-height:100%;pointer-events:none;animation:mpopUp .32s var(--spring)}
+.P .mpop .rxrow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));flex:none;pointer-events:auto;background:rgba(255,255,255,.92);border-radius:999px;padding:4px 8px;box-shadow:0 10px 30px rgba(40,20,100,.18);width:100%}
+.P .mpop .rxrow button{width:100%;min-width:0;height:auto;aspect-ratio:1;border-radius:50%}
+.P .mpopmsg{display:flex;flex-direction:column;width:100%;min-height:0;overflow:hidden;pointer-events:none}
 .P .mpop.me .mpopmsg{align-items:flex-end}
 .P .mpopmsg .m{max-width:100%}
-.P .mpop .mmenu{width:250px;background:rgba(255,255,255,.95);box-shadow:0 10px 30px rgba(40,20,100,.18)}
+.P .mpop .mmenu{flex:none;pointer-events:auto;width:250px;max-width:100%;background:rgba(255,255,255,.95);box-shadow:0 10px 30px rgba(40,20,100,.18)}
+.P .mpop.me .mmenu{align-self:flex-end}
 .P .mpop .mmenu button{height:46px;font-size:15.5px}
 @keyframes mpopIn{from{opacity:0}to{opacity:1}}
 @keyframes mpopUp{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
