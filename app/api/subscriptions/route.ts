@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
+import { getActiveSubscriptionInfo, type ActiveSubscriptionInfo } from "@/lib/subscriptions/server";
 import { PLAN_LIMITS } from "@/lib/subscriptions/limits";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
 
@@ -16,7 +16,12 @@ export async function GET() {
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
-  const info = await getActiveSubscriptionInfo(admin, user.userId);
+  let info: ActiveSubscriptionInfo | null;
+  try {
+    info = await getActiveSubscriptionInfo(admin, user.userId);
+  } catch {
+    return NextResponse.json({ error: "subscription_unavailable" }, { status: 503 });
+  }
 
   if (!info) {
     // Админ тестирует приложение без реальной оплаты — лимиты по-прежнему

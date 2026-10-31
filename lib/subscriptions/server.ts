@@ -24,7 +24,7 @@ export async function getActiveSubscriptionInfo(
   admin: AdminClient,
   userId: string
 ): Promise<ActiveSubscriptionInfo | null> {
-  const { data: subscription } = await admin
+  const { data: subscription, error: subscriptionError } = await admin
     .from("subscriptions")
     .select("id, plan, current_period_start, current_period_end")
     .eq("user_id", userId)
@@ -34,14 +34,17 @@ export async function getActiveSubscriptionInfo(
     .gt("current_period_end", new Date().toISOString())
     .maybeSingle();
 
+  if (subscriptionError) throw new Error("subscription_read_failed");
   if (!subscription) return null;
 
-  const { data: existingUsage } = await admin
+  const readUsage = () => admin
     .from("subscription_usage")
     .select("events_created_count, boosts_used_count")
     .eq("subscription_id", subscription.id)
     .eq("period_start", subscription.current_period_start)
     .maybeSingle();
+  const { data: existingUsage, error: usageError } = await readUsage();
+  if (usageError) throw new Error("subscription_usage_read_failed");
 
   if (existingUsage) {
     return {
@@ -54,7 +57,7 @@ export async function getActiveSubscriptionInfo(
     };
   }
 
-  const { data: createdUsage } = await admin
+  const { data: createdUsage, error: createError } = await admin
     .from("subscription_usage")
     .insert({
       subscription_id: subscription.id,
@@ -64,13 +67,25 @@ export async function getActiveSubscriptionInfo(
     .select("events_created_count, boosts_used_count")
     .single();
 
+  // Two simultaneous reads can both try to create the first usage row.
+  // Read the winning row on conflict; never report zero usage after a DB failure.
+  let usage = createdUsage;
+  if (createError?.code === "23505") {
+    const { data, error } = await readUsage();
+    if (error) throw new Error("subscription_usage_read_failed");
+    usage = data;
+  } else if (createError) {
+    throw new Error("subscription_usage_create_failed");
+  }
+  if (!usage) throw new Error("subscription_usage_missing");
+
   return {
     subscriptionId: subscription.id,
     plan: subscription.plan as Plan,
     currentPeriodStart: subscription.current_period_start,
     currentPeriodEnd: subscription.current_period_end,
-    eventsCreatedCount: createdUsage?.events_created_count ?? 0,
-    boostsUsedCount: createdUsage?.boosts_used_count ?? 0,
+    eventsCreatedCount: usage.events_created_count,
+    boostsUsedCount: usage.boosts_used_count,
   };
 }
 

@@ -10,6 +10,7 @@ import { Ic, Sheet } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
 import { EventsMap, categoryIcon3d, eventTimeLabel, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
 import { BIZ_CATEGORIES, BIZ_OTHER, bizCategoryCounts, bizCategoryIcon, matchesBizCategory } from "@/lib/events/biz-categories";
+import { ApiReadError, getJson } from "@/lib/http/get-json";
 
 const PAGE_SIZE = 20; // показ длинного списка кластера порциями, а не всё разом
 
@@ -48,39 +49,46 @@ function MapPageContent() {
   // знала, к какому городу переехать, и оставалась на запасном центре.
   const [resolvedCity, setResolvedCity] = useState<string | undefined>(searchParams.get("city") ?? undefined);
 
-  function load(isRetry = false) {
+  const request = useRef<AbortController | null>(null);
+  const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function load() {
+    request.current?.abort();
+    if (retryTimer.current) clearTimeout(retryTimer.current);
+    const controller = new AbortController();
+    request.current = controller;
     setLoading(true);
     setError(null);
+    setSelected(null);
     const query = forwardedParams ? `?${forwardedParams}` : "";
-    fetch(`/api/events/map${query}`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.error) {
-          // "Не удалось загрузить карту" бывает из-за редких кратковременных
-          // сбоев соединения с базой — один автоматический повтор решает
-          // подавляющее большинство таких случаев без участия пользователя.
-          if (data.error !== "city_required" && !isRetry) {
-            setTimeout(() => load(true), 800);
-            return;
-          }
-          setError(data.error === "city_required" ? "Сначала заверши регистрацию." : "Не удалось загрузить карту.");
-          return;
-        }
+    async function attempt(retried = false) {
+      try {
+        const data = await getJson<{ items: MapEventItem[]; city?: string }>(`/api/events/map${query}`, controller.signal);
+        if (controller.signal.aborted) return;
         setEvents(data.items ?? []);
-        if (data.city) setResolvedCity(data.city);
-      })
-      .catch(() => {
-        if (!isRetry) {
-          setTimeout(() => load(true), 800);
+        setResolvedCity(data.city ?? undefined);
+        setLoading(false);
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        // Retry transient failures only. Keep the loading state during the delay;
+        // a new filter or unmount cancels both this request and its scheduled retry.
+        if (!retried && (!(err instanceof ApiReadError) || err.status >= 500 || err.status === 200)) {
+          retryTimer.current = setTimeout(() => { void attempt(true); }, 800);
           return;
         }
-        setError("Проблема с соединением.");
-      })
-      .finally(() => setLoading(false));
+        setError(err instanceof ApiReadError && err.code === "city_required" ? "Сначала заверши регистрацию." : "Не удалось загрузить карту.");
+        setLoading(false);
+      }
+    }
+    void attempt();
   }
 
   useEffect(() => {
     load();
+    return () => {
+      request.current?.abort();
+      if (retryTimer.current) clearTimeout(retryTimer.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [forwardedParams]);
 
@@ -102,6 +110,7 @@ function MapPageContent() {
   // приближаем карту к встрече и сразу открываем её карточку.
   const focusId = searchParams.get("focus");
   const focusDone = useRef(false);
+  useEffect(() => { focusDone.current = false; }, [focusId]);
   useEffect(() => {
     if (!focusId || focusDone.current || events.length === 0) return;
     const target = events.find((e) => e.id === focusId);

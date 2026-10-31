@@ -3,7 +3,8 @@
 import { anonymousTag } from "@/lib/events/anonymity";
 import { EventPlaceMap } from "@/components/events/EventPlaceMap";
 import { markerIconFor } from "@/components/map/EventsMap";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { ApiReadError, getJson } from "@/lib/http/get-json";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { type ApplicantCardData } from "@/components/applications/ApplicantCard";
@@ -80,6 +81,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
 
   const [event, setEvent] = useState<EventDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadFailure, setLoadFailure] = useState<"missing" | "network" | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [applying, setApplying] = useState(false);
   const [cancelling, setCancelling] = useState(false);
@@ -94,14 +97,21 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const [processingApplicantId, setProcessingApplicantId] = useState<string | null>(null);
   useGuide("event", { when: !loading });
 
+  const loadPendingApplicants = useCallback(() => {
+    return getJson<{ applications: ApplicantCardData[] }>(`/api/events/${eventId}/applications`)
+      .then((data) => setPendingApplicants((data.applications ?? []).filter((a) => a.status === "pending")))
+      .catch(() => {});
+  }, [eventId]);
+
   useEffect(() => {
-    fetch(`/api/events/${eventId}`)
-      .then((r) => r.json())
+    const controller = new AbortController();
+    setLoading(true);
+    setLoadFailure(null);
+    setEvent(null);
+    setPendingApplicants([]);
+    getJson<EventDetails>(`/api/events/${eventId}`, controller.signal)
       .then((data) => {
-        if (data.error) {
-          setError("Встреча не найдена.");
-          return;
-        }
+        if (controller.signal.aborted) return;
         setEvent(data);
         // Заявки на СВОЮ встречу показываем прямо здесь, сразу как только
         // организатор открыл событие — не нужно проваливаться ещё на один
@@ -110,18 +120,12 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           loadPendingApplicants();
         }
       })
-      .finally(() => setLoading(false));
-  }, [eventId]);
-
-  function loadPendingApplicants() {
-    fetch(`/api/events/${eventId}/applications`)
-      .then((r) => r.json())
-      .then((data) => {
-        const items = (data.applications ?? []) as ApplicantCardData[];
-        setPendingApplicants(items.filter((a) => a.status === "pending"));
+      .catch((err) => {
+        if (!controller.signal.aborted) setLoadFailure(err instanceof ApiReadError && err.status === 404 ? "missing" : "network");
       })
-      .catch(() => {});
-  }
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [eventId, attempt, loadPendingApplicants]);
 
   async function handleApplicantDecision(applicationId: string, action: "accept" | "reject") {
     setProcessingApplicantId(applicationId);
@@ -137,8 +141,14 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         // если это было последнее место).
         fetch(`/api/events/${eventId}`)
           .then((r) => r.json())
-          .then((data) => !data.error && setEvent(data));
+          .then((data) => !data.error && setEvent(data))
+          .catch(() => setError("Не удалось обновить встречу. Открой её ещё раз."));
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(apiErrorText(data, "Не получилось обработать заявку.", res.status));
       }
+    } catch {
+      setError("Проблема с соединением. Попробуй ещё раз.");
     } finally {
       setProcessingApplicantId(null);
     }
@@ -175,6 +185,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
       setEvent((prev) => (prev ? { ...prev, viewerStatus: "pending" } : prev));
       return true;
     } catch {
+      setError("Проблема с соединением. Попробуй ещё раз.");
       return false;
     } finally {
       setApplying(false);
@@ -195,6 +206,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
       } else {
         setError("Не получилось отменить встречу.");
       }
+    } catch {
+      setError("Проблема с соединением. Не удалось отменить встречу.");
     } finally {
       setCancelling(false);
     }
@@ -292,6 +305,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
       flash(d.message ?? (res.ok ? "Готово" : "Не получилось — попробуй ещё раз"));
       const fresh = await fetch(`/api/events/${eventId}`).then((r) => r.json()).catch(() => null);
       if (fresh && !fresh.error) setEvent(fresh);
+    } catch {
+      flash("Проблема с соединением. Попробуй ещё раз.");
     } finally {
       setAnswering(false);
     }
@@ -331,7 +346,10 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
       }
       fetch(`/api/events/${eventId}`)
         .then((r) => r.json())
-        .then((d) => !d.error && setEvent(d));
+        .then((d) => !d.error && setEvent(d))
+        .catch(() => flash("Не удалось обновить встречу. Открой её ещё раз."));
+    } catch {
+      flash("Проблема с соединением. Попробуй ещё раз.");
     } finally {
       setRemovingId(null);
     }
@@ -364,8 +382,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           </div>
           <div className="empty" style={{ marginTop: 60 }}>
             <EmptyIllMini />
-            <b>Встреча не найдена</b>
-            <span>Возможно, её уже удалили. Посмотри другие встречи рядом.</span>
+            <b>{loadFailure === "missing" ? "Встреча не найдена" : "Не удалось загрузить встречу."}</b>
+            <span>{loadFailure === "missing" ? "Возможно, её уже удалили. Посмотри другие встречи рядом." : "Проверь соединение и попробуй ещё раз."}</span>
+            {loadFailure !== "missing" && <button className="btn v" onClick={() => setAttempt((n) => n + 1)}>Попробовать снова</button>}
             <Link className="btn v" href="/feed" style={{ width: "100%", marginTop: 8 }}>
               На главную
             </Link>

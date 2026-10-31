@@ -1,6 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { getJson } from "@/lib/http/get-json";
 import { JoinFlow } from "@/components/events/JoinFlow";
 import { useGuide } from "@/lib/mosya/guide";
 import Link from "next/link";
@@ -81,10 +82,11 @@ function SearchPageContent() {
           setCity(data.city);
           setCityInput(data.city);
         }
-      });
+      }).catch(() => {});
     fetch("/api/categories")
       .then((r) => r.json())
-      .then((data) => setCategories(data.categories ?? []));
+      .then((data) => setCategories(data.categories ?? []))
+      .catch(() => {});
   }, []);
 
   const activeFilterCount = useMemo(() => {
@@ -111,22 +113,23 @@ function SearchPageContent() {
     return params;
   }
 
+  const request = useRef<AbortController | null>(null);
+  useEffect(() => () => request.current?.abort(), []);
+
   function load() {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
     setLoading(true);
     setError(null);
     const params = buildFilterParams();
 
-    fetch(`/api/events?${params.toString()}`)
-      .then((r) => r.json())
+    getJson<{ items: EventCardData[] }>(`/api/events?${params.toString()}`, controller.signal)
       .then((data) => {
-        if (data.error) {
-          setError("Не удалось загрузить встречи.");
-          return;
-        }
-        setEvents(data.items ?? []);
+        if (!controller.signal.aborted) setEvents(data.items ?? []);
       })
-      .catch(() => setError("Проблема с соединением."))
-      .finally(() => setLoading(false));
+      .catch(() => { if (!controller.signal.aborted) setError("Не удалось загрузить встречи."); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -304,8 +307,8 @@ function SearchPageContent() {
       </div>
       <div className="list">
         {loading && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
-        {error && <div className="note gl">{error}</div>}
-        {!loading &&
+        {error && <div className="note gl" role="alert">{error} <button className="btn v" onClick={load}>Попробовать снова</button></div>}
+        {!loading && !error &&
           list.map((e) => (
             <RowCard key={e.id} e={e} status={appliedEventIds.has(e.id) ? "pending" : e.myApplicationStatus ?? null} onJoin={openJoin} />
           ))}
