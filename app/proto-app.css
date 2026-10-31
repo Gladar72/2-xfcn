@@ -398,4 +398,10 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .chat .history-more:disabled{color:var(--grey)}
 .P .chat .hd{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(248,244,255,.97)}
 .P .chat .compose{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(248,244,255,.97)}
+/* A long reply/edit preview must not set the grid's minimum width and push
+   Save/Cancel off-screen. Reserve the action button's space independently. */
+.P .chat .compose{min-width:0;grid-template-columns:minmax(0,1fr)}
+.P .chat .compose>*{min-width:0}
+.P .chat .inrow .field{flex:1;min-width:0;width:auto;border-radius:24px}
+.P .chat .rbar>svg{flex:none}
 .P .chat .msgs .gl,.P .chat .compose .gl{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.85)}

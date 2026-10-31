@@ -80,6 +80,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
   const [preparingImage, setPreparingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [sending, setSending] = useState(false);
+  const savingEditRef = useRef(false);
   // Меню сообщения (реакции, ответить, изменить, удалить), ответ, правка, стикеры.
   const [menuFor, setMenuFor] = useState<MessageData | null>(null);
   const [replyTo, setReplyTo] = useState<MessageData | null>(null);
@@ -106,6 +107,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
   const composeRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   function openMessageMenu(message: MessageData) {
+    if (savingEditRef.current) return;
     inputRef.current?.blur();
     setStickersOpen(false);
     setMenuFor(message);
@@ -493,33 +495,47 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
   async function handleSend() {
     const content = draft.trim();
     const image = pendingImage;
-    if ((!content && !image) || !myUserId || isEventClosed) return;
+    if (!myUserId || isEventClosed || savingEditRef.current) return;
     if (editing) {
       const target = editing;
-      setEditing(null);
-      setDraft("");
-      if (content === target.content) return;
-      setMessages((prev) => prev.map((m) => (m.id === target.id ? { ...m, content, editedAt: new Date().toISOString() } : m)));
+      if (!content && !target.imageUrl) return;
+      if (content === target.content) {
+        setEditing(null);
+        setDraft("");
+        return;
+      }
+      // Keep the editor and correction until the server confirms the save.
+      // A synchronous guard also covers a second tap/Enter before React renders.
+      savingEditRef.current = true;
       setSending(true);
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000);
       try {
         const res = await fetch(`/api/conversations/${conversationId}/messages/${target.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ content }),
+          signal: controller.signal,
         });
+        const data = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setMessages((prev) => prev.map((m) => (m.id === target.id ? { ...m, content: target.content, editedAt: target.editedAt } : m)));
-          showToast(data.error === "edit_expired" ? "Изменить можно в течение 48 часов" : "Не удалось изменить");
+          showToast(data.error === "edit_expired" ? "Изменить можно в течение 48 часов" : data.error === "message_too_long" ? "Слишком длинное сообщение" : "Не удалось изменить");
+          return;
         }
+        if (data.status !== "ok" || typeof data.editedAt !== "string") throw new Error("Unconfirmed edit");
+        setMessages((prev) => prev.map((m) => (m.id === target.id && !m.deleted ? { ...m, content, editedAt: data.editedAt } : m)));
+        setEditing(null);
+        setDraft("");
       } catch {
-        setMessages((prev) => prev.map((m) => (m.id === target.id ? { ...m, content: target.content, editedAt: target.editedAt } : m)));
-        showToast("Нет связи — не удалось изменить");
+        showToast("Сохранение не подтверждено. Попробуй ещё раз.");
       } finally {
+        clearTimeout(timeout);
+        savingEditRef.current = false;
         setSending(false);
       }
       return;
     }
+    if (!content && !image) return;
     setDraft("");
     setPendingImage(null);
     sendNew(content, image);
@@ -827,6 +843,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                       setReplyTo(null);
                     }}
                     aria-label="Отменить"
+                    disabled={sending}
                   >
                     <Ic n="close" c="xs" />
                   </button>
@@ -863,6 +880,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                     ref={inputRef}
                     rows={1}
                     value={draft}
+                    readOnly={sending}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
                       // Компьютер: Enter — отправить, Shift+Enter — новая строка. Телефон: Enter — новая строка.
@@ -891,8 +909,8 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                   // Не забираем фокус у поля — клавиатура не закрывается после отправки (как в Telegram).
                   onPointerDown={(e) => e.preventDefault()}
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={handleSend} disabled={(!!editing && sending) || (!draft.trim() && !pendingImage)} aria-label={editing ? "Сохранить" : "Отправить"}>
-                  <Ic n={editing ? "check" : "send"} />
+                  onClick={handleSend} disabled={sending || (!draft.trim() && !(editing ? editing.imageUrl : pendingImage))} aria-label={editing ? "Сохранить" : "Отправить"} aria-busy={sending}>
+                  {sending ? <span className="mpend" aria-hidden="true" /> : <Ic n={editing ? "check" : "send"} />}
                 </button>
               </div>
             </>
