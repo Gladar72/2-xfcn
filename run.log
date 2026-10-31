@@ -1,0 +1,65 @@
+--- система: Ubuntu 24.04.5 LTS, ядро 6.8.0-147-generic, up 1 week, 6 days, 20 hours, 2 minutes
+обновлений доступно: 16, из них безопасности: 0
+docker: Docker version 29.1.3, build 29.1.3-0ubuntu3~24.04.2
+NAMES                            STATUS                 PORTS
+mesto-app-1                      Up 7 minutes           127.0.0.1:3000->3000/tcp
+mesto-moderation-1               Up 7 minutes           127.0.0.1:8090->8000/tcp
+mesto-caddy-1                    Up 10 minutes          
+supabase-envoy                   Up 13 days (healthy)   127.0.0.1:8000->8000/tcp, 10000/tcp
+supabase-storage                 Up 13 days (healthy)   5000/tcp
+realtime-dev.supabase-realtime   Up 13 days (healthy)   
+supabase-rest                    Up 13 days (healthy)   3000/tcp
+supabase-db                      Up 13 days (healthy)   5432/tcp
+/dev/vda1        58G   24G   34G  42% /
+               total        used        free      shared  buff/cache   available
+Mem:            7940        1776        1207          58        5323        6164
+Swap:           2047         170        1877
+--- диск: устройство, CPU, что занимает место
+NAME SIZE TYPE
+vda   60G disk
+CPU: 2, нагрузка: 0.22 0.45 0.51
+4.0G	/var/lib/docker
+14M	/opt/backups
+214M	/opt/mesto
+189M	/var/log
+TYPE            TOTAL     ACTIVE    SIZE      RECLAIMABLE
+Images          8         8         18.46GB   18.46GB (100%)
+Containers      8         8         651.3kB   0B (0%)
+Local Volumes   3         3         41.54kB   0B (0%)
+Build Cache     116       0         14.94GB   14.94GB
+NAME                             MEM USAGE / LIMIT     CPU %
+mesto-app-1                      51.03MiB / 7.755GiB   0.00%
+mesto-moderation-1               63.97MiB / 1GiB       0.01%
+mesto-caddy-1                    13.04MiB / 7.755GiB   0.02%
+supabase-envoy                   28.62MiB / 7.755GiB   0.19%
+supabase-storage                 172.8MiB / 7.755GiB   0.00%
+realtime-dev.supabase-realtime   90.72MiB / 7.755GiB   0.13%
+supabase-rest                    84.25MiB / 7.755GiB   2.66%
+supabase-db                      151.6MiB / 7.755GiB   0.02%
+app: 200
+https mesto-go.ru: 200
+https www.mesto-go.ru: 200
+https new.mesto-go.ru: 200
+https db.mesto-go.ru: 401
+--- caddy
+{"level":"error","ts":1793441995.1247368,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"63.185.85.203","remote_port":"29911","client_ip":"63.185.85.203","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/api/subscription
+{"level":"error","ts":1793441995.1292942,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"51.102.214.32","remote_port":"9596","client_ip":"51.102.214.32","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/api/me/meet-hints
+{"level":"error","ts":1793441995.1416376,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"63.185.85.203","remote_port":"37621","client_ip":"63.185.85.203","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/api/me/pending-a
+{"level":"error","ts":1793441995.1661747,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"3.123.19.47","remote_port":"15997","client_ip":"3.123.19.47","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/settings?_rsc=1us0l"
+{"level":"error","ts":1793441995.1778393,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"63.185.85.203","remote_port":"29911","client_ip":"63.185.85.203","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/subscriptions?_r
+{"level":"error","ts":1793441995.183113,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"51.102.214.32","remote_port":"9596","client_ip":"51.102.214.32","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/api/me/hearts","he
+{"level":"error","ts":1793441995.2069583,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"63.185.85.203","remote_port":"37621","client_ip":"63.185.85.203","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/reviews?_rsc=1us
+{"level":"error","ts":1793441995.2498927,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"51.102.214.32","remote_port":"9596","client_ip":"51.102.214.32","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/brand/cat3d/i_con
+{"level":"error","ts":1793441997.0432978,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"51.102.214.32","remote_port":"9596","client_ip":"51.102.214.32","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/settings/privacy?
+{"level":"error","ts":1793441999.0424569,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"51.102.214.32","remote_port":"9596","client_ip":"51.102.214.32","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/api/me/events?sco
+{"level":"error","ts":1793441999.0432117,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"51.102.214.32","remote_port":"36398","client_ip":"51.102.214.32","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/api/me/meet-hint
+{"level":"error","ts":1793441999.04893,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"3.123.19.47","remote_port":"15997","client_ip":"3.123.19.47","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/api/conversations","he
+{"level":"error","ts":1793441999.0691059,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"3.123.19.47","remote_port":"48747","client_ip":"3.123.19.47","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/api/me/meet-hints","
+{"level":"error","ts":1793441999.071554,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"63.185.85.203","remote_port":"37621","client_ip":"63.185.85.203","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/api/me/pending-ap
+{"level":"error","ts":1793441999.7705472,"logger":"http.log.error","msg":"dial tcp 127.0.0.1:3000: connect: connection refused","request":{"remote_ip":"51.102.214.32","remote_port":"36398","client_ip":"51.102.214.32","proto":"HTTP/1.1","method":"GET","host":"new.mesto-go.ru","uri":"/brand/mosya/mosy
+supabase rest: 200
+2026-10-31T10:20:01Z fail /api/cron/complete-events
+curl: (56) Recv failure: Connection reset by peer
+2026-10-31T10:20:01Z fail /api/cron/event-reminders
+curl: (56) Recv failure: Connection reset by peer
+2026-10-31T10:20:01Z fail /api/cron/send-morning-reminders
