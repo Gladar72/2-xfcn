@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
   const api = getBot().api;
   const result = await sendDueEventReminders(admin, api);
   const nudges = await sendDueShareNudges(admin, api).catch((e) => {

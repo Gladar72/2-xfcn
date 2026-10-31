@@ -10,7 +10,7 @@ import { createClient } from "@supabase/supabase-js";
  * пользователей при первом входе, обрабатывает платежи и т.д. —
  * то есть всю бизнес-логику, которая не должна зависеть от RLS.
  */
-export function createAdminClient() {
+export function createAdminClient(options: { noStore?: boolean } = {}) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -21,6 +21,10 @@ export function createAdminClient() {
   }
 
   return createClient(url, serviceRoleKey, {
+    // Notification delivery decisions must use current database state. A
+    // force-dynamic route alone did not prevent Supabase reads from entering
+    // Next's persistent fetch cache in production.
+    ...(options.noStore ? { global: { fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, { ...init, cache: "no-store" }) } } : {}),
     auth: {
       autoRefreshToken: false,
       persistSession: false,
