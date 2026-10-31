@@ -45,7 +45,8 @@ def main():
         select e.id, e.title, e.is_anonymous, e.status, e.created_at,
                u.id as user_id, u.telegram_id, u.avatar_url
         from events e join users u on u.id=e.organizer_id
-        where lower(btrim(e.title))=lower(convert_from(decode('{title_hex}','hex'),'UTF8'))
+        where lower(btrim(regexp_replace(e.title, '[^[:alnum:]]+', ' ', 'g')))
+          = lower(btrim(regexp_replace(convert_from(decode('{title_hex}','hex'),'UTF8'), '[^[:alnum:]]+', ' ', 'g')))
           and e.created_at > now()-interval '7 days'
         order by e.created_at desc limit 10
       ) candidate;
@@ -56,7 +57,7 @@ def main():
     row = rows[0]
     has_photo = bool((row.get("avatar_url") or "").strip())
     eligible = not row.get("is_anonymous") and row["status"] in {"published", "closed"} and not has_photo and bool(row.get("telegram_id"))
-    print(json.dumps({"unique_organizer_resolved": True, "has_profile_photo": has_photo, "anonymous": bool(row.get("is_anonymous")), "event_status": row["status"], "eligible_for_notice": eligible}, ensure_ascii=False), flush=True)
+    print(json.dumps({"matched_event_title": row["title"], "unique_organizer_resolved": True, "has_profile_photo": has_photo, "anonymous": bool(row.get("is_anonymous")), "event_status": row["status"], "eligible_for_notice": eligible}, ensure_ascii=False), flush=True)
     if mode == "preview" or not eligible:
         print("Preview only; no notification sent" if mode == "preview" else "Event is not eligible; no notification sent")
         return
