@@ -123,13 +123,14 @@ function line(e: DigestEvent, offsetH: number): string {
  * из 3–5 новых встреч и событий по интересам человека. Нет подходящего — ничего не шлём.
  * Запускается кроном раз в 5 минут вместе с напоминаниями (app/api/cron/event-reminders).
  */
-export async function sendDueDigests(admin: Admin): Promise<{ users: number; sent: number }> {
+export async function sendDueDigests(admin: Admin): Promise<{ users: number; sent: number; claimed: number; skipped: number; failed: number }> {
   const nowMs = Date.now();
-  const { data: users } = await admin
+  const { data: users, error: usersError } = await admin
     .from("users")
     .select("id, telegram_id, city, announce_every_days, last_digest_at")
     .eq("event_announcements", true)
     .not("city", "is", null);
+  if (usersError) throw new Error(`event-digest: users unavailable (${usersError.code})`);
   const due = (users ?? []).filter((u) => {
     const offset = eventUtcOffsetHours({ city: u.city as string, longitude: null });
     const localHour = new Date(nowMs + offset * 3600_000).getUTCHours();
@@ -138,7 +139,7 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
     const last = u.last_digest_at ? Date.parse(u.last_digest_at as string) : 0;
     return nowMs - last > (every * 24 - 2) * 3600_000;
   });
-  if (due.length === 0) return { users: 0, sent: 0 };
+  if (due.length === 0) return { users: 0, sent: 0, claimed: 0, skipped: 0, failed: 0 };
 
   const ids = due.map((u) => u.id as string);
   const cities = [...new Set(due.map((u) => u.city as string))];
@@ -163,7 +164,7 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
     byChunks(ids, (part) => admin.from("event_members").select("user_id, event_id").in("user_id", part)),
   ]);
   const evs = (events ?? []) as unknown as DigestEvent[];
-  if (evs.length === 0) return { users: due.length, sent: 0 };
+  if (evs.length === 0) return { users: due.length, sent: 0, claimed: 0, skipped: 0, failed: 0 };
 
   const interestsBy = new Map<string, Set<string>>();
   for (const r of interests ?? []) {
@@ -186,6 +187,9 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
   const appUrl = process.env.APP_URL ?? "";
   const api = getBot().api;
   let sent = 0;
+  let claimed = 0;
+  let skipped = 0;
+  let failed = 0;
   const pushUsers: { id: string; n: number; city: string }[] = [];
 
   await sendInBatches(due, async (u) => {
@@ -207,7 +211,32 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
       .slice(0, MAX_ITEMS);
     if (picked.length === 0) return;
 
-    await admin.from("users").update({ last_digest_at: new Date(nowMs).toISOString() }).eq("id", uid);
+    // Reading the due list is not a lock: another cron run can see the same
+    // snapshot, including a cached one. Atomically replace the timestamp only
+    // if it still equals the value we read, and check the returned row BEFORE
+    // sending anything. A failed/ambiguous claim must never send a message.
+    // Rechecking preferences also honours an opt-out while the batch is running.
+    let claim = admin
+      .from("users")
+      .update({ last_digest_at: new Date(nowMs).toISOString() })
+      .eq("id", uid)
+      .eq("event_announcements", true)
+      .eq("announce_every_days", u.announce_every_days)
+      .eq("city", city);
+    claim = u.last_digest_at
+      ? claim.eq("last_digest_at", u.last_digest_at)
+      : claim.is("last_digest_at", null);
+    const { data: owned, error: claimError } = await claim.select("id");
+    if (claimError) {
+      failed++;
+      console.error("event-digest: delivery claim failed", claimError.code);
+      return;
+    }
+    if (owned?.length !== 1 || owned[0]?.id !== uid) {
+      skipped++;
+      return;
+    }
+    claimed++;
     pushUsers.push({ id: uid, n: picked.length, city });
     if (!u.telegram_id) return;
     const head = keys && keys.size ? "Подобрал по твоим интересам:" : "Новое в городе:";
@@ -219,6 +248,7 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
       await api.sendMessage(u.telegram_id as number, text, { parse_mode: "HTML", reply_markup: kb, link_preview_options: { is_disabled: true } });
       sent++;
     } catch (err) {
+      failed++;
       console.error(`digest ${uid}:`, err);
     }
   });
@@ -231,5 +261,7 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
       data: { url: "/", type: "event_digest" },
     }).catch(() => {});
   }
-  return { users: due.length, sent };
+  const result = { users: due.length, sent, claimed, skipped, failed };
+  console.info("event-digest: delivery result", result);
+  return result;
 }
