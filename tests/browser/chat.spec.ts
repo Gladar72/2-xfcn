@@ -219,6 +219,134 @@ test("sending from history follows the new message and leaves the composer usabl
   await expect(input).toHaveValue("");
 });
 
+const editableMessage = () => ({
+  ...message(100), senderId: "me", createdAt: new Date().toISOString(),
+  content: "Встречаемся завтра вечером у входа в парк, потом вместе выбираем место для ужина и обсуждаем планы на выходные.",
+});
+
+async function beginEdit(page: Page) {
+  await page.locator("#m-message-100 .bb").tap();
+  await page.getByRole("dialog", { name: "Меню сообщения", exact: true }).getByRole("button", { name: "Изменить", exact: true }).tap();
+}
+
+test("editing a long message keeps save and cancel inside the phone viewport", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  const chat = await openChat(page, { messages: [editableMessage()] });
+  const edits: unknown[] = [];
+  await page.route("**/messages/message-100", async (route) => {
+    edits.push(route.request().postDataJSON());
+    await route.fulfill({ json: { status: "ok", editedAt: new Date().toISOString() } });
+  });
+  await beginEdit(page);
+  const save = page.getByRole("button", { name: "Сохранить", exact: true });
+  const input = page.getByRole("textbox", { name: "Сообщение", exact: true });
+  for (const size of [{ width: 320, height: 640 }, { width: 390, height: 400 }]) {
+    await page.setViewportSize(size);
+    await expect(save).toBeInViewport({ ratio: 1 });
+    await expect(page.getByRole("button", { name: "Отменить", exact: true })).toBeInViewport({ ratio: 1 });
+    await expect.poll(() => page.locator(".compose").evaluate((el) => el.scrollWidth - el.clientWidth)).toBeLessThanOrEqual(1);
+  }
+  await input.fill("Встречаемся завтра в 19:00.\nМесто уточним в чате.");
+  await page.screenshot({ path: testInfo.outputPath("chat-edit.png"), animations: "disabled" });
+  await save.tap();
+  await expect(page.locator(".rbar")).toHaveCount(0);
+  await expect(page.locator("#m-message-100")).toContainText("Встречаемся завтра в 19:00.");
+  expect(edits).toEqual([{ content: "Встречаемся завтра в 19:00.\nМесто уточним в чате." }]);
+  expect(chat.sent).toHaveLength(0);
+});
+
+test("a failed edit preserves the correction for one-tap retry without sending a new message", async ({ page }) => {
+  const original = { ...editableMessage(), content: "До встречи" };
+  const chat = await openChat(page, { messages: [original] });
+  let attempts = 0;
+  await page.route("**/messages/message-100", async (route) => {
+    attempts++;
+    await route.fulfill(attempts === 1
+      ? { status: 500, json: { error: "update_failed" } }
+      : { json: { status: "ok", editedAt: new Date().toISOString() } });
+  });
+  await beginEdit(page);
+  const input = page.getByRole("textbox", { name: "Сообщение", exact: true });
+  const save = page.getByRole("button", { name: "Сохранить", exact: true });
+  await input.fill("До встречи завтра");
+  await save.tap();
+  await expect(page.getByText("Не удалось изменить", { exact: true })).toBeVisible();
+  await expect(input).toHaveValue("До встречи завтра");
+  await expect(save).toBeEnabled();
+  await expect(page.locator("#m-message-100 .bb")).toContainText(original.content);
+  await save.tap();
+  await expect(page.locator(".rbar")).toHaveCount(0);
+  await expect(page.locator("#m-message-100 .bb")).toContainText("До встречи завтра");
+  expect(attempts).toBe(2);
+  expect(chat.sent).toHaveLength(0);
+});
+
+test("network failure keeps the edit and repeated taps cannot submit during a delayed retry", async ({ page }) => {
+  const chat = await openChat(page, { messages: [editableMessage()] });
+  let attempts = 0;
+  let release = () => {};
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  await page.route("**/messages/message-100", async (route) => {
+    attempts++;
+    if (attempts === 1) return route.abort("failed");
+    await gate;
+    await route.fulfill({ json: { status: "ok", editedAt: new Date().toISOString() } });
+  });
+  await beginEdit(page);
+  const input = page.getByRole("textbox", { name: "Сообщение", exact: true });
+  const save = page.getByRole("button", { name: "Сохранить", exact: true });
+  await input.fill("Изменённый план встречи");
+  await save.tap();
+  await expect(page.getByText("Сохранение не подтверждено. Попробуй ещё раз.", { exact: true })).toBeVisible();
+  await expect(input).toHaveValue("Изменённый план встречи");
+  await save.tap();
+  await expect.poll(() => attempts).toBe(2);
+  await expect(save).toBeDisabled();
+  await expect(save).toHaveAttribute("aria-busy", "true");
+  await expect(input).toHaveAttribute("readonly", "");
+  const box = (await save.boundingBox())!;
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
+  await expect(input).toHaveValue("Изменённый план встречи");
+  release();
+  await expect(page.locator(".rbar")).toHaveCount(0);
+  expect(attempts).toBe(2);
+  expect(chat.sent).toHaveLength(0);
+});
+
+test("cancel edit and reply to a long message keep the send action reachable", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 640 });
+  const chat = await openChat(page, { messages: [editableMessage()] });
+  await beginEdit(page);
+  await page.getByRole("button", { name: "Отменить", exact: true }).tap();
+  await expect(page.locator(".rbar")).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: "Сообщение", exact: true })).toHaveValue("");
+  await page.locator("#m-message-100 .bb").tap();
+  await page.getByRole("dialog", { name: "Меню сообщения", exact: true }).getByRole("button", { name: "Ответить", exact: true }).tap();
+  await expect(page.getByRole("button", { name: "Отправить", exact: true })).toBeInViewport({ ratio: 1 });
+  await page.getByRole("textbox", { name: "Сообщение", exact: true }).fill("Подтверждаю");
+  await page.getByRole("button", { name: "Отправить", exact: true }).tap();
+  await expect.poll(() => chat.sent).toEqual([{ content: "Подтверждаю", replyToId: "message-100" }]);
+});
+
+test("an image caption can be cleared without sending a separate message", async ({ page }) => {
+  const chat = await openChat(page, { messages: [{ ...editableMessage(), imageUrl: "/brand/stickers/mosya_wave.webp" }] });
+  let edited: unknown;
+  await page.route("**/messages/message-100", async (route) => {
+    edited = route.request().postDataJSON();
+    await route.fulfill({ json: { status: "ok", editedAt: new Date().toISOString() } });
+  });
+  await beginEdit(page);
+  await page.getByRole("textbox", { name: "Сообщение", exact: true }).fill("");
+  const save = page.getByRole("button", { name: "Сохранить", exact: true });
+  await expect(save).toBeEnabled();
+  await save.tap();
+  await expect(page.locator(".rbar")).toHaveCount(0);
+  expect(edited).toEqual({ content: "" });
+  expect(chat.sent).toHaveLength(0);
+  await expect(page.locator("#m-message-100 .bb img")).toBeVisible();
+});
+
 test("resizing a message above the viewport preserves the visible row", async ({ page }) => {
   const chat = await openChat(page);
   await scrollTo(page, 1200);
