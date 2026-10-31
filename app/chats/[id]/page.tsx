@@ -16,6 +16,8 @@ import { useChatScroll } from "@/lib/hooks/use-chat-scroll";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Sheet } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
+import { ApiReadError, getJson } from "@/lib/http/get-json";
+import { markCachedChatRead } from "@/lib/chat/list-cache";
 
 interface ChatPageProps {
   // Next.js 14 (в этом проекте) передаёт params клиентским компонентам
@@ -36,6 +38,24 @@ interface Member {
   lastReadAt: string | null;
   /** Анонимная встреча: профиль скрыт — открывать нельзя. */
   anonymous?: boolean;
+}
+
+interface ChatHistory {
+  userId?: string;
+  messages?: MessageData[];
+  hasMore?: boolean;
+  eventTitle?: string | null;
+  eventStatus?: string | null;
+  category?: { slug: string; name: string; emoji: string | null } | null;
+  isBusiness?: boolean;
+  organizerId?: string | null;
+  eventPhotoUrl?: string | null;
+  eventId?: string | null;
+  eventDate: string | null;
+  eventTime: string | null;
+  eventPlace: string | null;
+  eventAddress: string | null;
+  members?: Member[];
 }
 
 type ParticipantsTab = "all" | "organizer" | "participants";
@@ -102,6 +122,9 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
   const markQuiet = (list: { id: string }[]) => list.forEach((m) => quietIdsRef.current.add(m.id));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [livePaused, setLivePaused] = useState(false);
+  const readControllerRef = useRef<AbortController | null>(null);
   const [accessBlocked, setAccessBlocked] = useState(false);
 
   const composeRef = useRef<HTMLDivElement>(null);
@@ -137,33 +160,22 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    let historyLoaded = false;
+    const controller = new AbortController();
+    readControllerRef.current = controller;
 
     async function init() {
       setLoading(true);
+      setError(null);
+      setLivePaused(false);
+      // Realtime is optional for opening history: a slow token endpoint must
+      // not hold the message list and composer behind a loading screen.
+      const tokenPromise = getJson<{ token: string }>("/api/auth/realtime-token", controller.signal).catch(() => null);
       try {
-        const [meRes, tokenRes, historyRes] = await Promise.all([
-          fetch("/api/me"),
-          fetch("/api/auth/realtime-token"),
-          fetch(`/api/conversations/${conversationId}/messages`),
-        ]);
-
-        if (!meRes.ok || !tokenRes.ok || !historyRes.ok) {
-          if (historyRes.status === 403) {
-            const data = await historyRes.json().catch(() => ({}));
-            if (data.error === "event_closed" && !cancelled) {
-              setAccessBlocked(true);
-              return;
-            }
-          }
-          if (!cancelled) setError("Не удалось открыть чат.");
-          return;
-        }
-
-        const [me, tokenData, history] = await Promise.all([
-          meRes.json(),
-          tokenRes.json(),
-          historyRes.json(),
-        ]);
+        const history = await getJson<ChatHistory>(`/api/conversations/${conversationId}/messages`, controller.signal);
+        // Older servers did not return userId with history; keep a fallback
+        // during a rolling deployment, without an extra request normally.
+        const me = history.userId ? { userId: history.userId } : await getJson<{ userId: string }>("/api/me", controller.signal);
 
         if (cancelled) return;
 
@@ -184,7 +196,18 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
             : null
         );
         setMembers(history.members ?? []);
+        historyLoaded = true;
+        setLoading(false);
+        markCachedChatRead(conversationId);
+        fetch(`/api/conversations/${conversationId}`, {
+          method: "PATCH", signal: controller.signal,
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "mark_read" }),
+        }).catch(() => {});
 
+        const tokenData = await tokenPromise;
+        if (cancelled) return;
+        if (!tokenData?.token) { setLivePaused(true); return; }
         const client = createBrowserRealtimeClient(tokenData.token);
         clientRef.current = client;
 
@@ -247,31 +270,46 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
             if (!row?.userId || row.userId === me.userId) return;
             setMembers((prev) => prev.map((m) => (m.id === row.userId ? { ...m, lastReadAt: row.lastReadAt } : m)));
           })
-          .subscribe();
+          .subscribe((status) => {
+            if (cancelled) return;
+            if (status === "SUBSCRIBED") {
+              setLivePaused(false);
+              // Catch up messages that arrived while the realtime token or
+              // connection was slow. The history was already usable meanwhile.
+              getJson<{ messages?: MessageData[] }>(`/api/conversations/${conversationId}/messages`, controller.signal)
+                .then((data) => { if (!cancelled && data.messages) setMessages((prev) => mergeServerMessages(prev, data.messages!)); })
+                .catch(() => {});
+            } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") setLivePaused(true);
+          });
 
         channelRef.current = channel;
-
-        fetch(`/api/conversations/${conversationId}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "mark_read" }),
-        }).catch(() => {});
-      } catch {
-        if (!cancelled) setError("Проблема с соединением.");
+      } catch (err) {
+        if (cancelled) return;
+        if (historyLoaded) { setLivePaused(true); return; }
+        if (err instanceof ApiReadError && err.status === 403 && err.code === "event_closed") setAccessBlocked(true);
+        else setError("Не удалось открыть чат. Проверь соединение и попробуй ещё раз.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
-    init();
+    void init();
+    router.prefetch("/chats");
 
     return () => {
       cancelled = true;
-      if (channelRef.current) clientRef.current?.removeChannel(channelRef.current);
+      controller.abort();
+      const client = clientRef.current;
+      if (client) {
+        void client.removeAllChannels().catch(() => {});
+        client.realtime.disconnect();
+      }
+      clientRef.current = null;
+      channelRef.current = null;
       if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
       markReadTimerRef.current = null;
     };
-  }, [conversationId]);
+  }, [conversationId, attempt, router]);
 
   // Высота панели нужна только для расположения кнопки «вниз»; сообщения занимают оставшееся место через flex.
   useEffect(() => {
@@ -289,7 +327,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
     loadingOlderRef.current = true;
     setLoadingOlder(true);
     try {
-      const r = await fetch(`/api/conversations/${conversationId}/messages?before=${encodeURIComponent(first.createdAt)}&limit=50`);
+      const r = await fetch(`/api/conversations/${conversationId}/messages?before=${encodeURIComponent(first.createdAt)}&limit=50`, { signal: readControllerRef.current?.signal });
       if (!r.ok) throw new Error("history_request_failed");
       const d = (await r.json()) as { messages?: MessageData[]; hasMore?: boolean };
       const older = (d.messages ?? []).map(normMessage);
@@ -319,7 +357,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
   useEffect(() => {
     function onVisible() {
       if (document.visibilityState !== "visible") return;
-      fetch(`/api/conversations/${conversationId}/messages`)
+      fetch(`/api/conversations/${conversationId}/messages`, { signal: readControllerRef.current?.signal })
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { messages?: MessageData[] } | null) => {
           if (!d?.messages) return;
@@ -756,7 +794,8 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
           )}
           {eventTitle === null && <span className="daysep">Личная переписка</span>}
           {loading && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 44, width: i % 2 ? "60%" : "50%", alignSelf: i % 2 ? "flex-end" : "flex-start" }} />)}
-          {error && <span className="daysep">{error}</span>}
+          {error && <div className="empty" role="alert"><span>{error}</span><button className="btn v" onClick={() => setAttempt((n) => n + 1)}>Попробовать снова</button></div>}
+          {livePaused && !error && <div className="daysep" role="status">Обновления чата задерживаются. <button onClick={() => setAttempt((n) => n + 1)}>Подключить снова</button></div>}
           {!loading && messages.length === 0 && !error && (
             <div className="empty" style={{ padding: "30px 0" }}>
               <EmptyIll a={["blob", "pink", "smile"]} b={["flower", "sky", "wow"]} c={["star", "peach", "calm"]} />
@@ -1249,6 +1288,20 @@ function shapeReactions(list: { emoji: string; userIds: string[] }[] | undefined
 }
 
 /** Сообщение с сервера/канала → единый вид (старые ответы API без новых полей тоже ок). */
+function mergeServerMessages(previous: MessageData[], incoming: MessageData[]): MessageData[] {
+  const merged = [...previous];
+  for (const raw of incoming) {
+    const row = normMessage(raw);
+    const existing = merged.findIndex((m) => m.id === row.id);
+    const index = existing >= 0 ? existing : merged.findIndex((m) =>
+      m.id.startsWith("temp-") && m.senderId === row.senderId && m.content === row.content && !!m.imageUrl === !!row.imageUrl
+    );
+    if (index >= 0) merged[index] = row;
+    else merged.push(row);
+  }
+  return merged.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+}
+
 function normMessage(m: MessageData): MessageData {
   return { ...m, imageUrl: m.imageUrl ?? null, editedAt: m.editedAt ?? null, deleted: !!m.deleted, replyTo: m.replyTo ?? null, reactions: m.reactions ?? [] };
 }

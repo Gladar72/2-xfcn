@@ -84,7 +84,7 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
   const hasImage = !!message.imageUrl;
   const reactions = message.reactions ?? [];
   // Долгое нажатие (как в Telegram) — меню; короткое тоже открывает меню, если не прокрутка.
-  const press = useRef<{ t: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean }>({ t: null, x: 0, y: 0, fired: false });
+  const press = useRef<{ t: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean; active: boolean }>({ t: null, x: 0, y: 0, fired: false, active: false });
   const openMenu = onMenu && !message.deleted && !message.pending && !message.failed ? onMenu : undefined;
   useEffect(() => {
     const gesture = press.current;
@@ -106,7 +106,7 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
         <div
           className={clsx("bb", hasImage && "img", sticker && "stk", highlighted && "hl")}
           onClick={() => {
-            if (press.current.fired) return;
+            if (press.current.fired) { press.current.fired = false; return; }
             if (openMenu) openMenu();
             else if (isOwn && onOwnPress && !message.uploading) onOwnPress();
           }}
@@ -115,12 +115,15 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
             e.preventDefault();
             openMenu();
           }}
+          onPointerDown={(e) => { if (e.pointerType === "mouse") press.current.fired = false; }}
           onTouchStart={(e) => {
             // Reactions, quotes and photos own their taps; holding them must
             // not also open the parent message's menu.
+            press.current.active = false;
             if ((e.target as HTMLElement).closest("button, a")) return;
             const t = e.touches[0];
             if (!t) return;
+            press.current.active = true;
             press.current.fired = false;
             press.current.x = t.clientX;
             press.current.y = t.clientY;
@@ -143,14 +146,26 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
               press.current.fired = true; // A swipe must not also open the menu.
             }
           }}
-          onTouchEnd={() => {
+          onTouchEnd={(e) => {
             if (press.current.t) clearTimeout(press.current.t);
             press.current.t = null;
+            if (!press.current.active) return;
+            press.current.active = false;
+            if (press.current.fired) return;
+            // Safari can consume the synthetic click while dismissing the
+            // keyboard. Complete a genuine tap here; the later click is ignored.
+            if (openMenu || (isOwn && onOwnPress && !message.uploading)) {
+              if (e.cancelable) e.preventDefault();
+              press.current.fired = true;
+              if (openMenu) openMenu();
+              else onOwnPress?.();
+            }
           }}
           onTouchCancel={() => {
             // Safari cancels the touch when its native scroller takes over.
             if (press.current.t) clearTimeout(press.current.t);
             press.current.t = null;
+            press.current.active = false;
             press.current.fired = true;
           }}
           style={openMenu || (isOwn && onOwnPress) ? { cursor: "pointer" } : undefined}
