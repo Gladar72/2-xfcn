@@ -1,0 +1,46 @@
+name: Event profile photo notice
+
+on:
+  workflow_dispatch:
+    inputs:
+      event_title:
+        description: "Точное название недавнего события"
+        required: true
+        type: string
+      mode:
+        description: "Проверить получателя или отправить одно предупреждение"
+        required: true
+        default: preview
+        type: choice
+        options: [preview, send]
+
+concurrency:
+  group: event-photo-notice
+  cancel-in-progress: false
+
+jobs:
+  notice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: SSH key
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+          SSH_KEY: ${{ secrets.YC_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -T 15 -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Check or notify the event organizer
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+          EVENT_TITLE: ${{ inputs.event_title }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          case "$MODE" in preview|send) ;; *) exit 1 ;; esac
+          TITLE_B64=$(printf '%s' "$EVENT_TITLE" | base64 -w0)
+          ssh deploy@"$HOST" "python3 - '$TITLE_B64' '$MODE'" < deploy/yandex/event-photo-notice.py

@@ -20,6 +20,9 @@ import { PhotoCropModal } from "./PhotoCropModal";
 import { goBack } from "@/lib/nav/back";
 import { maxGroupSize, type Plan } from "@/lib/subscriptions/limits";
 import { BIZ_SECTIONS, BIZ_KEYS, bizCategoryIcon } from "@/lib/events/biz-categories";
+import { hasOrganizerPhoto } from "@/lib/events/organizer-photo";
+import { getJson } from "@/lib/http/get-json";
+import { OrganizerPhotoGate } from "./OrganizerPhotoGate";
 
 /**
  * Создание встречи в 4 шага — разметка и анимации из прототипа (SCR.create):
@@ -145,6 +148,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const skipKind = !!editId || !!searchParams.get("fromCity") || !!inviteUserId;
   const [chosen, setChosen] = useState(skipKind);
   const [me, setMe] = useState<{ name: string; avatarUrl: string | null } | null>(null);
+  const [profileState, setProfileState] = useState<"loading" | "ready" | "error">("loading");
+  const [profileAttempt, setProfileAttempt] = useState(0);
 
   const [categorySlug, setCategorySlug] = useState<string | null>(searchParams.get("category"));
   const [trainingTypeSlug, setTrainingTypeSlug] = useState<string | null>(searchParams.get("type"));
@@ -212,10 +217,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         setTrainingTypes(data.trainingTypes ?? []);
       })
       .catch(() => {});
-    fetch("/api/me/profile")
-      .then((r) => r.json())
-      .then((d) => setMe({ name: d.name ?? "Ты", avatarUrl: d.avatarUrl ?? null }))
-      .catch(() => {});
     fetch("/api/subscriptions")
       .then((r) => r.json())
       .then((d) => {
@@ -223,6 +224,20 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setProfileState("loading");
+    getJson<{ name?: string; avatarUrl: string | null }>("/api/me/profile", controller.signal)
+      .then((d) => {
+        if (controller.signal.aborted) return;
+        if (!d || !("avatarUrl" in d)) throw new Error("Invalid profile response");
+        setMe({ name: d.name ?? "Ты", avatarUrl: d.avatarUrl });
+        setProfileState("ready");
+      })
+      .catch(() => { if (!controller.signal.aborted) setProfileState("error"); });
+    return () => controller.abort();
+  }, [profileAttempt]);
 
   // «Найти компанию» на событие из городской афиши — подставляем название, дату и место.
   const fromCity = searchParams.get("fromCity");
@@ -535,6 +550,10 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data.error === "profile_photo_required") {
+          setMe((p) => ({ name: p?.name ?? "Ты", avatarUrl: null }));
+          setProfileState("ready");
+        }
         const map: Record<string, number> = {
           categorySlug: 1,
           bizCategory: 1,
@@ -617,6 +636,16 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   );
 
   /* ---------- опубликовано ---------- */
+  if (!editId && !publishedId && chosen && kind !== "anon" && (profileState !== "ready" || !hasOrganizerPhoto(me?.avatarUrl))) {
+    return <OrganizerPhotoGate
+      loading={profileState === "loading"}
+      error={profileState === "error"}
+      onRetry={() => setProfileAttempt((n) => n + 1)}
+      onBack={() => { if (!skipKind) setChosen(false); else goBack(router, "/feed"); }}
+      onUploaded={(avatarUrl) => { setMe((p) => ({ name: p?.name ?? "Ты", avatarUrl })); setProfileState("ready"); }}
+    />;
+  }
+
   if (publishedId) {
     return (
       <section className="scr aurora up" data-id="published">

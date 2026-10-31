@@ -15,6 +15,7 @@ import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { moderateImage } from "@/lib/photos/moderate-image";
 import { eventQualityProblem } from "@/lib/events/quality";
+import { hasOrganizerPhoto, ORGANIZER_PHOTO_MESSAGE } from "@/lib/events/organizer-photo";
 import { cachedFeed, clearFeedCache } from "@/lib/data/feed-cache";
 import { eventTiming } from "@/lib/events/timing";
 import { activePromotions, promotedOrder } from "@/lib/promotions/server";
@@ -535,11 +536,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { data: organizerProfile } = await admin
+  const { data: organizerProfile, error: profileError } = await admin
     .from("users")
     .select("city, avatar_url")
     .eq("id", currentUser.userId)
     .maybeSingle();
+
+  if (profileError || !organizerProfile) {
+    return NextResponse.json({ error: "profile_unavailable", message: "Не удалось проверить профиль. Попробуй ещё раз." }, { status: 503 });
+  }
 
   const body = await req.json().catch(() => null);
   // Город встречи = город из профиля организатора (клиент его не присылает) —
@@ -557,6 +562,15 @@ export async function POST(req: NextRequest) {
     );
   }
   const input = parsed.data;
+
+  // Old accounts may have no avatar. Event covers do not replace a profile
+  // photo; check the stored avatar before creating an open event.
+  if (!input.isAnonymous && !hasOrganizerPhoto(organizerProfile.avatar_url)) {
+    return NextResponse.json(
+      { error: "profile_photo_required", field: "avatarUrl", message: ORGANIZER_PHOTO_MESSAGE },
+      { status: 422 }
+    );
+  }
 
   // Анонимные встречи — только с фото в профиле: после одобрения участники
   // должны увидеть настоящего человека, а не пустой профиль.
