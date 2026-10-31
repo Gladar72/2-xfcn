@@ -56,14 +56,24 @@ def main():
     wanted = normalized_title(title)
     rows = [row for row in recent if normalized_title(row["title"]) == wanted]
     print(json.dumps({"matching_recent_events": len(rows)}, ensure_ascii=False), flush=True)
-    if len(rows) != 1:
+    eligible_rows = [r for r in rows if not r.get("is_anonymous") and r["status"] in {"published", "closed"}
+                     and not (r.get("avatar_url") or "").strip() and r.get("telegram_id")]
+    eligible_organizers = {r["user_id"] for r in eligible_rows}
+    print(json.dumps({"eligible_events": len(eligible_rows), "eligible_organizers": len(eligible_organizers)}, ensure_ascii=False), flush=True)
+    # A repeated title may belong to an older completed event. Use the user's
+    # exact context: a currently open event whose organizer has no avatar.
+    # Several events by the SAME organizer still mean one recipient.
+    if len(eligible_organizers) == 1:
+        row = eligible_rows[0]
+    elif len(rows) == 1:
+        row = rows[0]
+    else:
         if mode == "preview" and not rows:
             # Public open-event titles only, to resolve wording before sending.
             first_word = wanted.split()[0]
             candidates = [r for r in recent if not r.get("is_anonymous") and first_word in normalized_title(r["title"]).split()]
             print(json.dumps({"similar_open_event_titles": [{"title": r["title"], "status": r["status"]} for r in candidates[:10]]}, ensure_ascii=False), flush=True)
         raise RuntimeError("Recipient not uniquely resolved; no notification sent")
-    row = rows[0]
     has_photo = bool((row.get("avatar_url") or "").strip())
     eligible = not row.get("is_anonymous") and row["status"] in {"published", "closed"} and not has_photo and bool(row.get("telegram_id"))
     print(json.dumps({"matched_event_title": row["title"], "unique_organizer_resolved": True, "has_profile_photo": has_photo, "anonymous": bool(row.get("is_anonymous")), "event_status": row["status"], "eligible_for_notice": eligible}, ensure_ascii=False), flush=True)
