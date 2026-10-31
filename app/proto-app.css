@@ -114,7 +114,9 @@
    прокручивается — прокручивается только экран внутри. Иначе жест
    уходит в «резинку» страницы или в сворачивание Mini App. */
 html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
-.P .scroll,.P section.scr .body,.P .sheetx{-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+/* Stop at both ends: contain blocks chaining but still lets iOS pull a sheet
+   away from its fixed photo, exposing an empty strip of background. */
+.P .scroll,.P section.scr .body,.P .sheetx{-webkit-overflow-scrolling:touch;overscroll-behavior:none}
 /* Экраны листаются только вверх-вниз: у карточки встречи, профиля, шторок и чатов не было overflow-x — экран ездил вбок. Горизонтальные ленты внутри (.rail, .cats, .ppl…) листаются как раньше. */
 .P .scroll,.P section.scr .body,.P .ev .body,.P .pr .body,.P .sheetx,.P .msgs,.P .msgs2{overflow-x:hidden;overscroll-behavior-x:none}
 /* «Поднято» в строке встречи — как плашка на большой карточке */
@@ -236,9 +238,12 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .t,.P .about,.P .row .i b{overflow-wrap:anywhere}
 .P .about{white-space:pre-wrap}
 /* Прокрутка внутри шторки и чата не утаскивает за собой экран. */
-.P .msgs2{overscroll-behavior-y:contain}
+.P .msgs,.P .msgs2{overscroll-behavior-y:none}
 /* Экран входа на маленьких телефонах: кнопки не уходят за край. */
-.P .auth .sheet{overflow-y:auto}
+.P .auth .sheet{overflow-y:auto;overscroll-behavior-y:none}
+/* Nested vertical controls keep native scrolling without bouncing at the ends.
+   Horizontal rails retain vertical chaining so swiping on a card scrolls its page. */
+.P .wh,.P textarea,.P .overflow-y-auto,.P .overflow-auto{overscroll-behavior-y:none}
 /* Горизонтальные ленты: свайп не закрывает приложение и не дёргает экран. */
 .P .cats,.P .chipsrow,.P .ppl,.P .quick,.P .chs.nw,.P .rail,.P .mcar,.P .plrec{overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
 
@@ -362,7 +367,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .sheetx.sticker-sheet{display:flex;flex-direction:column;overflow:hidden}
 .P .sticker-sheet>.grab{align-self:center;flex:none}
 .P .sticker-sheet>.chs{flex:none}
-.P .stkgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:max-content;gap:6px;min-height:0;max-height:52dvh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;padding-bottom:6px}
+.P .stkgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-auto-rows:max-content;gap:6px;min-height:0;max-height:52dvh;overflow-y:auto;overflow-x:hidden;overscroll-behavior:none;touch-action:pan-y;padding-bottom:6px}
 .P .stkgrid button{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:0;padding:6px 2px;border-radius:14px;transition:transform .3s var(--spring)}
 .P .stkgrid button:active{transform:scale(.88);background:var(--lav)}
 .P .stkgrid .sticker-art{width:100%;max-width:88px}
