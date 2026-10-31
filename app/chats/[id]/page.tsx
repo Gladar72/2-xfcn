@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
-import { MessageBubble, formatDayLabel, quoteText, stickerSrc, type MessageData, type MessageReaction } from "@/components/chat/MessageBubble";
+import { MessageBubble, formatDayLabel, quoteText, type MessageData, type MessageReaction } from "@/components/chat/MessageBubble";
+import { StickerArt } from "@/components/chat/StickerArt";
 import { parseInvite, parseSticker } from "@/lib/chat/invite";
 import { MiniProfileSheet } from "@/components/chat/MiniProfileSheet";
 import { CATEGORY_ICON } from "@/lib/data/category-icons";
@@ -104,6 +105,22 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
 
   const composeRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  function openMessageMenu(message: MessageData) {
+    inputRef.current?.blur();
+    setStickersOpen(false);
+    setMenuFor(message);
+  }
+  useEffect(() => {
+    if (!menuFor && !stickersOpen) return;
+    const closeOnEscape = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      setMenuFor(null);
+      setStickersOpen(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [menuFor, stickersOpen]);
   const {
     listRef, contentRef, atBottom, unseen, handleScroll: updateScrollPosition,
     interruptScroll, scrollToBottom, followOutput, preservePosition,
@@ -761,7 +778,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                   readStatus={readStatus}
                   readCaption={readCaption}
                   onOwnPress={isOwn && isGroup && !message.id.startsWith("temp-") ? () => setReadersFor(message) : undefined}
-                  onMenu={!message.id.startsWith("temp-") ? () => setMenuFor(message) : undefined}
+                  onMenu={!message.id.startsWith("temp-") ? () => openMessageMenu(message) : undefined}
                   onReact={(emoji) => toggleReaction(message, emoji)}
                   replyName={message.replyTo ? nameOf(message.replyTo.senderId) : undefined}
                   onReplyPress={message.replyTo ? () => jumpTo(message.replyTo!.id) : undefined}
@@ -838,7 +855,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
               )}
               <div className="inrow">
                 <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handlePickImage} />
-                <label className="field gl">
+                <div className="field gl">
                   <button type="button" onClick={() => fileInputRef.current?.click()} disabled={preparingImage || !!editing} aria-label="Прикрепить фото" style={{ color: "var(--grey)", display: "grid", alignSelf: "flex-end", marginBottom: 13 }}>
                     <Ic n="camera" c="s" />
                   </button>
@@ -856,15 +873,19 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                       }
                     }}
                     placeholder={pendingImage ? "Подпись к фото…" : "Сообщение"}
+                    aria-label={pendingImage ? "Подпись к фото" : "Сообщение"}
                     style={{ resize: "none", lineHeight: "20px", padding: "13px 0", maxHeight: 120, overflowY: "auto", background: "transparent", border: 0, outline: "none", flex: 1, font: "inherit", fontSize: 16, color: "inherit", minWidth: 0, width: "100%" }}
                   />
                   {!editing && (
-                    <button type="button" className="stkbtn" onClick={() => setStickersOpen(true)} aria-label="Стикеры" style={{ alignSelf: "flex-end", marginBottom: 7 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src="/brand/stickers/mosya_wave.webp" alt="" />
+                    <button type="button" className="stkbtn" onClick={() => {
+                      inputRef.current?.blur();
+                      setMenuFor(null);
+                      setStickersOpen((open) => !open);
+                    }} aria-label="Стикеры" aria-expanded={stickersOpen} style={{ alignSelf: "flex-end", marginBottom: 7 }}>
+                      <StickerArt slug="mosya_wave" />
                     </button>
                   )}
-                </label>
+                </div>
                 <button
                   className="send"
                   // Не забираем фокус у поля — клавиатура не закрывается после отправки (как в Telegram).
@@ -880,13 +901,16 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
 
         {menuFor && (
           // Как в Telegram: фон размывается, сверху — реакции Моси, под ними само сообщение и действия.
-          <div className={`mpop ${menuFor.senderId === myUserId ? "me" : ""}`} onClick={() => setMenuFor(null)}>
-            <div className="mpopin" onClick={(e) => e.stopPropagation()}>
+          <div className={`mpop ${menuFor.senderId === myUserId ? "me" : ""}`} role="dialog" aria-modal="true" aria-label="Меню сообщения">
+            <button type="button" className="mpop-backdrop" aria-label="Закрыть меню сообщения" onClick={() => setMenuFor(null)} />
+            <div className="mpopin">
               {!isEventClosed && (
                 <div className="rxrow">
                   {REACTIONS.map((r) => (
                     <button
                       key={r}
+                      type="button"
+                      aria-label={`Реакция: ${MOSYA_STICKERS.find(([slug]) => slug === r)?.[1] ?? r}`}
                       className={(menuFor.reactions ?? []).some((x) => x.emoji === r && x.mine) ? "on" : ""}
                       onClick={() => {
                         const m = menuFor;
@@ -894,14 +918,13 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                         toggleReaction(m, r);
                       }}
                     >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={stickerSrc(r)} alt="" />
+                      <StickerArt slug={r} />
                     </button>
                   ))}
                 </div>
               )}
               <div className="mpopmsg">
-                <MessageBubble message={menuFor} isOwn={menuFor.senderId === myUserId} sender={null} showSender={false} readStatus="sent" />
+                <MessageBubble message={menuFor} isOwn={menuFor.senderId === myUserId} sender={null} showSender={false} readStatus="sent" animate={false} />
               </div>
               <div className="mmenu">
                 {!isEventClosed && (
@@ -910,7 +933,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                       setReplyTo(menuFor);
                       setEditing(null);
                       setMenuFor(null);
-                      setTimeout(() => inputRef.current?.focus(), 350);
+                      inputRef.current?.focus({ preventScroll: true });
                     }}
                   >
                     <Ic n="chat" c="s" />
@@ -941,7 +964,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                         setReplyTo(null);
                         setDraft(menuFor.content);
                         setMenuFor(null);
-                        setTimeout(() => inputRef.current?.focus(), 350);
+                        inputRef.current?.focus({ preventScroll: true });
                       }}
                     >
                       <Ic n="edit" c="s" />
@@ -989,7 +1012,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
           </button>
         </Sheet>
 
-        <Sheet open={stickersOpen} onClose={() => setStickersOpen(false)}>
+        <Sheet open={stickersOpen} onClose={() => setStickersOpen(false)} cls="sticker-sheet" label="Стикеры">
           <div className="chs">
             <button className={stickerTab === "mosya" ? "on" : "gl"} onClick={() => setStickerTab("mosya")}>
               Мося
@@ -1000,9 +1023,8 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
           </div>
           <div className="stkgrid">
             {(stickerTab === "mosya" ? MOSYA_STICKERS : INTEREST_STICKERS.map((x) => [x, ""] as [string, string])).map(([slug, label]) => (
-              <button key={slug} onClick={() => sendSticker(slug)} aria-label={label || "Стикер"}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={stickerSrc(slug)} alt="" loading="lazy" />
+              <button key={slug} type="button" onClick={() => sendSticker(slug)} aria-label={label || "Стикер"}>
+                <StickerArt slug={slug} lazy />
                 {label && <span>{label}</span>}
               </button>
             ))}

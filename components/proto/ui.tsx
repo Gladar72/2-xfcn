@@ -355,20 +355,23 @@ export function Sheet({
   children,
   cls = "",
   grab = true,
+  label,
 }: {
   open: boolean;
   onClose: () => void;
   children: React.ReactNode;
   cls?: string;
   grab?: boolean;
+  label?: string;
 }) {
   const [mounted, setMounted] = useState(open);
   const [on, setOn] = useState(false);
   useEffect(() => {
     if (open) {
       setMounted(true);
-      const r = requestAnimationFrame(() => requestAnimationFrame(() => setOn(true)));
-      return () => cancelAnimationFrame(r);
+      let inner = 0;
+      const r = requestAnimationFrame(() => { inner = requestAnimationFrame(() => setOn(true)); });
+      return () => { cancelAnimationFrame(r); cancelAnimationFrame(inner); };
     }
     setOn(false);
     const t = setTimeout(() => setMounted(false), 450);
@@ -377,8 +380,8 @@ export function Sheet({
   if (!mounted) return null;
   return (
     <Overlay>
-      <div className={`scrim ${on ? "on" : ""}`} onClick={onClose} />
-      <div className={`sheetx ${cls} ${on ? "on" : ""}`} role="dialog">
+      <button type="button" className={`scrim ${on ? "on" : ""}`} aria-label={label ? `Закрыть: ${label}` : "Закрыть диалог"} onPointerDown={(e) => e.preventDefault()} onClick={onClose} />
+      <div className={`sheetx ${cls} ${on ? "on" : ""}`} role="dialog" aria-modal="true" aria-label={label}>
         {grab && <span className="grab" />}
         {children}
       </div>

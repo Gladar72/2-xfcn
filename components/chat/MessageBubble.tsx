@@ -5,6 +5,7 @@ import { parseInvite, parseSticker } from "@/lib/chat/invite";
 import clsx from "clsx";
 import { ReadTicks } from "./ReadTicks";
 import { photoThumb } from "@/lib/photos/thumb";
+import { StickerArt } from "./StickerArt";
 
 export interface MessageReaction {
   emoji: string;
@@ -37,11 +38,6 @@ export interface MessageData {
   /** Локальное: своё сообщение отправляется / не ушло (можно повторить). */
   pending?: boolean;
   failed?: boolean;
-}
-
-/** Картинка стикера / реакции Моси по slug. */
-export function stickerSrc(slug: string): string {
-  return slug.startsWith("i_") ? `/brand/cat3d/${slug}.webp` : `/brand/stickers/${slug}.webp`;
 }
 
 /** Короткий текст цитаты для ответа. */
@@ -120,6 +116,9 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
             openMenu();
           }}
           onTouchStart={(e) => {
+            // Reactions, quotes and photos own their taps; holding them must
+            // not also open the parent message's menu.
+            if ((e.target as HTMLElement).closest("button, a")) return;
             const t = e.touches[0];
             if (!t) return;
             press.current.fired = false;
@@ -187,14 +186,7 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
           {message.deleted ? (
             <span style={{ fontStyle: "italic", opacity: 0.7 }}>Сообщение удалено</span>
           ) : sticker ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={stickerSrc(sticker)}
-              alt="Стикер"
-              loading="lazy"
-              decoding="async"
-              style={{ width: 140, height: 140, objectFit: "contain", display: "block" }}
-            />
+            <StickerArt slug={sticker} alt="Стикер" lazy />
           ) : inviteId ? (
             <a href={`/events/${inviteId}`} className="minv" onClick={(e) => e.stopPropagation()}>
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -222,8 +214,7 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
                     onReact?.(r.emoji);
                   }}
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={stickerSrc(r.emoji)} alt="" decoding="async" />
+                  <StickerArt slug={r.emoji} />
                   {r.count > 1 && <i>{r.count}</i>}
                 </button>
               ))}
