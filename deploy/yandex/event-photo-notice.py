@@ -33,26 +33,35 @@ def notice_text(title):
     )
 
 
+def normalized_title(value):
+    return " ".join("".join(c if c.isalnum() else " " for c in value.casefold()).split())
+
+
 def main():
     title = base64.b64decode(sys.argv[1], validate=True).decode("utf-8").strip()
     mode = sys.argv[2]
     if mode not in {"preview", "send"} or not 2 <= len(title) <= 100:
         raise RuntimeError("Invalid notice request")
-    # Encode the SQL literal; never interpolate caller-provided SQL or shell.
-    title_hex = title.encode("utf-8").hex()
-    rows = query(f"""
+    # Match Unicode on the server in Python: PostgreSQL C collation may not
+    # case-fold Cyrillic. No input is interpolated into SQL; rows stay local.
+    recent = query("""
       select coalesce(json_agg(row_to_json(candidate)), '[]'::json) from (
         select e.id, e.title, e.is_anonymous, e.status, e.created_at,
                u.id as user_id, u.telegram_id, u.avatar_url
         from events e join users u on u.id=e.organizer_id
-        where lower(btrim(regexp_replace(e.title, '[^[:alnum:]]+', ' ', 'g')))
-          = lower(btrim(regexp_replace(convert_from(decode('{title_hex}','hex'),'UTF8'), '[^[:alnum:]]+', ' ', 'g')))
-          and e.created_at > now()-interval '7 days'
-        order by e.created_at desc limit 10
+        where e.created_at > now()-interval '7 days'
+        order by e.created_at desc limit 1000
       ) candidate;
     """)
+    wanted = normalized_title(title)
+    rows = [row for row in recent if normalized_title(row["title"]) == wanted]
     print(json.dumps({"matching_recent_events": len(rows)}, ensure_ascii=False), flush=True)
     if len(rows) != 1:
+        if mode == "preview" and not rows:
+            # Public open-event titles only, to resolve wording before sending.
+            first_word = wanted.split()[0]
+            candidates = [r for r in recent if not r.get("is_anonymous") and first_word in normalized_title(r["title"]).split()]
+            print(json.dumps({"similar_open_event_titles": [{"title": r["title"], "status": r["status"]} for r in candidates[:10]]}, ensure_ascii=False), flush=True)
         raise RuntimeError("Recipient not uniquely resolved; no notification sent")
     row = rows[0]
     has_photo = bool((row.get("avatar_url") or "").strip())
