@@ -1,0 +1,47 @@
+name: Expand MESTO root filesystem
+
+on:
+  push:
+    branches: [ops/grow-disk-200gb]
+    paths:
+      - .github/workflows/mesto-disk-grow.yml
+      - deploy/yandex/grow-root-disk.sh
+      - deploy/yandex/diagnostic-public.pem
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mesto-root-disk-resize
+  cancel-in-progress: false
+
+jobs:
+  grow:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare existing SSH access
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+          SSH_KEY: ${{ secrets.YC_SSH_KEY }}
+        run: |
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          ssh-keyscan -T 15 -H "$HOST" >> ~/.ssh/known_hosts 2>/dev/null
+      - name: Expand approved disk and encrypt verification
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+        run: |
+          umask 077
+          trap 'rm -f report.txt ~/.ssh/id_ed25519' EXIT
+          set +e
+          ssh -o BatchMode=yes -o ConnectTimeout=20 deploy@"$HOST" 'bash -s' < deploy/yandex/grow-root-disk.sh > report.txt 2>&1
+          RESULT=$?
+          set -e
+          openssl cms -encrypt -binary -aes-256-cbc -in report.txt -out report.enc -outform DER deploy/yandex/diagnostic-public.pem
+          echo 'ENCRYPTED_DIAGNOSTIC_START'
+          base64 -w 120 report.enc
+          echo 'ENCRYPTED_DIAGNOSTIC_END'
+          exit "$RESULT"
