@@ -9,7 +9,8 @@ import { parseInvite, parseSticker } from "@/lib/chat/invite";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Screen, eventIcon } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
-import { getJson } from "@/lib/http/get-json";
+import { ApiReadError, getJson } from "@/lib/http/get-json";
+import { clearChatList, readChatList, rememberChatList } from "@/lib/chat/list-cache";
 
 type Tab = "ev" | "pm" | "ar";
 const isClosed = (c: ChatListItemData) => c.eventStatus === "completed" || c.eventStatus === "cancelled";
@@ -17,8 +18,9 @@ const isClosed = (c: ChatListItemData) => c.eventStatus === "completed" || c.eve
 /** «Чаты» (SCR.chats прототипа): Встречи · Личные · Архив. */
 export default function ChatsPage() {
   const router = useRouter();
-  const [chats, setChats] = useState<ChatListItemData[] | null>(null);
-  const [tab, setTab] = useState<Tab>("ev");
+  const [chats, setChats] = useState<ChatListItemData[] | null>(() => readChatList()?.items ?? null);
+  const [tab, setTab] = useState<Tab>(() => readChatList()?.tab ?? "ev");
+  const [opening, setOpening] = useState<string | null>(null);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   useGuide("chats");
@@ -28,9 +30,18 @@ export default function ChatsPage() {
     setError(false);
     getJson<{ items: ChatListItemData[] }>("/api/conversations", controller.signal)
       .then((data) => { if (!controller.signal.aborted) setChats(data.items ?? []); })
-      .catch(() => { if (!controller.signal.aborted) setError(true); });
+      .catch((err) => {
+        if (controller.signal.aborted) return;
+        if (err instanceof ApiReadError && (err.status === 401 || err.status === 403)) {
+          clearChatList();
+          setChats(null);
+        }
+        setError(true);
+      });
     return () => controller.abort();
   }, [attempt]);
+
+  useEffect(() => { if (chats) rememberChatList(chats, tab); }, [chats, tab]);
 
   // Returning from Telegram/background should refresh unread counts without polling every chat.
   useEffect(() => {
@@ -91,7 +102,8 @@ export default function ChatsPage() {
           const preview = lm && !personal ? `${lm.isMine ? "Вы" : (lm.senderName ?? "Участник").split(" ")[0]}: ${content}` : lm?.isMine ? `Вы: ${content}` : content;
           const img = personal ? c.otherUser?.avatarUrl : c.eventPhotoUrl;
           return (
-            <Link key={c.conversationId} className="ci gl" href={`/chats/${c.conversationId}`}>
+            <Link key={c.conversationId} className="ci gl" href={`/chats/${c.conversationId}`}
+              onClick={() => setOpening(c.conversationId)} aria-busy={opening === c.conversationId}>
               {img ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img className={personal ? "r" : ""} src={photoThumb(img, 96)} alt="" />
@@ -105,7 +117,7 @@ export default function ChatsPage() {
               )}
               <div className="i">
                 <b>{title}</b>
-                <span>{preview}</span>
+                <span>{opening === c.conversationId ? "Открываем…" : preview}</span>
               </div>
               <div className="t">
                 {lm ? shortTime(lm.createdAt) : ""}

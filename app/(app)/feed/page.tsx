@@ -77,17 +77,32 @@ function FeedPageContent() {
   return category ? <CategoryScreen slug={category} type={type} /> : <HomeScreen />;
 }
 
+// Short-lived display state within this document only; login/logout reload
+// the document. Fresh API responses always replace it in the background.
+interface HomeSnapshot {
+  at: number; city: string | null; categories: Category[]; trainingTypes: TrainingType[];
+  events: FeedEvent[]; biz: FeedEvent[]; cityEv: CityEvent[]; people: PersonCard[];
+}
+let homeSnapshot: HomeSnapshot | null = null;
+
 /* ================= главная ================= */
 function HomeScreen() {
   const router = useRouter();
-  const [city, setCity] = useState<string | null>(null);
+  const [initial] = useState(() => homeSnapshot && Date.now() - homeSnapshot.at < 5 * 60_000 ? homeSnapshot : null);
+  const requestController = useRef<AbortController | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    requestController.current = controller;
+    return () => controller.abort();
+  }, []);
+  const [city, setCity] = useState<string | null>(initial?.city ?? null);
   const [cityOpen, setCityOpen] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
-  const [events, setEvents] = useState<FeedEvent[] | null>(null);
-  const [biz, setBiz] = useState<FeedEvent[]>([]);
-  const [cityEv, setCityEv] = useState<CityEvent[]>([]);
-  const [people, setPeople] = useState<PersonCard[]>([]);
+  const [categories, setCategories] = useState<Category[]>(initial?.categories ?? []);
+  const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>(initial?.trainingTypes ?? []);
+  const [events, setEvents] = useState<FeedEvent[] | null>(initial?.events ?? null);
+  const [biz, setBiz] = useState<FeedEvent[]>(initial?.biz ?? []);
+  const [cityEv, setCityEv] = useState<CityEvent[]>(initial?.cityEv ?? []);
+  const [people, setPeople] = useState<PersonCard[]>(initial?.people ?? []);
   // Есть ли у меня свежая примерная точка — иначе предлагаем «Показать, кто рядом».
   const [meHasLoc, setMeHasLoc] = useState(true);
   const [geoBusy, setGeoBusy] = useState(false);
@@ -102,11 +117,14 @@ function HomeScreen() {
   const [trainOpen, setTrainOpen] = useState(false);
   const [empty, setEmpty] = useState<{ slug: string; name: string; type?: string } | null>(null);
   useGuide("feed", { when: events !== null });
+  useEffect(() => {
+    if (events) homeSnapshot = { at: Date.now(), city, categories, trainingTypes, events, biz, cityEv, people };
+  }, [city, categories, trainingTypes, events, biz, cityEv, people]);
 
   // «Люди рядом» и «Популярное» каждый раз приходят немного перемешанными (?shuffle=1 и
   // случайная добавка в /api/people) — лента живая, а не одни и те же карточки.
   const loadPeople = useCallback(() => {
-    return fetch("/api/people")
+    return fetch("/api/people", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => {
         setPeople(Array.isArray(d.items) ? d.items : []);
@@ -115,7 +133,7 @@ function HomeScreen() {
       .catch(() => {});
   }, []);
   const loadEvents = useCallback((c: string) => {
-    return fetch(`/api/events?page=0&shuffle=1&city=${encodeURIComponent(c)}`)
+    return fetch(`/api/events?page=0&shuffle=1&city=${encodeURIComponent(c)}`, { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => setEvents(d.items ?? []))
       .catch(() => setEvents((prev) => prev ?? []));
@@ -165,11 +183,11 @@ function HomeScreen() {
   }
 
   useEffect(() => {
-    fetch("/api/me/profile")
+    fetch("/api/me/profile", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => setCity(d.city || "Тюмень"))
       .catch(() => setCity("Тюмень"));
-    fetch("/api/categories")
+    fetch("/api/categories", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => {
         setCategories(d.categories ?? []);
@@ -177,7 +195,7 @@ function HomeScreen() {
       })
       .catch(() => {});
     loadPeople();
-    fetch("/api/conversations")
+    fetch("/api/conversations", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) =>
         // Непрочитанные сообщения во всех чатах; чаты прошедших/отменённых встреч не считаем.
@@ -188,37 +206,37 @@ function HomeScreen() {
         )
       )
       .catch(() => {});
-    fetch("/api/notifications")
+    fetch("/api/notifications", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => setUnreadNotif((d.items ?? []).some((n: { isRead?: boolean }) => !n.isRead)))
       .catch(() => {});
-    fetch("/api/me/pending-applications")
+    fetch("/api/me/pending-applications", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => {
         if (d?.latest) setReq({ count: d.count ?? 1, latest: d.latest });
       })
       .catch(() => {});
-    fetch("/api/me/events?scope=upcoming")
+    fetch("/api/me/events?scope=upcoming", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => {
         const mine = ((d.items ?? d.events ?? []) as MyEvent[]).filter((e) => e.role !== "organizer");
         if (mine[0]) setPlan({ ev: mine[0], label: "Ты в деле" });
       })
       .catch(() => {});
-  }, []);
+  }, [loadPeople]);
 
   useEffect(() => {
     if (!city) return;
     loadEvents(city);
-    fetch(`/api/events?business=true&city=${encodeURIComponent(city)}`)
+    fetch(`/api/events?business=true&city=${encodeURIComponent(city)}`, { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => setBiz((d.items ?? []).filter((e: FeedEvent) => e.isBusiness)))
       .catch(() => {});
-    fetch(`/api/city-events?city=${encodeURIComponent(city)}`)
+    fetch(`/api/city-events?city=${encodeURIComponent(city)}`, { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => setCityEv(d.items ?? []))
       .catch(() => {});
-  }, [city]);
+  }, [city, loadEvents]);
 
   // Заявка «ждём ответа» тоже показывается плашкой сверху (если нет подтверждённой).
   useEffect(() => {

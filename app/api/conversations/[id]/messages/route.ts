@@ -122,17 +122,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const admin = createAdminClient();
 
-  const membership = await assertMembership(admin, conversationId, currentUser.userId);
+  // Membership and metadata are independent reads. Fetch them together,
+  // then authorize before returning any messages or participant details.
+  const [membership, { data: conversationRow, error: conversationError }] = await Promise.all([
+    assertMembership(admin, conversationId, currentUser.userId),
+    admin.from("conversations")
+      .select("event_id, events(title, status, is_business, organizer_id, photo_url, event_date, event_time, place_name, address, is_anonymous, category:categories(slug, name, emoji))")
+      .eq("id", conversationId)
+      .maybeSingle(),
+  ]);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-
-  // Если событие уже прошло или отменено — в чат вообще нельзя зайти
-  // (не только нельзя писать), см. явное требование пользователя.
-  const { data: eventCheckRow } = await admin
-    .from("conversations")
-    .select("events(status)")
-    .eq("id", conversationId)
-    .maybeSingle();
-  const eventCheckStatus = (eventCheckRow?.events as unknown as { status: string } | null)?.status;
+  if (conversationError) return NextResponse.json({ error: "fetch_failed" }, { status: 503 });
+  const eventCheckStatus = (conversationRow?.events as unknown as { status: string } | null)?.status;
   // ?readonly=1 — мобильное приложение показывает архив закрытых чатов (только чтение).
   const readonly = req.nextUrl.searchParams.get("readonly") === "1";
   if (!readonly && (eventCheckStatus === "completed" || eventCheckStatus === "cancelled")) {
@@ -151,7 +152,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     .limit(limit + 1);
   if (before && !Number.isNaN(Date.parse(before))) messagesQuery = messagesQuery.lt("created_at", new Date(before).toISOString());
 
-  const [{ data: messages, error }, { data: otherMemberRows }, { data: conversationRow }] = await Promise.all([
+  const [{ data: messages, error }, { data: otherMemberRows }] = await Promise.all([
     messagesQuery,
     // Все ОСТАЛЬНЫЕ участники (не только один, как раньше) — имя, фото,
     // возраст, пол и число посещённых встреч для списка "Участники
@@ -163,11 +164,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .select("last_read_at, user:users(id, name, avatar_url, birth_date, gender, completed_meetings_count, last_active_at)")
       .eq("conversation_id", conversationId)
       .neq("user_id", currentUser.userId),
-    admin
-      .from("conversations")
-      .select("event_id, events(title, status, is_business, organizer_id, photo_url, event_date, event_time, place_name, address, is_anonymous, category:categories(slug, name, emoji))")
-      .eq("id", conversationId)
-      .maybeSingle(),
   ]);
 
   if (error) return NextResponse.json({ error: "fetch_failed" }, { status: 500 });
@@ -243,6 +239,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // парсились ("Invalid Date") и определение "моё/чужое" сообщение
     // всегда давало false (senderId был undefined) — все сообщения
     // выглядели одинаково.
+    userId: currentUser.userId,
     messages: shaped,
     hasMore,
     eventTitle: eventInfo?.title ?? null,
