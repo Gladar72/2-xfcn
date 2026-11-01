@@ -326,10 +326,12 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           </>
         )}
         <div className="nm">
+          <div className="person-title">
           <h1>
             {person.name}
             {person.age ? `, ${person.age}` : ""}
           </h1>
+          </div>
           <p>
             {(person.distanceM !== undefined ? personDistanceLabel(person.distanceM) : distanceLabel(person.distanceKm)) && (
               <span className="pill glass dist">
@@ -354,9 +356,9 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         <button className="rb glass" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
         </button>
-        <button className="rb glass" onClick={() => setMoreOpen(true)} aria-label="Пожаловаться">
+        {!deck && <button className="rb glass" onClick={() => setMoreOpen(true)} aria-label="Пожаловаться">
           <Ic n="flag" />
-        </button>
+        </button>}
       </div>
       {/* Прокрутка ловит касания сама (в Telegram на iOS прокрутка с pointer-events:none
           не листается), а нажатие по фото над карточкой листает галерею. */}
@@ -415,6 +417,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           setGi((g) => (left ? (g - 1 + photos.length) % photos.length : (g + 1) % photos.length));
         }}
       >
+        {deck && <button className="rb people-profile-menu" aria-label="Меню профиля" onClick={() => setMoreOpen(true)}><Ic n="more" /></button>}
         <button
           className="upk"
           onClick={() => {
