@@ -77,5 +77,19 @@ assert.deepEqual(sampleA,await filtered(18,null,[],id(4001)));
 const sampleB=await filtered(18,null,[],id(4002));
 assert.notDeepEqual(sampleA,sampleB);
 assert.equal(new Set(sampleA).size,12); assert.ok(!sampleA.includes(id(0)) && !sampleA.includes(id(1)));
+// A shuffled deck pins the clicked person once, then traverses every eligible
+// person exactly once, regardless of distance refreshes or missing coordinates.
+const shufflePage = async (seed, offset=0) => (await db.query(
+  'select id from filter_people($1,$2,$3,$4,$5,40,18,null,$6,$7)',
+  [id(0),'Тюмень','female',id(3000),offset,[],seed])).rows.map(r=>r.id);
+const shuffled = [];
+for(let offset=0;;offset+=40){const page=await shufflePage(id(4100),offset);shuffled.push(...page);if(page.length<40)break;}
+assert.equal(shuffled[0],id(3000));
+assert.equal(shuffled.length,(await db.query("select count(*)::int as n from users where city='Тюмень' and gender='female'")).rows[0].n);
+assert.equal(new Set(shuffled).size,shuffled.length);
+assert.notDeepEqual(await shufflePage(id(4100)),await shufflePage(id(4101)));
+const beforeMovement=await shufflePage(id(4100));
+await db.exec(`update users set approx_lat=57.15,approx_location_at=now() where id='${id(0)}'`);
+assert.deepEqual(await shufflePage(id(4100)),beforeMovement);
 for(const role of ['anon','authenticated']) assert.equal((await db.query(`select has_function_privilege('${role}','filter_people(uuid,text,text,uuid,integer,integer,integer,integer,uuid[],text)','execute') as ok`)).rows[0].ok,false);
 await db.close(); console.log('Filtered discovery and seeded home samples PostgreSQL checks passed: city, gender, 3000+ profiles, pagination, selected identity, privacy, distance order, missing/stale location.');

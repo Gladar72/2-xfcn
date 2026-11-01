@@ -41,10 +41,9 @@ interface MyEvent {
   photoUrl: string | null;
 }
 
-/** Режим колоды «Люди рядом»: свайп вбок — следующий/предыдущий человек. */
+/** Режим колоды «Люди рядом»: свайп в любую сторону — следующий человек. */
 export interface DeckCtl {
   onSwipe: (dir: 1 | -1) => void;
-  hasPrev: boolean;
   /** С какой стороны карточка въезжает (направление последнего свайпа). */
   from: 1 | -1 | 0;
 }
@@ -168,7 +167,6 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   function fly(dir: 1 | -1) {
     const el = card.current;
     if (!deck || flying.current) return;
-    if (dir === -1 && !deck.hasPrev) return snap();
     flying.current = true;
     if (el) {
       el.style.transition = "transform .22s cubic-bezier(.3,.6,.4,1), opacity .22s";
@@ -397,7 +395,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           if (deck) {
             if (st.axis !== "x") return;
             cancelAnimationFrame(raf.current);
-            // Свайп влево — следующий человек, вправо — предыдущий.
+            // Обе стороны показывают нового человека; направление задаёт анимацию.
             // Быстрый короткий взмах тоже считается.
             const fast = Math.abs(dx) > 35 && Date.now() - st.t < 300;
             if (Math.abs(dx) > 90 || fast) fly(dx < 0 ? 1 : -1);

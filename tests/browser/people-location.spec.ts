@@ -39,7 +39,8 @@ async function fixture(page: Page, permission: "granted" | "prompt" | "denied" =
       return route.fulfill({ json: { ok: true } });
     }
     const person = saved ? (moscow ? boris : anna) : { ...anna, distanceM: null, distanceKm: null };
-    const json = url.pathname === "/api/people" ? { items: empty && !saved ? [] : [person], meHasLocation: saved }
+    const selected = url.searchParams.get("start") === boris.id ? { ...boris, distanceM: moscow ? 2300 : 700 } : person;
+    const json = url.pathname === "/api/people" ? { items: empty && !saved ? [] : [url.searchParams.has("deck") ? selected : person], meHasLocation: saved }
       : url.pathname.startsWith("/api/users/") ? (url.pathname.endsWith(boris.id) ? boris : anna)
       : url.pathname === "/api/me/profile" ? { city: "Тюмень" }
       : url.pathname === "/api/categories" ? { categories: [], trainingTypes: [] }
@@ -55,7 +56,7 @@ const visible = (page: Page, value: boolean) => page.evaluate((value) => {
   (window as unknown as { setAppVisible: (value: boolean) => void }).setAppVisible(value);
 }, value);
 
-test("moving changes nearby people and shows metres/kilometres in both cards and profiles", async ({ page }) => {
+test("movement updates home cards and distances without replacing the open person", async ({ page }) => {
   const writes = await fixture(page);
   await page.goto("/feed");
   await expect(page.locator(".pcard")).toContainText("Анна");
@@ -70,7 +71,7 @@ test("moving changes nearby people and shows metres/kilometres in both cards and
   await expect(page.locator('section[data-id="person"]:not(.ghost) .dist')).toContainText("≈ 2,3");
   await move(page, 57.15, 65.53);
   await page.clock.fastForward(31_000);
-  await expect(page.locator('section[data-id="person"]:not(.ghost) h1')).toHaveText("Анна, 28");
+  await expect(page.locator('section[data-id="person"]:not(.ghost) h1')).toHaveText("Борис, 28");
   await expect(page.locator('section[data-id="person"]:not(.ghost) .dist')).toContainText("≈ 700");
 });
 

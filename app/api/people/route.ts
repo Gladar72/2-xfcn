@@ -43,7 +43,9 @@ export async function GET(req: Request) {
     p_gender: filters.gender === "all" ? null : filters.gender, p_start_id: start,
     p_offset: offset, p_limit: pageSize + 1,
     p_age_min: filters.ageMin, p_age_max: filters.ageMax === 65 ? null : filters.ageMax,
-    p_interest_ids: filters.interests, p_shuffle_seed: deck ? null : seed ?? crypto.randomUUID(),
+    // New clients retain one seed across all pages. Older clients without a seed
+    // also need stable pagination, rather than a fresh random order per request.
+    p_interest_ids: filters.interests, p_shuffle_seed: seed ?? (deck ? currentUser.userId : crypto.randomUUID()),
   }).select(USER_FIELDS);
   if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   const page = (users ?? []).slice(0, pageSize);

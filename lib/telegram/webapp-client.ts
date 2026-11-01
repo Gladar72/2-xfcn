@@ -40,8 +40,9 @@ interface TelegramWebApp {
   // изменении (в т.ч. открытии клавиатуры).
   viewportHeight: number;
   viewportStableHeight: number;
-  onEvent: (eventType: "viewportChanged", callback: () => void) => void;
-  offEvent: (eventType: "viewportChanged", callback: () => void) => void;
+  isActive?: boolean;
+  onEvent: (eventType: "viewportChanged" | "activated" | "deactivated", callback: () => void) => void;
+  offEvent: (eventType: "viewportChanged" | "activated" | "deactivated", callback: () => void) => void;
   MainButton: {
     show: () => void;
     hide: () => void;
