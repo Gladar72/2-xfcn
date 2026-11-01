@@ -12,16 +12,17 @@ export async function POST(req: NextRequest) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => null);
-  const lat = Number(body?.lat);
-  const lon = Number(body?.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180)
+  const lat = body?.lat;
+  const lon = body?.lon;
+  if (typeof lat !== "number" || typeof lon !== "number" || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180)
     return NextResponse.json({ error: "invalid" }, { status: 400 });
   const grid = (v: number) => Math.round(v / 0.005) * 0.005;
   const admin = createAdminClient();
-  await admin
+  const { error } = await admin
     .from("users")
     .update({ approx_lat: grid(lat), approx_lon: grid(lon), approx_location_at: new Date().toISOString() })
     .eq("id", currentUser.userId);
+  if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   return NextResponse.json({ ok: true });
 }
 

@@ -7,6 +7,8 @@ import { PersonView, type Person } from "@/components/people/PersonView";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { Ic } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
+import { watchMyLocation, sendMyLocation } from "@/lib/geo/client-location";
+import { say } from "@/lib/mosya/peek";
 import { photoThumb } from "@/lib/photos/thumb";
 
 interface Card {
@@ -18,6 +20,7 @@ interface Card {
   completedMeetingsCount: number;
   sharedInterests: string[];
   distanceKm?: number | null;
+  distanceM?: number | null;
 }
 
 /** Короткий профиль из карточки — показываем сразу, пока грузится полный. */
@@ -33,14 +36,15 @@ function quick(c: Card): Person {
     interests: c.sharedInterests,
     commonInterests: c.sharedInterests,
     distanceKm: c.distanceKm,
+    distanceM: c.distanceM,
   };
 }
 
 /**
  * Колода «Люди рядом» (как в Tinder): люди с похожими интересами из
- * твоего города. Свайп вбок — следующий человек, тап по фото — другие
+ * текущего местоположения (без геопозиции — из твоего города). Свайп вбок — следующий человек, тап по фото — другие
  * фото, свайп вверх — о себе, внизу «Позвать на встречу».
- * Безопасность: только город (никакой точной геопозиции), без скрытых,
+ * Безопасность: только примерное расстояние, без точной геопозиции, скрытых,
  * заблокированных и забаненных профилей.
  */
 export default function PeopleDeckPage() {
@@ -67,15 +71,24 @@ function Deck({ start }: { start: string | null }) {
   const cache = useRef(new Map<string, Person | null>());
   const [, force] = useState(0);
   const [askGeo, setAskGeo] = useState(false);
+  const [hasLocation, setHasLocation] = useState(false);
+  const [geoBusy, setGeoBusy] = useState(false);
+  const currentCard = useRef<string | null>(null);
+  currentCard.current = cards?.[ix]?.id ?? null;
   const request = useRef<AbortController | null>(null);
+  const loaded = useRef(false);
+  const latestCards = useRef(cards);
+  latestCards.current = cards;
 
-  const load = useCallback(() => {
+  const load = useCallback((refresh = false) => {
+    refresh = refresh && loaded.current;
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
-    setCards(null);
+    if (!refresh) setCards(null);
     setError(null);
-    return fetch(`/api/people?deck=1${start ? `&start=${encodeURIComponent(start)}` : ""}`, { signal: controller.signal })
+    const selected = refresh ? currentCard.current : start;
+    return fetch(`/api/people?deck=1${selected ? `&start=${encodeURIComponent(selected)}` : ""}`, { signal: controller.signal, cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error("people_unavailable");
         return r.json();
@@ -83,18 +96,28 @@ function Deck({ start }: { start: string | null }) {
       .then((d) => {
         if (controller.signal.aborted) return;
         const list = (d.items ?? []) as Card[];
-        const i = start ? list.findIndex((c) => c.id === start) : -1;
-        if (start && i < 0) {
+        const keep = refresh ? currentCard.current : selected;
+        const i = keep ? list.findIndex((c) => c.id === keep) : -1;
+        if (!refresh && start && i < 0) {
           setError("Этот профиль больше недоступен.");
           setCards([]);
           return;
         }
+        // Keep full profile details, but use newly calculated distances.
+        for (const c of list) {
+          const cached = cache.current.get(c.id);
+          if (cached) cache.current.set(c.id, { ...cached, distanceKm: c.distanceKm, distanceM: c.distanceM });
+        }
+        loaded.current = true;
+        latestCards.current = list;
+        setHasLocation(d.meHasLocation === true);
         setCards(list);
         setIx(i > 0 ? i : 0);
         setAskGeo(d.meHasLocation === false && !geoDismissed());
       })
       .catch(() => {
         if (controller.signal.aborted) return;
+        if (refresh) return;
         setError("Не удалось загрузить людей. Попробуй ещё раз.");
         setCards([]);
       });
@@ -104,26 +127,19 @@ function Deck({ start }: { start: string | null }) {
     return () => request.current?.abort();
   }, [load]);
 
-  /** Разрешить примерную геопозицию — на сервер уходит огрублённая точка. */
-  function allowGeo() {
-    setAskGeo(false);
-    dismissGeo();
-    navigator.geolocation?.getCurrentPosition(
-      (pos) => {
-        fetch("/api/me/location", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-        })
-          .then(() => {
-            cache.current.clear();
-            return load();
-          })
-          .catch(() => {});
-      },
-      () => {},
-      { enableHighAccuracy: false, maximumAge: 10 * 60e3, timeout: 15e3 }
-    );
+  useEffect(() => watchMyLocation(() => { void load(true); }), [load]);
+
+  async function allowGeo() {
+    setGeoBusy(true);
+    const ok = await sendMyLocation();
+    setGeoBusy(false);
+    if (ok) {
+      setAskGeo(false);
+      dismissGeo();
+      void load(true);
+    } else {
+      say("Разреши геопозицию в настройках — и я покажу, кто рядом и на каком расстоянии");
+    }
   }
 
   // Заранее подгружаем соседей: следующий профиль и его фото уже готовы.
@@ -138,7 +154,8 @@ function Deck({ start }: { start: string | null }) {
         .then((d) => {
           if (!d.error && d.id === c.id) {
             for (const src of (d.photos ?? []) as string[]) new Image().src = photoThumb(src, 300);
-            cache.current.set(c.id, d);
+            const latest = latestCards.current?.find((item) => item.id === c.id) ?? c;
+            cache.current.set(c.id, { ...d, distanceKm: latest.distanceKm, distanceM: latest.distanceM });
             force((n) => n + 1);
           }
         })
@@ -184,11 +201,13 @@ function Deck({ start }: { start: string | null }) {
           <p>
             {error ?? (cards.length
               ? "Ты посмотрел всех, кто рядом. Создай встречу — и люди с похожими интересами найдут тебя сами."
-              : "Добавь интересы в профиле — Мося подберёт людей, с которыми тебе будет о чём поговорить.")}
+              : hasLocation ? "Пока никого в радиусе 15 км. Подборка обновится при смене местоположения."
+              : "Разреши геопозицию — Мося покажет людей поблизости и расстояние до них.")}
           </p>
         </div>
         <div className="foot">
-          {error ? <button className="btn v" onClick={load}>Попробовать снова</button> : <Link className="btn v" href="/create">
+          {!hasLocation && !error && <button className="btn o" onClick={allowGeo} disabled={geoBusy}>{geoBusy ? "Определяем местоположение…" : "Показать, кто рядом"}</button>}
+          {error ? <button className="btn v" onClick={() => load()}>Попробовать снова</button> : <Link className="btn v" href="/create">
             <Ic n="plus" />
             Создать встречу
           </Link>}
@@ -234,7 +253,7 @@ function Deck({ start }: { start: string | null }) {
       {askGeo && (
         <div className="geo-ask gl">
           <span>Покажем, кто ближе к тебе. Видно только примерное расстояние — точное место никто не узнает.</span>
-          <button onClick={allowGeo}>Разрешить</button>
+          <button onClick={allowGeo} disabled={geoBusy}>{geoBusy ? "Определяем…" : "Разрешить"}</button>
         </div>
       )}
     </>
