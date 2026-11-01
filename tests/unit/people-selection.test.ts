@@ -5,64 +5,55 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn() }));
 vi.mock("@/lib/telegram/current-user", () => ({ getCurrentUser: vi.fn().mockResolvedValue({ userId: "00000000-0000-4000-8000-000000000000" }) }));
-type Row = Record<string, unknown>;
-const person = (n: number): Row => ({ id: id(n), name: `Person ${n}`, city: "Тюмень", avatar_url: `/photo-${n}.jpg`, birth_date: "1995-01-01", is_profile_hidden: false, moderation_status: "active" });
-
-// In-memory rows exercise the actual route's selection, limits and privacy filters.
-class Query {
-  constructor(private rows: Row[]) {}
-  select() { return this; }
-  eq(key: string, value: unknown) { this.rows = this.rows.filter((r) => r[key] === value); return this; }
-  neq(key: string, value: unknown) { this.rows = this.rows.filter((r) => r[key] !== value); return this; }
-  not(key: string, _operator: string, value: unknown) { return this.neq(key, value); }
-  or() { return this; }
-  order() { return this; }
-  limit(n: number) { this.rows = this.rows.slice(0, n); return this; }
-  maybeSingle() { return Promise.resolve({ data: this.rows[0] ?? null, error: null }); }
-  then(resolve: (result: { data: Row[]; error: null }) => unknown) { return Promise.resolve({ data: this.rows, error: null }).then(resolve); }
+const person = (n: number) => ({ id: id(n), name: `Person ${n}`, city: "Тюмень", gender: "female", avatar_url: `/photo-${n}.jpg`, birth_date: "1995-01-01" });
+function database(count = 41, fails = false) {
+  const rpc = vi.fn(() => ({ select: async () => ({ data: Array.from({ length: count }, (_, i) => person(i + 1)), error: fails ? {} : null }) }));
+  const from = vi.fn((table: string) => ({ select: () => ({ eq: () => table === "users"
+    ? { maybeSingle: async () => ({ data: person(0), error: null }) }
+    : Promise.resolve({ data: [], error: null }) }) }));
+  vi.mocked(createAdminClient).mockReturnValue({ from, rpc } as unknown as ReturnType<typeof createAdminClient>);
+  return { rpc, from };
 }
-function database(selected: Row = person(100), blocks: Row[] = []) {
-  const users = [person(0), ...Array.from({ length: 60 }, (_, i) => person(i + 1)), selected];
-  const from = vi.fn((table: string) => new Query(table === "users" ? users : table === "blocks" ? blocks : []));
-  vi.mocked(createAdminClient).mockReturnValue({ from } as unknown as ReturnType<typeof createAdminClient>);
-}
-async function deck(start?: string) {
-  return (await GET(new Request(`https://example.test/api/people?deck=1${start ? `&start=${start}` : ""}`))).json();
-}
+async function deck(params = "") { return GET(new Request(`https://example.test/api/people?deck=1${params}`)); }
 beforeEach(() => { vi.clearAllMocks(); });
 
-it("keeps the selected person even outside the refreshed candidate pool", async () => {
-  database();
-  const result = await deck(id(100));
-  expect(result.items).toHaveLength(40);
-  expect(result.items[0]).toMatchObject({ id: id(100), name: "Person 100", avatarUrl: "/photo-100.jpg" });
-  expect(new Set(result.items.map((p: { id: string }) => p.id)).size).toBe(40);
+it("uses the selected city and gender for every page, independently of location or registration count", async () => {
+  const { rpc, from } = database();
+  const response = await deck(`&city=Москва&gender=female&offset=40&start=${id(55)}`);
+  const data = await response.json();
+  expect(rpc).toHaveBeenCalledWith("discover_people", { p_viewer_id: id(0), p_city: "Москва", p_gender: "female", p_start_id: id(55), p_offset: 40, p_limit: 41 });
+  expect(data).toMatchObject({ city: "Москва", scope: "city", radiusKm: null, nextOffset: 80, meHasLocation: false });
+  expect(data.items).toHaveLength(40);
+  expect(data.items[0]).toMatchObject({ distanceM: null, distanceKm: null });
+  expect(from.mock.calls.filter(([table]) => table === "users")).toHaveLength(1);
 });
 
-it("retains a selected person beyond the deck limit without duplicating existing selections", async () => {
-  database();
-  expect((await deck(id(55))).items[0].id).toBe(id(55));
-  const result = await deck(id(5));
-  expect(result.items[4].id).toBe(id(5));
-  expect(result.items.filter((p: { id: string }) => p.id === id(5))).toHaveLength(1);
-  expect((await deck()).items[0].id).toBe(id(1));
+it("defaults to the profile city and includes profiles without coordinates", async () => {
+  const { rpc } = database(3);
+  const data = await (await deck()).json();
+  expect(rpc).toHaveBeenCalledWith("discover_people", expect.objectContaining({ p_city: "Тюмень", p_gender: null }));
+  expect(data.nextOffset).toBeNull();
+  expect(data.items).toHaveLength(3);
 });
 
-it.each([
-  { is_profile_hidden: true }, { moderation_status: "banned" }, { city: "Москва" },
-  { avatar_url: null }, { avatar_url: "   " },
-])("does not reveal an unavailable selected profile: %j", async (override) => {
-  database({ ...person(100), ...override });
-  expect((await deck(id(100))).items.some((p: { id: string }) => p.id === id(100))).toBe(false);
+it("limits the home preview to 12 while retaining the selected city", async () => {
+  const { rpc } = database(13);
+  const data = await (await GET(new Request("https://example.test/api/people?city=Тюмень"))).json();
+  expect(data.items).toHaveLength(12);
+  expect(rpc).toHaveBeenCalledWith("discover_people", expect.objectContaining({ p_city: "Тюмень", p_limit: 13 }));
 });
 
-it.each([true, false])("respects blocks in either direction (blocked by me: %s)", async (byMe) => {
-  database(person(100), [{ blocker_id: id(byMe ? 0 : 100), blocked_id: id(byMe ? 100 : 0) }]);
-  expect((await deck(id(100))).items.some((p: { id: string }) => p.id === id(100))).toBe(false);
+it.each(["&gender=invalid", "&offset=-1", "&offset=1.5", "&city=", `&city=${"a".repeat(121)}`])("rejects invalid filters: %s", async (params) => {
+  expect((await deck(params)).status).toBe(400);
+  expect(createAdminClient).not.toHaveBeenCalled();
 });
 
 it("rejects malformed selections before issuing database queries", async () => {
-  const response = await GET(new Request("https://example.test/api/people?deck=1&start=invalid"));
-  expect(response.status).toBe(404);
+  expect((await deck("&start=invalid")).status).toBe(404);
   expect(createAdminClient).not.toHaveBeenCalled();
+});
+
+it("reports database failure instead of an empty city", async () => {
+  database(0, true);
+  expect((await deck()).status).toBe(503);
 });

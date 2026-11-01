@@ -124,12 +124,15 @@ function HomeScreen() {
 
   // A new location request supersedes old results from the previous area.
   const peopleRequest = useRef<AbortController | null>(null);
+  const cityRef = useRef<string | null>(city);
+  cityRef.current = city;
   useEffect(() => () => peopleRequest.current?.abort(), []);
   const loadPeople = useCallback(() => {
     peopleRequest.current?.abort();
     const controller = new AbortController();
     peopleRequest.current = controller;
-    return fetch("/api/people", { signal: controller.signal, cache: "no-store" })
+    if (!cityRef.current) return Promise.resolve();
+    return fetch(`/api/people?city=${encodeURIComponent(cityRef.current)}`, { signal: controller.signal, cache: "no-store" })
       .then((r) => { if (!r.ok) throw new Error("people_unavailable"); return r.json(); })
       .then((d) => {
         if (controller.signal.aborted) return;
@@ -145,8 +148,6 @@ function HomeScreen() {
       .then((d) => setEvents(d.items ?? []))
       .catch(() => setEvents((prev) => prev ?? []));
   }, []);
-  const cityRef = useRef<string | null>(null);
-  cityRef.current = city;
 
   useEffect(() => watchMyLocation(() => {
     loadPeople();
@@ -230,6 +231,9 @@ function HomeScreen() {
 
   useEffect(() => {
     if (!city) return;
+    setPeople([]);
+    setPeopleLoaded(false);
+    loadPeople();
     loadEvents(city);
     fetch(`/api/events?business=true&city=${encodeURIComponent(city)}`, { signal: requestController.current?.signal })
       .then((r) => r.json())
@@ -239,7 +243,7 @@ function HomeScreen() {
       .then((r) => r.json())
       .then((d) => setCityEv(d.items ?? []))
       .catch(() => {});
-  }, [city, loadEvents]);
+  }, [city, loadEvents, loadPeople]);
 
   // Заявка «ждём ответа» тоже показывается плашкой сверху (если нет подтверждённой).
   useEffect(() => {
@@ -392,8 +396,8 @@ function HomeScreen() {
       {(
         <>
           <div className="sec">
-            <b>{meHasLoc ? "Люди рядом" : "Люди в твоём городе"}</b>
-            <Link href="/people">Листать →</Link>
+            <b>Люди в твоём городе</b>
+            <Link href={city ? `/people?city=${encodeURIComponent(city)}` : "/people"}>Листать →</Link>
           </div>
           {!meHasLoc && (
             <button className="nearb gl" onClick={allowGeo} disabled={geoBusy} style={{ width: "100%", marginTop: 0, marginBottom: 10, textAlign: "left", font: "inherit", color: "inherit", border: 0 }}>
@@ -407,10 +411,10 @@ function HomeScreen() {
               <Ic n="chev" c="s" />
             </button>
           )}
-          {peopleLoaded && people.length === 0 && meHasLoc && <p className="sub" style={{ margin: "8px 20px 16px" }}>Пока никого в радиусе 15 км. Подборка обновится, когда рядом появятся люди.</p>}
+          {peopleLoaded && people.length === 0 && <p className="sub" style={{ margin: "8px 20px 16px" }}>Пока нет анкет в выбранном городе. Можно сменить город или создать встречу.</p>}
           <div className="rail">
             {people.map((q) => (
-              <Link key={q.id} className="pcard" href={`/people?start=${q.id}`}>
+              <Link key={q.id} className="pcard" href={`/people?start=${q.id}${city ? `&city=${encodeURIComponent(city)}` : ""}`}>
                 {q.avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={photoThumb(q.avatarUrl, 320)} alt="" />

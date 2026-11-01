@@ -11,7 +11,7 @@ const id = (n: number) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")
 const point = { approx_lat: 55.75, approx_lon: 37.615, approx_location_at: new Date().toISOString(), show_distance: true };
 beforeEach(() => { vi.clearAllMocks(); });
 
-it("uses current-location RPC, ranks by distance and returns no coordinates", async () => {
+it("uses city discovery RPC and returns approximate distances without coordinates", async () => {
   const me = { ...point, id: id(0), city: "Тюмень" };
   const near = { ...point, id: id(1), name: "Близко", avatar_url: "/1.jpg", birth_date: "1995-01-01", approx_lat: 55.755 };
   const far = { ...near, id: id(2), name: "Дальше", approx_lat: 55.8 };
@@ -22,12 +22,12 @@ it("uses current-location RPC, ranks by distance and returns no coordinates", as
     chain.then = (resolve: (v: unknown) => void) => Promise.resolve({ data, error: null }).then(resolve);
     return chain;
   };
-  const rpc = vi.fn(() => query([far, near]));
+  const rpc = vi.fn(() => query([near, far]));
   vi.mocked(createAdminClient).mockReturnValue({ from: (table: string) => query(table === "users" ? me : []), rpc } as unknown as ReturnType<typeof createAdminClient>);
   const response = await GET(new Request(`https://example.test/api/people?deck=1&start=${id(1)}`));
   const data = await response.json();
-  expect(rpc).toHaveBeenCalledWith("nearby_people", { p_viewer_id: id(0), p_start_id: id(1) });
-  expect(data).toMatchObject({ meHasLocation: true, radiusKm: 15 });
+  expect(rpc).toHaveBeenCalledWith("discover_people", { p_viewer_id: id(0), p_city: "Тюмень", p_gender: null, p_start_id: id(1), p_offset: 0, p_limit: 41 });
+  expect(data).toMatchObject({ meHasLocation: true, city: "Тюмень", radiusKm: null });
   expect(data.items.map((p: { id: string }) => p.id)).toEqual([id(1), id(2)]);
   expect(data.items[0].distanceM).toBe(600);
   expect(data.items[0]).not.toHaveProperty("approx_lat");

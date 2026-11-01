@@ -18,6 +18,7 @@ export interface Person {
   avatarUrl: string | null;
   photos?: string[];
   age: number;
+  city?: string;
   /** undefined — полный профиль ещё грузится. */
   bio?: string | null;
   ratingAvg: number;
@@ -141,7 +142,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   // Колода сначала даёт короткую карточку (имя, фото), потом полный профиль —
   // подменяем без перерисовки экрана, чтобы не было мигания.
   useEffect(() => {
-    if (initial) setPerson((p) => (p && p.id === initial.id && p.bio !== undefined && initial.bio === undefined ? { ...p, distanceKm: initial.distanceKm, distanceM: initial.distanceM } : initial));
+    if (initial) setPerson((p) => (p && p.id === initial.id && p.bio !== undefined && initial.bio === undefined ? { ...p, city: initial.city, distanceKm: initial.distanceKm, distanceM: initial.distanceM } : initial));
   }, [initial]);
 
   useEffect(() => {
@@ -336,6 +337,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
                 {person.distanceM !== undefined ? personDistanceLabel(person.distanceM) : distanceLabel(person.distanceKm)}
               </span>
             )}
+            {person.city && <span className="pill glass">{person.city}</span>}
             {person.ratingAvg > 0 && <span className="pill glass">★ {person.ratingAvg.toFixed(1).replace(".", ",")}</span>}
             <span className="pill glass">
               {meets} {plural(meets, "встреча", "встречи", "встреч")}
