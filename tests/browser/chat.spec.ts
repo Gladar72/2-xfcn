@@ -418,7 +418,9 @@ test("an image caption can be cleared without sending a separate message", async
     edited = route.request().postDataJSON();
     await route.fulfill({ json: { status: "ok", editedAt: new Date().toISOString() } });
   });
-  await beginEdit(page);
+  // Tap the caption: the full-sized photo now correctly owns its own tap.
+  await page.locator("#m-message-100 .bb > span:not(.mt)").tap();
+  await page.getByRole("dialog", { name: "Меню сообщения", exact: true }).getByRole("button", { name: "Изменить", exact: true }).tap();
   await page.getByRole("textbox", { name: "Сообщение", exact: true }).fill("");
   const save = page.getByRole("button", { name: "Сохранить", exact: true });
   await expect(save).toBeEnabled();
@@ -427,6 +429,59 @@ test("an image caption can be cleared without sending a separate message", async
   expect(edited).toEqual({ content: "" });
   expect(chat.sent).toHaveLength(0);
   await expect(page.locator("#m-message-100 .bb img")).toBeVisible();
+});
+
+function photoMessage(n: number, width: number, height: number): MessageData {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><rect width="100%" height="100%" fill="#d9cbff"/><circle cx="${width / 2}" cy="${height / 2}" r="${Math.min(width, height) / 3}" fill="#6c3bff"/></svg>`;
+  return { ...message(n), content: "", imageUrl: `data:image/svg+xml;base64,${Buffer.from(svg).toString("base64")}` };
+}
+
+test("chat photos preserve their proportions and fit narrow incoming and outgoing bubbles", async ({ page }) => {
+  const sizes = [[1200, 900], [900, 1600], [900, 900], [200, 2000], [2400, 200]];
+  const photos = sizes.flatMap(([width, height], index) => [
+    { ...photoMessage(200 + index * 2, width!, height!), senderId: "me" },
+    { ...photoMessage(201 + index * 2, width!, height!), senderId: "other" },
+  ]);
+  await openChat(page, { messages: photos });
+  await expect.poll(() => page.locator(".mimg img").evaluateAll((imgs) => imgs.every((el) => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth > 0))).toBe(true);
+  for (const width of [320, 430]) {
+    await page.setViewportSize({ width, height: 720 });
+    const geometry = await page.locator(".mimg img").evaluateAll((imgs) => imgs.map((el) => {
+      const image = el as HTMLImageElement;
+      const rect = image.getBoundingClientRect();
+      const button = image.closest("button")!.getBoundingClientRect();
+      const bubble = image.closest(".bb")!.getBoundingClientRect();
+      return { width: rect.width, height: rect.height, ratio: image.naturalWidth / image.naturalHeight, buttonWidth: button.width, buttonHeight: button.height, left: bubble.left, right: bubble.right, radius: getComputedStyle(image).borderRadius };
+    }));
+    for (const photo of geometry) {
+      expect(Math.abs(photo.width - photo.height * photo.ratio)).toBeLessThan(1);
+      expect(photo.width).toBeLessThanOrEqual(260);
+      expect(photo.height).toBeLessThanOrEqual(320);
+      expect(photo.buttonWidth).toBeCloseTo(photo.width, 0);
+      expect(photo.buttonHeight).toBeCloseTo(photo.height, 0);
+      expect(photo.left).toBeGreaterThanOrEqual(0);
+      expect(photo.right).toBeLessThanOrEqual(width);
+      expect(photo.radius).toBe("0px");
+    }
+  }
+});
+
+test("a photo opens completely over a scrolled conversation and closes with one tap", async ({ page }, testInfo) => {
+  await openChat(page, { messages: [...Array.from({ length: 50 }, (_, i) => message(i)), photoMessage(300, 900, 1600)] });
+  await expect.poll(() => page.locator(".msgs").evaluate((el) => el.scrollTop)).toBeGreaterThan(1000);
+  await page.locator("#m-message-300 .mimg").tap();
+  const viewer = page.locator(".mview");
+  await expect(viewer).toBeInViewport({ ratio: 1 });
+  const photo = viewer.locator("img");
+  await expect(photo).toBeInViewport({ ratio: 1 });
+  const rect = (await photo.boundingBox())!;
+  expect(Math.abs(rect.width - rect.height * 900 / 1600)).toBeLessThan(1);
+  expect(rect.height).toBeGreaterThan(320);
+  await expect(page.locator(".mpop")).toHaveCount(0);
+  await page.screenshot({ path: testInfo.outputPath("chat-photo-viewer.png") });
+  await viewer.tap({ position: { x: 8, y: 8 } });
+  await expect(viewer).toHaveCount(0);
+  await expect(page.locator("#m-message-300 .mimg")).toBeInViewport({ ratio: 1 });
 });
 
 test("resizing a message above the viewport preserves the visible row", async ({ page }) => {
