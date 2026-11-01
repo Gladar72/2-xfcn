@@ -200,6 +200,9 @@ deploy() {
   # Подборка встреч раз в день вместо анонса каждой встречи (идемпотентно).
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 \
     < "$APP/supabase/migrations/0075_event_digest.sql" || true
+  # Геопоиск людей: требуется новой версии API, ошибка останавливает деплой.
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
+    < "$APP/supabase/migrations/0076_nearby_people.sql"
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"

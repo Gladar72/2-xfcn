@@ -1,9 +1,9 @@
 /**
  * Примерное расстояние между двумя людьми для «Люди рядом».
  * Безопасность: точки уже огрублены до сетки ~500 м (см. /api/me/location),
- * поэтому точнее «в той же клетке» вычислить нельзя; старше 14 дней — не показываем.
+ * поэтому точнее «в той же клетке» вычислить нельзя; старше суток — не показываем.
  */
-const FRESH_MS = 14 * 864e5;
+const FRESH_MS = 864e5;
 
 export interface ApproxGeo {
   approx_lat?: number | string | null;
@@ -16,17 +16,18 @@ export interface ApproxGeo {
 export function freshPoint(g: ApproxGeo | null | undefined): { lat: number; lon: number } | null {
   if (!g || g.show_distance === false) return null;
   if (g.approx_lat == null || g.approx_lon == null || !g.approx_location_at) return null;
-  if (Date.now() - new Date(g.approx_location_at).getTime() > FRESH_MS) return null;
+  const elapsed = Date.now() - new Date(g.approx_location_at).getTime();
+  if (!Number.isFinite(elapsed) || elapsed < -60_000 || elapsed > FRESH_MS) return null;
   const lat = Number(g.approx_lat);
   const lon = Number(g.approx_lon);
-  return Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : null;
+  return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null;
 }
 
 /** Расстояние по прямой между двумя точками, в метрах. */
 export function pointDistanceM(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const toR = (d: number) => (d * Math.PI) / 180;
   const h = Math.sin(toR(lat2 - lat1) / 2) ** 2 + Math.cos(toR(lat1)) * Math.cos(toR(lat2)) * Math.sin(toR(lon2 - lon1) / 2) ** 2;
-  return 2 * 6371e3 * Math.asin(Math.sqrt(h));
+  return 2 * 6371e3 * Math.asin(Math.sqrt(Math.min(1, Math.max(0, h))));
 }
 
 /**
@@ -57,6 +58,12 @@ export function approxDistanceKm(a: ApproxGeo | null | undefined, b: ApproxGeo |
 export function distanceLabel(km: number | null | undefined): string | null {
   if (km == null) return null;
   return km === 0 ? "меньше 1 км от тебя" : `≈ ${km} км от тебя`;
+}
+
+/** Public label: approximate straight-line distance, never a precise address. */
+export function personDistanceLabel(m: number | null | undefined): string | null {
+  if (m == null) return null;
+  return m < 500 ? "меньше 500 м" : `≈ ${distanceShort(m)}`;
 }
 
 /** Коротко для карточек: «рядом», «700 м», «1,4 км», «12 км». */

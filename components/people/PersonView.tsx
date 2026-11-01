@@ -9,7 +9,7 @@ import { useGuide } from "@/lib/mosya/guide";
 import { peek, say } from "@/lib/mosya/peek";
 import { goBack } from "@/lib/nav/back";
 import { photoThumb } from "@/lib/photos/thumb";
-import { distanceLabel } from "@/lib/geo/approx-distance";
+import { distanceLabel, personDistanceLabel } from "@/lib/geo/approx-distance";
 import { suggestMeet } from "@/lib/mosya/suggest";
 
 export interface Person {
@@ -28,6 +28,7 @@ export interface Person {
   canMessage?: boolean;
   /** Примерное расстояние, целые км (0 — меньше километра). */
   distanceKm?: number | null;
+  distanceM?: number | null;
 }
 interface MyEvent {
   id: string;
@@ -140,7 +141,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   // Колода сначала даёт короткую карточку (имя, фото), потом полный профиль —
   // подменяем без перерисовки экрана, чтобы не было мигания.
   useEffect(() => {
-    if (initial) setPerson((p) => (p && p.id === initial.id && p.bio !== undefined && initial.bio === undefined ? p : initial));
+    if (initial) setPerson((p) => (p && p.id === initial.id && p.bio !== undefined && initial.bio === undefined ? { ...p, distanceKm: initial.distanceKm, distanceM: initial.distanceM } : initial));
   }, [initial]);
 
   useEffect(() => {
@@ -329,10 +330,10 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             {person.age ? `, ${person.age}` : ""}
           </h1>
           <p>
-            {distanceLabel(person.distanceKm) && (
+            {(person.distanceM !== undefined ? personDistanceLabel(person.distanceM) : distanceLabel(person.distanceKm)) && (
               <span className="pill glass dist">
                 <Ic n="pin" c="xs" />
-                {distanceLabel(person.distanceKm)}
+                {person.distanceM !== undefined ? personDistanceLabel(person.distanceM) : distanceLabel(person.distanceKm)}
               </span>
             )}
             {person.ratingAvg > 0 && <span className="pill glass">★ {person.ratingAvg.toFixed(1).replace(".", ",")}</span>}

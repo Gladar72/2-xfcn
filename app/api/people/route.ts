@@ -3,15 +3,9 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { approxDistanceKm, approxDistanceM, freshPoint } from "@/lib/geo/approx-distance";
 
-/**
- * GET /api/people
- * «Люди рядом» для главной: пользователи из того же города — с общими
- * интересами и те, кто сейчас поблизости (по огрублённой геопозиции).
- * На главной подборка каждый раз немного перемешивается, чтобы лента
- * не была одной и той же; ближе и с общими интересами — чаще наверху.
- * ?deck=1 — колода «Люди рядом» (больше карточек, порядок стабильный).
- * Скрытые профили и заблокированные модерацией не показываются.
- */
+/** Nearby people follow the current shared location; city/interests are the fallback. */
+export const dynamic = "force-dynamic";
+
 const USER_FIELDS =
   "id, name, avatar_url, birth_date, rating_avg, completed_meetings_count, approx_lat, approx_lon, approx_location_at, show_distance";
 
@@ -24,9 +18,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "not_found" }, { status: 404 });
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
 
-  const [{ data: me }, { data: myInterestRows }, { data: blockRows }] = await Promise.all([
+  const [{ data: me, error: meError }, { data: myInterestRows }, { data: blockRows, error: blockError }] = await Promise.all([
     admin.from("users").select("id, city, approx_lat, approx_lon, approx_location_at, show_distance").eq("id", currentUser.userId).maybeSingle(),
     admin.from("user_interests").select("interest_id, interests(name)").eq("user_id", currentUser.userId),
     // Безопасность: заблокированные в обе стороны друг друга не видят.
@@ -35,6 +29,7 @@ export async function GET(req: Request) {
       .select("blocker_id, blocked_id")
       .or(`blocker_id.eq.${currentUser.userId},blocked_id.eq.${currentUser.userId}`),
   ]);
+  if (meError || blockError) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   const blocked = new Set(
     (blockRows ?? []).map((b) => (b.blocker_id === currentUser.userId ? b.blocked_id : b.blocker_id) as string)
   );
@@ -46,6 +41,8 @@ export async function GET(req: Request) {
     const name = (r.interests as unknown as { name: string } | null)?.name;
     if (name) interestName.set(r.interest_id as string, name);
   }
+
+  const myPoint = freshPoint(me);
 
   // Кандидаты: кто отметил хотя бы один из моих интересов.
   const shared = new Map<string, string[]>();
@@ -82,38 +79,20 @@ export async function GET(req: Request) {
   let query = visibleUsers();
   query = candidateIds.length > 0 ? query.in("id", candidateIds) : query.order("created_at", { ascending: false });
 
-  // Кто поблизости прямо сейчас: свежая огрублённая точка в радиусе ~15 км (грубая рамка,
-  // точное расстояние считаем ниже). Только если у меня самого есть свежая точка.
-  const myPoint = freshPoint(me);
-  const nearQuery = myPoint
-    ? admin
-        .from("users")
-        .select(USER_FIELDS)
-        .eq("city", me.city)
-        .eq("is_profile_hidden", false)
-        .eq("moderation_status", "active")
-        .neq("id", currentUser.userId)
-        .not("avatar_url", "is", null)
-        // Кто скрыл расстояние — в «рядом» по геопозиции не попадает вовсе.
-        .or("show_distance.is.null,show_distance.eq.true")
-        .gte("approx_location_at", new Date(Date.now() - 14 * 864e5).toISOString())
-        .gte("approx_lat", myPoint.lat - 0.14)
-        .lte("approx_lat", myPoint.lat + 0.14)
-        .gte("approx_lon", myPoint.lon - 0.25)
-        .lte("approx_lon", myPoint.lon + 0.25)
-        .order("approx_location_at", { ascending: false })
-        .limit(60)
+  // The database ranks all nearby candidates BEFORE limiting. Profile city must
+  // not exclude visitors or keep showing the old city after travel.
+  const nearbyQuery = myPoint
+    ? admin.rpc("nearby_people", { p_viewer_id: currentUser.userId, p_start_id: start }).select(USER_FIELDS)
     : null;
-  // A card on the shuffled home feed may be outside the deck's top 40 (or
-  // outside this refreshed candidate pool). Resolve that exact person too.
-  const selectedQuery = start && !blocked.has(start)
+  const selectedQuery = !myPoint && start && !blocked.has(start)
     ? visibleUsers().eq("id", start).maybeSingle()
     : null;
-  const [{ data: users }, near, selected] = await Promise.all([query.limit(60), nearQuery, selectedQuery]);
-  if (selected?.error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+  const [result, selected] = await Promise.all([nearbyQuery ?? query.limit(60), selectedQuery]);
+  if (result?.error || selected?.error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+  const users = result?.data ?? [];
 
   const seen = new Set<string>();
-  const pool = [...(users ?? []), ...(near?.data ?? []), ...(selected?.data ? [selected.data] : [])].filter((u) => {
+  const pool = [...users, ...(selected?.data ? [selected.data] : [])].filter((u) => {
     const id = u.id as string;
     if (seen.has(id) || blocked.has(id) || !(u.avatar_url as string | null)?.trim()) return false;
     seen.add(id);
@@ -138,7 +117,13 @@ export async function GET(req: Request) {
   });
 
   let items: typeof all;
-  if (deck) {
+  if (myPoint) {
+    items = all
+      .sort((a, b) => (a.distanceM ?? Infinity) - (b.distanceM ?? Infinity) || b.sharedCount - a.sharedCount || a.id.localeCompare(b.id))
+      .slice(0, deck ? 40 : 12);
+    const chosen = start ? all.find((p) => p.id === start) : null;
+    if (chosen && !items.some((p) => p.id === start)) items = [chosen, ...items.slice(0, 39)];
+  } else if (deck) {
     // С фото — выше: в карточке человека фото главное.
     items = all
       .sort((a, b) => b.sharedCount - a.sharedCount || Number(!!b.avatarUrl) - Number(!!a.avatarUrl))
@@ -161,7 +146,7 @@ export async function GET(req: Request) {
   }
 
   const meHasLocation = myPoint !== null;
-  return NextResponse.json({ items, meHasLocation });
+  return NextResponse.json({ items, meHasLocation, radiusKm: meHasLocation ? 15 : null }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 function age(birthDateIso: string): number {

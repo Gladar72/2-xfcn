@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserPhotos } from "@/lib/photos/user-photos";
 import { canDirectMessage } from "@/lib/chat/can-direct";
-import { approxDistanceKm } from "@/lib/geo/approx-distance";
+import { approxDistanceKm, approxDistanceM } from "@/lib/geo/approx-distance";
 
 /**
  * GET /api/users/:id
@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "not_found" }, { status: 404 });
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
 
   const [{ data: user }, { data: interestRows }, { data: myInterestRows }, { data: meGeo }, { data: blockRow }] = await Promise.all([
     admin
@@ -61,6 +61,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     completedMeetingsCount: user.completed_meetings_count,
     // Только примерно (целые км) — точное местоположение не раскрываем.
     distanceKm: user.id === currentUser.userId ? null : approxDistanceKm(meGeo, user),
+    distanceM: user.id === currentUser.userId ? null : approxDistanceM(meGeo, user),
     interests,
     // Общие с текущим пользователем — для профиля человека («Общие интересы»).
     commonInterests: interests.filter((n) =>

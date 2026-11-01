@@ -16,8 +16,8 @@ import { goBack } from "@/lib/nav/back";
 import { CityWheel } from "@/components/proto/pickers";
 import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 import { KIND_LABEL, cityEventIcon } from "@/lib/city-events";
-import { distanceShort } from "@/lib/geo/approx-distance";
-import { refreshLocationSilently, sendMyLocation } from "@/lib/geo/client-location";
+import { distanceShort, personDistanceLabel } from "@/lib/geo/approx-distance";
+import { watchMyLocation, sendMyLocation } from "@/lib/geo/client-location";
 
 interface Category {
   id: string;
@@ -105,6 +105,7 @@ function HomeScreen() {
   const [people, setPeople] = useState<PersonCard[]>(initial?.people ?? []);
   // Есть ли у меня свежая примерная точка — иначе предлагаем «Показать, кто рядом».
   const [meHasLoc, setMeHasLoc] = useState(true);
+  const [peopleLoaded, setPeopleLoaded] = useState(initial !== null);
   const [geoBusy, setGeoBusy] = useState(false);
   const [plan, setPlan] = useState<{ ev: MyEvent; label: string } | null>(null);
   // Новая заявка на мою встречу — плашка вместо «Ты в деле» (главнее).
@@ -121,12 +122,18 @@ function HomeScreen() {
     if (events) homeSnapshot = { at: Date.now(), city, categories, trainingTypes, events, biz, cityEv, people };
   }, [city, categories, trainingTypes, events, biz, cityEv, people]);
 
-  // «Люди рядом» и «Популярное» каждый раз приходят немного перемешанными (?shuffle=1 и
-  // случайная добавка в /api/people) — лента живая, а не одни и те же карточки.
+  // A new location request supersedes old results from the previous area.
+  const peopleRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => peopleRequest.current?.abort(), []);
   const loadPeople = useCallback(() => {
-    return fetch("/api/people", { signal: requestController.current?.signal })
-      .then((r) => r.json())
+    peopleRequest.current?.abort();
+    const controller = new AbortController();
+    peopleRequest.current = controller;
+    return fetch("/api/people", { signal: controller.signal, cache: "no-store" })
+      .then((r) => { if (!r.ok) throw new Error("people_unavailable"); return r.json(); })
       .then((d) => {
+        if (controller.signal.aborted) return;
+        setPeopleLoaded(true);
         setPeople(Array.isArray(d.items) ? d.items : []);
         setMeHasLoc(d.meHasLocation !== false);
       })
@@ -141,14 +148,10 @@ function HomeScreen() {
   const cityRef = useRef<string | null>(null);
   cityRef.current = city;
 
-  // Свежая геопозиция (если разрешение уже дано) → расстояния и «рядом» точнее.
-  useEffect(() => {
-    refreshLocationSilently().then((ok) => {
-      if (!ok) return;
-      loadPeople();
-      if (cityRef.current) loadEvents(cityRef.current);
-    });
-  }, [loadPeople, loadEvents]);
+  useEffect(() => watchMyLocation(() => {
+    loadPeople();
+    if (cityRef.current) loadEvents(cityRef.current);
+  }), [loadPeople, loadEvents]);
 
   // Пока главная открыта — раз в 2 минуты подтягиваем новые подборки.
   useEffect(() => {
@@ -386,10 +389,10 @@ function HomeScreen() {
         )}
       </div>
 
-      {people.length > 0 && (
+      {(
         <>
           <div className="sec">
-            <b>{people.some((q) => q.distanceM != null) ? "Люди рядом" : "Люди с похожими интересами"}</b>
+            <b>{meHasLoc ? "Люди рядом" : "Люди в твоём городе"}</b>
             <Link href="/people">Листать →</Link>
           </div>
           {!meHasLoc && (
@@ -404,6 +407,7 @@ function HomeScreen() {
               <Ic n="chev" c="s" />
             </button>
           )}
+          {peopleLoaded && people.length === 0 && meHasLoc && <p className="sub" style={{ margin: "8px 20px 16px" }}>Пока никого в радиусе 15 км. Подборка обновится, когда рядом появятся люди.</p>}
           <div className="rail">
             {people.map((q) => (
               <Link key={q.id} className="pcard" href={`/people?start=${q.id}`}>
@@ -426,7 +430,7 @@ function HomeScreen() {
                   {q.distanceM != null && (
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 3, marginBottom: 4, padding: "2px 8px 2px 5px", borderRadius: 99, background: "rgba(255,255,255,.25)", backdropFilter: "blur(10px)", fontSize: 11.5, fontWeight: 600, opacity: 1 }}>
                       <Ic n="pin" c="xs" />
-                      {distanceShort(q.distanceM)}
+                      {personDistanceLabel(q.distanceM)}
                     </span>
                   )}
                   <b>
