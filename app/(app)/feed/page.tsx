@@ -81,7 +81,7 @@ function FeedPageContent() {
 // the document. Fresh API responses always replace it in the background.
 interface HomeSnapshot {
   at: number; city: string | null; categories: Category[]; trainingTypes: TrainingType[];
-  events: FeedEvent[]; biz: FeedEvent[]; cityEv: CityEvent[]; people: PersonCard[];
+  events: FeedEvent[]; biz: FeedEvent[]; cityEv: CityEvent[]; people: PersonCard[]; peopleSeed: string;
 }
 let homeSnapshot: HomeSnapshot | null = null;
 
@@ -89,6 +89,8 @@ let homeSnapshot: HomeSnapshot | null = null;
 function HomeScreen() {
   const router = useRouter();
   const [initial] = useState(() => homeSnapshot && Date.now() - homeSnapshot.at < 5 * 60_000 ? homeSnapshot : null);
+  // One selection per visit: background GPS refreshes keep the rail stable.
+  const [peopleSeed] = useState(() => initial?.peopleSeed ?? crypto.randomUUID());
   const requestController = useRef<AbortController | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -119,8 +121,8 @@ function HomeScreen() {
   const [empty, setEmpty] = useState<{ slug: string; name: string; type?: string } | null>(null);
   useGuide("feed", { when: events !== null });
   useEffect(() => {
-    if (events) homeSnapshot = { at: Date.now(), city, categories, trainingTypes, events, biz, cityEv, people };
-  }, [city, categories, trainingTypes, events, biz, cityEv, people]);
+    if (events) homeSnapshot = { at: Date.now(), city, categories, trainingTypes, events, biz, cityEv, people, peopleSeed };
+  }, [city, categories, trainingTypes, events, biz, cityEv, people, peopleSeed]);
 
   // A new location request supersedes old results from the previous area.
   const peopleRequest = useRef<AbortController | null>(null);
@@ -132,7 +134,7 @@ function HomeScreen() {
     const controller = new AbortController();
     peopleRequest.current = controller;
     if (!cityRef.current) return Promise.resolve();
-    return fetch(`/api/people?city=${encodeURIComponent(cityRef.current)}`, { signal: controller.signal, cache: "no-store" })
+    return fetch(`/api/people?city=${encodeURIComponent(cityRef.current)}&seed=${peopleSeed}`, { signal: controller.signal, cache: "no-store" })
       .then((r) => { if (!r.ok) throw new Error("people_unavailable"); return r.json(); })
       .then((d) => {
         if (controller.signal.aborted) return;
@@ -141,7 +143,7 @@ function HomeScreen() {
         setMeHasLoc(d.meHasLocation !== false);
       })
       .catch(() => {});
-  }, []);
+  }, [peopleSeed]);
   const loadEvents = useCallback((c: string) => {
     return fetch(`/api/events?page=0&shuffle=1&city=${encodeURIComponent(c)}`, { signal: requestController.current?.signal })
       .then((r) => r.json())

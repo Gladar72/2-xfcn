@@ -26,7 +26,7 @@ it("uses city discovery RPC and returns approximate distances without coordinate
   vi.mocked(createAdminClient).mockReturnValue({ from: (table: string) => query(table === "users" ? me : []), rpc } as unknown as ReturnType<typeof createAdminClient>);
   const response = await GET(new Request(`https://example.test/api/people?deck=1&start=${id(1)}`));
   const data = await response.json();
-  expect(rpc).toHaveBeenCalledWith("discover_people", { p_viewer_id: id(0), p_city: "Тюмень", p_gender: null, p_start_id: id(1), p_offset: 0, p_limit: 41 });
+  expect(rpc).toHaveBeenCalledWith("filter_people", { p_viewer_id: id(0), p_city: "Тюмень", p_gender: null, p_start_id: id(1), p_offset: 0, p_limit: 41, p_age_min: 18, p_age_max: null, p_interest_ids: [], p_shuffle_seed: null });
   expect(data).toMatchObject({ meHasLocation: true, city: "Тюмень", radiusKm: null });
   expect(data.items.map((p: { id: string }) => p.id)).toEqual([id(1), id(2)]);
   expect(data.items[0].distanceM).toBe(600);

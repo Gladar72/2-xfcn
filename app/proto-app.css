@@ -420,27 +420,59 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .chat .rbar>svg{flex:none}
 .P .chat .msgs .gl,.P .chat .compose .gl{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(255,255,255,.85)}
 
-/* City-scoped people discovery. Controls stay tappable above swipe surfaces. */
+/* People discovery: one small filter button, shared brand sheet and assets. */
 .P.people-mode{overflow:clip}
 .P .people-deck{position:absolute;inset:0}
-.P .people-controls{position:absolute;top:calc(var(--top) + 2px);left:20px;right:20px;z-index:8;pointer-events:none;color:var(--ink)}
-.P .people-controls button{pointer-events:auto;font:inherit;cursor:pointer}
-.P .people-city{display:flex;align-items:center;justify-content:center;gap:5px;height:44px;max-width:calc(100% - 116px);margin:0 auto;padding:0 12px;border:0;border-radius:22px;background:rgba(255,255,255,.92);color:var(--ink);font-size:14px!important}
-.P .people-city span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.P .people-city .ic{flex:none}
-.P .people-filters{display:flex;gap:3px;margin-top:14px;padding:5px;border-radius:20px;background:rgba(255,255,255,.94);box-shadow:0 3px 18px rgba(40,10,90,.12);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
-.P .people-filters button{flex:1;min-width:0;min-height:44px;padding:0 4px;border:0;border-radius:15px;background:transparent;color:#645971;font-size:14px!important;font-weight:500!important}
-.P .people-filters button[aria-pressed=true]{background:var(--violet);color:#fff}
-.P .people-scope{margin:8px auto 0;max-width:max-content;padding:5px 10px;border-radius:15px;background:rgba(255,255,255,.9);color:#5f526f;font-size:11.5px;text-align:center}
-.P .people-scope button{padding:0;border:0;background:none;color:var(--violet);min-height:24px}
-.P .people-deck .pr.deck .gal .gb{top:calc(var(--top) + 169px);left:20px;right:20px}
-.P .people-deck .pr.deck .gal .tapL,.P .people-deck .pr.deck .gal .tapR{top:calc(var(--top) + 183px)}
-.P .people-deck [data-id=deck-end]{display:flex;flex-direction:column;padding-top:calc(var(--top) + 180px)}
-.P .people-deck [data-id=deck-end]>.bar-top{position:absolute;top:var(--top);left:0;right:0;z-index:6}
-.P .people-deck .done{flex:1;min-height:0;padding:12px 20px!important;display:flex;flex-direction:column;align-items:center;gap:10px;overflow-y:auto;overscroll-behavior:contain}
+.P .people-tools{position:absolute;top:calc(var(--top) + 2px);left:20px;right:20px;z-index:8;display:flex;justify-content:space-between;pointer-events:none}
+.P .people-tools>.rb{pointer-events:auto}
+.P .people-tools.over-photo{left:auto}
+.P .people-filter-dot{position:absolute;right:1px;top:1px;width:9px;height:9px;border-radius:50%;background:var(--violet);box-shadow:0 0 0 2px #fff}
+.P .person-title{display:flex;align-items:center;gap:6px}
+.P .person-title h1{min-width:0;overflow-wrap:anywhere}
+.P .pr.deck .people-profile-menu{position:absolute;right:20px;top:calc(var(--tg-viewport-stable-height,100dvh) - var(--bot) - 220px);color:#fff;z-index:2;pointer-events:auto}
+.P .people-deck [data-id=deck-end]{display:flex;flex-direction:column;padding-top:calc(var(--top) + 70px)}
+.P .people-deck .done{flex:1;min-height:0;padding:20px!important;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;overflow-y:auto;overscroll-behavior:contain}
 .P .people-deck .done>*{flex-shrink:0}
-.P .people-deck .done .burst{width:100px;height:100px}
-.P .people-deck .done .burst img{width:94px;max-height:100%;object-fit:contain}
-.P .people-deck .done .t{font-size:26px;line-height:1.2;margin:0;max-width:340px}
+.P .people-deck .done .burst{width:140px;height:140px}
+.P .people-deck .done .burst img{width:140px;height:140px;object-fit:contain}
+.P .people-deck .done .t{font-size:29px;line-height:1.15;margin:0;max-width:340px}
 .P .people-deck [data-id=deck-end]>.foot{position:relative;flex:none}
-@media(max-height:700px){.P .people-deck .done .burst{width:80px;height:80px}.P .people-deck .done .burst img{width:76px}.P .people-deck .done .t{font-size:24px}}
+.P .sheetx.people-filter-sheet{display:flex;flex-direction:column;gap:0;height:710px;max-height:min(88%,calc(var(--tg-viewport-height,100dvh) - var(--top) - 12px));overflow:hidden;background:#FAF7FF;backdrop-filter:none;-webkit-backdrop-filter:none}
+.P .people-filter-sheet>.grab{align-self:center;flex:none;margin-bottom:14px}
+.P .people-sheet-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex:none;margin-bottom:14px}
+.P .people-sheet-head>.rb{width:40px;height:40px;background:var(--lav);box-shadow:none}
+.P .people-sheet-scroll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:2px 2px 8px}
+.P .people-field-title{display:block;font-size:14px;font-weight:500;margin:0 0 10px}
+.P .people-gender{display:flex;gap:3px;padding:4px;border-radius:18px;background:var(--lav);margin-bottom:18px}
+.P .people-gender button{flex:1;min-width:0;min-height:44px;border-radius:14px;font-size:13px}
+.P .people-gender button[aria-pressed=true]{background:var(--g);color:#fff}
+.P .people-age-fields{display:flex;gap:10px}
+.P .people-age-fields .field{flex:1;min-width:0;min-height:44px;height:44px;padding:0 12px;gap:6px;border-radius:15px;background:#fff;box-shadow:inset 0 0 0 1px #DFD5ED}
+.P .people-age-fields .field span{color:var(--grey);font-size:13px}
+.P .people-age-fields input{min-width:0;width:45px;flex:1;font-family:var(--f)}
+.P .people-age-range{position:relative;height:44px;margin:0 12px 10px}
+.P .people-age-track{position:absolute;left:0;right:0;top:20px;height:4px;border-radius:4px;background:linear-gradient(to right,#DED4EF var(--age-low),var(--violet) var(--age-low),var(--violet) var(--age-high),#DED4EF var(--age-high))}
+.P .people-age-range input{position:absolute;inset:0;width:100%;height:44px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;z-index:2}
+.P .people-age-range input::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--violet);background:#fff;box-shadow:0 2px 8px #6C3BFF22;pointer-events:auto;cursor:ew-resize}
+.P .people-age-range input::-moz-range-thumb{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--violet);background:#fff;pointer-events:auto;cursor:ew-resize}
+.P .people-filter-hint{font-size:12px;line-height:1.45;color:var(--grey);margin:-3px 0 10px}
+.P .people-filter-error{font-size:12px;line-height:1.4;color:#BF3156;margin:0 0 12px}
+.P .people-interest-pills{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.P .people-interest-pills button{display:flex;align-items:center;gap:4px;min-width:0;min-height:44px;border-radius:17px;padding:4px 7px 4px 3px;background:#fff;box-shadow:inset 0 0 0 1px #E8DEEF;font-size:12.5px;line-height:1.25;text-align:left}
+.P .people-interest-pills button[aria-pressed=true]{background:var(--lav);color:var(--violet);box-shadow:inset 0 0 0 1.5px #9B5CFF}
+.P .people-interest-pills img{flex:none;width:34px;height:34px;object-fit:contain}
+.P .people-interest-pills span{min-width:0;overflow-wrap:anywhere}
+.P .people-filter-link{display:flex;align-items:center;gap:4px;min-height:44px;color:var(--violet);font-size:13px}
+.P .people-filter-link:disabled{color:var(--grey)}
+.P .people-sheet-footer{flex:none;display:grid;gap:2px;padding-top:10px;background:#FAF7FF}
+.P .people-sheet-footer>.btn{height:50px;font-size:15px}
+.P .people-sheet-footer>.people-filter-link{justify-content:center;min-height:36px;font-size:14px}
+.P .people-interest-search{flex:none;min-height:44px;height:44px;margin:0 0 12px;border-radius:16px}
+.P .people-filter-sheet .igroup{margin:0 0 18px}
+.P .people-filter-sheet .igroup h3{font-size:14px;margin-bottom:8px}
+.P .people-filter-sheet .igrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.P .people-filter-sheet .it{min-width:0;min-height:98px;padding:4px 4px 9px;align-content:start;font-size:11.5px;line-height:1.25;border-radius:18px}
+.P .people-filter-sheet .it img{width:62px;height:62px;max-width:100%;object-fit:contain}
+.P .people-filter-sheet .it>span:last-child{min-height:28px;overflow-wrap:anywhere;display:grid;place-items:center}
+.P .people-filter-sheet .it .ck{right:5px;top:5px}
+@media(max-height:700px){.P .people-deck .done{gap:10px;justify-content:flex-start}.P .people-deck .done .burst,.P .people-deck .done .burst img{width:90px;height:90px}.P .people-deck .done .t{font-size:26px}}

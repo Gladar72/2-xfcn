@@ -1,16 +1,15 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PersonView, type Person } from "@/components/people/PersonView";
 import { mosyaSrc } from "@/components/brand/Mosya";
-import { Ic, Sheet } from "@/components/proto/ui";
-import { CityWheel } from "@/components/proto/pickers";
-import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
+import { Ic } from "@/components/proto/ui";
+import { PeopleFilterSheet } from "@/components/people/PeopleFilterSheet";
+import { DEFAULT_PEOPLE_FILTERS, hasPeopleFilters, peopleFilterParams, readPeopleFilters, type PeopleFilters } from "@/lib/people/filters";
 import { goBack } from "@/lib/nav/back";
-import { watchMyLocation, sendMyLocation } from "@/lib/geo/client-location";
-import { say } from "@/lib/mosya/peek";
+import { watchMyLocation } from "@/lib/geo/client-location";
 import { photoThumb } from "@/lib/photos/thumb";
 
 interface Card {
@@ -64,7 +63,7 @@ function DeckRoute() {
   useEffect(() => {
     const root = container.current?.closest(".P");
     if (!root) return;
-    // WebKit must not scroll the fixed app root when the city sheet closes.
+    // WebKit must not scroll the fixed app root when a filter sheet closes.
     root.scrollTop = 0;
     root.classList.add("people-mode");
     return () => root.classList.remove("people-mode");
@@ -72,12 +71,12 @@ function DeckRoute() {
   const sp = useSearchParams();
   const start = sp.get("start");
   const city = sp.get("city");
-  const gender = sp.get("gender") === "male" ? "male" : sp.get("gender") === "female" ? "female" : "all";
+  const filters = useMemo(() => readPeopleFilters(sp) ?? DEFAULT_PEOPLE_FILTERS, [sp]);
   // Changing filters must discard old requests, selection and profile cache.
-  return <div ref={container} className="people-deck"><Deck key={`${city}:${gender}:${start}`} start={start} cityFilter={city} gender={gender} /></div>;
+  return <div ref={container} className="people-deck"><Deck key={`${city}:${peopleFilterParams(filters)}:${start}`} start={start} cityFilter={city} filters={filters} /></div>;
 }
 
-function Deck({ start, cityFilter, gender }: { start: string | null; cityFilter: string | null; gender: string }) {
+function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter: string | null; filters: PeopleFilters }) {
   const router = useRouter();
   const [cards, setCards] = useState<Card[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -86,7 +85,8 @@ function Deck({ start, cityFilter, gender }: { start: string | null; cityFilter:
   const cache = useRef(new Map<string, Person | null>());
   const [, force] = useState(0);
   const [city, setCity] = useState(cityFilter ?? "");
-  const [cityOpen, setCityOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtered = hasPeopleFilters(filters);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [moreBusy, setMoreBusy] = useState(false);
   const [moreError, setMoreError] = useState(false);
@@ -95,8 +95,6 @@ function Deck({ start, cityFilter, gender }: { start: string | null; cityFilter:
   const generation = useRef(0);
   const pagination = useRef(nextOffset);
   pagination.current = nextOffset;
-  const [hasLocation, setHasLocation] = useState(false);
-  const [geoBusy, setGeoBusy] = useState(false);
   const currentCard = useRef<string | null>(null);
   currentCard.current = cards?.[ix]?.id ?? null;
   const request = useRef<AbortController | null>(null);
@@ -105,13 +103,13 @@ function Deck({ start, cityFilter, gender }: { start: string | null; cityFilter:
   latestCards.current = cards;
 
   const queryUrl = useCallback((selected: string | null, offset = 0) => {
-    const q = new URLSearchParams({ deck: "1" });
+    const q = peopleFilterParams(filters);
+    q.set("deck", "1");
     if (selected) q.set("start", selected);
     if (cityFilter) q.set("city", cityFilter);
-    if (gender !== "all") q.set("gender", gender);
     if (offset) q.set("offset", String(offset));
     return `/api/people?${q}`;
-  }, [cityFilter, gender]);
+  }, [cityFilter, filters]);
 
   const load = useCallback((refresh = false) => {
     refresh = refresh && loaded.current;
@@ -139,7 +137,6 @@ function Deck({ start, cityFilter, gender }: { start: string | null; cityFilter:
         if (controller.signal.aborted) return;
         const list = (d.items ?? []) as Card[];
         setCity(d.city ?? cityFilter ?? "");
-        setHasLocation(d.meHasLocation === true);
         const keep = refresh ? currentCard.current : selected;
         const i = keep ? list.findIndex((c) => c.id === keep) : -1;
         if (!refresh && start && i < 0) {
@@ -202,17 +199,6 @@ function Deck({ start, cityFilter, gender }: { start: string | null; cityFilter:
 
   useEffect(() => watchMyLocation(() => { void load(true); }), [load]);
 
-  async function allowGeo() {
-    setGeoBusy(true);
-    const ok = await sendMyLocation();
-    setGeoBusy(false);
-    if (ok) {
-      void load(true);
-    } else {
-      say("Разреши геопозицию в настройках — и я покажу, кто рядом и на каком расстоянии");
-    }
-  }
-
   // Заранее подгружаем соседей: следующий профиль и его фото уже готовы.
   useEffect(() => {
     if (!cards) return;
@@ -234,30 +220,20 @@ function Deck({ start, cityFilter, gender }: { start: string | null; cityFilter:
     }
   }, [cards, ix]);
 
-  function changeFilters(nextCity: string, nextGender = gender) {
+  function changeFilters(next: PeopleFilters) {
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
-    const q = new URLSearchParams();
-    if (nextCity) q.set("city", nextCity);
-    if (nextGender !== "all") q.set("gender", nextGender);
+    const q = peopleFilterParams(next);
+    if (city) q.set("city", city);
     router.replace(`/people${q.size ? `?${q}` : ""}`, { scroll: false });
   }
   const toolbar = <>
-    <div className="people-controls">
-      <button className="people-city" onClick={() => setCityOpen(true)} aria-label="Выбрать город">
-        <Ic n="pin" c="s" /><span>{city || "Выбрать город"}</span><Ic n="down" c="s" />
+    <div className={`people-tools ${cards?.[ix] ? "over-photo" : ""}`}>
+      {!cards?.[ix] && <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад"><Ic n="back" /></button>}
+      <button className={`rb ${cards?.[ix] ? "glass" : "gl"} people-filter-trigger`} onClick={() => setFiltersOpen(true)} aria-label="Фильтры" aria-haspopup="dialog" aria-expanded={filtersOpen}>
+        <Ic n="filter" />{filtered && <span className="people-filter-dot" aria-label="Фильтры включены" />}
       </button>
-      <div className="people-filters" role="group" aria-label="Кого показывать">
-        {([["all", "Все"], ["male", "Мужчины"], ["female", "Женщины"]] as const).map(([value, label]) =>
-          <button key={value} aria-pressed={gender === value} onClick={() => changeFilters(city, value)}>{label}</button>)}
-      </div>
-      <div className="people-scope">
-        {hasLocation ? "Весь город · сначала ближайшие" : <button onClick={allowGeo} disabled={geoBusy}>{geoBusy ? "Определяем расстояние…" : "Весь город · показать расстояние"}</button>}
-      </div>
     </div>
-    <Sheet open={cityOpen} onClose={() => setCityOpen(false)}>
-      <h2 className="t">Выбери <em>город</em></h2>
-      {cityOpen && <CityWheel value={city} cities={RUSSIAN_CITIES} onPick={(selected) => { setCityOpen(false); changeFilters(selected); }} />}
-    </Sheet>
+    <PeopleFilterSheet open={filtersOpen} value={filters} onClose={() => setFiltersOpen(false)} onApply={changeFilters} />
   </>;
 
   if (cards === null)
@@ -275,13 +251,7 @@ function Deck({ start, cityFilter, gender }: { start: string | null; cityFilter:
     return (
       <section className="scr aurora in" data-id="deck-end">
         {toolbar}
-        <div className="bar-top" style={{ padding: "0 20px" }}>
-          <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад">
-            <Ic n="back" />
-          </button>
-          <span />
-        </div>
-        <div className="done" style={{ paddingTop: 205 }}>
+        <div className="done">
           <div className="burst">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={mosyaSrc("sit")} alt="" />
@@ -293,22 +263,23 @@ function Deck({ start, cityFilter, gender }: { start: string | null; cityFilter:
               </>
             ) : (
               <>
-                Скоро здесь <em>появятся</em> люди
+                Пока никого<br /><em>не нашли</em>
               </>
             )}
           </h1>
           <p>
             {error ?? (moreError ? "Попробуй ещё раз — продолжим с той же анкеты."
               : moreBusy || nextOffset !== null ? "Сейчас покажем следующие анкеты."
-              : cards.length ? "Ты посмотрел всех по выбранным фильтрам. Можно сменить город или создать встречу."
-              : "В выбранном городе пока нет анкет по этим фильтрам. Измени фильтр или выбери другой город.")}
+              : cards.length ? "Ты посмотрел всех по выбранным фильтрам. Можно изменить условия или создать встречу."
+              : "Попробуй расширить возраст или выбрать другие интересы.")}
 
           </p>
         </div>
         <div className="foot">
           {moreError && <button className="btn v" onClick={() => void loadMore()}>Загрузить ещё</button>}
-          <button className="btn o" onClick={() => setCityOpen(true)}>Сменить город</button>
-          {error ? <button className="btn v" onClick={() => load()}>Попробовать снова</button> : <Link className="btn v" href="/create">
+          {filtered && <button className="btn v" onClick={() => changeFilters(DEFAULT_PEOPLE_FILTERS)}>Сбросить фильтры</button>}
+          <button className="btn o" onClick={() => setFiltersOpen(true)}>Изменить фильтры</button>
+          {error ? <button className="btn v" onClick={() => load()}>Попробовать снова</button> : !filtered && <Link className="btn v" href="/create">
             <Ic n="plus" />
             Создать встречу
           </Link>}

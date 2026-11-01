@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { approxDistanceKm, approxDistanceM, freshPoint } from "@/lib/geo/approx-distance";
 
+import { readPeopleFilters, UUID_PATTERN } from "@/lib/people/filters";
+
 export const dynamic = "force-dynamic";
 const USER_FIELDS = "id, name, city, gender, avatar_url, birth_date, rating_avg, completed_meetings_count, approx_lat, approx_lon, approx_location_at, show_distance";
 
@@ -10,12 +12,13 @@ export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
   const deck = params.get("deck") === "1";
   const start = deck ? params.get("start") : null;
-  const gender = params.get("gender") ?? "all";
+  const filters = readPeopleFilters(params);
+  const seed = params.get("seed");
   const requestedCity = params.get("city")?.trim();
   const offsetText = params.get("offset") ?? "0";
-  if (start && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(start))
+  if (start && !UUID_PATTERN.test(start))
     return NextResponse.json({ error: "not_found" }, { status: 404 });
-  if (!["all", "male", "female"].includes(gender) || !/^\d{1,6}$/.test(offsetText)
+  if (!filters || (seed !== null && !UUID_PATTERN.test(seed)) || !/^\d{1,6}$/.test(offsetText)
     || (requestedCity !== undefined && (!requestedCity || requestedCity.length > 120)))
     return NextResponse.json({ error: "invalid_filter" }, { status: 400 });
   const offset = deck ? Number(offsetText) : 0;
@@ -35,10 +38,12 @@ export async function GET(req: Request) {
   const meHasLocation = freshPoint(me) !== null;
   const city = requestedCity ?? me.city;
 
-  const { data: users, error } = await admin.rpc("discover_people", {
+  const { data: users, error } = await admin.rpc("filter_people", {
     p_viewer_id: currentUser.userId, p_city: city,
-    p_gender: gender === "all" ? null : gender, p_start_id: start,
+    p_gender: filters.gender === "all" ? null : filters.gender, p_start_id: start,
     p_offset: offset, p_limit: pageSize + 1,
+    p_age_min: filters.ageMin, p_age_max: filters.ageMax === 65 ? null : filters.ageMax,
+    p_interest_ids: filters.interests, p_shuffle_seed: deck ? null : seed ?? crypto.randomUUID(),
   }).select(USER_FIELDS);
   if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   const page = (users ?? []).slice(0, pageSize);
@@ -70,7 +75,7 @@ export async function GET(req: Request) {
   });
   return NextResponse.json({
     items, meHasLocation, city, scope: "city", radiusKm: null,
-    nextOffset: hasMore ? offset + page.length : null,
+    nextOffset: deck && hasMore ? offset + page.length : null,
   }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
