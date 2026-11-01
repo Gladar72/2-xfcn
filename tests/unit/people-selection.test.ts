@@ -21,7 +21,7 @@ it("uses the selected city and gender for every page, independently of location 
   const { rpc, from } = database();
   const response = await deck(`&city=Москва&gender=female&offset=40&start=${id(55)}`);
   const data = await response.json();
-  expect(rpc).toHaveBeenCalledWith("filter_people", { p_viewer_id: id(0), p_city: "Москва", p_gender: "female", p_start_id: id(55), p_offset: 40, p_limit: 41, p_age_min: 18, p_age_max: null, p_interest_ids: [], p_shuffle_seed: null });
+  expect(rpc).toHaveBeenCalledWith("filter_people", { p_viewer_id: id(0), p_city: "Москва", p_gender: "female", p_start_id: id(55), p_offset: 40, p_limit: 41, p_age_min: 18, p_age_max: null, p_interest_ids: [], p_shuffle_seed: id(0) });
   expect(data).toMatchObject({ city: "Москва", scope: "city", radiusKm: null, nextOffset: 80, meHasLocation: false });
   expect(data.items).toHaveLength(40);
   expect(data.items[0]).toMatchObject({ distanceM: null, distanceKm: null });
@@ -34,6 +34,7 @@ it("defaults to the profile city and includes profiles without coordinates", asy
   expect(rpc).toHaveBeenCalledWith("filter_people", expect.objectContaining({ p_city: "Тюмень", p_gender: null }));
   expect(data.nextOffset).toBeNull();
   expect(data.items).toHaveLength(3);
+  expect(rpc).toHaveBeenLastCalledWith("filter_people", expect.objectContaining({ p_shuffle_seed: id(0) }));
 });
 
 it("limits the home preview to 12 while retaining the selected city", async () => {
@@ -47,10 +48,10 @@ it("limits the home preview to 12 while retaining the selected city", async () =
 it("passes age and OR-interest filters to the database before pagination", async () => {
   const { rpc } = database();
   await deck(`&ageMin=25&ageMax=35&interests=${id(88)},${id(89)}&offset=40`);
-  expect(rpc).toHaveBeenCalledWith("filter_people", expect.objectContaining({ p_age_min: 25, p_age_max: 35, p_interest_ids: [id(88),id(89)], p_offset: 40, p_shuffle_seed: null }));
+  expect(rpc).toHaveBeenCalledWith("filter_people", expect.objectContaining({ p_age_min: 25, p_age_max: 35, p_interest_ids: [id(88),id(89)], p_offset: 40, p_shuffle_seed: id(0) }));
 });
 
-it("uses a stable home seed within a visit, a new sample on reload, and never shuffles the deck", async () => {
+it("uses new home samples and preserves the supplied shuffle seed for filtered deck pages", async () => {
   const { rpc } = database(3);
   await GET(new Request(`https://example.test/api/people?seed=${id(99)}`));
   expect(rpc).toHaveBeenLastCalledWith("filter_people", expect.objectContaining({ p_shuffle_seed: id(99) }));
@@ -59,8 +60,10 @@ it("uses a stable home seed within a visit, a new sample on reload, and never sh
   await GET(new Request("https://example.test/api/people"));
   const second = (rpc.mock.calls.at(-1) as unknown as [string, { p_shuffle_seed: string }])[1].p_shuffle_seed;
   expect(first).not.toBe(second);
+  await deck(`&seed=${id(99)}&gender=female&offset=40`);
+  expect(rpc).toHaveBeenLastCalledWith("filter_people", expect.objectContaining({ p_shuffle_seed: id(99), p_offset: 40, p_gender: "female" }));
   await deck(`&seed=${id(99)}&ageMin=65`);
-  expect(rpc).toHaveBeenLastCalledWith("filter_people", expect.objectContaining({ p_age_min: 65, p_age_max: null, p_shuffle_seed: null }));
+  expect(rpc).toHaveBeenLastCalledWith("filter_people", expect.objectContaining({ p_age_min: 65, p_age_max: null, p_shuffle_seed: id(99) }));
 });
 
 it.each(["&gender=invalid", "&offset=-1", "&offset=1.5", "&city=", `&city=${"a".repeat(121)}`, "&ageMin=17", "&ageMin=66", "&ageMax=66", "&ageMin=40&ageMax=30", "&ageMax=", "&ageMin=2.5", "&interests=invalid", "&interests=", "&seed=invalid"]) ("rejects invalid filters: %s", async (params) => {

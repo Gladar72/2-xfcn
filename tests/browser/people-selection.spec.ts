@@ -66,7 +66,7 @@ test("a slow response for the old selection cannot replace the newly selected pe
   page.on("requestfailed", (r) => {
     if (r.url().includes(`/api/people?deck=1&start=${anna.id}`)) aborted = true;
   });
-  await page.route(`**/api/people?deck=1&start=${anna.id}`, async (r) => {
+  await page.route(`**/api/people?deck=1&start=${anna.id}&**`, async (r) => {
     started = true;
     await pending;
     await r.fulfill({ json: { items: [anna], meHasLocation: true } }).catch(() => {});

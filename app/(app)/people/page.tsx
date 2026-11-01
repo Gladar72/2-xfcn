@@ -11,6 +11,7 @@ import { DEFAULT_PEOPLE_FILTERS, hasPeopleFilters, peopleFilterParams, readPeopl
 import { goBack } from "@/lib/nav/back";
 import { watchMyLocation } from "@/lib/geo/client-location";
 import { photoThumb } from "@/lib/photos/thumb";
+import { usePeopleVisitSeed } from "@/lib/people/use-visit-seed";
 
 interface Card {
   id: string;
@@ -45,7 +46,7 @@ function quick(c: Card): Person {
 
 /**
  * Колода «Люди рядом» (как в Tinder): люди с похожими интересами из
- * выбранного города; геопозиция определяет порядок и расстояния. Свайп вбок — следующий человек, тап по фото — другие
+ * выбранного города в случайном порядке; геопозиция нужна только для расстояний. Свайп вбок — следующий человек, тап по фото — другие
  * фото, свайп вверх — о себе, внизу «Позвать на встречу».
  * Безопасность: только примерное расстояние, без точной геопозиции, скрытых,
  * заблокированных и забаненных профилей.
@@ -68,12 +69,17 @@ function DeckRoute() {
     root.classList.add("people-mode");
     return () => root.classList.remove("people-mode");
   }, []);
+  const visitSeed = usePeopleVisitSeed();
   const sp = useSearchParams();
   const start = sp.get("start");
+  // Pin a clicked photo only for that navigation, not again after resuming the app.
+  const pin = useRef({ id: start, visitSeed });
+  if (pin.current.id !== start) pin.current = { id: start, visitSeed };
+  const selected = pin.current.visitSeed === visitSeed ? start : null;
   const city = sp.get("city");
   const filters = useMemo(() => readPeopleFilters(sp) ?? DEFAULT_PEOPLE_FILTERS, [sp]);
   // Changing filters must discard old requests, selection and profile cache.
-  return <div ref={container} className="people-deck"><Deck key={`${city}:${peopleFilterParams(filters)}:${start}`} start={start} cityFilter={city} filters={filters} /></div>;
+  return <div ref={container} className="people-deck"><Deck key={`${city}:${peopleFilterParams(filters)}:${selected}:${visitSeed}:${sp.get("mix") ?? ""}`} start={selected} cityFilter={city} filters={filters} /></div>;
 }
 
 function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter: string | null; filters: PeopleFilters }) {
@@ -91,10 +97,9 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
   const [moreBusy, setMoreBusy] = useState(false);
   const [moreError, setMoreError] = useState(false);
   const moreRequest = useRef<AbortController | null>(null);
-  const pageSeed = useRef(start);
+  const [shuffleSeed] = useState(() => crypto.randomUUID());
+  const distanceRequest = useRef<AbortController | null>(null);
   const generation = useRef(0);
-  const pagination = useRef(nextOffset);
-  pagination.current = nextOffset;
   const currentCard = useRef<string | null>(null);
   currentCard.current = cards?.[ix]?.id ?? null;
   const request = useRef<AbortController | null>(null);
@@ -108,13 +113,11 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
     if (selected) q.set("start", selected);
     if (cityFilter) q.set("city", cityFilter);
     if (offset) q.set("offset", String(offset));
+    q.set("seed", shuffleSeed);
     return `/api/people?${q}`;
-  }, [cityFilter, filters]);
+  }, [cityFilter, filters, shuffleSeed]);
 
-  const load = useCallback((refresh = false) => {
-    refresh = refresh && loaded.current;
-    const previousOffset = pagination.current;
-    const previousSeed = pageSeed.current;
+  const load = useCallback(() => {
     request.current?.abort();
     moreRequest.current?.abort();
     moreRequest.current = null;
@@ -124,22 +127,20 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
     setNextOffset(null);
     const controller = new AbortController();
     request.current = controller;
-    if (!refresh) setCards(null);
+    setCards(null);
     setError(null);
-    const selected = refresh ? currentCard.current : start;
-    pageSeed.current = selected;
-    return fetch(queryUrl(selected), { signal: controller.signal, cache: "no-store" })
+    return fetch(queryUrl(start), { signal: controller.signal, cache: "no-store" })
       .then((r) => {
         if (!r.ok) throw new Error("people_unavailable");
         return r.json();
       })
       .then((d) => {
         if (controller.signal.aborted) return;
-        const list = (d.items ?? []) as Card[];
+        const unique = [...new Map(((d.items ?? []) as Card[]).map(c => [c.id, c])).values()];
+        const pinned = start ? unique.find(c => c.id === start) : null;
+        const list = pinned ? [pinned, ...unique.filter(c => c.id !== start)] : unique;
         setCity(d.city ?? cityFilter ?? "");
-        const keep = refresh ? currentCard.current : selected;
-        const i = keep ? list.findIndex((c) => c.id === keep) : -1;
-        if (!refresh && start && i < 0) {
+        if (start && !pinned) {
           setError("Этот профиль больше недоступен.");
           setCards([]);
           return;
@@ -153,18 +154,17 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
         latestCards.current = list;
         setNextOffset(typeof d.nextOffset === "number" ? d.nextOffset : null);
         setCards(list);
-        setIx(i > 0 ? i : 0);
+        setIx(0);
       })
       .catch(() => {
         if (controller.signal.aborted) return;
-        if (refresh) { pageSeed.current = previousSeed; setNextOffset(previousOffset); return; }
         setError("Не удалось загрузить людей. Попробуй ещё раз.");
         setCards([]);
       });
   }, [start, queryUrl, cityFilter]);
   useEffect(() => {
     load();
-    return () => { request.current?.abort(); moreRequest.current?.abort(); };
+    return () => { request.current?.abort(); moreRequest.current?.abort(); distanceRequest.current?.abort(); };
   }, [load]);
 
   const loadMore = useCallback(async () => {
@@ -175,7 +175,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
     setMoreBusy(true);
     setMoreError(false);
     try {
-      const response = await fetch(queryUrl(pageSeed.current, nextOffset), { signal: controller.signal, cache: "no-store" });
+      const response = await fetch(queryUrl(start, nextOffset), { signal: controller.signal, cache: "no-store" });
       if (!response.ok) throw new Error("people_unavailable");
       const d = await response.json();
       if (controller.signal.aborted || version !== generation.current) return;
@@ -192,12 +192,38 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
     } finally {
       if (moreRequest.current === controller) { moreRequest.current = null; setMoreBusy(false); }
     }
-  }, [nextOffset, queryUrl]);
+  }, [nextOffset, queryUrl, start]);
   useEffect(() => {
     if (cards && ix >= cards.length - 5 && nextOffset !== null && !moreError) void loadMore();
   }, [cards, ix, nextOffset, moreError, loadMore]);
 
-  useEffect(() => watchMyLocation(() => { void load(true); }), [load]);
+  // GPS/focus may update distances, but must never rebuild the queue or rewind it.
+  const refreshDistances = useCallback(() => {
+    if (!loaded.current) { void load(); return; }
+    const selected = currentCard.current;
+    if (!selected) return; // Exhausted decks stay exhausted.
+    distanceRequest.current?.abort();
+    const controller = new AbortController();
+    distanceRequest.current = controller;
+    void fetch(queryUrl(selected), { signal: controller.signal, cache: "no-store" })
+      .then(r => { if (!r.ok) throw new Error("people_unavailable"); return r.json(); })
+      .then(d => {
+        if (controller.signal.aborted) return;
+        const fresh = new Map<string, Card>(((d.items ?? []) as Card[]).map(c => [c.id, c]));
+        setCards(previous => {
+          const updated = previous?.map(c => {
+            const next = fresh.get(c.id);
+            if (!next) return c;
+            const cached = cache.current.get(c.id);
+            if (cached) cache.current.set(c.id, { ...cached, distanceKm: next.distanceKm, distanceM: next.distanceM });
+            return { ...c, distanceKm: next.distanceKm, distanceM: next.distanceM };
+          }) ?? null;
+          latestCards.current = updated;
+          return updated;
+        });
+      }).catch(() => {});
+  }, [load, queryUrl]);
+  useEffect(() => watchMyLocation(refreshDistances), [refreshDistances]);
 
   // Заранее подгружаем соседей: следующий профиль и его фото уже готовы.
   useEffect(() => {
@@ -224,6 +250,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
     if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     const q = peopleFilterParams(next);
     if (city) q.set("city", city);
+    q.set("mix", crypto.randomUUID());
     router.replace(`/people${q.size ? `?${q}` : ""}`, { scroll: false });
   }
   const toolbar = <>
@@ -283,17 +310,6 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
             <Ic n="plus" />
             Создать встречу
           </Link>}
-          {cards.length > 0 && (
-            <button
-              className="btn o"
-              onClick={() => {
-                setFrom(-1);
-                setIx(0);
-              }}
-            >
-              Смотреть сначала
-            </button>
-          )}
         </div>
       </section>
     );
@@ -315,11 +331,10 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
       id={c.id}
       initial={cached ?? quick(c)}
       deck={{
-        hasPrev: ix > 0,
         from,
         onSwipe: (dir) => {
           setFrom(dir);
-          setIx((i) => Math.max(0, i + dir));
+          setIx((i) => i + 1);
         },
       }}
       />
