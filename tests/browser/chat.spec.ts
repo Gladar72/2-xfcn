@@ -451,10 +451,14 @@ test("chat photos preserve their proportions and fit narrow incoming and outgoin
       const rect = image.getBoundingClientRect();
       const button = image.closest("button")!.getBoundingClientRect();
       const bubble = image.closest(".bb")!.getBoundingClientRect();
-      return { width: rect.width, height: rect.height, ratio: image.naturalWidth / image.naturalHeight, buttonWidth: button.width, buttonHeight: button.height, left: bubble.left, right: bubble.right, radius: getComputedStyle(image).borderRadius };
+      return { width: rect.width, height: rect.height, buttonWidth: button.width, buttonHeight: button.height, left: bubble.left, right: bubble.right, radius: getComputedStyle(image).borderRadius };
     }));
-    for (const photo of geometry) {
-      expect(Math.abs(photo.width - photo.height * photo.ratio)).toBeLessThan(1);
+    for (const [index, photo] of geometry.entries()) {
+      // WebKit rounds an SVG's natural dimensions to its rendered size.
+      // Compare against the known source dimensions, including panoramas.
+      const [sourceWidth, sourceHeight] = sizes[Math.floor(index / 2)]!;
+      const ratio = sourceWidth! / sourceHeight!;
+      expect(Math.abs(photo.width - photo.height * ratio), JSON.stringify({ viewportWidth: width, photo })).toBeLessThan(1);
       expect(photo.width).toBeLessThanOrEqual(260);
       expect(photo.height).toBeLessThanOrEqual(320);
       expect(photo.buttonWidth).toBeCloseTo(photo.width, 0);
