@@ -17,7 +17,11 @@ const USER_FIELDS =
 
 export async function GET(req: Request) {
   // Колода «Люди рядом» берёт больше карточек, чем лента на главной.
-  const deck = new URL(req.url).searchParams.get("deck") === "1";
+  const params = new URL(req.url).searchParams;
+  const deck = params.get("deck") === "1";
+  const start = deck ? params.get("start") : null;
+  if (start && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(start))
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const admin = createAdminClient();
@@ -65,7 +69,8 @@ export async function GET(req: Request) {
     .slice(0, 200)
     .map(([id]) => id);
 
-  let query = admin
+  // Apply the same visibility rules to the selection and the recommendations.
+  const visibleUsers = () => admin
     .from("users")
     .select(USER_FIELDS)
     .eq("city", me.city)
@@ -74,6 +79,7 @@ export async function GET(req: Request) {
     .neq("id", currentUser.userId)
     // Без фото в «Люди рядом» не показываем (по просьбе владельца).
     .not("avatar_url", "is", null);
+  let query = visibleUsers();
   query = candidateIds.length > 0 ? query.in("id", candidateIds) : query.order("created_at", { ascending: false });
 
   // Кто поблизости прямо сейчас: свежая огрублённая точка в радиусе ~15 км (грубая рамка,
@@ -98,10 +104,16 @@ export async function GET(req: Request) {
         .order("approx_location_at", { ascending: false })
         .limit(60)
     : null;
-  const [{ data: users }, near] = await Promise.all([query.limit(60), nearQuery]);
+  // A card on the shuffled home feed may be outside the deck's top 40 (or
+  // outside this refreshed candidate pool). Resolve that exact person too.
+  const selectedQuery = start && !blocked.has(start)
+    ? visibleUsers().eq("id", start).maybeSingle()
+    : null;
+  const [{ data: users }, near, selected] = await Promise.all([query.limit(60), nearQuery, selectedQuery]);
+  if (selected?.error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
 
   const seen = new Set<string>();
-  const pool = [...(users ?? []), ...(near?.data ?? [])].filter((u) => {
+  const pool = [...(users ?? []), ...(near?.data ?? []), ...(selected?.data ? [selected.data] : [])].filter((u) => {
     const id = u.id as string;
     if (seen.has(id) || blocked.has(id) || !(u.avatar_url as string | null)?.trim()) return false;
     seen.add(id);
@@ -131,6 +143,8 @@ export async function GET(req: Request) {
     items = all
       .sort((a, b) => b.sharedCount - a.sharedCount || Number(!!b.avatarUrl) - Number(!!a.avatarUrl))
       .slice(0, 40);
+    const chosen = start ? all.find((p) => p.id === start) : null;
+    if (chosen && !items.some((p) => p.id === start)) items = [chosen, ...items.slice(0, 39)];
   } else {
     // Главная: общие интересы + близость + фото, плюс случайная добавка —
     // при каждом заходе подборка другая, но ближние и «свои» всплывают чаще.

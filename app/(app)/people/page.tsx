@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { PersonView, type Person } from "@/components/people/PersonView";
@@ -46,38 +46,63 @@ function quick(c: Card): Person {
 export default function PeopleDeckPage() {
   return (
     <Suspense>
-      <Deck />
+      <DeckRoute />
     </Suspense>
   );
 }
 
-function Deck() {
-  const router = useRouter();
+function DeckRoute() {
   const sp = useSearchParams();
+  const start = sp.get("start");
+  // Query-only navigation must not retain another person's deck/index/cache.
+  return <Deck key={start ?? "all"} start={start} />;
+}
+
+function Deck({ start }: { start: string | null }) {
+  const router = useRouter();
   const [cards, setCards] = useState<Card[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [ix, setIx] = useState(0);
   const [from, setFrom] = useState<1 | -1 | 0>(0);
   const cache = useRef(new Map<string, Person | null>());
   const [, force] = useState(0);
   const [askGeo, setAskGeo] = useState(false);
+  const request = useRef<AbortController | null>(null);
 
-  function load() {
-    return fetch("/api/people?deck=1")
-      .then((r) => r.json())
+  const load = useCallback(() => {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
+    setCards(null);
+    setError(null);
+    return fetch(`/api/people?deck=1${start ? `&start=${encodeURIComponent(start)}` : ""}`, { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error("people_unavailable");
+        return r.json();
+      })
       .then((d) => {
+        if (controller.signal.aborted) return;
         const list = (d.items ?? []) as Card[];
-        const start = sp.get("start");
         const i = start ? list.findIndex((c) => c.id === start) : -1;
+        if (start && i < 0) {
+          setError("Этот профиль больше недоступен.");
+          setCards([]);
+          return;
+        }
         setCards(list);
         setIx(i > 0 ? i : 0);
         setAskGeo(d.meHasLocation === false && !geoDismissed());
       })
-      .catch(() => setCards([]));
-  }
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setError("Не удалось загрузить людей. Попробуй ещё раз.");
+        setCards([]);
+      });
+  }, [start]);
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => request.current?.abort();
+  }, [load]);
 
   /** Разрешить примерную геопозицию — на сервер уходит огрублённая точка. */
   function allowGeo() {
@@ -111,7 +136,7 @@ function Deck() {
       fetch(`/api/users/${c.id}`)
         .then((r) => r.json())
         .then((d) => {
-          if (!d.error) {
+          if (!d.error && d.id === c.id) {
             for (const src of (d.photos ?? []) as string[]) new Image().src = photoThumb(src, 300);
             cache.current.set(c.id, d);
             force((n) => n + 1);
@@ -146,7 +171,7 @@ function Deck() {
             <img src={mosyaSrc("sit")} alt="" />
           </div>
           <h1 className="t">
-            {cards.length ? (
+            {error ? "Не удалось открыть профиль" : cards.length ? (
               <>
                 Пока <em>всё</em>
               </>
@@ -157,16 +182,16 @@ function Deck() {
             )}
           </h1>
           <p>
-            {cards.length
+            {error ?? (cards.length
               ? "Ты посмотрел всех, кто рядом. Создай встречу — и люди с похожими интересами найдут тебя сами."
-              : "Добавь интересы в профиле — Мося подберёт людей, с которыми тебе будет о чём поговорить."}
+              : "Добавь интересы в профиле — Мося подберёт людей, с которыми тебе будет о чём поговорить.")}
           </p>
         </div>
         <div className="foot">
-          <Link className="btn v" href="/create">
+          {error ? <button className="btn v" onClick={load}>Попробовать снова</button> : <Link className="btn v" href="/create">
             <Ic n="plus" />
             Создать встречу
-          </Link>
+          </Link>}
           {cards.length > 0 && (
             <button
               className="btn o"
