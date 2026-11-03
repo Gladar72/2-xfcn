@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anonAlias } from "@/lib/events/anonymity";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/events/[id]/applications
  * Список откликов на встречу — видит только организатор (п.14 ТЗ).
@@ -13,7 +15,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
 
   const { data: event } = await admin
     .from("events")
@@ -55,10 +57,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       id: app.id,
       status: app.status,
       createdAt: app.created_at,
+      // This endpoint is organizer-only (checked before loading applications).
+      // The organizer needs the applicant's photo/profile to decide, including
+      // while an anonymous event's application is still pending.
       applicant: applicant
-        ? event.is_anonymous && app.status !== "accepted"
+        ? event.is_anonymous && app.status !== "pending" && app.status !== "accepted"
           ? {
-              // Анонимная встреча: профиль откроется организатору только после одобрения.
+              // Keep the existing masking for withdrawn/rejected/removed requests.
               id: "anonymous",
               name: anonAlias(event.id, applicant.id, applicant.gender),
               avatarUrl: null,
@@ -81,10 +86,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     };
   });
 
-  return NextResponse.json({
-    event: { id: event.id, title: event.title, seatsTotal: event.seats_total, seatsTaken: event.seats_taken },
-    applications: items,
-  });
+  return NextResponse.json(
+    {
+      event: { id: event.id, title: event.title, seatsTotal: event.seats_total, seatsTaken: event.seats_taken },
+      applications: items,
+    },
+    { headers: { "Cache-Control": "private, no-store" } }
+  );
 }
 
 function calculateAge(birthDateIso: string): number {

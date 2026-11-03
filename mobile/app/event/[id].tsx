@@ -337,6 +337,14 @@ export default function EventScreen() {
             </Pressable>
           ) : null}
 
+          {event.isAnonymous && event.viewerStatus !== "organizer" && event.viewerStatus !== "accepted" ? (
+            <Glass strong style={styles.card}>
+              <Text style={styles.muted}>
+                Организатор увидит твоё фото и профиль сразу после отправки заявки. Его профиль и точный адрес откроются тебе после одобрения.
+              </Text>
+            </Glass>
+          ) : null}
+
           {event.viewerStatus === "organizer" ? (
             <OrganizerPanel event={event} onChanged={load} />
           ) : event.participants.length > 0 ? (
