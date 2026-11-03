@@ -399,7 +399,7 @@ export default function RegisterScreen() {
                     {!showAll && interests.length > shown.length ? (
                       <Pressable onPress={() => setShowAll(true)} style={styles.more}>
                         <Icon name="search" size={17} color={colors.grey} />
-                        <Text style={styles.moreText}>Ещё {interests.length - shown.length} интересов</Text>
+                        <Text style={styles.moreText}>Ещё {interests.length - shown.length} {plural(interests.length - shown.length, "интерес", "интереса", "интересов")}</Text>
                       </Pressable>
                     ) : null}
                   </>
@@ -480,6 +480,15 @@ export default function RegisterScreen() {
       />
     </SafeAreaView>
   );
+}
+
+function plural(n: number, one: string, few: string, many: string): string {
+  const t = n % 10;
+  const h = n % 100;
+  if (h >= 11 && h <= 14) return many;
+  if (t === 1) return one;
+  if (t >= 2 && t <= 4) return few;
+  return many;
 }
 
 /** Пол — переключатель как в iPhone: белая плашка переезжает под выбранный вариант. */
