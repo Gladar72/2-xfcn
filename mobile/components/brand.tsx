@@ -174,8 +174,8 @@ export function Title({ plain, em, size = 32, after, style }: { plain: string; e
 
 /** Одно слово градиентом (для заголовков). */
 export function GradWord({ text, size }: { text: string; size: number }) {
-  // ширину оцениваем по средней ширине буквы Golos (~0.56 от кегля)
-  const w = Math.ceil(text.length * size * 0.56) + 4;
+  // ширину оцениваем по средней ширине буквы Golos (~0.6 от кегля, с запасом на широкие «ш», «ю»)
+  const w = Math.ceil(text.length * size * 0.6) + 6;
   const h = Math.ceil(size * 1.25);
   return (
     <Svg width={w} height={h} style={{ marginBottom: -size * 0.24 }}>

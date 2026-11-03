@@ -419,7 +419,7 @@ export default function RegisterScreen() {
                     <Icon name="nav" size={20} color={colors.violet} strokeWidth={1.9} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.geoTitle}>{city ?? "Определить автоматически"}</Text>
+                    <Text style={styles.geoTitle}>{city ?? "Определить город"}</Text>
                     <Text style={styles.geoSub}>{city ? (cityAuto ? "Определили по геолокации" : "Твой город") : "По геолокации, займёт секунду"}</Text>
                   </View>
                   {geoBusy ? (
