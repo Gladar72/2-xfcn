@@ -246,13 +246,15 @@ export default function RegisterScreen() {
     if (step === 0) {
       if (heardName.length >= 2 && birthTouched && age >= 18) return { pose: "mosya_bday", text: `${age} ${ageWord(age)} — отличный возраст для новых знакомств!` };
       if (heardName.length >= 2) return { pose: "mosya_wave", text: `Приятно познакомиться, ${heardName}!` };
+      // Вход по почте или через Apple — фото из Telegram нет, просим добавить своё.
+      if (!photos[0] && !photoBusy) return { pose: "mosya_selfie", text: "Начни с фото — так тебя узнают на встрече" };
       return { pose: "mosya_wave", text: "Знаю, анкеты — скучно. Тут пара секунд!" };
     }
     const n = picked.length;
     if (n === 0) return { pose: "mosya_love", text: "Тапай, что нравится — подберу встречи и людей" };
     if (n < MIN_INTERESTS) return { pose: "mosya_love", text: `Отлично! Ещё ${MIN_INTERESTS - n}, и идём дальше` };
     return { pose: "mosya_jump", text: `Выбрано ${n} — уже вижу, куда тебя позвать!` };
-  }, [nudge, step, heardName, birthTouched, age, picked.length]);
+  }, [nudge, step, heardName, birthTouched, age, picked.length, photos, photoBusy]);
 
   const shown = useMemo(() => {
     if (!interests) return [];
