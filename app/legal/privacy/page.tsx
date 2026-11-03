@@ -33,7 +33,7 @@ export default function PrivacyPage() {
           <br />
           ОГРНИП: 323723200088752
           <br />
-          Эл. почта для обращений по вопросам персональных данных: esenin_info@bk.ru
+          Эл. почта для обращений по вопросам персональных данных: support@mesto-go.ru
         </p>
 
         <h2 className="font-semibold">2. Какие данные обрабатываются</h2>

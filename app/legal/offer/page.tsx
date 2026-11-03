@@ -111,7 +111,7 @@ export default function OfferPage() {
           <br />
           ОГРНИП: 323723200088752
           <br />
-          Контакты для обращений: esenin_info@bk.ru
+          Контакты для обращений: support@mesto-go.ru
         </p>
       </div>
         </div>
