@@ -3,7 +3,7 @@
     "name": "Место",
     "slug": "mesto",
     "scheme": "mesto",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -27,10 +27,10 @@
         "NSPhotoLibraryUsageDescription": "Чтобы выбрать фото для профиля и встречи.",
         "NSCameraUsageDescription": "Чтобы сделать фото для профиля."
       },
-      "buildNumber": "6"
+      "buildNumber": "7"
     },
     "android": {
-      "versionCode": 6,
+      "versionCode": 7,
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -95,6 +95,9 @@
       "permissions": [
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION"
+      ],
+      "blockedPermissions": [
+        "android.permission.SYSTEM_ALERT_WINDOW"
       ]
     },
     "plugins": [

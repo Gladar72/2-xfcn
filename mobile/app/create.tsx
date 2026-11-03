@@ -19,6 +19,8 @@ import { StepWho } from "@/components/create/StepWho";
 import { type Kind, StepKind } from "@/components/create/StepKind";
 import { qs } from "@/lib/format";
 import { businessProblem, descriptionProblem, titleProblem } from "@/lib/eventQuality";
+import { hasOrganizerPhoto } from "@/lib/photos";
+import { OrganizerPhotoGate } from "@/components/create/OrganizerPhotoGate";
 
 /**
  * Создание (и правка) встречи в 4 шага — как CreateMeetingFlow в мини-приложении.
@@ -88,10 +90,25 @@ export default function CreateScreen() {
         setTrainingTypes(d.trainingTypes ?? []);
       })
       .catch(() => {});
-    api<MyProfile>("/api/me/profile")
-      .then((p) => setMe({ name: p.name ?? "Ты", avatarUrl: p.avatarUrl ?? null, city: p.city ?? null }))
-      .catch(() => {});
   }, []);
+
+  // Профиль нужен до шагов: без фото открытую встречу не создать.
+  const [profileState, setProfileState] = useState<"loading" | "ready" | "error">("loading");
+  const [profileAttempt, setProfileAttempt] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    setProfileState("loading");
+    api<MyProfile>("/api/me/profile")
+      .then((p) => {
+        if (!alive) return;
+        setMe({ name: p.name ?? "Ты", avatarUrl: p.avatarUrl ?? null, city: p.city ?? null });
+        setProfileState("ready");
+      })
+      .catch(() => alive && setProfileState("error"));
+    return () => {
+      alive = false;
+    };
+  }, [profileAttempt]);
 
   // «Анонимно по умолчанию» из настроек приватности — только для новой обычной встречи.
   useEffect(() => {
@@ -289,6 +306,13 @@ export default function CreateScreen() {
     } catch (e) {
       const err = e as ApiError;
       const data = (err.data ?? {}) as { field?: unknown };
+      if (err instanceof ApiError && err.code === "profile_photo_required") {
+        // Старый аккаунт без фото: показываем загрузку фото, черновик остаётся.
+        setMe((p) => ({ name: p?.name ?? "Ты", avatarUrl: null, city: p?.city ?? null }));
+        setProfileState("ready");
+        setBusy(false);
+        return;
+      }
       const target = typeof data.field === "string" ? FIELD_STEP[data.field] : undefined;
       if (target && target !== step) setStep(target);
       setBanner({
@@ -298,6 +322,9 @@ export default function CreateScreen() {
       setBusy(false);
     }
   }
+
+  // Открытая встреча и событие для бизнеса — только с фото профиля; анонимная — без.
+  const needsPhoto = !editId && chosen && kind !== "anon" && (profileState !== "ready" || !hasOrganizerPhoto(me?.avatarUrl));
 
   const label = editId ? "Правка " : form.business ? "Бизнес " : "";
   const cta = step === 4 ? (editId ? "Сохранить изменения" : "Опубликовать") : "Дальше";
@@ -330,10 +357,22 @@ export default function CreateScreen() {
             showsVerticalScrollIndicator={false}
           >
             {!chosen ? <StepKind value={kind} onPick={pickKind} /> : null}
-            {chosen && step === 1 ? <StepWhat form={form} set={set} categories={categories} trainingTypes={trainingTypes} /> : null}
-            {chosen && step === 2 ? <StepCover form={form} set={set} presetCover={presetCover} catLabel={catLabel} /> : null}
-            {chosen && step === 3 ? <StepWhen form={form} set={set} catLabel={catLabel} city={me?.city ?? null} /> : null}
-            {chosen && step === 4 ? (
+            {needsPhoto ? (
+              <OrganizerPhotoGate
+                loading={profileState === "loading"}
+                error={profileState === "error"}
+                onRetry={() => setProfileAttempt((n) => n + 1)}
+                onUploaded={(avatarUrl) => {
+                  setMe((p) => ({ name: p?.name ?? "Ты", avatarUrl, city: p?.city ?? null }));
+                  setProfileState("ready");
+                  setBanner(null);
+                }}
+              />
+            ) : null}
+            {chosen && !needsPhoto && step === 1 ? <StepWhat form={form} set={set} categories={categories} trainingTypes={trainingTypes} /> : null}
+            {chosen && !needsPhoto && step === 2 ? <StepCover form={form} set={set} presetCover={presetCover} catLabel={catLabel} /> : null}
+            {chosen && !needsPhoto && step === 3 ? <StepWhen form={form} set={set} catLabel={catLabel} city={me?.city ?? null} /> : null}
+            {chosen && !needsPhoto && step === 4 ? (
               <StepWho
                 form={form}
                 set={set}
@@ -362,7 +401,7 @@ export default function CreateScreen() {
                 </Pressable>
               </Glass>
             ) : null}
-            {chosen ? (
+            {chosen && !needsPhoto ? (
             <Btn
               kind={step === 4 ? "v" : "k"}
               title={busy && step === 4 ? (editId ? "Сохраняем…" : "Публикуем…") : cta}

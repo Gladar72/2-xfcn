@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, Animated, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -56,6 +56,7 @@ export function PersonView({
   active = true,
   onBack,
   onGone,
+  topAction,
 }: {
   id: string;
   preview?: PersonPreview;
@@ -66,6 +67,8 @@ export function PersonView({
   onBack: () => void;
   /** Человека заблокировали — колода убирает карточку. */
   onGone?: (id: string) => void;
+  /** Доп. кнопка в шапке рядом с флажком (в колоде — «Фильтры»). */
+  topAction?: ReactNode;
 }) {
   const insets = useSafeAreaInsets();
   const [p, setP] = useState<Person | null>(null);
@@ -218,11 +221,14 @@ export function PersonView({
           <RoundBtn onPress={onBack}>
             <Icon name="back" />
           </RoundBtn>
-          {!isMe && p ? (
-            <RoundBtn onPress={() => setReport(true)}>
-              <Icon name="flag" />
-            </RoundBtn>
-          ) : null}
+          <View style={styles.topRight} pointerEvents="box-none">
+            {topAction}
+            {!isMe && p ? (
+              <RoundBtn onPress={() => setReport(true)}>
+                <Icon name="flag" />
+              </RoundBtn>
+            ) : null}
+          </View>
         </View>
       </View>
 
@@ -302,6 +308,7 @@ const styles = StyleSheet.create({
   bar: { flex: 1, height: 3, borderRadius: 2, backgroundColor: "rgba(255,255,255,0.4)" },
   barOn: { backgroundColor: "#fff" },
   topRow: { flexDirection: "row", justifyContent: "space-between" },
+  topRight: { flexDirection: "row", gap: 10 },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.94)" },
   chatBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(108,59,255,0.15)" },
 });

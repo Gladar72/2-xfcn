@@ -3,43 +3,19 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, Sc
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import * as ImagePicker from "expo-image-picker";
-import * as ImageManipulator from "expo-image-manipulator";
 import { Aurora, Btn, Glass, RoundBtn, Title } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { api, type ApiError } from "@/lib/api";
 import { animateNext, tapOk, tapWarn } from "@/lib/feedback";
 import { interestIcon } from "@/lib/interests";
+import { PHOTO_ERRORS, pickPhoto } from "@/lib/photos";
 import { colors, FONT, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
-
-const PHOTO_ERRORS: Record<string, string> = {
-  photo_rejected: "Это фото не прошло проверку — выбери другое",
-  photo_too_large: "Фото слишком большое — выбери другое",
-  photo_invalid: "Не получилось прочитать фото — выбери другое",
-  photos_limit: "Можно загрузить до 3 фото",
-  network: "Проблема с соединением",
-};
 
 const SAVE_ERRORS: Record<string, string> = {
   invalid_name: "Имя — от 2 до 50 символов",
   bio_too_long: "«О себе» — не длиннее 300 символов",
 };
-
-/** Фото из галереи → JPEG до 1600 px → data URL (как в мини-приложении). */
-async function pickPhoto(): Promise<string | null> {
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!perm.granted) {
-    Alert.alert("Нужен доступ к фото", "Разреши доступ к галерее в настройках телефона.");
-    return null;
-  }
-  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [3, 4], quality: 1 });
-  if (res.canceled || !res.assets[0]) return null;
-  const a = res.assets[0];
-  const resize = (a.width ?? 0) >= (a.height ?? 0) ? { width: Math.min(1600, a.width || 1600) } : { height: Math.min(1600, a.height || 1600) };
-  const out = await ImageManipulator.manipulateAsync(a.uri, [{ resize }], { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true });
-  return out.base64 ? `data:image/jpeg;base64,${out.base64}` : null;
-}
 
 /** «Мой профиль» — фото (до 3), имя, «О себе», интересы. */
 export default function ProfileEditScreen() {

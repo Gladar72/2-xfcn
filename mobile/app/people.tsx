@@ -6,8 +6,11 @@ import * as Location from "expo-location";
 import { Aurora, Btn, Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { PersonView } from "@/components/people/PersonView";
+import { PeopleFilterSheet } from "@/components/people/PeopleFilterSheet";
 import { api } from "@/lib/api";
-import { animateNext } from "@/lib/feedback";
+import { animateNext, tapLight } from "@/lib/feedback";
+import { qs } from "@/lib/format";
+import { DEFAULT_PEOPLE_FILTERS, hasPeopleFilters, newVisitSeed, peopleFilterQuery, type PeopleFilters } from "@/lib/peopleFilters";
 import { colors, FONT, f } from "@/lib/theme";
 import type { PersonCard } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
@@ -21,6 +24,24 @@ type Page = { kind: "person"; p: PersonCard } | { kind: "end" };
  * Листаем свайпом влево/вправо; полный профиль грузится для видимой
  * карточки и соседних.
  */
+type DeckResponse = { items: PersonCard[]; meHasLocation?: boolean; nextOffset?: number | null };
+
+/** Свежая точка без вопросов: только если доступ к геолокации уже дан. */
+async function refreshLocationQuietly(): Promise<void> {
+  try {
+    const perm = await Location.getForegroundPermissionsAsync();
+    if (perm.status !== "granted") return;
+    const pos = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise<null>((r) => setTimeout(() => r(null), 4000)),
+    ]);
+    if (!pos) return;
+    await api("/api/me/location", { body: { lat: pos.coords.latitude, lon: pos.coords.longitude } });
+  } catch {
+    // Без точки колода всё равно откроется — просто без расстояний.
+  }
+}
+
 export default function PeopleScreen() {
   useGuide("people");
   const { start } = useLocalSearchParams<{ start?: string }>();
@@ -30,28 +51,91 @@ export default function PeopleScreen() {
   const [index, setIndex] = useState(0);
   const [geoBusy, setGeoBusy] = useState(false);
   const [geoHidden, setGeoHidden] = useState(false);
+  const [filters, setFilters] = useState<PeopleFilters>(DEFAULT_PEOPLE_FILTERS);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [deckKey, setDeckKey] = useState(0);
   const listRef = useRef<FlatList<Page>>(null);
-  const firstLoad = useRef(true);
+  // Новый заход — новая подборка; внутри захода порядок стабилен при подгрузке.
+  const seed = useRef(newVisitSeed()).current;
+  const nextOffset = useRef<number | null>(null);
+  const loadingMore = useRef(false);
+  const located = useRef(false);
+  // Выбранного в «Людях рядом» человека открываем первым — только при входе, не после фильтров.
+  const startId = useRef<string | undefined>(start || undefined);
 
-  const load = useCallback(async () => {
+  const query = useCallback(
+    (offset: number) => `/api/people?${qs({ deck: 1, seed, offset, start: startId.current, ...peopleFilterQuery(filters) })}`,
+    [seed, filters]
+  );
+
+  const load = useCallback(async (keepPlace = false) => {
     try {
-      const r = await api<{ items: PersonCard[]; meHasLocation?: boolean }>("/api/people?deck=1");
+      if (!located.current) {
+        located.current = true;
+        await refreshLocationQuietly();
+      }
+      const r = await api<DeckResponse>(query(0));
+      nextOffset.current = r.nextOffset ?? null;
       setItems(r.items ?? []);
       setHasLocation(r.meHasLocation !== false);
-      // Стартовую карточку выбираем только при первом открытии — после
-      // повторной загрузки (например, разрешили геолокацию) остаёмся, где были.
-      if (firstLoad.current) {
-        firstLoad.current = false;
-        setIndex(start ? Math.max(0, (r.items ?? []).findIndex((x) => x.id === start)) : 0);
-      }
+      // После разрешения геолокации остаёмся на той же карточке — порядок тот же (то же зерно).
+      if (!keepPlace) setIndex(0);
     } catch {
+      nextOffset.current = null;
       setItems([]);
     }
-  }, [start]);
+  }, [query]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+
+  // Подгружаем следующие анкеты заранее; уже показанные не повторяем.
+  const loadMore = useCallback(async () => {
+    const offset = nextOffset.current;
+    if (offset == null || loadingMore.current) return;
+    loadingMore.current = true;
+    try {
+      const r = await api<DeckResponse>(query(offset));
+      nextOffset.current = r.nextOffset ?? null;
+      setItems((list) => {
+        const seen = new Set((list ?? []).map((x) => x.id));
+        return [...(list ?? []), ...(r.items ?? []).filter((x) => !seen.has(x.id))];
+      });
+    } catch {
+      // Следующая попытка — при следующем свайпе.
+    } finally {
+      loadingMore.current = false;
+    }
+  }, [query]);
+
+  useEffect(() => {
+    if (items && index >= items.length - 5) loadMore();
+  }, [index, items, loadMore]);
+
+  function applyFilters(next: PeopleFilters) {
+    setFiltersOpen(false);
+    startId.current = undefined;
+    nextOffset.current = null;
+    animateNext();
+    setItems(null);
+    setDeckKey((k) => k + 1);
+    setFilters(next);
+  }
+
+  const filtersActive = hasPeopleFilters(filters);
+  const filterBtn = (
+    <RoundBtn
+      onPress={() => {
+        tapLight();
+        setFiltersOpen(true);
+      }}
+    >
+      <Icon name="filter" color={filtersActive ? colors.violet : undefined} />
+    </RoundBtn>
+  );
+  const filterSheet = <PeopleFilterSheet visible={filtersOpen} value={filters} onApply={applyFilters} onClose={() => setFiltersOpen(false)} />;
 
   async function allowLocation() {
     setGeoBusy(true);
@@ -65,7 +149,7 @@ export default function PeopleScreen() {
       await api("/api/me/location", { body: { lat: pos.coords.latitude, lon: pos.coords.longitude } });
       animateNext();
       setHasLocation(true);
-      load();
+      load(true);
     } catch {
       Alert.alert("Не получилось", "Не удалось определить место. Попробуй позже");
     } finally {
@@ -103,10 +187,22 @@ export default function PeopleScreen() {
             <Icon name="back" />
           </RoundBtn>
         </View>
+        <View style={[styles.filterAbs, { top: insets.top + 8 }]}>{filterBtn}</View>
         <Mosya pose="wave" size={150} />
-        <Text style={styles.endTitle}>Скоро здесь появятся люди</Text>
-        <Text style={styles.endText}>Добавь интересы в профиле — Мося подберёт людей, с которыми тебе будет о чём поговорить.</Text>
-        <Btn title="Добавить интересы" onPress={() => router.push("/interests")} style={{ alignSelf: "stretch", marginTop: 10 }} />
+        {filtersActive ? (
+          <>
+            <Text style={styles.endTitle}>Никого по этим фильтрам</Text>
+            <Text style={styles.endText}>Попробуй расширить возраст или выбрать другие интересы.</Text>
+            <Btn title="Сбросить фильтры" onPress={() => applyFilters(DEFAULT_PEOPLE_FILTERS)} style={{ alignSelf: "stretch", marginTop: 10 }} />
+          </>
+        ) : (
+          <>
+            <Text style={styles.endTitle}>Скоро здесь появятся люди</Text>
+            <Text style={styles.endText}>Добавь интересы в профиле — Мося подберёт людей, с которыми тебе будет о чём поговорить.</Text>
+            <Btn title="Добавить интересы" onPress={() => router.push("/interests")} style={{ alignSelf: "stretch", marginTop: 10 }} />
+          </>
+        )}
+        {filterSheet}
       </View>
     );
   }
@@ -116,6 +212,7 @@ export default function PeopleScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.milk }}>
       <FlatList
+        key={deckKey}
         ref={listRef}
         data={pages}
         horizontal
@@ -131,12 +228,13 @@ export default function PeopleScreen() {
         renderItem={({ item: pg, index: i }) =>
           pg.kind === "person" ? (
             <View style={{ width: W }}>
-              <PersonView id={pg.p.id} preview={pg.p} active={Math.abs(i - index) <= 1} onBack={back} onGone={removePerson} />
+              <PersonView id={pg.p.id} preview={pg.p} active={Math.abs(i - index) <= 1} onBack={back} onGone={removePerson} topAction={filterBtn} />
             </View>
           ) : (
             <View style={[styles.end, { width: W, paddingTop: insets.top + 60 }]}>
               <Aurora />
               <Mosya pose="wave" size={150} />
+              <View style={[styles.filterAbs, { top: insets.top + 8 }]}>{filterBtn}</View>
               <Text style={styles.endTitle}>Пока всё</Text>
               <Text style={styles.endText}>Ты посмотрел всех, кто рядом. Создай встречу — и люди с похожими интересами найдут тебя сами.</Text>
               <Btn title="Создать встречу" onPress={() => router.push("/create")} style={{ alignSelf: "stretch", marginTop: 10 }} />
@@ -161,6 +259,7 @@ export default function PeopleScreen() {
           </View>
         </Glass>
       ) : null}
+      {filterSheet}
     </View>
   );
 }
@@ -168,6 +267,7 @@ export default function PeopleScreen() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10 },
   backAbs: { position: "absolute", left: 16 },
+  filterAbs: { position: "absolute", right: 16 },
   end: { flex: 1, alignItems: "center", paddingHorizontal: 24, gap: 10 },
   endTitle: { fontSize: 26, ...f("500"), color: colors.ink, letterSpacing: -0.6, textAlign: "center" },
   endText: { fontFamily: FONT, fontSize: 15, lineHeight: 21, color: colors.ink2, textAlign: "center" },
