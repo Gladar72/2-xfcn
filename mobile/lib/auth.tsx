@@ -19,6 +19,8 @@ interface AuthState {
   /** Откуда пропуск на регистрацию: подтверждённые телефон/почта, Telegram или Apple. */
   ticketKind: "phone" | "email" | "telegram" | "apple" | null;
   prefillName: string | null;
+  /** Фото из Telegram — подставим в анкету главным фото. */
+  prefillPhoto: string | null;
   handleAuthResult: (r: AuthResult, source?: "phone" | "email" | "telegram" | "apple", prefill?: string | null) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -30,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [signedIn, setSignedIn] = useState(false);
   const [ticket, setTicket] = useState<string | null>(null);
   const [prefillName, setPrefillName] = useState<string | null>(null);
+  const [prefillPhoto, setPrefillPhoto] = useState<string | null>(null);
   const [ticketKind, setTicketKind] = useState<"phone" | "email" | "telegram" | "apple" | null>(null);
 
   const signOut = useCallback(async () => {
@@ -69,12 +72,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setTicket(r.ticket);
       setTicketKind(source);
       setPrefillName(r.telegramProfile?.firstName ?? prefill ?? null);
+      setPrefillPhoto(r.telegramProfile?.photoUrl ?? null);
     }
   }, []);
 
   const value = useMemo(
-    () => ({ ready, signedIn, ticket, ticketKind, prefillName, handleAuthResult, signOut }),
-    [ready, signedIn, ticket, ticketKind, prefillName, handleAuthResult, signOut]
+    () => ({ ready, signedIn, ticket, ticketKind, prefillName, prefillPhoto, handleAuthResult, signOut }),
+    [ready, signedIn, ticket, ticketKind, prefillName, prefillPhoto, handleAuthResult, signOut]
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
