@@ -43,7 +43,7 @@ function Splash() {
 
 /** Тестовая сборка для эмулятора держит заставку 8 с, чтобы её успели снять. */
 function useSmokeHold() {
-  const [hold, setHold] = useState(process.env.EXPO_PUBLIC_MAP_SMOKE === "1");
+  const [hold, setHold] = useState(process.env.EXPO_PUBLIC_MAP_SMOKE === "1" || process.env.EXPO_PUBLIC_AUTH_SMOKE === "1");
   useEffect(() => {
     if (!hold) return;
     const t = setTimeout(() => setHold(false), 8000);
@@ -92,6 +92,18 @@ function Gate() {
           setTimeout(() => setSmokePhase("map"), 20000);
         }
       } else if ((segments as string[])[1] !== "map") router.replace({ pathname: "/(tabs)/map", params: { business: "only" } });
+      return;
+    }
+    // Тестовая сборка для эмулятора (не для магазина): экран входа 25 с, потом анкета регистрации — для снимков.
+    if (process.env.EXPO_PUBLIC_AUTH_SMOKE === "1") {
+      if (smokeHold) return;
+      if (smokePhase === "login") {
+        if (segments[0] !== "(auth)") router.replace("/(auth)/login");
+        if (!smokeLogin.current) {
+          smokeLogin.current = true;
+          setTimeout(() => setSmokePhase("map"), 25000);
+        }
+      } else if ((segments as string[])[1] !== "register") router.replace("/(auth)/register");
       return;
     }
     // Ссылка партнёра сама решает, куда вести (сначала сохраняет код).
