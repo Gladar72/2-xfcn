@@ -16,7 +16,7 @@ export interface Application {
     avatarUrl: string | null;
     age: number | null;
     bio: string | null;
-    /** Анонимная встреча: профиль откроется после одобрения. */
+    /** Скрытый профиль отклонённой, отозванной или удалённой анонимной заявки. */
     anonymous?: boolean;
     ratingAvg: number;
     completedMeetingsCount: number;
