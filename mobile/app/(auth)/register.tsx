@@ -57,7 +57,9 @@ const SMOKE = process.env.EXPO_PUBLIC_AUTH_SMOKE === "1";
 
 export default function RegisterScreen() {
   const { ticket, ticketKind, prefillName, prefillPhoto, handleAuthResult, signOut } = useAuth();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  // На высоких экранах (большинство Android и iPhone) анкета крупнее: фото больше, барабаны в 5 строк.
+  const roomy = height >= 740;
   const [step, setStep] = useState(0);
   const slide = useRef(new Animated.Value(0)).current;
 
@@ -289,12 +291,12 @@ export default function RegisterScreen() {
           <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {step === 0 ? (
               <>
-                {cleanName.length >= 2 ? <Title plain="Почти готово, " em={cleanName} size={28} /> : <Title plain="Почти " em="готово" size={28} />}
+                {cleanName.length >= 2 ? <Title plain="Почти готово, " em={cleanName} size={roomy ? 30 : 28} /> : <Title plain="Почти " em="готово" size={roomy ? 30 : 28} />}
                 <Text style={styles.sub}>Пара секунд — и в путь</Text>
 
-                <View style={styles.photos}>
+                <View style={[styles.photos, roomy && { marginTop: 22, gap: 12 }]}>
                   {photos.map((p, i) => (
-                    <Pressable key={i} onPress={() => addPhoto(i)} style={[styles.ph, i === 0 ? styles.phMain : styles.phAdd, !p && styles.phEmpty]} accessibilityLabel={p ? "Заменить фото" : "Добавить фото"}>
+                    <Pressable key={i} onPress={() => addPhoto(i)} style={[styles.ph, i === 0 ? (roomy ? styles.phMainL : styles.phMain) : roomy ? styles.phAddL : styles.phAdd, !p && styles.phEmpty]} accessibilityLabel={p ? "Заменить фото" : "Добавить фото"}>
                       {p ? (
                         <>
                           <Image source={{ uri: p }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -326,11 +328,12 @@ export default function RegisterScreen() {
                   maxLength={60}
                   autoCapitalize="words"
                   textContentType="givenName"
-                  style={styles.field}
+                  style={[styles.field, roomy && { height: 56, marginTop: 16 }]}
                 />
 
-                <Text style={styles.lbl}>Дата рождения</Text>
+                <Text style={[styles.lbl, roomy && { marginTop: 22 }]}>Дата рождения</Text>
                 <DateWheels
+                  rows={roomy ? 5 : 3}
                   value={birth}
                   onChange={(b) => {
                     setBirth(b);
@@ -548,6 +551,8 @@ const styles = StyleSheet.create({
   ph: { borderRadius: 22, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   phMain: { width: 96, height: 120 },
   phAdd: { width: 72, height: 90 },
+  phMainL: { width: 116, height: 146 },
+  phAddL: { width: 88, height: 110 },
   phEmpty: { backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 2, borderStyle: "dashed", borderColor: "rgba(108,59,255,0.35)" },
   phText: { fontSize: 13, color: colors.violet, marginTop: 4, ...f("600") },
   phX: { position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(22,18,31,0.45)", alignItems: "center", justifyContent: "center" },

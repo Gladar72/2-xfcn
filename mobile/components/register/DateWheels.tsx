@@ -9,8 +9,8 @@ import { colors, FONT, f } from "@/lib/theme";
  * и бледнеют. На каждом щелчке — лёгкий отклик вибрацией.
  */
 export const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
-const ROW = 40;
-const VISIBLE = 3;
+const ROW_3 = 40;
+const ROW_5 = 36;
 
 export interface BirthDate {
   d: number; // 1..31
@@ -35,7 +35,8 @@ export function ageWord(a: number): string {
   return "лет";
 }
 
-const Wheel = memo(function Wheel({ items, index, onChange, flex }: { items: string[]; index: number; onChange: (i: number) => void; flex: number }) {
+const Wheel = memo(function Wheel({ items, index, onChange, flex, rows }: { items: string[]; index: number; onChange: (i: number) => void; flex: number; rows: number }) {
+  const ROW = rows === 5 ? ROW_5 : ROW_3;
   const y = useRef(new Animated.Value(index * ROW)).current;
   const ref = useRef<ScrollView>(null);
   const last = useRef(index);
@@ -65,31 +66,32 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex }: { items: str
   );
 
   return (
-    <View style={{ flex, height: ROW * VISIBLE }}>
+    <View style={{ flex, height: ROW * rows }}>
       <Animated.ScrollView
         ref={ref}
         showsVerticalScrollIndicator={false}
         snapToInterval={ROW}
         decelerationRate={Platform.OS === "ios" ? "fast" : 0.985}
         contentOffset={{ x: 0, y: index * ROW }}
-        contentContainerStyle={{ paddingVertical: ROW * ((VISIBLE - 1) / 2) }}
+        contentContainerStyle={{ paddingVertical: ROW * ((rows - 1) / 2) }}
         onScroll={onScroll}
         scrollEventThrottle={16}
         nestedScrollEnabled
       >
         {items.map((t, i) => {
-          const range = [(i - 1) * ROW, i * ROW, (i + 1) * ROW];
+          const range = [(i - 2) * ROW, (i - 1) * ROW, i * ROW, (i + 1) * ROW, (i + 2) * ROW];
           return (
             <Animated.View
               key={t + i}
               style={[
                 styles.row,
+                { height: ROW },
                 {
-                  opacity: y.interpolate({ inputRange: range, outputRange: [0.4, 1, 0.4], extrapolate: "clamp" }),
+                  opacity: y.interpolate({ inputRange: range, outputRange: [0.2, 0.45, 1, 0.45, 0.2], extrapolate: "clamp" }),
                   transform: [
                     { perspective: 400 },
-                    { rotateX: y.interpolate({ inputRange: range, outputRange: ["38deg", "0deg", "-38deg"], extrapolate: "clamp" }) },
-                    { scale: y.interpolate({ inputRange: range, outputRange: [0.92, 1, 0.92], extrapolate: "clamp" }) },
+                    { rotateX: y.interpolate({ inputRange: range, outputRange: ["62deg", "34deg", "0deg", "-34deg", "-62deg"], extrapolate: "clamp" }) },
+                    { scale: y.interpolate({ inputRange: range, outputRange: [0.86, 0.93, 1, 0.93, 0.86], extrapolate: "clamp" }) },
                   ],
                 },
               ]}
@@ -105,7 +107,9 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex }: { items: str
   );
 });
 
-export function DateWheels({ value, onChange }: { value: BirthDate; onChange: (v: BirthDate) => void }) {
+/** rows — сколько строк видно: 3 на невысоких экранах, 5 (как в iPhone) — где хватает места. */
+export function DateWheels({ value, onChange, rows = 3 }: { value: BirthDate; onChange: (v: BirthDate) => void; rows?: 3 | 5 }) {
+  const ROW = rows === 5 ? ROW_5 : ROW_3;
   const now = new Date().getFullYear();
   const years = useMemo(() => Array.from({ length: 83 }, (_, i) => String(now - 18 - i)), [now]);
   const days = useMemo(() => Array.from({ length: daysIn(value.m, value.y) }, (_, i) => String(i + 1)), [value.m, value.y]);
@@ -122,19 +126,19 @@ export function DateWheels({ value, onChange }: { value: BirthDate; onChange: (v
   const onYear = useMemo(() => (i: number) => set({ y: now - 18 - i }), [now]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <View style={styles.box}>
-      <View pointerEvents="none" style={styles.sel} />
-      <Wheel items={days} index={value.d - 1} onChange={onDay} flex={0.8} />
-      <Wheel items={MONTHS} index={value.m} onChange={onMonth} flex={1.6} />
-      <Wheel items={years} index={Math.max(0, now - 18 - value.y)} onChange={onYear} flex={1} />
+    <View style={[styles.box, { height: ROW * rows }]}>
+      <View pointerEvents="none" style={[styles.sel, { top: ROW * ((rows - 1) / 2), height: ROW }]} />
+      <Wheel items={days} index={value.d - 1} onChange={onDay} flex={0.8} rows={rows} />
+      <Wheel items={MONTHS} index={value.m} onChange={onMonth} flex={1.6} rows={rows} />
+      <Wheel items={years} index={Math.max(0, now - 18 - value.y)} onChange={onYear} flex={1} rows={rows} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  box: { flexDirection: "row", height: ROW * VISIBLE, borderRadius: 22, backgroundColor: "#fff", paddingHorizontal: 8, overflow: "hidden" },
-  sel: { position: "absolute", left: 8, right: 8, top: ROW, height: ROW, borderRadius: 12, backgroundColor: colors.lav },
-  row: { height: ROW, alignItems: "center", justifyContent: "center" },
+  box: { flexDirection: "row", borderRadius: 22, backgroundColor: "#fff", paddingHorizontal: 8, overflow: "hidden" },
+  sel: { position: "absolute", left: 8, right: 8, borderRadius: 12, backgroundColor: colors.lav },
+  row: { alignItems: "center", justifyContent: "center" },
   text: { fontFamily: FONT, fontSize: 18, color: colors.ink, fontVariant: ["tabular-nums"] },
   cur: { ...f("600") },
 });
