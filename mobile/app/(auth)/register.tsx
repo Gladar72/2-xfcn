@@ -151,7 +151,7 @@ export default function RegisterScreen() {
   const age = ageOf(birth);
   const cleanName = name.trim();
   const titleSize = 28;
-  const titleLines = textWidth(cleanName.length >= 2 ? `Почти готово, ${cleanName}` : "Почти готово", titleSize) > width - 44 ? 2 : 1;
+  const titleLines = textWidth(cleanName.length >= 2 ? `Привет, ${cleanName}!` : "Давай знакомиться", titleSize) > width - 44 ? 2 : 1;
   // Почта или Apple — внизу ещё плашка «Уже есть профиль в Telegram?» (~66 pt).
   const tgOffer = ticketKind === "phone" || ticketKind === "email" || ticketKind === "apple";
   // Шаг «о себе»: барабаны даты в 5 строк (как в iPhone), если хватает высоты, иначе в 3.
@@ -315,7 +315,7 @@ export default function RegisterScreen() {
           <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {step === 0 ? (
               <>
-                {cleanName.length >= 2 ? <Title plain="Почти готово, " em={cleanName} size={titleSize} /> : <Title plain="Почти " em="готово" size={titleSize} />}
+                {cleanName.length >= 2 ? <Title plain="Привет, " em={cleanName} after="!" size={titleSize} /> : <Title plain="Давай " em="знакомиться" size={titleSize} />}
                 <Text style={styles.sub}>Пара секунд — и в путь</Text>
 
                 <TextInput
