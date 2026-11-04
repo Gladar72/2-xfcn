@@ -88,6 +88,8 @@ jobs:
             if [ "${{ inputs.mode }}" = "auth" ]; then bash $GITHUB_WORKSPACE/.github/scripts/auth-shots.sh; else bash $GITHUB_WORKSPACE/.github/scripts/map-shots.sh; fi
             adb shell pidof ru.mesto.app > $GITHUB_WORKSPACE/shots/alive.txt || echo "НЕ ЗАПУЩЕНО (упало?)" > $GITHUB_WORKSPACE/shots/alive.txt
             adb logcat -d | grep -E "ReactNative|AndroidRuntime|FATAL|Exception|Error|MapLibre|mbgl|maplibre" | grep -v ViewManagerPropertyUpdater | tail -n 300 > $GITHUB_WORKSPACE/shots/log.txt || true
+            adb logcat -d -s ReactNativeJS:V ReactNative:V AndroidRuntime:E | tail -n 400 > $GITHUB_WORKSPACE/shots/js.txt || true
+            adb logcat -d -b crash | tail -n 200 > $GITHUB_WORKSPACE/shots/crash.txt || true
 
       - name: Снимки в ветку smoke-shots
         if: always()

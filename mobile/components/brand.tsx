@@ -193,20 +193,24 @@ export function textWidth(text: string, size: number): number {
 export function GradWord({ text, size }: { text: string; size: number }) {
   const w = Math.ceil(textWidth(text, size)) + 3;
   const h = Math.ceil(size * 1.25);
-  const baseline = size * 0.98; // восходящая часть Golos — 980/1000
+  const baseline = Math.round(size * 0.98); // восходящая часть Golos — 980/1000
+  // Коробка высотой до базовой линии: её низ RN ставит на базовую линию строки,
+  // а хвосты букв («у», «д», «р») рисуются ниже, за пределами коробки.
   return (
-    <Svg width={w} height={h} style={{ transform: [{ translateY: h - baseline }] }}>
-      <Defs>
-        <SvgLinear id="gw" x1="0" y1="0" x2="1" y2="0.6">
-          <Stop offset="0" stopColor={brandGradient[0]} />
-          <Stop offset="0.48" stopColor={brandGradient[1]} />
-          <Stop offset="1" stopColor={brandGradient[2]} />
-        </SvgLinear>
-      </Defs>
-      <SvgText x="0" y={baseline} fill="url(#gw)" fontFamily={FONT} fontSize={size} fontWeight="500" letterSpacing={-size * 0.03}>
-        {text}
-      </SvgText>
-    </Svg>
+    <View style={{ width: w, height: baseline, overflow: "visible" }}>
+      <Svg width={w} height={h} style={{ position: "absolute", left: 0, top: 0 }}>
+        <Defs>
+          <SvgLinear id="gw" x1="0" y1="0" x2="1" y2="0.6">
+            <Stop offset="0" stopColor={brandGradient[0]} />
+            <Stop offset="0.48" stopColor={brandGradient[1]} />
+            <Stop offset="1" stopColor={brandGradient[2]} />
+          </SvgLinear>
+        </Defs>
+        <SvgText x="0" y={baseline} fill="url(#gw)" fontFamily={FONT} fontSize={size} fontWeight="500" letterSpacing={-size * 0.03}>
+          {text}
+        </SvgText>
+      </Svg>
+    </View>
   );
 }
 
