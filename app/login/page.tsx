@@ -4,7 +4,8 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Wordmark } from "@/components/brand/Logo";
 
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "Mesto_people_bot";
+import { TelegramLoginWidget } from "@/components/telegram/TelegramLoginWidget";
+import { readLaunchData } from "@/lib/telegram/launch-data";
 
 /**
  * Вход на сайте без мини-приложения: по почте (код из письма) или через Telegram
@@ -32,7 +33,6 @@ function LoginInner() {
   const [error, setError] = useState<string | null>(null);
   const [resendIn, setResendIn] = useState(0);
   const codeRef = useRef<HTMLInputElement>(null);
-  const tgBox = useRef<HTMLDivElement>(null);
 
   const target = () => {
     const ev = goto?.match(/^event(share)?_([0-9a-f-]{36})$/);
@@ -45,6 +45,10 @@ function LoginInner() {
 
   // Уже вошёл в этом браузере — сразу в приложение.
   useEffect(() => {
+    if (readLaunchData(window.location.hash, window.location.search)) {
+      window.location.replace(`/app${window.location.search}${window.location.hash}`);
+      return;
+    }
     fetch("/api/auth/web/session")
       .then((r) => r.json())
       .then((d) => {
@@ -54,42 +58,27 @@ function LoginInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Кнопка «Войти через Telegram» — для тех, кто уже пользовался мини-приложением.
-  useEffect(() => {
-    (window as unknown as { onTelegramAuth: (u: Record<string, string | number>) => void }).onTelegramAuth = async (user) => {
-      setError(null);
-      setBusy(true);
-      try {
-        const res = await fetch("/api/auth/mobile/telegram", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ authData: user }),
-        });
-        const d = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          setError(d.error === "user_banned" ? "Профиль заблокирован" : d.message ?? "Не удалось войти через Telegram");
-          return;
-        }
-        await finish(d);
-      } catch {
-        setError("Нет связи. Проверь интернет");
-      } finally {
-        setBusy(false);
+  async function handleTelegramAuth(user: Record<string, string | number>) {
+    setError(null);
+    setBusy(true);
+    try {
+      const res = await fetch("/api/auth/mobile/telegram", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ authData: user }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(d.error === "user_banned" ? "Профиль заблокирован" : d.message ?? "Не удалось войти через Telegram");
+        return;
       }
-    };
-    const box = tgBox.current;
-    if (!box || box.childElementCount > 0) return;
-    const s = document.createElement("script");
-    s.src = "https://telegram.org/js/telegram-widget.js?22";
-    s.async = true;
-    s.setAttribute("data-telegram-login", BOT_USERNAME);
-    s.setAttribute("data-size", "large");
-    s.setAttribute("data-radius", "14");
-    s.setAttribute("data-request-access", "write");
-    s.setAttribute("data-onauth", "onTelegramAuth(user)");
-    box.appendChild(s);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      await finish(d);
+    } catch {
+      setError("Нет связи. Проверь интернет");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   /** Ответ verify/telegram: вошёл — кладём сессию в cookie; новый — на анкету с «пропуском». */
   async function finish(d: { status?: string; token?: string; ticket?: string }) {
@@ -259,7 +248,7 @@ function LoginInner() {
           или
           <span style={{ flex: 1, height: 1, background: "rgba(108,59,255,.15)" }} />
         </div>
-        <div ref={tgBox} style={{ display: "flex", justifyContent: "center", minHeight: 44 }} />
+        <TelegramLoginWidget onAuth={handleTelegramAuth} />
         <p style={{ textAlign: "center", fontSize: 13, color: "#8A84A0", marginTop: 12, lineHeight: 1.4 }}>
           Уже пользуешься «Местом» в Telegram? Входи через Telegram — профиль, встречи и чаты сохранятся.
         </p>
