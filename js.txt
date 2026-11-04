@@ -1,0 +1,8 @@
+--------- beginning of main
+11-04 07:53:39.062  3478  3583 I ReactNativeJS: Running "main"
+11-04 07:53:39.063  3478  3583 I ReactNativeJS: Running "main"
+11-04 07:53:47.662  3478  3583 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-04 07:54:07.870  3478  3583 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-04 07:54:08.052  3478  3583 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-04 07:54:32.885  3478  3583 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-04 07:54:33.325  3478  3583 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
