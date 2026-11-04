@@ -417,7 +417,7 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
       }
       if (!res.ok) {
         if (data.error === "already_registered") {
-          window.location.href = "/";
+          window.location.href = "/app";
           return;
         }
         say(apiErrorText(data, "Не получилось сохранить профиль. Попробуй ещё раз.", res.status), "think");
