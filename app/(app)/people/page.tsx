@@ -265,7 +265,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
 
   if (cards === null)
     return (
-      <section className="scr pr aurora fade" data-id="person">
+      <section className="scr pr aurora fade" data-id="person" data-transition="deck">
         {toolbar}
         <div className="gal">
           <div className="sk" style={{ position: "absolute", inset: 0, borderRadius: 0 }} />
@@ -276,7 +276,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
   const c = cards[ix];
   if (!c)
     return (
-      <section className="scr aurora in" data-id="deck-end">
+      <section className="scr aurora in" data-id="deck-end" data-transition="deck">
         {toolbar}
         <div className="done">
           <div className="burst">

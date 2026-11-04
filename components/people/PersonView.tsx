@@ -163,7 +163,31 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
 
   /** Карточка улетает в сторону, потом колода показывает следующего. */
   const flying = useRef(false);
-  const raf = useRef(0);
+  const flyTimer = useRef<ReturnType<typeof setTimeout>>();
+  const suppressClick = useRef(false);
+  useEffect(() => () => {
+    clearTimeout(flyTimer.current);
+  }, []);
+
+  // React delegates touchmove passively. Claim only horizontal gestures here;
+  // vertical gestures remain native scrolling, including the profile details.
+  useEffect(() => {
+    const body = bodyRef.current;
+    if (!body) return;
+    const lockAxis = (e: TouchEvent) => {
+      const st = swipe.current;
+      const t = e.touches[0];
+      if (!st || !t || e.touches.length !== 1) return;
+      const dx = t.clientX - st.x;
+      const dy = t.clientY - st.y;
+      if (!st.axis && Math.max(Math.abs(dx), Math.abs(dy)) > 10) {
+        st.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? "x" : "y";
+      }
+      if (st.axis === "x" && e.cancelable) e.preventDefault();
+    };
+    body.addEventListener("touchmove", lockAxis, { passive: false });
+    return () => body.removeEventListener("touchmove", lockAxis);
+  }, [person?.id]);
   function fly(dir: 1 | -1) {
     const el = card.current;
     if (!deck || flying.current) return;
@@ -173,7 +197,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       el.style.transform = `translate3d(${dir * -120}%,0,0) rotate(${dir * -12}deg)`;
       el.style.opacity = "0";
     }
-    setTimeout(() => deck.onSwipe(dir), 200);
+    flyTimer.current = setTimeout(() => deck.onSwipe(dir), 220);
   }
   function snap() {
     const el = card.current;
@@ -299,6 +323,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       ref={card}
       className={`scr pr aurora ${deck ? `deck ${deck.from === 1 ? "dk-r" : deck.from === -1 ? "dk-l" : "dk-0"}` : "in"}`}
       data-id="person"
+      data-transition={deck ? "deck" : undefined}
     >
       <div className="gal">
         {photos.length ? (
@@ -365,48 +390,62 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         style={{ pointerEvents: "auto" }}
         ref={bodyRef}
         onTouchStart={(e) => {
+          swipe.current = null;
+          suppressClick.current = false;
+          if (e.touches.length !== 1 || flying.current) { if (!flying.current) snap(); return; }
+          if ((e.target as Element).closest("button, a, input, textarea, select, [role=button]")) return;
           const t = e.touches[0];
-          if (t && !flying.current) swipe.current = { x: t.clientX, y: t.clientY, t: Date.now(), top: e.target === e.currentTarget, axis: null };
+          if (t) swipe.current = { x: t.clientX, y: t.clientY, t: Date.now(), top: e.target === e.currentTarget, axis: null };
         }}
         onTouchMove={(e) => {
           const st = swipe.current;
           const t = e.touches[0];
-          if (!st || !t || !deck) return;
+          if (!st || !t || flying.current) return;
+          if (e.touches.length !== 1) { swipe.current = null; suppressClick.current = true; snap(); return; }
           const dx = t.clientX - st.x;
           const dy = t.clientY - st.y;
-          if (!st.axis && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) st.axis = Math.abs(dx) > Math.abs(dy) ? "x" : "y";
-          if (st.axis === "x" && card.current) {
-            // Карточка тянется за пальцем, как в Tinder (один кадр — одно обновление).
+          if (Math.max(Math.abs(dx), Math.abs(dy)) > 10) suppressClick.current = true;
+          if (!st.axis && (Math.abs(dx) > 10 || Math.abs(dy) > 10)) st.axis = Math.abs(dx) > Math.abs(dy) * 1.2 ? "x" : "y";
+          if (st.axis === "x" && deck && card.current) {
             const el = card.current;
-            cancelAnimationFrame(raf.current);
-            raf.current = requestAnimationFrame(() => {
-              el.style.transition = "none";
-              el.style.transform = `translate3d(${dx}px,0,0) rotate(${dx / 26}deg)`;
-            });
+            // A new gesture owns the transform; the entry animation must stop.
+            el.style.animation = "none";
+            // The browser batches transform paints without a layout read.
+            // Apply the drag immediately: a delayed rAF in WebKit can leave
+            // a quick reverse gesture stuck on the incoming card's position.
+            el.style.transition = "none";
+            el.style.transform = `translate3d(${dx}px,0,0) rotate(${dx / 26}deg)`;
           }
+        }}
+        onTouchCancel={() => {
+          swipe.current = null;
+          suppressClick.current = true;
+          if (!flying.current) snap();
         }}
         onTouchEnd={(e) => {
           const st = swipe.current;
           swipe.current = null;
           const t = e.changedTouches[0];
-          if (!st || !t) return;
+          if (!st || !t || flying.current) return;
           const dx = t.clientX - st.x;
           const dy = t.clientY - st.y;
           if (deck) {
             if (st.axis !== "x") return;
-            cancelAnimationFrame(raf.current);
-            // Обе стороны показывают нового человека; направление задаёт анимацию.
-            // Быстрый короткий взмах тоже считается.
             const fast = Math.abs(dx) > 35 && Date.now() - st.t < 300;
             if (Math.abs(dx) > 90 || fast) fly(dx < 0 ? 1 : -1);
             else snap();
             return;
           }
-          if (!st.top || photos.length < 2) return;
-          // Вне колоды свайп влево/вправо по фото — следующее/предыдущее фото.
+          if (!st.top || photos.length < 2 || st.axis !== "x") return;
           if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
             setGi((g) => (dx < 0 ? (g + 1) % photos.length : (g - 1 + photos.length) % photos.length));
           }
+        }}
+        onClickCapture={(e) => {
+          if (!suppressClick.current || e.detail === 0) return;
+          suppressClick.current = false;
+          e.preventDefault();
+          e.stopPropagation();
         }}
         onClick={(e) => {
           if (e.target !== e.currentTarget || photos.length < 2) return;

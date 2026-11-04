@@ -1,0 +1,50 @@
+name: Mobile scroll regression
+
+on:
+  pull_request:
+    paths:
+      - 'components/people/**'
+      - 'components/proto/ScreenTransitions.tsx'
+      - 'app/(app)/people/**'
+      - 'app/proto-app.css'
+      - 'tests/browser/**'
+      - 'playwright.config.ts'
+      - '.github/workflows/mobile-scroll.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-scroll-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-scroll:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Mobile gestures, navigation, shuffle and scroll boundaries
+        run: npx playwright test tests/browser/people-gestures.spec.ts tests/browser/people-shuffle.spec.ts tests/browser/scroll-boundaries.spec.ts --timeout=60000 --reporter=line
+      - name: Unit tests
+        run: npm test
+      - name: Production build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:3211
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-only
+          SUPABASE_SERVICE_ROLE_KEY: build-test-only
+          NEXT_TELEMETRY_DISABLED: '1'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: mobile-scroll-traces
+          path: test-results/
+          retention-days: 3

@@ -19,7 +19,7 @@ const TAB_PATHS = new Set(["/feed", "/map", "/my-events", "/profile"]);
 const MODAL_IDS = new Set(["create", "published", "done"]);
 const ANIMS = ["in", "fade", "up", "back-in", "under", "out", "down"];
 
-type Sec = HTMLElement & { _href?: string; _st?: number };
+type Sec = HTMLElement & { _href?: string; _scrolls?: Map<HTMLElement, { top: number; left: number }> };
 
 const hrefNow = () => location.pathname + location.search;
 const isTabHref = (h: string) => {
@@ -59,12 +59,21 @@ export function ScreenTransitions() {
       return repl0.apply(this, a);
     };
 
-    // Запоминаем прокрутку экрана — у вернувшегося «призрака» она сбрасывается.
+    const ghosts = new Map<Sec, ReturnType<typeof setTimeout>>();
+    const clearGhosts = () => {
+      for (const [el, timer] of ghosts) { clearTimeout(timer); el.remove(); }
+      ghosts.clear();
+    };
+    // Reinserted nodes lose native scroll offsets. Keep every scroller, including
+    // profile/event bodies, horizontal rails and chat history, in both axes.
     const onScroll = (e: Event) => {
       const t = e.target as HTMLElement;
-      if (!(t instanceof HTMLElement) || !t.classList.contains("scroll")) return;
+      if (!(t instanceof HTMLElement)) return;
       const s = t.closest("section.scr") as Sec | null;
-      if (s) s._st = t.scrollTop;
+      if (s && !s.classList.contains("ghost")) {
+        s._scrolls ??= new Map();
+        s._scrolls.set(t, { top: t.scrollTop, left: t.scrollLeft });
+      }
     };
     document.addEventListener("scroll", onScroll, { capture: true, passive: true });
 
@@ -79,10 +88,12 @@ export function ScreenTransitions() {
       setAnim(old, null);
       if (above) anchor.after(old);
       else anchor.before(old);
-      const sc = old.querySelector<HTMLElement>(".scroll");
-      if (sc && old._st) sc.scrollTop = old._st;
+      old._scrolls?.forEach(({ top, left }, sc) => {
+        sc.scrollTop = top;
+        sc.scrollLeft = left;
+      });
       if (cls) setAnim(old, cls);
-      setTimeout(() => old.remove(), ms);
+      ghosts.set(old, setTimeout(() => { old.remove(); ghosts.delete(old); }, ms));
     };
 
     const mo = new MutationObserver((recs) => {
@@ -111,6 +122,15 @@ export function ScreenTransitions() {
       const nu = fresh[fresh.length - 1];
       if (!nu) return;
       const old = gone.find((g) => g._href !== now);
+
+      // The people deck already animates its own outgoing and incoming card.
+      // Never resurrect a second scrollable profile or add a route animation.
+      if (nu.dataset.transition === "deck" || gone.some(g => g.dataset.transition === "deck")) {
+        clearGhosts();
+        return;
+      }
+      // Rapid navigation/back must not accumulate outgoing screen layers.
+      if (old) clearGhosts();
 
       if (!old) {
         // Тот же адрес: заглушка загрузки сменилась экраном — без повторного въезда.
@@ -143,6 +163,7 @@ export function ScreenTransitions() {
 
     return () => {
       mo.disconnect();
+      clearGhosts();
       window.removeEventListener("popstate", onPop);
       H.pushState = push0;
       H.replaceState = repl0;
