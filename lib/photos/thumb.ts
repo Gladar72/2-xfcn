@@ -26,15 +26,15 @@ const SUPABASE_URL = /^https:\/\/([^/]+\.supabase\.co|db\.mesto-go\.ru)\//;
  * @param displayPx размер, в котором фото показывается на экране (CSS-пиксели);
  *                  берём запас ×3 под экраны телефонов с высокой плотностью.
  */
-export function photoThumb(url: string, displayPx: number): string;
-export function photoThumb(url: string | null | undefined, displayPx: number): string | undefined;
-export function photoThumb(url: string | null | undefined, displayPx: number): string | undefined {
+export function photoThumb(url: string, displayPx: number, optimizeLarge?: boolean): string;
+export function photoThumb(url: string | null | undefined, displayPx: number, optimizeLarge?: boolean): string | undefined;
+export function photoThumb(url: string | null | undefined, displayPx: number, optimizeLarge = false): string | undefined {
   if (!url) return undefined;
   if (!SUPABASE_URL.test(url)) return url;
   // Крупные фото (карточки людей, галерея профиля) — отдаём оригинал без
   // повторного сжатия: аватарки из Telegram и так всего 640px, и лишнее
   // пережатие делало их мыльными. Оригиналы лёгкие (обычно 50–500 КБ).
-  if (displayPx >= 300) return url;
+  if (displayPx >= 300 && !optimizeLarge) return url;
   const target = displayPx * 3;
   const width = ALLOWED_WIDTHS.find((w) => w >= target) ?? 3840;
   return `/_next/image?url=${encodeURIComponent(url)}&w=${width}&q=85`;
