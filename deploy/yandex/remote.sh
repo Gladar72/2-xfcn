@@ -292,6 +292,11 @@ capacitydiag() {
     END {print "unknown_server_action", actions+0; print "blocked_bot", blocked+0; print "timeouts", timeouts+0; print "other_error_lines", other+0}'
 }
 
+assetdiag() {
+  update_code
+  python3 "$APP/deploy/yandex/asset-check.py"
+}
+
 logs() {
   sudo docker logs --tail 80 mesto-app-1 2>&1 | tail -80 || true
   for c in supabase-kong supabase-rest supabase-storage realtime-dev.supabase-realtime supabase-db; do
@@ -579,6 +584,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | capacitydiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
