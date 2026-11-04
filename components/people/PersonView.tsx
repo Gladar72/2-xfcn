@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { interestIcon } from "@/lib/data/interests";
@@ -163,15 +163,10 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
 
   /** Карточка улетает в сторону, потом колода показывает следующего. */
   const flying = useRef(false);
-  const raf = useRef(0);
   const flyTimer = useRef<ReturnType<typeof setTimeout>>();
   const suppressClick = useRef(false);
-  // Dispose animation work during the commit, before another card can receive
-  // input or a stale frame can paint (including Strict Mode's mount replay).
-  useLayoutEffect(() => () => {
-    cancelAnimationFrame(raf.current);
+  useEffect(() => () => {
     clearTimeout(flyTimer.current);
-    swipe.current = null;
   }, []);
 
   // React delegates touchmove passively. Claim only horizontal gestures here;
@@ -202,11 +197,9 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       el.style.transform = `translate3d(${dir * -120}%,0,0) rotate(${dir * -12}deg)`;
       el.style.opacity = "0";
     }
-    cancelAnimationFrame(raf.current);
     flyTimer.current = setTimeout(() => deck.onSwipe(dir), 220);
   }
   function snap() {
-    cancelAnimationFrame(raf.current);
     const el = card.current;
     if (!el) return;
     el.style.transition = "transform .28s cubic-bezier(.2,.9,.3,1.15)";
@@ -417,11 +410,11 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             const el = card.current;
             // A new gesture owns the transform; the entry animation must stop.
             el.style.animation = "none";
-            cancelAnimationFrame(raf.current);
-            raf.current = requestAnimationFrame(() => {
-              el.style.transition = "none";
-              el.style.transform = `translate3d(${dx}px,0,0) rotate(${dx / 26}deg)`;
-            });
+            // The browser batches transform paints without a layout read.
+            // Apply the drag immediately: a delayed rAF in WebKit can leave
+            // a quick reverse gesture stuck on the incoming card's position.
+            el.style.transition = "none";
+            el.style.transform = `translate3d(${dx}px,0,0) rotate(${dx / 26}deg)`;
           }
         }}
         onTouchCancel={() => {
@@ -438,7 +431,6 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           const dy = t.clientY - st.y;
           if (deck) {
             if (st.axis !== "x") return;
-            cancelAnimationFrame(raf.current);
             const fast = Math.abs(dx) > 35 && Date.now() - st.t < 300;
             if (Math.abs(dx) > 90 || fast) fly(dx < 0 ? 1 : -1);
             else snap();
