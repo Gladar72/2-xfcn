@@ -7,8 +7,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import Svg, { Defs, LinearGradient as SvgLinear, Path, RadialGradient, Rect, Stop, G, Text as SvgText } from "react-native-svg";
-import { brand, brandGradient, colors, FONT, gradientEnd, gradientStart, f } from "@/lib/theme";
+import { brand, brandGradient, colors, fonts, gradientEnd, gradientStart, f } from "@/lib/theme";
 import { LOGO_LETTERS, LOGO_M, LOGO_VIEWBOX } from "@/lib/logo-paths";
+import { textWidth } from "@/lib/textWidth";
+import { SvgTitle } from "./title-svg";
+
+export { textWidth };
 
 /** Фон экрана: мягкие пятна фиолетового, розового, голубого и персикового на молочном. */
 export function Aurora({ style }: { style?: StyleProp<ViewStyle> }) {
@@ -158,38 +162,41 @@ export function RoundBtn({ children, onPress, dark, size = 44, style }: { childr
 
 /**
  * Текст с акцентом фирменным градиентом: «Что ищешь <em>сегодня?</em>».
- * Обычная часть — обычным текстом, акцент — SVG-текстом с градиентной заливкой.
+ * С акцентом — рисуем целиком одним SVG (components/title-svg.tsx), чтобы акцент
+ * стоял на одной линии с текстом и не обрезался.
  */
 export function Title({ plain, em, size = 32, after, style }: { plain: string; em?: string; size?: number; after?: string; style?: StyleProp<TextStyle> }) {
   const base: TextStyle = { fontSize: size, lineHeight: size * 1.08, ...f("500"), letterSpacing: -size * 0.03, color: colors.ink };
   if (!em) return <Text style={[base, style]}>{plain}</Text>;
-  return (
-    <Text style={[base, style]}>
-      {plain}
-      <GradWord text={em} size={size} />
-      {after ?? ""}
-    </Text>
-  );
+  return <SvgTitle plain={plain} em={em} after={after} size={size} style={style} />;
 }
 
-/** Одно слово градиентом (для заголовков). */
+/**
+ * Одно слово градиентом (для заголовков). Встаёт в строку как картинка: низ картинки
+ * RN ставит на базовую линию, поэтому сдвигаем её вниз на высоту под базовой линией —
+ * так градиентное слово стоит ровно на одной линии с обычным текстом.
+ */
 export function GradWord({ text, size }: { text: string; size: number }) {
-  // ширину оцениваем по средней ширине буквы Golos (~0.56 от кегля)
-  const w = Math.ceil(text.length * size * 0.56) + 4;
+  const w = Math.ceil(textWidth(text, size)) + 3;
   const h = Math.ceil(size * 1.25);
+  const baseline = Math.round(size * 0.98); // восходящая часть Golos — 980/1000
+  // Коробка высотой до базовой линии: её низ RN ставит на базовую линию строки,
+  // а хвосты букв («у», «д», «р») рисуются ниже, за пределами коробки.
   return (
-    <Svg width={w} height={h} style={{ marginBottom: -size * 0.24 }}>
-      <Defs>
-        <SvgLinear id="gw" x1="0" y1="0" x2="1" y2="0.6">
-          <Stop offset="0" stopColor={brandGradient[0]} />
-          <Stop offset="0.48" stopColor={brandGradient[1]} />
-          <Stop offset="1" stopColor={brandGradient[2]} />
-        </SvgLinear>
-      </Defs>
-      <SvgText x="0" y={size * 0.95} fill="url(#gw)" fontFamily={FONT} fontSize={size} fontWeight="500" letterSpacing={-size * 0.03}>
-        {text}
-      </SvgText>
-    </Svg>
+    <View style={{ width: w, height: baseline, overflow: "visible" }}>
+      <Svg width={w} height={h} style={{ position: "absolute", left: 0, top: 0 }}>
+        <Defs>
+          <SvgLinear id="gw" x1="0" y1="0" x2="1" y2="0.6">
+            <Stop offset="0" stopColor={brandGradient[0]} />
+            <Stop offset="0.48" stopColor={brandGradient[1]} />
+            <Stop offset="1" stopColor={brandGradient[2]} />
+          </SvgLinear>
+        </Defs>
+        <SvgText x="0" y={baseline} fill="url(#gw)" fontFamily={fonts["500"]} fontSize={size} letterSpacing={-size * 0.03}>
+          {text}
+        </SvgText>
+      </Svg>
+    </View>
   );
 }
 

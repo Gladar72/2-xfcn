@@ -25,6 +25,7 @@ import { Avatar } from "@/components/ui";
 import { Icon } from "@/components/Icon";
 import { ConfirmSheet } from "@/components/Sheet";
 import { Bubble, ReplyQuote, type ReadState } from "@/components/chat/Bubble";
+import { ChatScrollbar, createScrollBus } from "@/components/chat/ChatScrollbar";
 import { MessageMenu, ReadersSheet, StickerPanel } from "@/components/chat/Panels";
 import {
   type ChatInfo,
@@ -80,6 +81,10 @@ export default function ChatScreen() {
   const [typing, setTyping] = useState<Record<string, { name: string; until: number }>>({});
   const [highlight, setHighlight] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  // Для ползунка быстрой прокрутки истории.
+  const scrollBus = useRef(createScrollBus()).current;
+  const [contentH, setContentH] = useState(0);
+  const [viewportH, setViewportH] = useState(0);
 
   const list = useRef<FlatList<ChatMessage>>(null);
   const input = useRef<TextInput>(null);
@@ -674,10 +679,15 @@ export default function ChatScreen() {
             <ActivityIndicator color={colors.violet} />
           </View>
         ) : (
+          <View style={{ flex: 1 }}>
           <FlatList
             ref={list}
             data={reversed}
             inverted
+            onScroll={(e) => scrollBus.emit(e.nativeEvent.contentOffset.y)}
+            scrollEventThrottle={32}
+            onContentSizeChange={(_, h) => setContentH(h)}
+            onLayout={(e) => setViewportH(e.nativeEvent.layout.height)}
             keyExtractor={(m) => m.id}
             renderItem={renderItem}
             contentContainerStyle={{ paddingVertical: 10 }}
@@ -695,6 +705,14 @@ export default function ChatScreen() {
               </View>
             }
           />
+          <ChatScrollbar
+            bus={scrollBus}
+            contentHeight={contentH}
+            viewportHeight={viewportH}
+            onSeek={(y) => list.current?.scrollToOffset({ offset: y, animated: false })}
+            onDragStart={() => Keyboard.dismiss()}
+          />
+          </View>
         )}
 
         {canWrite ? (

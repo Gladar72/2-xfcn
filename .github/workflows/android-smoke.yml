@@ -6,6 +6,12 @@ name: Android map check
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "map — проверка карты, auth — снимки экранов входа и регистрации"
+        type: choice
+        options: [map, auth]
+        default: map
 
 permissions:
   contents: write
@@ -15,7 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
-      EXPO_PUBLIC_MAP_SMOKE: "1"
+      EXPO_PUBLIC_MAP_SMOKE: ${{ inputs.mode != 'auth' && '1' || '' }}
+      EXPO_PUBLIC_AUTH_SMOKE: ${{ inputs.mode == 'auth' && '1' || '' }}
       EXPO_PUBLIC_STORE: rustore
     steps:
       - uses: actions/checkout@v4
@@ -78,18 +85,11 @@ jobs:
             adb shell pm grant ru.mesto.app android.permission.ACCESS_FINE_LOCATION || true
             adb logcat -c
             adb shell monkey -p ru.mesto.app -c android.intent.category.LAUNCHER 1
-            sleep 3
-            adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/splash-1.png
-            sleep 3
-            adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/splash-2.png
-            sleep 18
-            adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/login.png
-            sleep 21
-            adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/map-1.png
-            sleep 20
-            adb exec-out screencap -p > $GITHUB_WORKSPACE/shots/map-2.png
+            if [ "${{ inputs.mode }}" = "auth" ]; then bash $GITHUB_WORKSPACE/.github/scripts/auth-shots.sh; else bash $GITHUB_WORKSPACE/.github/scripts/map-shots.sh; fi
             adb shell pidof ru.mesto.app > $GITHUB_WORKSPACE/shots/alive.txt || echo "НЕ ЗАПУЩЕНО (упало?)" > $GITHUB_WORKSPACE/shots/alive.txt
             adb logcat -d | grep -E "ReactNative|AndroidRuntime|FATAL|Exception|Error|MapLibre|mbgl|maplibre" | grep -v ViewManagerPropertyUpdater | tail -n 300 > $GITHUB_WORKSPACE/shots/log.txt || true
+            adb logcat -d -s ReactNativeJS:V ReactNative:V AndroidRuntime:E | tail -n 400 > $GITHUB_WORKSPACE/shots/js.txt || true
+            adb logcat -d -b crash | tail -n 200 > $GITHUB_WORKSPACE/shots/crash.txt || true
 
       - name: Снимки в ветку smoke-shots
         if: always()
@@ -97,4 +97,4 @@ jobs:
           mkdir -p /tmp/s shots && cp -r shots/. /tmp/s/ && cd /tmp/s
           git init -q && git config user.name github-actions && git config user.email actions@users.noreply.github.com
           git add -A && git commit -qm "Снимки проверки карты" && \
-          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" HEAD:smoke-shots
+          git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" HEAD:${{ inputs.mode == 'auth' && 'auth-shots' || 'smoke-shots' }}
