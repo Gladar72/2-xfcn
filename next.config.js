@@ -39,14 +39,16 @@ const nextConfig = {
   // версии мобильного приложения с адресом 2-xfcn.vercel.app, старые кнопки в боте),
   // пересылаем на сервер — иначе люди попадают в старую базу, и их встречи никто не видит.
   // На Vercel остаётся только прокладка к Telegram (/api/telegram/relay, /tg/...).
+  // Промежуточный new.mesto-go.ru больше не разрешается в DNS. Используем
+  // действующий адрес сервера, сохраняя старые ссылки 2-xfcn.vercel.app.
   async rewrites() {
     if (!process.env.VERCEL) return [];
     return {
       beforeFiles: [
-        { source: "/", destination: "https://new.mesto-go.ru/" },
+        { source: "/", destination: "https://mesto-go.ru/" },
         {
           source: "/:path((?!api/telegram/relay/|tg/).*)",
-          destination: "https://new.mesto-go.ru/:path",
+          destination: "https://mesto-go.ru/:path",
         },
       ],
     };
