@@ -38,8 +38,9 @@ jobs:
       - name: Production build
         run: npm run build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:3211
           NEXT_PUBLIC_SUPABASE_ANON_KEY: build-test-only
+          SUPABASE_SERVICE_ROLE_KEY: build-test-only
           NEXT_TELEMETRY_DISABLED: '1'
       - uses: actions/upload-artifact@v4
         if: failure()
