@@ -114,7 +114,8 @@ test('back navigation retains the outgoing profile scroll and another navigation
     }).observe(document.body, { childList: true, subtree: true });
   });
   await active(page).getByRole('button', { name: 'Назад', exact: true }).tap();
-  await expect(page.locator('.pcard').first()).toBeVisible();
+  // The first client navigation compiles /feed in Next's dev test server.
+  await expect(page.locator('.pcard').first()).toBeVisible({ timeout: 15_000 });
   expect(await page.evaluate(() => (window as unknown as { outgoingScroll: number[] }).outgoingScroll)).toContain(350);
   await page.locator('.pcard').first().tap();
   await expect(active(page).locator('h1')).toHaveText('Анкета 0, 30');
