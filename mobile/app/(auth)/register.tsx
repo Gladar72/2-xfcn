@@ -17,7 +17,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
-import { Aurora, Btn, Glass, Title } from "@/components/brand";
+import { Aurora, Btn, Glass, Title, textWidth } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { CitySheet } from "@/components/CitySheet";
 import { DateWheels, ageOf, ageWord, type BirthDate } from "@/components/register/DateWheels";
@@ -51,6 +51,11 @@ interface Interest {
 
 const TOP_INTERESTS = ["Кофе", "Кино", "Бег", "Путешествия", "Музыка", "Йога", "Бары", "Концерты", "Походы", "Книги", "Настолки", "Вечеринки"];
 const MIN_INTERESTS = 3;
+const FIT = {
+  L: { main: { width: 116, height: 146 }, add: { width: 88, height: 110 }, field: 56, gap: 18, rows: 5 as const, row: 36 },
+  M: { main: { width: 104, height: 130 }, add: { width: 80, height: 100 }, field: 52, gap: 14, rows: 5 as const, row: 32 },
+  S: { main: { width: 96, height: 120 }, add: { width: 72, height: 90 }, field: 52, gap: 12, rows: 3 as const, row: 40 },
+};
 const EASE = Easing.bezier(0.32, 0.72, 0, 1);
 // Тестовая сборка для снимков на эмуляторе: анкета заполнена, шаги листаются без проверок.
 const SMOKE = process.env.EXPO_PUBLIC_AUTH_SMOKE === "1";
@@ -58,8 +63,8 @@ const SMOKE = process.env.EXPO_PUBLIC_AUTH_SMOKE === "1";
 export default function RegisterScreen() {
   const { ticket, ticketKind, prefillName, prefillPhoto, handleAuthResult, signOut } = useAuth();
   const { width, height } = useWindowDimensions();
-  // На высоких экранах (большинство Android и iPhone) анкета крупнее: фото больше, барабаны в 5 строк.
-  const roomy = height >= 740;
+  // Сколько места между шапкой и Мосей — меряем, чтобы анкета заняла его целиком и ни на что не налезла.
+  const [areaH, setAreaH] = useState(0);
   const [step, setStep] = useState(0);
   const slide = useRef(new Animated.Value(0)).current;
 
@@ -149,6 +154,13 @@ export default function RegisterScreen() {
 
   const age = ageOf(birth);
   const cleanName = name.trim();
+  // Размер анкеты под экран: L — крупно, M — средне, S — компактно. Высоты посчитаны по стилям ниже.
+  const titleSize = 28;
+  const titleLines = textWidth(cleanName.length >= 2 ? `Почти готово, ${cleanName}` : "Почти готово", titleSize) > width - 44 ? 2 : 1;
+  // Почта или Apple — внизу ещё плашка «Уже есть профиль в Telegram?» (~66 pt).
+  const tgOffer = ticketKind === "phone" || ticketKind === "email" || ticketKind === "apple";
+  const room = (areaH || height - 300) - (titleLines - 1) * Math.ceil(titleSize * 1.08) - (tgOffer ? 66 : 0);
+  const fit = room >= 650 ? FIT.L : room >= 600 ? FIT.M : FIT.S;
   // Мося здоровается, когда человек перестал печатать, а не на каждую букву.
   const [heardName, setHeardName] = useState(cleanName);
   useEffect(() => {
@@ -269,7 +281,7 @@ export default function RegisterScreen() {
   const tileW = (width - 40 - 16) / 3;
   const translateX = slide.interpolate({ inputRange: [-1, 0, 1], outputRange: [-40, 0, 40] });
   const opacity = slide.interpolate({ inputRange: [-1, 0, 1], outputRange: [0, 1, 0] });
-  const hasTgOffer = ticketKind === "phone" || ticketKind === "email" || ticketKind === "apple";
+  const hasTgOffer = tgOffer;
 
   return (
     <SafeAreaView style={{ flex: 1 }} edges={["top", "bottom"]}>
@@ -287,16 +299,16 @@ export default function RegisterScreen() {
           <Text style={styles.cnt}>{step + 1} / 3</Text>
         </View>
 
-        <Animated.View style={{ flex: 1, opacity, transform: [{ translateX }] }}>
+        <Animated.View style={{ flex: 1, opacity, transform: [{ translateX }] }} onLayout={(e) => setAreaH(Math.round(e.nativeEvent.layout.height))}>
           <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
             {step === 0 ? (
               <>
-                {cleanName.length >= 2 ? <Title plain="Почти готово, " em={cleanName} size={roomy ? 30 : 28} /> : <Title plain="Почти " em="готово" size={roomy ? 30 : 28} />}
+                {cleanName.length >= 2 ? <Title plain="Почти готово, " em={cleanName} size={titleSize} /> : <Title plain="Почти " em="готово" size={titleSize} />}
                 <Text style={styles.sub}>Пара секунд — и в путь</Text>
 
-                <View style={[styles.photos, roomy && { marginTop: 22, gap: 12 }]}>
+                <View style={[styles.photos, { marginTop: fit.gap + 4, gap: fit.main.width >= 110 ? 12 : 10 }]}>
                   {photos.map((p, i) => (
-                    <Pressable key={i} onPress={() => addPhoto(i)} style={[styles.ph, i === 0 ? (roomy ? styles.phMainL : styles.phMain) : roomy ? styles.phAddL : styles.phAdd, !p && styles.phEmpty]} accessibilityLabel={p ? "Заменить фото" : "Добавить фото"}>
+                    <Pressable key={i} onPress={() => addPhoto(i)} style={[styles.ph, i === 0 ? fit.main : fit.add, !p && styles.phEmpty]} accessibilityLabel={p ? "Заменить фото" : "Добавить фото"}>
                       {p ? (
                         <>
                           <Image source={{ uri: p }} style={StyleSheet.absoluteFill} contentFit="cover" />
@@ -328,12 +340,13 @@ export default function RegisterScreen() {
                   maxLength={60}
                   autoCapitalize="words"
                   textContentType="givenName"
-                  style={[styles.field, roomy && { height: 56, marginTop: 16 }]}
+                  style={[styles.field, { height: fit.field, marginTop: fit.gap }]}
                 />
 
-                <Text style={[styles.lbl, roomy && { marginTop: 22 }]}>Дата рождения</Text>
+                <Text style={[styles.lbl, { marginTop: fit.gap + 4 }]}>Дата рождения</Text>
                 <DateWheels
-                  rows={roomy ? 5 : 3}
+                  rows={fit.rows}
+                  rowHeight={fit.row}
                   value={birth}
                   onChange={(b) => {
                     setBirth(b);
@@ -551,8 +564,7 @@ const styles = StyleSheet.create({
   ph: { borderRadius: 22, alignItems: "center", justifyContent: "center", overflow: "hidden" },
   phMain: { width: 96, height: 120 },
   phAdd: { width: 72, height: 90 },
-  phMainL: { width: 116, height: 146 },
-  phAddL: { width: 88, height: 110 },
+
   phEmpty: { backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 2, borderStyle: "dashed", borderColor: "rgba(108,59,255,0.35)" },
   phText: { fontSize: 13, color: colors.violet, marginTop: 4, ...f("600") },
   phX: { position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(22,18,31,0.45)", alignItems: "center", justifyContent: "center" },

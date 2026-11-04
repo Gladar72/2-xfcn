@@ -35,8 +35,7 @@ export function ageWord(a: number): string {
   return "лет";
 }
 
-const Wheel = memo(function Wheel({ items, index, onChange, flex, rows }: { items: string[]; index: number; onChange: (i: number) => void; flex: number; rows: number }) {
-  const ROW = rows === 5 ? ROW_5 : ROW_3;
+const Wheel = memo(function Wheel({ items, index, onChange, flex, rows, row: ROW }: { items: string[]; index: number; onChange: (i: number) => void; flex: number; rows: number; row: number }) {
   const y = useRef(new Animated.Value(index * ROW)).current;
   const ref = useRef<ScrollView>(null);
   const last = useRef(index);
@@ -108,8 +107,8 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex, rows }: { item
 });
 
 /** rows — сколько строк видно: 3 на невысоких экранах, 5 (как в iPhone) — где хватает места. */
-export function DateWheels({ value, onChange, rows = 3 }: { value: BirthDate; onChange: (v: BirthDate) => void; rows?: 3 | 5 }) {
-  const ROW = rows === 5 ? ROW_5 : ROW_3;
+export function DateWheels({ value, onChange, rows = 3, rowHeight }: { value: BirthDate; onChange: (v: BirthDate) => void; rows?: 3 | 5; rowHeight?: number }) {
+  const ROW = rowHeight ?? (rows === 5 ? ROW_5 : ROW_3);
   const now = new Date().getFullYear();
   const years = useMemo(() => Array.from({ length: 83 }, (_, i) => String(now - 18 - i)), [now]);
   const days = useMemo(() => Array.from({ length: daysIn(value.m, value.y) }, (_, i) => String(i + 1)), [value.m, value.y]);
@@ -128,9 +127,9 @@ export function DateWheels({ value, onChange, rows = 3 }: { value: BirthDate; on
   return (
     <View style={[styles.box, { height: ROW * rows }]}>
       <View pointerEvents="none" style={[styles.sel, { top: ROW * ((rows - 1) / 2), height: ROW }]} />
-      <Wheel items={days} index={value.d - 1} onChange={onDay} flex={0.8} rows={rows} />
-      <Wheel items={MONTHS} index={value.m} onChange={onMonth} flex={1.6} rows={rows} />
-      <Wheel items={years} index={Math.max(0, now - 18 - value.y)} onChange={onYear} flex={1} rows={rows} />
+      <Wheel items={days} index={value.d - 1} onChange={onDay} flex={0.8} rows={rows} row={ROW} />
+      <Wheel items={MONTHS} index={value.m} onChange={onMonth} flex={1.6} rows={rows} row={ROW} />
+      <Wheel items={years} index={Math.max(0, now - 18 - value.y)} onChange={onYear} flex={1} rows={rows} row={ROW} />
     </View>
   );
 }
