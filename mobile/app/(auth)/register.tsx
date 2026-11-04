@@ -433,7 +433,7 @@ export default function RegisterScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.geoTitle}>{city ?? "Определить город"}</Text>
-                    <Text style={styles.geoSub}>{city ? (cityAuto ? "Определили по геолокации" : "Твой город") : "По геолокации, займёт секунду"}</Text>
+                    <Text style={styles.geoSub}>{city ? (cityAuto ? "Определили по геолокации" : "Твой город") : "По геолокации — за секунду"}</Text>
                   </View>
                   {geoBusy ? (
                     <ActivityIndicator color={colors.violet} />
