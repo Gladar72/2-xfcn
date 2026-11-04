@@ -13,6 +13,7 @@ import { Icon, type IconName } from "@/components/brand/Icon";
 import { characterSvg, type Face, type Palette, type Shape } from "@/components/brand/characters";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { photoThumb } from "@/lib/photos/thumb";
+import { coverSources } from "@/lib/photos/cover-sources";
 import { distanceShort } from "@/lib/geo/approx-distance";
 
 /** Иконка прототипа: <svg class="ic s"> — размер и толщина задаются CSS. */
@@ -60,13 +61,34 @@ export function eventIcon(e: { isBusiness?: boolean; category?: { slug: string }
 /** Обложка: фото встречи или фирменная «gfx» с 3D-иконкой (как в прототипе). */
 export function Cover({ photoUrl, icon, cls = "ph", thumb }: { photoUrl?: string | null; icon: string; cls?: string; thumb?: number }) {
   if (photoUrl) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img className={cls} src={thumb ? photoThumb(photoUrl, thumb) : photoUrl} alt="" />;
+    return <RecoveringCover key={`${photoUrl}|${thumb}`} photoUrl={photoUrl} icon={icon} cls={cls} thumb={thumb} />;
   }
+  return <CoverPlaceholder cls={cls} icon={icon} />;
+}
+
+function RecoveringCover({ photoUrl, icon, cls, thumb }: { photoUrl: string; icon: string; cls: string; thumb?: number }) {
+  const sources = useMemo(() => coverSources(photoUrl, thumb), [photoUrl, thumb]);
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    const retry = () => setAttempt(0);
+    window.addEventListener("online", retry);
+    return () => window.removeEventListener("online", retry);
+  }, []);
+  const src = sources[attempt];
+  if (!src) return <CoverPlaceholder cls={cls} icon={icon} />;
+  // One failure advances to a different source; there is no retry loop.
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img key={src} className={cls} src={src} alt="" onError={() => setAttempt(attempt + 1)} />;
+}
+
+function CoverPlaceholder({ cls, icon }: { cls: string; icon: string }) {
+  const [failedIcon, setFailedIcon] = useState<string>();
   return (
     <div className={`${cls} gfx`}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={icon} alt="" />
+      {icon && failedIcon !== icon ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={icon} alt="" onError={() => setFailedIcon(icon)} />
+      ) : <Chr shape="flower" pal="violet" />}
     </div>
   );
 }
