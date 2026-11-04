@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { interestIcon } from "@/lib/data/interests";
@@ -166,7 +166,9 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   const raf = useRef(0);
   const flyTimer = useRef<ReturnType<typeof setTimeout>>();
   const suppressClick = useRef(false);
-  useEffect(() => () => {
+  // Dispose animation work during the commit, before another card can receive
+  // input or a stale frame can paint (including Strict Mode's mount replay).
+  useLayoutEffect(() => () => {
     cancelAnimationFrame(raf.current);
     clearTimeout(flyTimer.current);
     swipe.current = null;
