@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateOtp, hashOtp, normalizeEmail } from "@/lib/mobile/auth";
 import { sendEmailCode } from "@/lib/mobile/email";
+import { reviewLogin } from "@/lib/mobile/review-login";
 
 /**
  * POST /api/auth/mobile/email/send  { email }
@@ -41,8 +42,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const code = generateOtp();
-  const sent = await sendEmailCode(email, code);
+  // Служебная почта для проверяющих магазинов: письмо не отправляем, код постоянный.
+  const review = reviewLogin();
+  const isReview = review?.email === email;
+  const code = isReview ? review.code : generateOtp();
+  const sent = isReview ? { ok: true as const } : await sendEmailCode(email, code);
   if (!sent.ok) {
     return NextResponse.json({ error: "email_failed", message: "Не получилось отправить письмо. Попробуй позже" }, { status: 502 });
   }
