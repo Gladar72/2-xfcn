@@ -39,6 +39,8 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex, rows, row: ROW
   const y = useRef(new Animated.Value(index * ROW)).current;
   const ref = useRef<ScrollView>(null);
   const last = useRef(index);
+  // Меняем значение только от пальца: прокрутка при перестройке экрана не должна сбивать дату.
+  const touching = useRef(false);
 
   // Значение поменялось снаружи (например, 31 → 30 при смене месяца) — докручиваем.
   useEffect(() => {
@@ -54,7 +56,7 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex, rows, row: ROW
         useNativeDriver: true,
         listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
           const i = Math.max(0, Math.min(items.length - 1, Math.round(e.nativeEvent.contentOffset.y / ROW)));
-          if (i !== last.current) {
+          if (touching.current && i !== last.current) {
             last.current = i;
             Haptics.selectionAsync().catch(() => {});
             onChange(i);
@@ -74,6 +76,12 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex, rows, row: ROW
         contentOffset={{ x: 0, y: index * ROW }}
         contentContainerStyle={{ paddingVertical: ROW * ((rows - 1) / 2) }}
         onScroll={onScroll}
+        onScrollBeginDrag={() => {
+          touching.current = true;
+        }}
+        onMomentumScrollEnd={() => {
+          touching.current = false;
+        }}
         scrollEventThrottle={16}
         nestedScrollEnabled
       >

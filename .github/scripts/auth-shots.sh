@@ -18,4 +18,5 @@ adb shell input tap "$BX" "$BY"; sleep 4; shot 07-register-2
 adb shell input tap "$BX" "$BY"; sleep 4; shot 08-register-3
 adb shell input tap "$BX" "$BY"; sleep 4; shot 09-register-4
 adb shell input tap "$BX" "$BY"; sleep 4; shot 10-register-5
+adb shell input tap "$BX" "$BY"; sleep 4; shot 11-register-6
 echo "screen ${W}x${H} tap ${BX},${BY}" > "$D/taps.txt"

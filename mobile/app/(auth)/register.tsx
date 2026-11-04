@@ -160,7 +160,7 @@ export default function RegisterScreen() {
   // Шаг «фото»: главное фото крупно слева, два дополнительных столбиком справа.
   const gridW = width - 40;
   const mainW = Math.round((gridW - 12) * 0.62);
-  const photoH = Math.min(Math.round(mainW * 1.3), Math.max(240, (areaH || height - 330) - 130));
+  const photoH = Math.min(Math.round(mainW * 1.55), Math.max(240, (areaH || height - 330) - 130));
   // Мося здоровается, когда человек перестал печатать, а не на каждую букву.
   const [heardName, setHeardName] = useState(cleanName);
   useEffect(() => {
@@ -334,6 +334,7 @@ export default function RegisterScreen() {
 
                 <Text style={styles.lbl}>Дата рождения</Text>
                 <DateWheels
+                  key={wheelRows}
                   rows={wheelRows}
                   value={birth}
                   onChange={(b) => {
