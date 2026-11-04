@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { readLaunchData } from "@/lib/telegram/launch-data";
 
 /**
  * Telegram инжектит объект window.Telegram.WebApp через скрипт
@@ -65,17 +66,16 @@ export function getTelegramWebApp(): TelegramWebApp | null {
 
 /** Возвращает сырую initData-строку для отправки на backend, либо null вне Telegram. */
 export function getInitData(): string | null {
-  const webApp = getTelegramWebApp();
-  if (webApp?.initData) return webApp.initData;
-  // Запасной путь: если скрипт Telegram не загрузился, initData всё равно
-  // лежит в адресе страницы (#tgWebAppData=...), куда его кладёт сам Telegram.
   if (typeof window === "undefined") return null;
+  // Свежие параметры запуска важнее старой копии SDK из sessionStorage.
+  // Подпись по-прежнему проверяется только сервером.
   try {
-    const fromHash = new URLSearchParams(window.location.hash.slice(1)).get("tgWebAppData");
-    return fromHash || null;
+    const launchData = readLaunchData(window.location.hash, window.location.search);
+    if (launchData) return launchData;
   } catch {
-    return null;
+    /* SDK остаётся запасным источником после переходов внутри приложения. */
   }
+  return getTelegramWebApp()?.initData || null;
 }
 
 /**

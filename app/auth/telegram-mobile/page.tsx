@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { TelegramLoginWidget } from "@/components/telegram/TelegramLoginWidget";
 
 /**
  * Страница входа через Telegram для мобильного приложения.
@@ -10,32 +10,16 @@ import { useEffect, useRef } from "react";
  *
  * Нужна разовая настройка: BotFather → /setdomain → домен приложения.
  */
-const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "Mesto_people_bot";
 
 export default function TelegramMobileLoginPage() {
-  const box = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
+  function handleTelegramAuth(user: Record<string, string | number>) {
     const params = new URLSearchParams(window.location.search);
     const redirect = params.get("redirect") || "mesto://auth";
     const safeRedirect = /^(mesto|exp|exps):\/\//.test(redirect) ? redirect : "mesto://auth";
-
-    (window as unknown as { onTelegramAuth: (u: Record<string, string | number>) => void }).onTelegramAuth = (user) => {
-      const q = new URLSearchParams();
-      Object.entries(user).forEach(([k, v]) => q.set(k, String(v)));
-      window.location.href = `${safeRedirect}${safeRedirect.includes("?") ? "&" : "?"}${q.toString()}`;
-    };
-
-    const s = document.createElement("script");
-    s.src = "https://telegram.org/js/telegram-widget.js?22";
-    s.async = true;
-    s.setAttribute("data-telegram-login", BOT_USERNAME);
-    s.setAttribute("data-size", "large");
-    s.setAttribute("data-radius", "14");
-    s.setAttribute("data-request-access", "write");
-    s.setAttribute("data-onauth", "onTelegramAuth(user)");
-    box.current?.appendChild(s);
-  }, []);
+    const q = new URLSearchParams();
+    Object.entries(user).forEach(([k, v]) => q.set(k, String(v)));
+    window.location.href = `${safeRedirect}${safeRedirect.includes("?") ? "&" : "?"}${q.toString()}`;
+  }
 
   return (
     <main className="m-aurora flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
@@ -45,7 +29,7 @@ export default function TelegramMobileLoginPage() {
         <h1 className="m-title text-[28px] font-bold text-ink-900">Вход через Telegram</h1>
         <p className="mt-2 text-sm text-ink-600">Нажми кнопку и подтверди вход в Telegram — потом вернёшься в приложение «Место».</p>
       </div>
-      <div ref={box} />
+      <div className="w-full max-w-sm"><TelegramLoginWidget onAuth={handleTelegramAuth} /></div>
     </main>
   );
 }
