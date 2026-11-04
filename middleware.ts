@@ -99,6 +99,11 @@ async function verifySession(token: string | undefined): Promise<string | null> 
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  // Главная mesto-go.ru — лендинг (статичный файл). Мини-приложение Telegram открывает тот же «/»:
+  // лендинг сам видит #tgWebAppData и перекидывает на /app (вход в мини-приложение).
+  if (pathname === "/" && (req.method === "GET" || req.method === "HEAD")) {
+    return NextResponse.rewrite(new URL("/site/index.html", req.url));
+  }
   // Прокладка к Telegram Bot API для сервера в России: /api/telegram/relay/<путь> → api.telegram.org/<путь>.
   // Пересылаем прямо отсюда (переписывание адреса на Vercel подвешивает POST-запросы с телом).
   // Пропускаем только токен нашего бота — это не открытый прокси.

@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
 
 /**
- * «Место» — мини-приложение Telegram, а не сайт для поисковиков.
- * Запрещаем индексацию всем, отдельно перечисляем ИИ-краулеры
+ * Поисковикам открыта только главная (лендинг) и документы, само приложение закрыто; отдельно перечисляем ИИ-краулеры
  * (их ещё и отсекает middleware.ts по User-Agent).
  */
 export default function robots(): MetadataRoute.Robots {
@@ -14,7 +13,8 @@ export default function robots(): MetadataRoute.Robots {
   return {
     rules: [
       ...aiBots.map((userAgent) => ({ userAgent, disallow: "/" })),
-      { userAgent: "*", disallow: "/" },
+      // Поисковикам открыта только главная (лендинг) и документы; само приложение — нет.
+      { userAgent: "*", allow: ["/$", "/legal/"], disallow: "/" },
     ],
   };
 }
