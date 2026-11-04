@@ -10,7 +10,7 @@ import { colors, FONT, f } from "@/lib/theme";
  */
 export const MONTHS = ["января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"];
 const ROW_3 = 40;
-const ROW_5 = 36;
+const ROW_5 = 42;
 
 export interface BirthDate {
   d: number; // 1..31
@@ -86,11 +86,11 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex, rows, row: ROW
                 styles.row,
                 { height: ROW },
                 {
-                  opacity: y.interpolate({ inputRange: range, outputRange: [0.2, 0.45, 1, 0.45, 0.2], extrapolate: "clamp" }),
+                  opacity: y.interpolate({ inputRange: range, outputRange: [0.3, 0.6, 1, 0.6, 0.3], extrapolate: "clamp" }),
                   transform: [
                     { perspective: 400 },
-                    { rotateX: y.interpolate({ inputRange: range, outputRange: ["62deg", "34deg", "0deg", "-34deg", "-62deg"], extrapolate: "clamp" }) },
-                    { scale: y.interpolate({ inputRange: range, outputRange: [0.86, 0.93, 1, 0.93, 0.86], extrapolate: "clamp" }) },
+                    { rotateX: y.interpolate({ inputRange: range, outputRange: ["48deg", "24deg", "0deg", "-24deg", "-48deg"], extrapolate: "clamp" }) },
+                    { scale: y.interpolate({ inputRange: range, outputRange: [0.9, 0.96, 1, 0.96, 0.9], extrapolate: "clamp" }) },
                   ],
                 },
               ]}
@@ -139,5 +139,5 @@ const styles = StyleSheet.create({
   sel: { position: "absolute", left: 8, right: 8, borderRadius: 12, backgroundColor: colors.lav },
   row: { alignItems: "center", justifyContent: "center" },
   text: { fontFamily: FONT, fontSize: 18, color: colors.ink, fontVariant: ["tabular-nums"] },
-  cur: { ...f("600") },
+  cur: { ...f("600"), fontSize: 20 },
 });

@@ -51,11 +51,7 @@ interface Interest {
 
 const TOP_INTERESTS = ["Кофе", "Кино", "Бег", "Путешествия", "Музыка", "Йога", "Бары", "Концерты", "Походы", "Книги", "Настолки", "Вечеринки"];
 const MIN_INTERESTS = 3;
-const FIT = {
-  L: { main: { width: 116, height: 146 }, add: { width: 88, height: 110 }, field: 56, gap: 18, rows: 5 as const, row: 36 },
-  M: { main: { width: 104, height: 130 }, add: { width: 80, height: 100 }, field: 52, gap: 14, rows: 5 as const, row: 32 },
-  S: { main: { width: 96, height: 120 }, add: { width: 72, height: 90 }, field: 52, gap: 12, rows: 3 as const, row: 40 },
-};
+const STEPS = 4; // о себе · фото · интересы · город
 const EASE = Easing.bezier(0.32, 0.72, 0, 1);
 // Тестовая сборка для снимков на эмуляторе: анкета заполнена, шаги листаются без проверок.
 const SMOKE = process.env.EXPO_PUBLIC_AUTH_SMOKE === "1";
@@ -154,13 +150,17 @@ export default function RegisterScreen() {
 
   const age = ageOf(birth);
   const cleanName = name.trim();
-  // Размер анкеты под экран: L — крупно, M — средне, S — компактно. Высоты посчитаны по стилям ниже.
   const titleSize = 28;
   const titleLines = textWidth(cleanName.length >= 2 ? `Почти готово, ${cleanName}` : "Почти готово", titleSize) > width - 44 ? 2 : 1;
   // Почта или Apple — внизу ещё плашка «Уже есть профиль в Telegram?» (~66 pt).
   const tgOffer = ticketKind === "phone" || ticketKind === "email" || ticketKind === "apple";
-  const room = (areaH || height - 300) - (titleLines - 1) * Math.ceil(titleSize * 1.08) - (tgOffer ? 66 : 0);
-  const fit = room >= 650 ? FIT.L : room >= 600 ? FIT.M : FIT.S;
+  // Шаг «о себе»: барабаны даты в 5 строк (как в iPhone), если хватает высоты, иначе в 3.
+  const room = (areaH || height - 330) - (titleLines - 1) * Math.ceil(titleSize * 1.12) - (tgOffer ? 66 : 0);
+  const wheelRows: 3 | 5 = room >= 560 ? 5 : 3;
+  // Шаг «фото»: главное фото крупно слева, два дополнительных столбиком справа.
+  const gridW = width - 40;
+  const mainW = Math.round((gridW - 12) * 0.62);
+  const photoH = Math.min(Math.round(mainW * 1.3), Math.max(240, (areaH || height - 330) - 130));
   // Мося здоровается, когда человек перестал печатать, а не на каждую букву.
   const [heardName, setHeardName] = useState(cleanName);
   useEffect(() => {
@@ -168,19 +168,24 @@ export default function RegisterScreen() {
     return () => clearTimeout(t);
   }, [cleanName]);
 
-  function next1() {
+  function nextAbout() {
     if (SMOKE) return go(1);
-    if (!photos[0]) return setNudge("Добавь фото — так люди поймут, с кем идут на встречу");
     if (cleanName.length < 2) return setNudge("Напиши своё имя — хватит одного");
     if (age < 18) return setNudge("«Место» — для тех, кому уже есть 18");
     if (!gender) return setNudge("И последнее — выбери, ты парень или девушка");
     go(1);
   }
 
-  function next2() {
+  function nextPhoto() {
     if (SMOKE) return go(2);
-    if ((interests?.length ?? 0) > 0 && picked.length < MIN_INTERESTS) return setNudge(`Выбери ещё ${MIN_INTERESTS - picked.length} — так подберу встречи точнее`);
+    if (!photos[0]) return setNudge("Добавь фото — так люди поймут, с кем идут на встречу");
     go(2);
+  }
+
+  function nextInterests() {
+    if (SMOKE) return go(3);
+    if ((interests?.length ?? 0) > 0 && picked.length < MIN_INTERESTS) return setNudge(`Выбери ещё ${MIN_INTERESTS - picked.length} — так подберу встречи точнее`);
+    go(3);
   }
 
   async function findCity() {
@@ -219,7 +224,7 @@ export default function RegisterScreen() {
     if (!agreed) return setError("Нужно принять условия оферты и политики конфиденциальности");
     if (!agreedPd) return setError("Нужно согласие на обработку персональных данных");
     const main = photos[0];
-    if (!main) return go(0);
+    if (!main) return go(1);
     setBusy(true);
     try {
       const refCode = await getPendingRef();
@@ -260,15 +265,20 @@ export default function RegisterScreen() {
     if (step === 0) {
       if (heardName.length >= 2 && birthTouched && age >= 18) return { pose: "mosya_bday", text: `${age} ${ageWord(age)} — отличный возраст для новых знакомств!` };
       if (heardName.length >= 2) return { pose: "mosya_wave", text: `Приятно познакомиться, ${heardName}!` };
-      // Вход по почте или через Apple — фото из Telegram нет, просим добавить своё.
-      if (!photos[0] && !photoBusy) return { pose: "mosya_selfie", text: "Начни с фото — так тебя узнают на встрече" };
       return { pose: "mosya_wave", text: "Знаю, анкеты — скучно. Тут пара секунд!" };
+    }
+    if (step === 1) {
+      if (photoBusy) return { pose: "mosya_selfie", text: "Беру фото из Telegram…" };
+      if (photos[0] && tgPhoto) return { pose: "mosya_clap", text: "Взял фото из Telegram. Можно добавить ещё два" };
+      if (photos[0]) return { pose: "mosya_clap", text: "Отличное фото! Можно добавить ещё два" };
+      // Вход по почте или через Apple — фото из Telegram нет, просим добавить своё.
+      return { pose: "mosya_selfie", text: "Покажи себя — так тебя узнают на встрече" };
     }
     const n = picked.length;
     if (n === 0) return { pose: "mosya_love", text: "Тапай, что нравится — подберу встречи и людей" };
     if (n < MIN_INTERESTS) return { pose: "mosya_love", text: `Отлично! Ещё ${MIN_INTERESTS - n}, и идём дальше` };
-    return { pose: "mosya_jump", text: `Выбрано ${n} — уже вижу, куда тебя позвать!` };
-  }, [nudge, step, heardName, birthTouched, age, picked.length, photos, photoBusy]);
+    return { pose: "mosya_love", text: `Выбрано ${n} — уже вижу, куда тебя позвать!` };
+  }, [nudge, step, heardName, birthTouched, age, picked.length, photos, photoBusy, tgPhoto]);
 
   const shown = useMemo(() => {
     if (!interests) return [];
@@ -292,11 +302,13 @@ export default function RegisterScreen() {
             <Icon name="back" size={20} color={colors.ink} strokeWidth={2} />
           </Pressable>
           <View style={styles.prog}>
-            {[0, 1, 2].map((i) => (
+            {Array.from({ length: STEPS }, (_, i) => (
               <View key={i} style={[styles.bar, i <= step && styles.barOn]} />
             ))}
           </View>
-          <Text style={styles.cnt}>{step + 1} / 3</Text>
+          <Text style={styles.cnt}>
+            {step + 1} / {STEPS}
+          </Text>
         </View>
 
         <Animated.View style={{ flex: 1, opacity, transform: [{ translateX }] }} onLayout={(e) => setAreaH(Math.round(e.nativeEvent.layout.height))}>
@@ -305,29 +317,6 @@ export default function RegisterScreen() {
               <>
                 {cleanName.length >= 2 ? <Title plain="Почти готово, " em={cleanName} size={titleSize} /> : <Title plain="Почти " em="готово" size={titleSize} />}
                 <Text style={styles.sub}>Пара секунд — и в путь</Text>
-
-                <View style={[styles.photos, { marginTop: fit.gap + 4, gap: fit.main.width >= 110 ? 12 : 10 }]}>
-                  {photos.map((p, i) => (
-                    <Pressable key={i} onPress={() => addPhoto(i)} style={[styles.ph, i === 0 ? fit.main : fit.add, !p && styles.phEmpty]} accessibilityLabel={p ? "Заменить фото" : "Добавить фото"}>
-                      {p ? (
-                        <>
-                          <Image source={{ uri: p }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                          <Pressable onPress={() => removePhoto(i)} hitSlop={8} style={styles.phX} accessibilityLabel="Убрать фото">
-                            <Icon name="close" size={12} color="#fff" strokeWidth={2.6} />
-                          </Pressable>
-                          {i === 0 && tgPhoto ? <Text style={styles.phTag}>из Telegram</Text> : null}
-                        </>
-                      ) : i === 0 && photoBusy ? (
-                        <ActivityIndicator color={colors.violet} />
-                      ) : (
-                        <>
-                          <Icon name={i === 0 ? "camera" : "plus"} size={i === 0 ? 28 : 24} color={colors.violet} strokeWidth={2} />
-                          {i === 0 ? <Text style={styles.phText}>Фото</Text> : null}
-                        </>
-                      )}
-                    </Pressable>
-                  ))}
-                </View>
 
                 <TextInput
                   value={name}
@@ -340,13 +329,12 @@ export default function RegisterScreen() {
                   maxLength={60}
                   autoCapitalize="words"
                   textContentType="givenName"
-                  style={[styles.field, { height: fit.field, marginTop: fit.gap }]}
+                  style={styles.field}
                 />
 
-                <Text style={[styles.lbl, { marginTop: fit.gap + 4 }]}>Дата рождения</Text>
+                <Text style={styles.lbl}>Дата рождения</Text>
                 <DateWheels
-                  rows={fit.rows}
-                  rowHeight={fit.row}
+                  rows={wheelRows}
                   value={birth}
                   onChange={(b) => {
                     setBirth(b);
@@ -361,6 +349,7 @@ export default function RegisterScreen() {
                   <Text style={styles.ageText}>Дату не покажем — только возраст</Text>
                 </View>
 
+                <Text style={styles.lbl}>Ты</Text>
                 <Segmented
                   value={gender}
                   onChange={(g) => {
@@ -379,6 +368,37 @@ export default function RegisterScreen() {
                 ) : null}
               </>
             ) : step === 1 ? (
+              <>
+                <Title plain="Покажи " em="себя" size={titleSize} />
+                <Text style={styles.sub}>Главное фото обязательно, ещё два — по желанию</Text>
+                <View style={[styles.photoGrid, { height: photoH }]}>
+                  {photos.map((p, i) => {
+                    const box = i === 0 ? { width: mainW, height: photoH } : { width: gridW - mainW - 12, height: (photoH - 12) / 2 };
+                    const slot = (
+                      <Pressable key={i} onPress={() => addPhoto(i)} style={[styles.ph, box, !p && styles.phEmpty]} accessibilityLabel={p ? "Заменить фото" : "Добавить фото"}>
+                        {p ? (
+                          <>
+                            <Image source={{ uri: p }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                            <Pressable onPress={() => removePhoto(i)} hitSlop={8} style={styles.phX} accessibilityLabel="Убрать фото">
+                              <Icon name="close" size={13} color="#fff" strokeWidth={2.6} />
+                            </Pressable>
+                            {i === 0 && tgPhoto ? <Text style={styles.phTag}>из Telegram</Text> : null}
+                          </>
+                        ) : i === 0 && photoBusy ? (
+                          <ActivityIndicator color={colors.violet} />
+                        ) : (
+                          <>
+                            <Icon name={i === 0 ? "camera" : "plus"} size={i === 0 ? 34 : 26} color={colors.violet} strokeWidth={2} />
+                            {i === 0 ? <Text style={styles.phText}>Добавить фото</Text> : null}
+                          </>
+                        )}
+                      </Pressable>
+                    );
+                    return slot;
+                  })}
+                </View>
+              </>
+            ) : step === 2 ? (
               <>
                 <Title plain="Что тебе " em="по душе?" size={28} />
                 <Text style={styles.sub}>Выбери хотя бы три — подберём встречи и людей</Text>
@@ -454,10 +474,10 @@ export default function RegisterScreen() {
           </ScrollView>
         </Animated.View>
 
-        {step < 2 ? <RegHint pose={hint.pose} text={hint.text} /> : null}
+        {step < 3 ? <RegHint pose={hint.pose} text={hint.text} /> : null}
 
         <View style={styles.foot}>
-          {step === 2 ? (
+          {step === 3 ? (
             <>
               <Check on={agreed} onPress={() => setAgreed((v) => !v)}>
                 Мне есть 18 лет, принимаю{" "}
@@ -479,7 +499,7 @@ export default function RegisterScreen() {
               <Btn title="Готово" onPress={submit} loading={busy} disabled={!city || !agreed || !agreedPd} />
             </>
           ) : (
-            <Btn title="Дальше" onPress={step === 0 ? next1 : next2} disabled={step === 0 && photoBusy} />
+            <Btn title="Дальше" onPress={step === 0 ? nextAbout : step === 1 ? nextPhoto : nextInterests} disabled={step === 1 && photoBusy} />
           )}
         </View>
       </KeyboardAvoidingView>
@@ -560,24 +580,22 @@ const styles = StyleSheet.create({
   body: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
   sub: { fontFamily: FONT, fontSize: 14.5, color: colors.grey, marginTop: 6, lineHeight: 20 },
 
-  photos: { flexDirection: "row", alignItems: "flex-end", gap: 10, marginTop: 16 },
+  photoGrid: { marginTop: 20, flexDirection: "column", flexWrap: "wrap", alignContent: "space-between", rowGap: 12, columnGap: 12 },
   ph: { borderRadius: 22, alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  phMain: { width: 96, height: 120 },
-  phAdd: { width: 72, height: 90 },
 
   phEmpty: { backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 2, borderStyle: "dashed", borderColor: "rgba(108,59,255,0.35)" },
-  phText: { fontSize: 13, color: colors.violet, marginTop: 4, ...f("600") },
-  phX: { position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 11, backgroundColor: "rgba(22,18,31,0.45)", alignItems: "center", justifyContent: "center" },
+  phText: { fontSize: 14, color: colors.violet, marginTop: 6, ...f("600") },
+  phX: { position: "absolute", top: 8, right: 8, width: 26, height: 26, borderRadius: 13, backgroundColor: "rgba(22,18,31,0.45)", alignItems: "center", justifyContent: "center" },
   phTag: { position: "absolute", bottom: 7, fontSize: 10.5, color: "#fff", backgroundColor: "rgba(22,18,31,0.4)", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, overflow: "hidden", ...f("500") },
 
-  field: { marginTop: 14, height: 52, borderRadius: 16, backgroundColor: "#fff", paddingHorizontal: 16, fontFamily: FONT, fontSize: 17, color: colors.ink },
-  lbl: { marginTop: 16, marginBottom: 8, fontSize: 12, color: colors.grey, letterSpacing: 0.8, textTransform: "uppercase", ...f("600") },
+  field: { marginTop: 20, height: 56, borderRadius: 16, backgroundColor: "#fff", paddingHorizontal: 16, fontFamily: FONT, fontSize: 17, color: colors.ink },
+  lbl: { marginTop: 20, marginBottom: 8, fontSize: 12, color: colors.grey, letterSpacing: 0.8, textTransform: "uppercase", ...f("600") },
   age: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 10 },
   ageNum: { fontSize: 13.5, color: colors.violet, backgroundColor: colors.lav, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3, overflow: "hidden", ...f("600") },
   ageBad: { color: "#D2387F", backgroundColor: "rgba(255,95,174,0.14)" },
   ageText: { fontFamily: FONT, fontSize: 13.5, color: "#5B5470", flexShrink: 1 },
 
-  seg: { marginTop: 14, height: 46, borderRadius: 14, backgroundColor: "rgba(118,118,128,0.12)", flexDirection: "row", padding: 3 },
+  seg: { height: 48, borderRadius: 14, backgroundColor: "rgba(118,118,128,0.12)", flexDirection: "row", padding: 3 },
   segPill: { position: "absolute", top: 3, bottom: 3, left: 3, borderRadius: 11, backgroundColor: "#fff", shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 6, shadowOffset: { width: 0, height: 3 }, elevation: 2 },
   segBtn: { flex: 1, alignItems: "center", justifyContent: "center" },
   segText: { fontSize: 15, color: colors.ink, ...f("500") },

@@ -56,7 +56,7 @@ export function RegHint({ pose, text }: { pose: string; text: string }) {
           <Animated.View
             style={{
               transform: [
-                { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [110, 0] }) },
+                { translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [140, 0] }) },
                 { translateY: hop.interpolate({ inputRange: [0, 1], outputRange: [0, -10] }) },
               ],
             }}
@@ -70,12 +70,13 @@ export function RegHint({ pose, text }: { pose: string; text: string }) {
 }
 
 const styles = StyleSheet.create({
-  band: { height: 92, overflow: "hidden", justifyContent: "flex-end" },
+  // Полоса выше Моси с запасом: он виден целиком, с ножками, и при подпрыгивании не обрезается.
+  band: { height: 128, overflow: "hidden", justifyContent: "flex-end", paddingBottom: 4 },
   row: { flexDirection: "row", alignItems: "flex-end", justifyContent: "flex-end", paddingLeft: 20, paddingRight: 6 },
   bubble: {
     flexShrink: 1,
     maxWidth: 240,
-    marginBottom: 26,
+    marginBottom: 40,
     backgroundColor: "#fff",
     borderRadius: 18,
     borderBottomRightRadius: 5,
@@ -88,5 +89,5 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   text: { fontFamily: FONT, fontSize: 14, lineHeight: 19, color: colors.ink },
-  mosya: { width: 88, height: 88 },
+  mosya: { width: 104, height: 104 },
 });

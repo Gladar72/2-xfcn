@@ -7,8 +7,12 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import Svg, { Defs, LinearGradient as SvgLinear, Path, RadialGradient, Rect, Stop, G, Text as SvgText } from "react-native-svg";
-import { brand, brandGradient, colors, FONT, gradientEnd, gradientStart, f } from "@/lib/theme";
+import { brand, brandGradient, colors, fonts, gradientEnd, gradientStart, f } from "@/lib/theme";
 import { LOGO_LETTERS, LOGO_M, LOGO_VIEWBOX } from "@/lib/logo-paths";
+import { textWidth } from "@/lib/textWidth";
+import { SvgTitle } from "./title-svg";
+
+export { textWidth };
 
 /** Фон экрана: мягкие пятна фиолетового, розового, голубого и персикового на молочном. */
 export function Aurora({ style }: { style?: StyleProp<ViewStyle> }) {
@@ -158,31 +162,13 @@ export function RoundBtn({ children, onPress, dark, size = 44, style }: { childr
 
 /**
  * Текст с акцентом фирменным градиентом: «Что ищешь <em>сегодня?</em>».
- * Обычная часть — обычным текстом, акцент — SVG-текстом с градиентной заливкой.
+ * С акцентом — рисуем целиком одним SVG (components/title-svg.tsx), чтобы акцент
+ * стоял на одной линии с текстом и не обрезался.
  */
 export function Title({ plain, em, size = 32, after, style }: { plain: string; em?: string; size?: number; after?: string; style?: StyleProp<TextStyle> }) {
   const base: TextStyle = { fontSize: size, lineHeight: size * 1.08, ...f("500"), letterSpacing: -size * 0.03, color: colors.ink };
   if (!em) return <Text style={[base, style]}>{plain}</Text>;
-  return (
-    <Text style={[base, style]}>
-      {plain}
-      <GradWord text={em} size={size} />
-      {after ?? ""}
-    </Text>
-  );
-}
-
-/**
- * Ширины букв Golos Text Medium (единицы на 1000 кегля, из файла шрифта) —
- * чтобы градиентное слово занимало ровно свою ширину и ничего не обрезалось.
- */
-const GOLOS_CHARS = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯабвгдежзийклмнопрстуфхцчшщъыьэюяЁёABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ?!,.-—–:;«»…()\"'";
-const GOLOS_W = [680,670,675,560,740,615,980,650,760,760,705,720,870,760,750,750,660,690,630,680,880,680,770,675,980,1010,740,900,660,690,955,680,570,595,570,460,615,580,810,535,610,610,580,590,720,610,600,600,615,555,500,580,750,560,625,560,820,855,610,740,540,555,775,575,615,580,680,675,690,705,615,595,715,760,320,560,695,570,870,760,750,660,750,685,650,630,730,680,970,680,660,610,570,615,555,615,580,365,615,605,270,270,570,325,875,605,600,615,615,390,540,400,595,580,830,560,580,510,630,495,590,595,615,590,615,535,620,615,250,520,310,310,310,380,730,530,310,310,545,545,970,380,380,400,220];
-const ADV = new Map([...GOLOS_CHARS].map((c, i) => [c, GOLOS_W[i]]));
-export function textWidth(text: string, size: number): number {
-  let w = 0;
-  for (const c of text) w += ADV.get(c) ?? 620;
-  return (w / 1000) * size - size * 0.03 * Math.max(0, [...text].length - 1);
+  return <SvgTitle plain={plain} em={em} after={after} size={size} style={style} />;
 }
 
 /**
@@ -206,7 +192,7 @@ export function GradWord({ text, size }: { text: string; size: number }) {
             <Stop offset="1" stopColor={brandGradient[2]} />
           </SvgLinear>
         </Defs>
-        <SvgText x="0" y={baseline} fill="url(#gw)" fontFamily={FONT} fontSize={size} fontWeight="500" letterSpacing={-size * 0.03}>
+        <SvgText x="0" y={baseline} fill="url(#gw)" fontFamily={fonts["500"]} fontSize={size} letterSpacing={-size * 0.03}>
           {text}
         </SvgText>
       </Svg>
