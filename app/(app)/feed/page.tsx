@@ -443,16 +443,13 @@ function HomeScreen() {
                   </span>
                 )}
                 <div>
-                  {q.distanceM != null && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, marginBottom: 4, padding: "2px 8px 2px 5px", borderRadius: 99, background: "rgba(255,255,255,.25)", backdropFilter: "blur(10px)", fontSize: 11.5, fontWeight: 600, opacity: 1 }}>
-                      <Ic n="pin" c="xs" />
-                      {personDistanceLabel(q.distanceM)}
-                    </span>
-                  )}
                   <b>
                     {q.name}, {q.age}
                   </b>
-                  <span>{q.sharedInterests.slice(0, 2).join(" · ")}</span>
+                  <span>
+                    {[q.distanceM != null ? personDistanceLabel(q.distanceM) : null, ...q.sharedInterests.slice(0, 2)].filter(Boolean).join(" · ") || city}
+                  </span>
+                  <span className="hmc">Профиль</span>
                 </div>
               </Link>
             ))}
