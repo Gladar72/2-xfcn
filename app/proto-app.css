@@ -545,3 +545,96 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
    (размеры подобраны так, чтобы цифра не сдвигалась при округлении до пикселей). */
 .P .tab .tbadge{position:absolute;top:5px;left:calc(50% + 10px);box-sizing:border-box;display:block;width:17px;height:17px;padding:0 0 0 1px;border-radius:50%;background:linear-gradient(135deg,#FF6FA0,#A24DFF);color:#fff;font-size:10px;font-weight:700;line-height:17px;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:0;text-align:center;box-shadow:0 2px 8px rgba(255,111,160,.55);pointer-events:none}
 .P .tab .tbadge.w{width:auto;min-width:23px;padding:0 5px 0 6px;border-radius:9px}
+/* ===== Экран события (ev2): вертикальное фото на весь верх, фон — то же фото размытое,
+   содержимое на стеклянных плашках, текст белый. Механика и блоки — прежние. ===== */
+.P .ev.ev2{--evh:min(72dvh,640px);background:#140B26!important;color:#fff}
+.P .ev.ev2 .evbg{position:absolute;inset:-60px;z-index:0;background:linear-gradient(150deg,#2B1748,#5A2A6A) center/cover;filter:blur(42px) saturate(1.35) brightness(.5);pointer-events:none}
+.P .ev.ev2::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(20,11,38,.1),rgba(20,11,38,.5) 55%,rgba(20,11,38,.8))}
+.P .ev.ev2 .ph{height:var(--evh);z-index:1;-webkit-mask-image:linear-gradient(180deg,#000 60%,transparent 100%);mask-image:linear-gradient(180deg,#000 72%,transparent 100%)}
+.P .ev.ev2 .ph-sh{height:var(--evh);z-index:1;background:linear-gradient(180deg,rgba(14,8,28,.42) 0%,rgba(14,8,28,0) 16%,rgba(14,8,28,0) 46%,rgba(14,8,28,.55) 82%,rgba(14,8,28,0) 100%)}
+.P .ev.ev2 .body{background:none}
+.P .ev.ev2 .sheet2{position:relative;isolation:isolate;margin-top:calc(var(--evh) - 150px);min-height:0;border-radius:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;padding:0 16px 150px;gap:10px;color:#fff}
+/* когда листаешь — содержимое уходит под стекло, фото под ним размывается */
+.P .ev.ev2 .sheet2::before{content:"";position:absolute;left:0;right:0;top:150px;bottom:0;z-index:-1;background:rgba(20,11,38,.3);-webkit-backdrop-filter:blur(26px) saturate(1.3);backdrop-filter:blur(26px) saturate(1.3);-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 180px);mask-image:linear-gradient(180deg,transparent 0,#000 180px)}
+/* верх: метки и название поверх фото — одна высота, одна линия */
+.P .ev.ev2 .sheet2 .chips{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0}
+.P .ev.ev2 .sheet2 .chips .pill{height:30px;padding:0 12px;gap:6px;border-radius:15px;font-size:13px;font-weight:500;line-height:1;color:#fff;background:rgba(255,255,255,.18);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.26)}
+.P .ev.ev2 .sheet2 .chips .pill img{width:22px!important;height:22px!important;margin-left:-6px!important;object-fit:contain}
+.P .ev.ev2 .sheet2 .chips .pill.fullp{background:rgba(255,63,128,.35)}
+.P .ev.ev2 .sheet2 h1.t{margin:4px 0 6px;font-size:32px!important;font-weight:600;line-height:1.08;letter-spacing:-.025em;color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.35)}
+.P .ev.ev2 .sheet2 h1.t em{-webkit-text-fill-color:currentColor}
+/* стеклянные плашки */
+.P .ev.ev2 .sheet2 .gl,.P .ev.ev2 .sheet2 .tiles3>div,.P .ev.ev2 .sheet2 .addr,.P .ev.ev2 .sheet2 .orgbar{background:rgba(255,255,255,.1);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);color:#fff;border-radius:22px}
+.P .ev.ev2 .sheet2 .tiles3{gap:8px}
+.P .ev.ev2 .sheet2 .tiles3 .ic{color:#D9C7FF}
+.P .ev.ev2 .sheet2 .tiles3 b{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .ev.ev2 .sheet2 .tiles3 b small{font-size:12px;font-weight:500;color:rgba(255,255,255,.6)}
+.P .ev.ev2 .sheet2 b,.P .ev.ev2 .sheet2 .host b,.P .ev.ev2 .sheet2 .lockrow b,.P .ev.ev2 .sheet2 .orgbar b,.P .ev.ev2 .sheet2 .arow b,.P .ev.ev2 .sheet2 .chatprev b,.P .ev.ev2 .sheet2 .blk-h b{color:#fff}
+.P .ev.ev2 .sheet2 span,.P .ev.ev2 .sheet2 .muted,.P .ev.ev2 .sheet2 small,.P .ev.ev2 .sheet2 .blk-h span{color:rgba(255,255,255,.62)}
+.P .ev.ev2 .sheet2 .pill span,.P .ev.ev2 .sheet2 .btn span,.P .ev.ev2 .sheet2 .sm span{color:inherit}
+.P .ev.ev2 .sheet2 .about{color:rgba(255,255,255,.88)}
+.P .ev.ev2 .sheet2 .host .ic,.P .ev.ev2 .sheet2 .chatprev .ic,.P .ev.ev2 .sheet2 .lockrow,.P .ev.ev2 .sheet2 .orgbar{color:#D9C7FF}
+.P .ev.ev2 .sheet2 .sm{background:rgba(255,255,255,.14);color:#fff;box-shadow:none}
+.P .ev.ev2 .sheet2 .sm.yes{background:rgba(22,168,101,.35)}
+.P .ev.ev2 .sheet2 .sm.no{background:rgba(255,63,128,.28)}
+.P .ev.ev2 .sheet2 .btn.o{background:rgba(255,255,255,.12);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.32)}
+.P .ev.ev2 .sheet2 .btn.k{background:#fff;color:var(--ink)}
+.P .ev.ev2 .sheet2 .ppl a,.P .ev.ev2 .sheet2 .ppl button{color:rgba(255,255,255,.88)}
+.P .ev.ev2 .sheet2 .ppl img,.P .ev.ev2 .sheet2 .ppl .av{box-shadow:0 0 0 2px rgba(255,255,255,.75)}
+.P .ev.ev2 .sheet2 .ppl .free{background:rgba(255,255,255,.1);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.4)}
+.P .ev.ev2 .sheet2 .evnote{color:rgba(255,255,255,.88)}
+/* закреплённая кнопка внизу — тёмное стекло, «Я иду» в цветах бренда */
+.P .ev.ev2 .cta{left:12px;right:12px;bottom:calc(var(--bot) + 8px);padding:8px 8px 8px 20px;border-radius:36px;background:rgba(25,14,48,.72);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);color:#fff}
+.P .ev.ev2 .cta .l b{color:#fff}
+.P .ev.ev2 .cta .l span{color:rgba(255,255,255,.62)}
+.P .ev.ev2 .cta .btn.o{background:rgba(255,255,255,.12);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.32)}
+.P .ev.ev2 .cta .rb{background:rgba(255,255,255,.14);color:#fff}
+.P .ev.ev2 .sheet2 .tiles3 span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .ev.ev2 .sheet2 .abtns .sm{white-space:nowrap;gap:6px;font-size:12.5px;min-width:0}
+/* Отступ заголовка под «Ищем компанию в …» */
+.P .hmh{margin-top:22px}
+/* «Это взаимно!» — праздничный экран на весь экран (размеры от высоты экрана, чтобы влезало на маленьких). */
+.P .mcel{--u:min(1px,calc(100dvh / 844));position:absolute;inset:0;z-index:80;overflow:hidden;color:#fff;font-family:var(--f)}
+.P .mcel .mc-bg{position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 35%,rgba(162,77,255,.96),rgba(76,30,160,.97) 55%,rgba(30,12,60,.98));opacity:0;animation:mcFade .45s ease-out .05s forwards}
+.P .mcel .mc-glow{position:absolute;left:50%;top:calc(var(--top) + 220 * var(--u));width:420px;height:420px;margin:-210px 0 0 -210px;border-radius:50%;background:radial-gradient(circle,rgba(255,111,160,.55),transparent 65%);opacity:0;animation:mcGlow 2.4s ease-in-out .6s infinite;pointer-events:none}
+.P .mcel .mc-x{position:absolute;top:var(--top);right:18px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.16);border:0;opacity:0;animation:mcUp .4s ease-out 1.5s forwards;z-index:5}
+.P .mcel .mc-x::before,.P .mcel .mc-x::after{content:"";position:absolute;left:12px;top:18px;width:14px;height:2px;border-radius:1px;background:#fff;transform:rotate(45deg)}
+.P .mcel .mc-x::after{transform:rotate(-45deg)}
+.P .mcel .mc-ph{position:absolute;top:calc(var(--top) + 140 * var(--u));left:50%;width:calc(142 * var(--u));height:calc(142 * var(--u));border-radius:50%;border:5px solid #fff;background:#EFE8FF center/cover;box-shadow:0 20px 40px rgba(20,0,60,.45);opacity:0;display:grid;place-items:center;color:var(--violet);font-size:44px;font-weight:600}
+.P .mcel .mc-ph.a{margin-left:calc(-150 * var(--u));animation:mcInL .7s cubic-bezier(.2,1.3,.4,1) .35s forwards}
+.P .mcel .mc-ph.b{margin-left:calc(8 * var(--u));animation:mcInR .7s cubic-bezier(.2,1.3,.4,1) .35s forwards}
+.P .mcel .mc-hb{position:absolute;left:50%;top:calc(var(--top) + 173 * var(--u));width:calc(76 * var(--u));height:calc(76 * var(--u));margin-left:calc(-38 * var(--u));border-radius:50%;background:linear-gradient(135deg,#FF8FB5,#FF3F80);border:5px solid #fff;display:grid;place-items:center;z-index:3;transform:scale(0);box-shadow:0 10px 30px rgba(255,63,128,.6);animation:mcPop .55s cubic-bezier(.2,1.6,.4,1) .95s forwards,mcBeat 1.1s ease-in-out 1.7s infinite}
+.P .mcel .mc-hb svg{width:45%;height:45%}
+.P .mcel .mc-parts{position:absolute;inset:0;pointer-events:none;z-index:2}
+.P .mcel .mc-p{position:absolute;left:50%;top:calc(var(--top) + 200 * var(--u));width:22px;height:22px;opacity:0;animation-name:mcBurst;animation-timing-function:cubic-bezier(.15,.7,.3,1);animation-fill-mode:forwards}
+.P .mcel .mc-p.up{top:auto;bottom:-30px;animation-name:mcRise;animation-timing-function:ease-out}
+.P .mcel .mc-txt{position:absolute;left:24px;right:24px;top:calc(var(--top) + 320 * var(--u));text-align:center;z-index:3}
+.P .mcel .mc-txt h2{margin:0;font-size:calc(38 * var(--u));font-weight:600;line-height:1.05;letter-spacing:-.03em;opacity:0;transform:translateY(14px);animation:mcUp .5s ease-out 1.15s forwards}
+.P .mcel .mc-txt h2 em{font-style:normal;background:linear-gradient(90deg,#FFD1E4,#FF8FB5);-webkit-background-clip:text;background-clip:text;color:transparent}
+.P .mcel .mc-txt p{margin:10px 0 0;font-size:16px;line-height:1.4;color:rgba(255,255,255,.86);opacity:0;transform:translateY(14px);animation:mcUp .5s ease-out 1.3s forwards}
+.P .mcel .mc-chips{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:16px;opacity:0;transform:translateY(14px);animation:mcUp .5s ease-out 1.45s forwards}
+.P .mcel .mc-chips span{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px 0 6px;border-radius:16px;background:rgba(255,255,255,.16);font-size:13px;font-weight:500}
+.P .mcel .mc-chips img{width:22px;height:22px;object-fit:contain}
+.P .mcel .mc-btns{position:absolute;left:24px;right:24px;bottom:calc(var(--bot) + 24px);display:grid;gap:10px;z-index:4;opacity:0;transform:translateY(20px);animation:mcUp .5s ease-out 1.6s forwards}
+.P .mcel .mc-btn{height:56px;border:0;border-radius:28px;font:inherit;font-size:16px;font-weight:600}
+.P .mcel .mc-btn.v{background:#fff;color:#4A1FB8}
+.P .mcel .mc-btn.o{background:rgba(255,255,255,.14);color:#fff;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.35)}
+.P .mcel .mc-btn:active{transform:scale(.97)}
+.P .mcel .mc-mo{position:absolute;right:10px;bottom:calc(var(--bot) + 158px);width:92px;height:92px;object-fit:contain;z-index:3;opacity:0;transform:translateY(160px);animation:mcMo .6s cubic-bezier(.2,1.4,.4,1) 1.8s forwards,mcHop 1.6s ease-in-out 2.6s infinite}
+.P .mcel .mc-say{position:absolute;right:98px;bottom:calc(var(--bot) + 214px);max-width:190px;padding:8px 12px;border-radius:14px 14px 4px 14px;background:#fff;color:var(--ink);font-size:13px;font-weight:500;line-height:1.3;z-index:3;opacity:0;transform:translateY(10px);animation:mcUp .4s ease-out 2.2s forwards}
+@media(max-height:640px){.P .mcel .mc-mo,.P .mcel .mc-say{display:none}}
+@keyframes mcFade{to{opacity:1}}
+@keyframes mcUp{to{opacity:1;transform:none}}
+@keyframes mcGlow{0%,100%{opacity:.35;transform:scale(.9)}50%{opacity:.8;transform:scale(1.08)}}
+@keyframes mcInL{0%{opacity:0;transform:translateX(-220px) rotate(-30deg)}100%{opacity:1;transform:translateX(0) rotate(-9deg)}}
+@keyframes mcInR{0%{opacity:0;transform:translateX(220px) rotate(30deg)}100%{opacity:1;transform:translateX(0) rotate(9deg)}}
+@keyframes mcPop{to{transform:scale(1)}}
+@keyframes mcBeat{0%,100%{transform:scale(1)}15%{transform:scale(1.14)}30%{transform:scale(.98)}45%{transform:scale(1.08)}}
+@keyframes mcBurst{0%{opacity:0;transform:translate(-11px,0) scale(.2)}12%{opacity:1}75%{opacity:1}100%{opacity:0;transform:translate(calc(var(--x) - 11px),var(--y)) scale(var(--s)) rotate(var(--r))}}
+@keyframes mcRise{0%{opacity:0;transform:translate(0,0) scale(var(--s))}15%{opacity:.9}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(var(--s)) rotate(var(--r))}}
+@keyframes mcMo{0%{opacity:1}to{opacity:1;transform:translateY(0)}}
+@keyframes mcHop{0%,100%{opacity:1;transform:translateY(0)}20%{opacity:1;transform:translateY(-12px)}40%{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.P .mcel .mc-parts,.P .mcel .mc-glow{display:none}.P .mcel *{animation-duration:.01s!important;animation-delay:0s!important;animation-iteration-count:1!important}}
+/* Сердечко на анкете: от вспышки разлетаются маленькие */
+.P .hbst{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;opacity:0;animation:hbst .8s cubic-bezier(.15,.7,.3,1) forwards}
+@keyframes hbst{0%{opacity:0;transform:translate(0,0) scale(.3)}20%{opacity:1}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(var(--s)) rotate(var(--r))}}
