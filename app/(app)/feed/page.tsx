@@ -538,6 +538,9 @@ function HomeScreen() {
           {biz.length < 4 && (
             <Link className="acard invite" href="/business">
               <div>
+                <span className="hmplus">
+                  <Ic n="plus" />
+                </span>
                 <b>Здесь может быть ваше бизнес‑событие</b>
               </div>
             </Link>
