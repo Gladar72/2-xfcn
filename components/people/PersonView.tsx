@@ -223,7 +223,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
     for (const src of person?.photos ?? []) {
       const im = new Image();
       im.decoding = "async";
-      im.src = photoThumb(src, 300);
+      im.src = photoThumb(src, 300, true);
     }
   }, [person?.photos]);
 
@@ -397,7 +397,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         {photos.length ? (
           photos.map((src, i) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={src} src={photoThumb(src, 300)} className={i === gi ? "on" : ""} alt="" decoding="async" />
+            <img key={src} src={photoThumb(src, 300, true)} className={i === gi ? "on" : ""} alt="" decoding="async" />
           ))
         ) : (
           <div style={{ position: "absolute", inset: 0, background: "var(--g)", display: "grid", placeItems: "center" }}>
