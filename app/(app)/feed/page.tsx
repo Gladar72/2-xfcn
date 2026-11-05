@@ -538,10 +538,7 @@ function HomeScreen() {
           {biz.length < 4 && (
             <Link className="acard invite" href="/business">
               <div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/cat3d/i_biz.webp" alt="" />
-                <b>Здесь может быть ваше событие</b>
-                <span>Бесплатно для заведений: концерты, квизы, дегустации</span>
+                <b>Здесь может быть ваше бизнес‑событие</b>
               </div>
             </Link>
           )}
