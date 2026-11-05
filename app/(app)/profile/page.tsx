@@ -104,7 +104,7 @@ export default function ProfilePage() {
       <div className="mehero">
         {main ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img className="meph" src={photoThumb(main, 900)} alt="" />
+          <img className="meph" src={photoThumb(main, 300, true)} alt="" fetchPriority="high" />
         ) : (
           <span className="meph none">{(profile?.name ?? "?").charAt(0).toUpperCase()}</span>
         )}
