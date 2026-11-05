@@ -414,8 +414,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     : null;
   const catName = event.isBusiness ? "Бизнес событие" : event.trainingType?.name ?? CAT_SHORT[event.category?.slug ?? ""] ?? event.category?.name ?? "Встреча";
   const icon = eventIcon(event);
-  const timeLabel = `${event.eventTime.slice(0, 5)}${event.eventEndTime ? `–${event.eventEndTime.slice(0, 5)}` : ""}`;
   const dayLabel = dayLong(event.eventDate).toLowerCase();
+  // В плитке — коротко: «сб, 8 ноября» вместо «суббота, 8 ноября», чтобы влезало в одну строку.
+  const dayTile = dayLabel.replace(/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)/, (w) => ({ понедельник: "пн", вторник: "вт", среда: "ср", четверг: "чт", пятница: "пт", суббота: "сб", воскресенье: "вс" })[w] ?? w);
   const ticket = event.isBusiness && event.businessPricingType === "ticket" ? event.businessPricingDetails : null;
   const costLabel = event.isBusiness
     ? ticket
@@ -509,7 +510,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   }
 
   return (
-    <section className="scr ev aurora in" data-id="event">
+    <section className="scr ev ev2 aurora in" data-id="event">
+      {/* Фон всего экрана — то же фото, размытое и затемнённое: у каждого события свой цвет. */}
+      <div className="evbg" aria-hidden style={event.photoUrl ? { backgroundImage: `url(${photoThumb(event.photoUrl, 240)})` } : undefined} />
       <Cover photoUrl={event.photoUrl} icon={icon} thumb={900} />
       <div className="ph-sh" />
       <div className="hb">
@@ -562,8 +565,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           <div className="tiles3">
             <div className="gl">
               <Ic n="clock" c="s" />
-              <b>{timeLabel}</b>
-              <span>{dayLabel}</span>
+              <b>
+                {event.eventTime.slice(0, 5)}
+                {event.eventEndTime && <small>{` –${event.eventEndTime.slice(0, 5)}`}</small>}
+              </b>
+              <span>{dayTile}</span>
             </div>
             <div className="gl">
               <Ic n="people" c="s" />
