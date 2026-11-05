@@ -638,3 +638,57 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* Сердечко на анкете: от вспышки разлетаются маленькие */
 .P .hbst{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;opacity:0;animation:hbst .8s cubic-bezier(.15,.7,.3,1) forwards}
 @keyframes hbst{0%{opacity:0;transform:translate(0,0) scale(.3)}20%{opacity:1}100%{opacity:0;transform:translate(var(--x),var(--y)) scale(var(--s)) rotate(var(--r))}}
+/* ===== Мой профиль (me2): фото на весь верх, фон — то же фото размытое, стеклянные плашки ===== */
+.P .scr.me2{background:#140B26!important;color:#fff}
+.P .scr.me2 .scroll.me2s{padding-top:0;padding-left:16px;padding-right:16px}
+.P .me2 .mebg{position:fixed;inset:-60px;z-index:0;background:linear-gradient(150deg,#2B1748,#5A2A6A) center/cover;filter:blur(42px) saturate(1.35) brightness(.5);pointer-events:none}
+.P .me2 .mebg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,11,38,.1),rgba(20,11,38,.5) 55%,rgba(20,11,38,.82))}
+.P .me2 .scroll>*{position:relative;z-index:1}
+.P .me2 .scroll>.mebg{position:fixed;z-index:0}
+.P .me2 .mehero{position:relative;margin:0 -16px;height:min(60dvh,520px)}
+.P .me2 .meph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;-webkit-mask-image:linear-gradient(180deg,#000 70%,transparent 100%);mask-image:linear-gradient(180deg,#000 70%,transparent 100%)}
+.P .me2 .meph.none{display:grid;place-items:center;font-size:96px;font-weight:600;color:rgba(255,255,255,.5);background:var(--g)}
+.P .me2 .mehero::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(14,8,28,.42),rgba(14,8,28,0) 20%,rgba(14,8,28,0) 50%,rgba(14,8,28,.6) 85%,rgba(14,8,28,0))}
+.P .me2 .metop{position:absolute;left:20px;right:16px;top:calc(var(--top) + 2px);z-index:2;display:flex;align-items:center;justify-content:space-between}
+.P .me2 .metop h1.t{font-size:24px;font-weight:600;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.35)}
+.P .me2 .mehc{position:absolute;left:20px;right:20px;bottom:14px;z-index:2;text-align:center}
+.P .me2 .mehc h2{margin:0;font-size:34px;font-weight:600;line-height:1.05;letter-spacing:-.025em;color:#fff;text-shadow:0 2px 18px rgba(0,0,0,.35);overflow-wrap:anywhere}
+.P .me2 .mepills{display:flex;justify-content:center;flex-wrap:wrap;gap:6px;margin-top:10px}
+.P .me2 .mepills span{height:30px;padding:0 12px;border-radius:15px;background:rgba(255,255,255,.16);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.24);font-size:13px;font-weight:500;line-height:30px;white-space:nowrap}
+.P .me2 .mebody{display:grid;gap:10px;margin-top:4px}
+.P .me2 .meg{border-radius:22px;background:rgba(255,255,255,.1);-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);color:#fff}
+.P .me2 .meacts{display:grid;grid-template-columns:1fr 1px 1fr;align-items:center;height:76px}
+.P .me2 .meacts i{height:34px;background:rgba(255,255,255,.16)}
+.P .me2 .meacts a{display:grid;justify-items:center;align-content:center;gap:6px;height:100%;font-size:12.5px;font-weight:500;color:#fff}
+.P .me2 .meacts .ic{width:22px;height:22px}
+.P .me2 .mephotos{padding:14px}
+.P .me2 .mer{display:flex;justify-content:space-between;align-items:baseline;padding:0 2px}
+.P .me2 .mer b{font-size:15px;font-weight:600}
+.P .me2 .mer span{font-size:12.5px;color:rgba(255,255,255,.6)}
+.P .me2 .megrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.P .me2 .megrid>*{position:relative;aspect-ratio:3/4;border-radius:16px;overflow:hidden;border:0;padding:0;background:rgba(255,255,255,.08);color:#fff;font:inherit}
+.P .me2 .megrid img{width:100%;height:100%;object-fit:cover;display:block}
+.P .me2 .megrid small{position:absolute;left:6px;bottom:6px;height:20px;padding:0 7px;border-radius:10px;background:rgba(20,11,38,.55);font-size:10.5px;font-weight:500;line-height:20px}
+.P .me2 .megrid .add{display:grid;justify-items:center;align-content:center;gap:6px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.28)}
+.P .me2 .megrid .add .ic{width:22px;height:22px}
+.P .me2 .megrid .add span{font-size:12.5px;font-weight:500;color:rgba(255,255,255,.78)}
+.P .me2 .mebusy{position:absolute;inset:0;margin:auto;width:24px;height:24px;border-radius:50%;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;animation:spin .8s linear infinite}
+.P .me2 .megrid .add .mebusy{position:static}
+@keyframes spin{to{transform:rotate(360deg)}}
+.P .me2 .meline{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;height:58px;text-align:center}
+.P .me2 .meline span{font-size:12.5px;color:rgba(255,255,255,.62);line-height:1.2}
+.P .me2 .meline span+span{box-shadow:-1px 0 0 rgba(255,255,255,.14)}
+.P .me2 .meline b{display:block;font-size:17px;font-weight:600;color:#fff;font-variant-numeric:tabular-nums}
+.P .me2 .mesub{display:flex;align-items:center;gap:12px;padding:12px 16px}
+.P .me2 .mesb{width:40px;height:40px;border-radius:20px;background:var(--g);display:grid;place-items:center;flex:none}
+.P .me2 .mesb .ic{width:20px;height:20px}
+.P .me2 .mesub div{flex:1;min-width:0}
+.P .me2 .mesub b{display:block;font-size:15px;font-weight:600}
+.P .me2 .mesub div span{font-size:12.5px;color:rgba(255,255,255,.6)}
+.P .me2 .mesub>.ic{color:rgba(255,255,255,.4)}
+.P .me2 .memenu{display:grid;padding:4px 0;overflow:hidden}
+.P .me2 .memenu a{display:flex;align-items:center;gap:14px;height:52px;padding:0 16px;font-size:15px;font-weight:500;color:#fff}
+.P .me2 .memenu a+a{box-shadow:0 -1px 0 rgba(255,255,255,.08)}
+.P .me2 .memenu a>.ic:first-child{width:20px;height:20px;color:#D9C7FF;flex:none}
+.P .me2 .memenu span{flex:1}
+.P .me2 .memenu .cv{color:rgba(255,255,255,.4)}

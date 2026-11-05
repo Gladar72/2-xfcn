@@ -5,7 +5,7 @@ name: Web check
 on:
   push:
     branches: ["feat/**", "release/**", "fix/**"]
-    paths: ["app/**", "components/**", "lib/**", "middleware.ts", "package.json", "package-lock.json", "tsconfig.json"]
+    paths: ["app/**", "components/**", "lib/**", "tests/**", "middleware.ts", "package.json", "package-lock.json", "tsconfig.json"]
 
 concurrency:
   group: web-check-${{ github.ref }}

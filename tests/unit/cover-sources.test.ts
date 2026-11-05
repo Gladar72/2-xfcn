@@ -5,7 +5,7 @@ import { photoThumb } from "@/lib/photos/thumb";
 describe("event cover recovery", () => {
   const stored = "https://db.mesto-go.ru/storage/v1/object/public/event-photos/example/photo.jpg";
   it("loads a feed cover through the app and retains the exact original on failure", () => {
-    const [primary, original] = coverSources(stored, 480);
+    const [primary = "", original] = coverSources(stored, 480);
     const query = new URL(primary, "https://2-xfcn.vercel.app").searchParams;
     expect(primary.startsWith("/_next/image?")).toBe(true);
     expect(query.get("url")).toBe(stored);
