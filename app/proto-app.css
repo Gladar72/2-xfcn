@@ -476,3 +476,58 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .people-filter-sheet .it>span:last-child{min-height:28px;overflow-wrap:anywhere;display:grid;place-items:center}
 .P .people-filter-sheet .it .ck{right:5px;top:5px}
 @media(max-height:700px){.P .people-deck .done{gap:10px;justify-content:flex-start}.P .people-deck .done .burst,.P .people-deck .done .burst img{width:90px;height:90px}.P .people-deck .done .t{font-size:26px}}
+/* Главная: три раздела («Личные встречи», «Люди в твоём городе», «Афиша заведений») —
+   одна сетка для всех карточек: один размер, фото целиком, снизу тёмный градиент.
+   Внутри — поля 12px; сверху метки (24px); снизу всегда: название (1 строка) → детали (1 строка) → плашка (26px). */
+.P .rail.hm{--hmw:clamp(150px,40vw,188px);--hmp:12px;gap:10px;padding-top:2px}
+.P .rail.hm>.hero,.P .rail.hm>.pcard,.P .rail.hm>.acard,.P .rail.hm>.hmsk{flex:none;width:var(--hmw);height:calc(var(--hmw)*1.42);border-radius:22px;box-shadow:0 14px 26px -18px rgba(40,10,90,.5)}
+.P .rail.hm>.hero::after,.P .rail.hm>.pcard::after,.P .rail.hm>.acard.v::after,.P .rail.hm>.acard.city::after{background:linear-gradient(180deg,rgba(14,8,28,.2) 0%,rgba(14,8,28,0) 24%,rgba(14,8,28,0) 42%,rgba(14,8,28,.62) 66%,rgba(14,8,28,.94) 100%)}
+/* верх: метки одной высоты, по левому краю, друг под другом */
+.P .rail.hm .hero .tl{left:var(--hmp);top:var(--hmp);right:var(--hmp);display:flex;flex-direction:column;align-items:flex-start;gap:5px}
+.P .rail.hm .hero .tl:has(.tr){padding-right:34px}
+.P .rail.hm .hero .tl>:last-child:not(:first-child){margin-left:0}
+.P .rail.hm .hero .tl .tr{position:absolute;top:0;right:0;gap:4px}
+.P .rail.hm .pill,.P .rail.hm .acard .ast,.P .rail.hm .hero .boost,.P .rail.hm .pcard .mt{height:24px;max-width:100%;padding:0 9px;gap:4px;border-radius:12px;font-size:11px;font-weight:500;line-height:24px;white-space:nowrap;overflow:hidden;text-overflow:clip}
+.P .rail.hm .pill>.ic,.P .rail.hm .acard .ast .ic{width:12px;height:12px;flex:none}
+.P .rail.hm .pcard .mt{top:var(--hmp);left:var(--hmp);padding-left:4px}
+.P .rail.hm .pcard .mt img{width:18px;height:18px}
+.P .rail.hm .acard .ast{top:var(--hmp);left:var(--hmp)}
+.P .rail.hm .hero .boost{top:var(--hmp);right:var(--hmp)}
+.P .rail.hm .hero .hava,.P .rail.hm .hero .upb{width:28px;height:28px;font-size:12px}
+/* низ: одна схема во всех разделах */
+.P .rail.hm .hero .bar.hb2,.P .rail.hm .pcard div,.P .rail.hm .acard.v .vb,.P .rail.hm .acard .acb{position:absolute;left:var(--hmp);right:var(--hmp);bottom:var(--hmp);top:auto;z-index:2;margin:0;padding:0;border-radius:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;display:flex;flex-direction:column;align-items:flex-start;gap:0;text-align:left}
+.P .rail.hm .hero .bar.hb2 .ttl,.P .rail.hm .pcard b,.P .rail.hm .acard.v .vb b,.P .rail.hm .acard .acb b{display:block;width:100%;min-height:0;margin:0;padding:0;font-size:15px;font-weight:600;line-height:20px;letter-spacing:-.01em;color:#fff;text-shadow:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-line-clamp:unset}
+/* строка деталей */
+.P .rail.hm .hm-meta,.P .rail.hm .hero .bar.hb2 .mrow,.P .rail.hm .pcard div>span:not(.hmc),.P .rail.hm .acard.v .vm{display:block;width:100%;margin:2px 0 0;font-size:12px;line-height:16px;font-weight:400;color:rgba(255,255,255,.8);opacity:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .rail.hm .hero .bar.hb2{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:baseline;justify-items:start}
+.P .rail.hm .hero .bar.hb2 .ttl,.P .rail.hm .hero .bar.hb2 .price{grid-column:1/-1}
+.P .rail.hm .hero .dt{width:auto;height:auto;margin:2px 4px 0 0;border-radius:0;background:none;color:#fff;display:inline-flex;align-items:baseline;gap:4px;line-height:16px;flex:none}
+.P .rail.hm .hero .dt b{font-size:12px;font-weight:600}
+.P .rail.hm .hero .dt small{font-size:12px;color:rgba(255,255,255,.8);margin:0}
+.P .rail.hm .hero .bar .i{min-width:0;width:100%;margin-top:2px}
+.P .rail.hm .hero .bar.hb2 .i span{display:block;margin:0;font-size:12px;line-height:16px;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .rail.hm .hero .bar .i .ic{display:none}
+.P .rail.hm .acard.v .vm>span:last-child,.P .rail.hm .acard.v .vm>i{display:none}
+.P .rail.hm .acard.v .vm .ic{display:none}
+/* плашка внизу: одна высота и форма */
+.P .rail.hm .hero .bar.hb2 .price,.P .rail.hm .hmc,.P .rail.hm .acard.v .vp{flex:none;height:26px;margin-top:8px;padding:0 11px;border-radius:13px;font-size:12px;font-weight:600;line-height:26px;display:inline-block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .rail.hm .hero .bar.hb2 .price{background:linear-gradient(90deg,#6C3BFF,#A24DFF);color:#fff}
+.P .rail.hm .hmc,.P .rail.hm .acard.v .vp{background:#fff;color:var(--ink)}
+.P .rail.hm .acard.v .vr{width:100%;margin:8px 0 0;display:flex;align-items:center;justify-content:space-between}
+.P .rail.hm .acard.v .vr .vp{margin-top:0}
+.P .rail.hm .acard.v .aava{width:26px;height:26px;font-size:11px}
+.P .rail.hm .acard.invite{display:grid;place-items:center}
+.P .rail.hm .acard.invite b{font-size:14px}.P .rail.hm .acard.invite img{width:48px;height:48px}
+.P .afisha .rail.hm{padding-top:12px}
+/* заголовки разделов: метка и подпись */
+.P .sec.hm{margin:26px 0 4px;align-items:center}
+.P .sec.hm b{display:flex;align-items:center;gap:8px}
+.P .hmt{height:18px;padding:0 7px;border-radius:6px;font-size:10px!important;font-weight:600;letter-spacing:.05em;line-height:18px;text-transform:uppercase}
+.P .hmt.v{background:rgba(108,59,255,.12);color:var(--violet)!important}
+.P .hmt.p{background:rgba(255,111,160,.15);color:#D63F78!important}
+.P .hms{margin:0 0 10px;font-size:13px;line-height:18px;color:var(--grey)}
+.P .afisha .hms{margin:4px 0 0;color:rgba(255,255,255,.6)}
+.P .rail.hm .hero .bar.hb2 .i span::before{content:"· ";color:rgba(255,255,255,.6)}
+.P .rail.hm .acard.invite div{gap:12px}
+.P .rail.hm .acard.invite .hmplus{width:44px;height:44px;border-radius:50%;background:var(--g);color:#fff;display:grid;place-items:center;box-shadow:0 8px 18px -8px rgba(162,77,255,.8)}
+.P .rail.hm .acard.invite .hmplus .ic{width:22px;height:22px;stroke-width:2.4}

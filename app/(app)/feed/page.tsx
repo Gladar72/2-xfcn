@@ -381,13 +381,16 @@ function HomeScreen() {
         </Link>
       </div>
 
-      <div className="sec">
-        <b>Личные встречи</b>
+      <div className="sec hm">
+        <b>
+          Личные встречи <span className="hmt v">от людей</span>
+        </b>
         <Link href="/search">Все →</Link>
       </div>
-      <div className="rail">
+      <p className="hms">Планы людей рядом — присоединяйся</p>
+      <div className="rail hm">
         {events === null
-          ? [0, 1].map((i) => <div key={i} className="sk" style={{ flex: "none", width: 262, height: 290, borderRadius: 32 }} />)
+          ? [0, 1, 2].map((i) => <div key={i} className="sk hmsk" />)
           : pop.map((e) => <HeroCard key={e.id} e={e} />)}
         {events !== null && pop.length === 0 && (
           <Link href="/create" className="hero" style={{ display: "grid", placeItems: "center", textAlign: "center", color: "#fff", background: "var(--g)" }}>
@@ -401,8 +404,10 @@ function HomeScreen() {
 
       {(
         <>
-          <div className="sec">
-            <b>Люди в твоём городе</b>
+          <div className="sec hm">
+            <b>
+              Люди в твоём городе <span className="hmt p">рядом</span>
+            </b>
             <Link href={city ? `/people?city=${encodeURIComponent(city)}` : "/people"}>Листать →</Link>
           </div>
           {!meHasLoc && (
@@ -417,8 +422,9 @@ function HomeScreen() {
               <Ic n="chev" c="s" />
             </button>
           )}
+          <p className="hms">С общими интересами</p>
           {peopleLoaded && people.length === 0 && <p className="sub" style={{ margin: "8px 20px 16px" }}>Пока нет анкет в выбранном городе. Можно сменить город или создать встречу.</p>}
-          <div className="rail">
+          <div className="rail hm">
             {people.map((q) => (
               <Link key={q.id} className="pcard" href={`/people?start=${q.id}${city ? `&city=${encodeURIComponent(city)}` : ""}`}>
                 {q.avatarUrl ? (
@@ -437,16 +443,13 @@ function HomeScreen() {
                   </span>
                 )}
                 <div>
-                  {q.distanceM != null && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 3, marginBottom: 4, padding: "2px 8px 2px 5px", borderRadius: 99, background: "rgba(255,255,255,.25)", backdropFilter: "blur(10px)", fontSize: 11.5, fontWeight: 600, opacity: 1 }}>
-                      <Ic n="pin" c="xs" />
-                      {personDistanceLabel(q.distanceM)}
-                    </span>
-                  )}
                   <b>
                     {q.name}, {q.age}
                   </b>
-                  <span>{q.sharedInterests.slice(0, 2).join(" · ")}</span>
+                  <span>
+                    {[q.distanceM != null ? personDistanceLabel(q.distanceM) : null, ...q.sharedInterests.slice(0, 2)].filter(Boolean).join(" · ") || city}
+                  </span>
+                  <span className="hmc">Профиль</span>
                 </div>
               </Link>
             ))}
@@ -459,12 +462,13 @@ function HomeScreen() {
           <div>
             <small>Для бизнеса</small>
             <b>Афиша заведений</b>
+            <p className="hms">События кафе, баров и площадок</p>
           </div>
           <Link href="/business">
             Все <Ic n="chev" c="xs" />
           </Link>
         </div>
-        <div className="rail">
+        <div className="rail hm">
           {bizSorted.map((e) => {
             const left = Math.max(0, e.seatsTotal - e.seatsTaken);
             return (
@@ -485,11 +489,15 @@ function HomeScreen() {
                 <span className="vb">
                   <b>{e.title}</b>
                   <span className="vm">
-                    <Ic n="cal" c="xs" />
-                    {whenShort(e.eventDate, e.eventTime).replace(" · ", ", ")}
+                    <span>
+                      <Ic n="cal" c="xs" />
+                      {whenShort(e.eventDate, e.eventTime).replace(" · ", ", ")}
+                    </span>
                     <i />
-                    <Ic n="people" c="xs" />
-                    {left > 0 ? `${left} ${plural(left, "место", "места", "мест")}` : "мест нет"}
+                    <span>
+                      <Ic n="people" c="xs" />
+                      {left > 0 ? `${left} ${plural(left, "место", "места", "мест")}` : "мест нет"}
+                    </span>
                   </span>
                   <span className="vr">
                     <span className="vp">{e.businessPricingType === "free" ? "Бесплатно" : e.businessPricingDetails?.trim() || "Бесплатно"}</span>
@@ -530,10 +538,10 @@ function HomeScreen() {
           {biz.length < 4 && (
             <Link className="acard invite" href="/business">
               <div>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/brand/cat3d/i_biz.webp" alt="" />
-                <b>Здесь может быть ваше событие</b>
-                <span>Бесплатно для заведений: концерты, квизы, дегустации</span>
+                <span className="hmplus">
+                  <Ic n="plus" />
+                </span>
+                <b>Здесь может быть ваше бизнес‑событие</b>
               </div>
             </Link>
           )}
