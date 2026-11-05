@@ -789,7 +789,7 @@ export function CreateEventWizard() {
           >
             <label
               className="m-hero relative flex w-full cursor-pointer items-center justify-center overflow-hidden"
-              style={{ aspectRatio: "1.4", background: businessPhotoBase64 ? undefined : coverGradient(categorySlug, isBusiness) }}
+              style={{ aspectRatio: "2 / 3", maxWidth: 260, marginInline: "auto", background: businessPhotoBase64 ? undefined : coverGradient(categorySlug, isBusiness) }}
             >
               {businessPhotoBase64 ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -984,7 +984,9 @@ export function CreateEventWizard() {
       {cropSrc && (
         <PhotoCropModal
           src={cropSrc}
-          aspectRatio={1.4}
+          aspectRatio={2 / 3}
+          title="Обложка события"
+          hint="Двигай фото пальцем, двумя пальцами — приблизить. Так обложка будет выглядеть в афише"
           onCancel={() => setCropSrc(undefined)}
           onConfirm={(dataUrl) => {
             setBusinessPhotoBase64(dataUrl);

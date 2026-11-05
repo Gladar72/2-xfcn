@@ -6,7 +6,8 @@ import { type Plan } from "@/lib/subscriptions/limits";
 import { photoThumb } from "@/lib/photos/thumb";
 import { useGuide } from "@/lib/mosya/guide";
 import { mosyaSrc } from "@/components/brand/Mosya";
-import { Ic, Overlay, Screen } from "@/components/proto/ui";
+import { Ic, Overlay, Screen, Toast } from "@/components/proto/ui";
+import { useProfilePhoto } from "@/components/profile/useProfilePhoto";
 import { SupportSheet } from "@/components/proto/SupportSheet";
 import { HeartsSheet } from "@/components/people/HeartsSheet";
 import type { IconName } from "@/components/brand/Icon";
@@ -41,6 +42,7 @@ export default function ProfilePage() {
   const [sub, setSub] = useState<SubscriptionStatus | null>(null);
   const [supOpen, setSupOpen] = useState(false);
   const [counts, setCounts] = useState([0, 0, 0]);
+  const [toast, setToast] = useState<string | null>(null);
   useGuide("profile", { when: profile !== null });
 
   useEffect(() => {
@@ -71,10 +73,6 @@ export default function ProfilePage() {
   }, [profile]);
 
   const photos = profile?.photos ?? [];
-  const compl = profile
-    ? Math.min(100, 30 + Math.min(photos.length, 3) * 15 + (profile.bio ? 10 : 0) + ((profile.interests?.length ?? 0) >= 3 ? 15 : 0))
-    : 0;
-  const complHint = compl >= 100 ? "отлично!" : photos.length < 3 ? `добавь ещё ${3 - photos.length} фото` : !profile?.bio ? "добавь о себе" : "добавь интересы";
 
   const MENU: [IconName, string, string][] = [
     ["cal", "Мои встречи", "/my-events"],
@@ -82,112 +80,150 @@ export default function ProfilePage() {
     ["star", "Отзывы после встреч", "/reviews"],
     ["gift", "Партнёрская программа", "https://t.me/Mesto_people_bot?start=partner"],
     ["lock", "Приватность и анонимность", "/settings/privacy"],
-    ["gear", "Настройки", "/settings"],
   ];
 
+  const main = profile?.avatarUrl ?? photos[0] ?? null;
+  // «Мои фото»: главное + дополнительные, всего до 6; показываем по 3 в ряд и ячейку «Добавить».
+  const all = [main, ...photos.filter((u) => u !== main)].filter((u): u is string => !!u).slice(0, 6);
+  const photo = useProfilePhoto({
+    onDone: (r) => {
+      if (!profile) return;
+      if (r.main) setProfile({ ...profile, avatarUrl: r.avatarUrl, photos: [r.avatarUrl, ...photos.slice(1)] });
+      else setProfile({ ...profile, photos: r.photos });
+    },
+    onError: (t) => {
+      setToast(t);
+      setTimeout(() => setToast(null), 2600);
+    },
+  });
+
   return (
-    <Screen id="profile">
-      <div className="top">
-        <h1 className="t">Профиль</h1>
-        <Link className="rb gl" href="/settings" aria-label="Настройки">
-          <Ic n="gear" />
-        </Link>
+    <Screen id="profile" className="me2" scrollClass="me2s">
+      {/* Фон экрана — то же фото, размытое и затемнённое. */}
+      <div className="mebg" aria-hidden style={main ? { backgroundImage: `url(${photoThumb(main, 240)})` } : undefined} />
+      <div className="mehero">
+        {main ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="meph" src={photoThumb(main, 900)} alt="" />
+        ) : (
+          <span className="meph none">{(profile?.name ?? "?").charAt(0).toUpperCase()}</span>
+        )}
+        <div className="metop">
+          <h1 className="t">Профиль</h1>
+          <Link className="rb glass" href="/settings" aria-label="Настройки">
+            <Ic n="gear" />
+          </Link>
+        </div>
+        {profile && (
+          <div className="mehc">
+            <h2>
+              {profile.name}
+              {profile.age ? `, ${profile.age}` : ""}
+            </h2>
+            <div className="mepills">
+              {profile.city && <span>{profile.city}</span>}
+              {profile.ratingAvg > 0 && (
+                <span>{`★ ${profile.ratingAvg.toFixed(1).replace(".", ",")} · ${profile.ratingCount} ${plural(profile.ratingCount, "оценка", "оценки", "оценок")}`}</span>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <HeartsSheet />
 
       {!profile ? (
-        <div className="sk" style={{ height: 330, marginTop: 10, borderRadius: 30 }} />
+        <div className="sk" style={{ height: 220, borderRadius: 24 }} />
       ) : (
-        <div className="me-card gl">
-          <div className="pava">
-            {profile.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoThumb(profile.avatarUrl, 200)} alt="" />
-            ) : (
-              profile.name.charAt(0).toUpperCase()
-            )}
-          </div>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="bud" src={mosyaSrc("sit")} alt="" />
-          <h2 className="t">
-            {profile.name}
-            {profile.age ? `, ${profile.age}` : ""}
-          </h2>
-          <span className="meta">
-            {profile.city}
-            {profile.ratingAvg > 0 ? ` · ★ ${profile.ratingAvg.toFixed(1).replace(".", ",")} · ${profile.ratingCount} ${plural(profile.ratingCount, "оценка", "оценки", "оценок")}` : ""}
-          </span>
-          <div className="compl">
-            <div>
-              <b>Профиль заполнен на {compl}%</b>
-              <span className="muted">{complHint}</span>
-            </div>
-            <span className="bar2">
-              <i style={{ width: `${compl}%` }} />
-            </span>
-          </div>
-          <div className="twob">
-            <Link className="btn o" href={`/people/${profile.id}`}>
-              <Ic n="eye" c="s" />
+        <div className="mebody">
+          <div className="meg meacts">
+            <Link href={`/people/${profile.id}`}>
+              <Ic n="eye" />
               Как меня видят
             </Link>
-            <Link className="btn v" href="/profile/edit">
-              <Ic n="edit" c="s" />
+            <i />
+            <Link href="/profile/edit">
+              <Ic n="edit" />
               Редактировать
             </Link>
           </div>
+
+          <div className="meg mephotos">
+            <div className="mer">
+              <b>Мои фото</b>
+              <span>{all.length} из 6</span>
+            </div>
+            <div className="megrid">
+              {all.map((u, k) =>
+                k === 0 ? (
+                  <button key={u} type="button" onClick={() => photo.pick(0)} aria-label="Заменить главное фото">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photoThumb(u, 384)} alt="" />
+                    <small>главное</small>
+                    {photo.busySlot === 0 && <span className="mebusy" />}
+                  </button>
+                ) : (
+                  // Дополнительные фото меняются и удаляются в редактировании профиля.
+                  <Link key={u} href="/profile/edit" aria-label="Фото — изменить в редактировании">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={photoThumb(u, 384)} alt="" />
+                  </Link>
+                )
+              )}
+              {all.length < 6 && (
+                <button type="button" className="add" onClick={() => photo.pick(all.length === 0 ? 0 : 1)}>
+                  {photo.busySlot !== null && photo.busySlot !== 0 ? <span className="mebusy" /> : <Ic n="plus" />}
+                  <span>Добавить</span>
+                </button>
+              )}
+            </div>
+          </div>
+          {photo.ui}
+
+          <div className="meg meline">
+            {(["создано", "посещено", "состоялось"] as const).map((l, k) => (
+              <span key={l}>
+                <b>{counts[k]}</b>
+                {l}
+              </span>
+            ))}
+          </div>
+
+          <Link className="meg mesub" href="/subscriptions">
+            <span className="mesb">
+              <Ic n="star" />
+            </span>
+            <div>
+              <b>{sub?.active && sub.plan ? `Подписка «${PLAN_TITLES[sub.plan]}»` : "Нет подписки"}</b>
+              <span>
+                {sub?.active && sub.periodEnd
+                  ? `активна до ${new Date(sub.periodEnd).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}`
+                  : "подключи, чтобы создавать свои встречи"}
+              </span>
+            </div>
+            <Ic n="chev" c="s" />
+          </Link>
+
+          <div className="meg memenu">
+            {MENU.map(([i, t, href]) =>
+              href.startsWith("http") ? (
+                <a key={t} href={href} target="_blank" rel="noreferrer">
+                  <Ic n={i} />
+                  <span>{t}</span>
+                  <Ic n="chev" c="s cv" />
+                </a>
+              ) : (
+                <Link key={t} href={href}>
+                  <Ic n={i} />
+                  <span>{t}</span>
+                  <Ic n="chev" c="s cv" />
+                </Link>
+              )
+            )}
+          </div>
         </div>
       )}
-
-      <div className="stats">
-        {(
-          [
-            ["party", "создано"],
-            ["concert", "посещено"],
-            ["lang", "состоялось"],
-          ] as const
-        ).map(([i, l], k) => (
-          <div key={i} className="gl">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/brand/cat3d/i_${i}.webp`} alt="" />
-            <b>{counts[k]}</b>
-            <span>{l}</span>
-          </div>
-        ))}
-      </div>
-
-      <Link className="subc" href="/subscriptions">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={mosyaSrc("jump")} alt="" />
-        <small>Подписка</small>
-        <b>{sub?.active && sub.plan ? `«${PLAN_TITLES[sub.plan]}»` : "Нет подписки"}</b>
-        <span>
-          {sub?.active && sub.periodEnd
-            ? `Активна до ${new Date(sub.periodEnd).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}${
-                sub.events && sub.events.limit != null ? ` · ${sub.events.used} из ${sub.events.limit} встреч` : ""
-              }`
-            : "Подключи, чтобы создавать свои встречи"}
-        </span>
-      </Link>
-
-      <div className="menu gl">
-        {MENU.map(([i, t, href]) =>
-          href.startsWith("http") ? (
-            <a key={t} href={href} target="_blank" rel="noreferrer">
-              <Ic n={i} />
-              <span>{t}</span>
-              <Ic n="chev" c="s cv" />
-            </a>
-          ) : (
-            <Link key={t} href={href}>
-              <Ic n={i} />
-              <span>{t}</span>
-              <Ic n="chev" c="s cv" />
-            </Link>
-          )
-        )}
-      </div>
+      <Toast text={toast} />
 
       <Overlay>
         <button className="supfab" onClick={() => setSupOpen(true)} aria-label="Задать вопрос">

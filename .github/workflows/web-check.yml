@@ -1,0 +1,25 @@
+name: Web check
+
+# Проверка веб-приложения перед выкладкой: типы и линтер.
+# Запускается на рабочих ветках (feat/**, release/**) — на сервер ничего не выкладывает.
+on:
+  push:
+    branches: ["feat/**", "release/**", "fix/**"]
+    paths: ["app/**", "components/**", "lib/**", "tests/**", "middleware.ts", "package.json", "package-lock.json", "tsconfig.json"]
+
+concurrency:
+  group: web-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npx eslint app components lib --max-warnings=0 || npx eslint app components lib

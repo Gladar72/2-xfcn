@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { interestIcon } from "@/lib/data/interests";
 import { Cover, Ic, Sheet, Toast, dayLong, eventIcon } from "@/components/proto/ui";
@@ -24,6 +25,12 @@ const BURST = [
   { x: -70, y: 96, s: 0.7, r: -30, d: 0.13, c: "#FFD1E4" },
   { x: 74, y: 104, s: 0.8, r: 28, d: 0.11, c: "#C9A8FF" },
 ];
+
+interface FollowInfo {
+  following: boolean;
+  followers: number;
+  events: { id: string; title: string; eventDate: string; eventTime: string; photoUrl: string | null; isBusiness: boolean }[];
+}
 
 export interface Person {
   id: string;
@@ -89,6 +96,33 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   const [burst, setBurst] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
   const [meAvatar, setMeAvatar] = useState<string | null>(null);
+  // Подписка на организатора: новые открытые события приходят сами (в бот и push).
+  const [follow, setFollow] = useState<FollowInfo | null>(null);
+  useEffect(() => {
+    if (!person?.id) return;
+    setFollow(null);
+    fetch(`/api/follows?userId=${person.id}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setFollow({ following: !!d.following, followers: d.followers ?? 0, events: Array.isArray(d.events) ? d.events : [] }))
+      .catch(() => {});
+  }, [person?.id]);
+  async function toggleFollow() {
+    if (!person || !follow) return;
+    const next = !follow.following;
+    setFollow({ ...follow, following: next, followers: Math.max(0, follow.followers + (next ? 1 : -1)) });
+    try {
+      const res = await fetch("/api/follows", { method: next ? "POST" : "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: person.id }) });
+      const d = await res.json().catch(() => null);
+      if (!res.ok || !d) throw new Error("follow");
+      setFollow((f) => (f ? { ...f, following: !!d.following, followers: d.followers ?? f.followers } : f));
+      setToast(next ? `Подписка оформлена — новые события ${person.name} придут сами` : "Подписка отменена");
+      setTimeout(() => setToast(null), 2600);
+    } catch {
+      setFollow((f) => (f ? { ...f, following: !next, followers: Math.max(0, f.followers + (next ? -1 : 1)) } : f));
+      setToast("Не получилось — попробуй ещё раз");
+      setTimeout(() => setToast(null), 2200);
+    }
+  }
   useEffect(() => {
     if (!person?.id) return;
     setLiked(false);
@@ -353,10 +387,12 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   return (
     <section
       ref={card}
-      className={`scr pr aurora ${deck ? `deck ${deck.from === 1 ? "dk-r" : deck.from === -1 ? "dk-l" : "dk-0"}` : "in"}`}
+      className={`scr pr pr2 aurora ${deck ? `deck ${deck.from === 1 ? "dk-r" : deck.from === -1 ? "dk-l" : "dk-0"}` : "in"}`}
       data-id="person"
       data-transition={deck ? "deck" : undefined}
     >
+      {/* Фон экрана — то же фото, размытое и затемнённое: у каждого человека свой цвет. */}
+      <div className="evbg" aria-hidden style={photos[gi] ? { backgroundImage: `url(${photoThumb(photos[gi]!, 120)})` } : undefined} />
       <div className="gal">
         {photos.length ? (
           photos.map((src, i) => (
@@ -402,6 +438,11 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             {common.length > 0 && (
               <span className="pill glass">
                 {common.length} {plural(common.length, "общий интерес", "общих интереса", "общих интересов")}
+              </span>
+            )}
+            {follow && follow.followers > 0 && (
+              <span className="pill glass">
+                {follow.followers} {plural(follow.followers, "подписчик", "подписчика", "подписчиков")}
               </span>
             )}
           </p>
@@ -539,6 +580,29 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
               </div>
             </div>
           )}
+          {follow && follow.events.length > 0 && (
+            <div className="blk">
+              <div className="blk-h">
+                <b>Ближайшие события</b>
+                <span>{follow.events.length}</span>
+              </div>
+              <div className="fevs">
+                {follow.events.map((e) => (
+                  <Link key={e.id} className="fev" href={`/events/${e.id}`}>
+                    <span className="d">
+                      <small>{new Date(`${e.eventDate}T00:00:00`).toLocaleDateString("ru-RU", { month: "short" }).replace(".", "")}</small>
+                      <b>{Number(e.eventDate.slice(8, 10))}</b>
+                    </span>
+                    <Cover photoUrl={e.photoUrl} icon={eventIcon({ isBusiness: e.isBusiness })} cls="fim" thumb={120} />
+                    <span className="t">
+                      <b>{e.title}</b>
+                      <span>{`${dayLong(e.eventDate).split(",")[0]}, ${e.eventTime.slice(0, 5)}`}</span>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
           <button className="report" onClick={() => setMoreOpen(true)}>
             Пожаловаться или заблокировать
           </button>
@@ -572,9 +636,20 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
           </svg>
         </button>
+        {follow && (
+          <button
+            className={`rb gl fbell${follow.following ? " on" : ""}`}
+            onClick={toggleFollow}
+            aria-label={follow.following ? "Вы подписаны — отписаться" : "Подписаться на события"}
+            aria-pressed={follow.following}
+            style={{ width: 56, height: 56, flex: "none" }}
+          >
+            <Ic n="bell" />
+          </button>
+        )}
         <button className="btn v" onClick={openInvite}>
           <Ic n="cal" />
-          Позвать на встречу
+          <span>{follow ? "Позвать" : "Позвать на встречу"}</span>
         </button>
       </div>
 

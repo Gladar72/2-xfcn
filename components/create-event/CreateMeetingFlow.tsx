@@ -1250,7 +1250,11 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       {cropSrc && (
         <PhotoCropModal
           src={cropSrc}
-          aspectRatio={1.4}
+          aspectRatio={2 / 3}
+          title="Обложка встречи"
+          hint="Двигай фото пальцем, двумя пальцами — приблизить. Так обложка будет выглядеть на карточке"
+          preview={{ title }}
+          onReplace={() => fileRef.current?.click()}
           onCancel={() => setCropSrc(undefined)}
           onConfirm={(dataUrl) => {
             setOwnPhoto(dataUrl);
