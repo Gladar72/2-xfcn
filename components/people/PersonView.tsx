@@ -223,7 +223,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
     for (const src of person?.photos ?? []) {
       const im = new Image();
       im.decoding = "async";
-      im.src = photoThumb(src, 300);
+      im.src = photoThumb(src, 300, true);
     }
   }, [person?.photos]);
 
