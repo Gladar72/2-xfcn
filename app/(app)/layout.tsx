@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { PendingReviewModal } from "@/components/reviews/PendingReviewModal";
 import { MatchOnOpen } from "@/components/people/MatchOnOpen";
+import { HomeScreenPrompt } from "@/components/telegram/HomeScreenPrompt";
 
 /**
  * Корень приложения — контейнер .P из прототипа (стили app/proto.css):
@@ -17,6 +18,7 @@ export default function AppSectionLayout({ children }: { children: React.ReactNo
       </Suspense>
       <PendingReviewModal />
       <MatchOnOpen />
+      <HomeScreenPrompt />
     </div>
   );
 }
