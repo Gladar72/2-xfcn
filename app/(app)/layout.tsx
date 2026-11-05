@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { BottomNav } from "@/components/layout/BottomNav";
 import { PendingReviewModal } from "@/components/reviews/PendingReviewModal";
+import { MatchOnOpen } from "@/components/people/MatchOnOpen";
 
 /**
  * Корень приложения — контейнер .P из прототипа (стили app/proto.css):
@@ -15,6 +16,7 @@ export default function AppSectionLayout({ children }: { children: React.ReactNo
         <BottomNav />
       </Suspense>
       <PendingReviewModal />
+      <MatchOnOpen />
     </div>
   );
 }

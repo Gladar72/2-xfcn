@@ -5,12 +5,25 @@ import { useRouter } from "next/navigation";
 import { mosyaSrc } from "@/components/brand/Mosya";
 import { interestIcon } from "@/lib/data/interests";
 import { Cover, Ic, Sheet, Toast, dayLong, eventIcon } from "@/components/proto/ui";
+import { MatchCelebration } from "@/components/people/MatchCelebration";
 import { useGuide } from "@/lib/mosya/guide";
 import { peek, say } from "@/lib/mosya/peek";
 import { goBack } from "@/lib/nav/back";
 import { photoThumb } from "@/lib/photos/thumb";
 import { distanceLabel, personDistanceLabel } from "@/lib/geo/approx-distance";
 import { suggestMeet } from "@/lib/mosya/suggest";
+
+/** Разлёт маленьких сердечек при «сердечке» (фиксированный — одинаково каждый раз). */
+const BURST = [
+  { x: -96, y: -70, s: 1.1, r: -24, d: 0.08, c: "#FF8FB5" },
+  { x: 92, y: -84, s: 0.9, r: 20, d: 0.1, c: "#FF4F8B" },
+  { x: -120, y: 18, s: 0.8, r: -12, d: 0.12, c: "#C9A8FF" },
+  { x: 118, y: 26, s: 1, r: 16, d: 0.09, c: "#FF8FB5" },
+  { x: -54, y: -128, s: 0.7, r: -8, d: 0.14, c: "#A24DFF" },
+  { x: 48, y: -134, s: 1.2, r: 10, d: 0.07, c: "#FF4F8B" },
+  { x: -70, y: 96, s: 0.7, r: -30, d: 0.13, c: "#FFD1E4" },
+  { x: 74, y: 104, s: 0.8, r: 28, d: 0.11, c: "#C9A8FF" },
+];
 
 export interface Person {
   id: string;
@@ -30,6 +43,8 @@ export interface Person {
   /** Примерное расстояние, целые км (0 — меньше километра). */
   distanceKm?: number | null;
   distanceM?: number | null;
+  /** "female" | "male" — для «поставил/поставила» на экране взаимности. */
+  gender?: string | null;
 }
 interface MyEvent {
   id: string;
@@ -136,6 +151,23 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       setLiked(false);
     }
   }
+  // Пришли с экрана «Это взаимно!» при входе: ?act=invite — сразу позвать, ?act=chat — написать.
+  const actDone = useRef(false);
+  useEffect(() => {
+    if (!person || deck || actDone.current) return;
+    let act: string | null = null;
+    try {
+      act = new URLSearchParams(window.location.search).get("act");
+    } catch {
+      return;
+    }
+    if (act !== "invite" && act !== "chat") return;
+    actDone.current = true;
+    if (act === "invite") openInvite();
+    else if (person.canMessage === false) say(NO_MEET_TEXT);
+    else openDirect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [person, deck]);
   useGuide(deck ? "deck" : "person", { when: person !== null, force: !!deck });
 
   // Колода сначала даёт короткую карточку (имя, фото), потом полный профиль —
@@ -558,54 +590,31 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill="url(#mhg)" stroke="#fff" strokeWidth="1.4" strokeLinejoin="round" />
           </svg>
           <style>{`@keyframes mHeart{0%{transform:scale(.3);opacity:0}30%{transform:scale(1.1);opacity:1}60%{transform:scale(.95)}100%{transform:scale(1.25);opacity:0}}`}</style>
+          {/* маленькие сердечки разлетаются от большого */}
+          {BURST.map((h, i) => (
+            <svg key={i} className="hbst" viewBox="0 0 24 24" style={{ "--x": `${h.x}px`, "--y": `${h.y}px`, "--s": h.s, "--r": `${h.r}deg`, animationDelay: `${h.d}s` } as React.CSSProperties}>
+              <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill={h.c} />
+            </svg>
+          ))}
         </div>
       )}
 
-      <Sheet open={matchOpen} onClose={() => setMatchOpen(false)}>
-        <div style={{ position: "relative", display: "flex", justifyContent: "center", alignItems: "center", marginTop: 6 }}>
-          {[meAvatar, photos[0] ?? person.avatarUrl].map((src, i) =>
-            src ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={i} src={photoThumb(src, 240)} alt="" style={{ width: 96, height: 96, borderRadius: "50%", objectFit: "cover", border: "4px solid #fff", boxShadow: "0 14px 30px rgba(80,40,170,.3)", transform: `rotate(${i ? 8 : -8}deg)`, margin: i ? "0 0 0 -16px" : "0 -16px 0 0", zIndex: i ? 2 : 1 }} />
-            ) : (
-              <span key={i} style={{ width: 96, height: 96, borderRadius: "50%", background: "#EFE8FF", border: "4px solid #fff", margin: i ? "0 0 0 -16px" : "0 -16px 0 0" }} />
-            )
-          )}
-          <span style={{ position: "absolute", width: 52, height: 52, borderRadius: "50%", background: "linear-gradient(135deg,#FF8FB5,#FF4F8B)", display: "grid", placeItems: "center", border: "4px solid #fff", zIndex: 3 }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="#fff" aria-hidden="true">
-              <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
-            </svg>
-          </span>
-        </div>
-        <h2 className="t" style={{ textAlign: "center" }}>
-          Это <em>взаимно!</em>
-        </h2>
-        <p className="muted" style={{ margin: "-6px 4px 0", textAlign: "center", fontSize: 15, lineHeight: 1.45 }}>
-          {`${person.name} тоже поставил(а) тебе сердечко.`}
-          {common.length ? ` Общее: ${common.slice(0, 3).join(", ").toLowerCase()}.` : ""}
-        </p>
-        <button
-          className="btn v"
-          onClick={() => {
-            setMatchOpen(false);
-            openInvite();
-          }}
-        >
-          <Ic n="cal" />
-          Позвать на встречу
-        </button>
-        <button
-          className="btn o"
-          onClick={() => {
-            setMatchOpen(false);
-            if (person.canMessage === false) say(NO_MEET_TEXT);
-            else openDirect();
-          }}
-        >
-          <Ic n="chat" />
-          Написать
-        </button>
-      </Sheet>
+      <MatchCelebration
+        open={matchOpen}
+        me={meAvatar}
+        other={{ name: person.name, avatarUrl: photos[0] ?? person.avatarUrl, gender: person.gender }}
+        common={common}
+        onClose={() => setMatchOpen(false)}
+        onInvite={() => {
+          setMatchOpen(false);
+          openInvite();
+        }}
+        onMessage={() => {
+          setMatchOpen(false);
+          if (person.canMessage === false) say(NO_MEET_TEXT);
+          else openDirect();
+        }}
+      />
 
       <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)}>
         <h2 className="t">
