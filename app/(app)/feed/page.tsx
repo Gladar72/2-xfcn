@@ -312,14 +312,9 @@ function HomeScreen() {
         </div>
       </div>
 
-      <Link className="ttl" href="/search">
-        <h1 className="t" style={{ fontSize: 30 }}>
-          Что ищешь <em>сегодня?</em>
-        </h1>
-        <span className="ar">
-          <Ic n="chev" c="s" />
-        </span>
-      </Link>
+      <h1 className="t hmh">
+        Что ищешь <em>сегодня?</em>
+      </h1>
 
       {req ? (
         <Link className="plan" href={`/events/${req.latest.eventId}`} aria-label="Открыть новую заявку">
@@ -355,17 +350,11 @@ function HomeScreen() {
         </Link>
       )}
 
-      <div className="search">
-        <Link className="sfield gl" href="/search">
-          <Ic n="search" c="s" />
-          Кофе, пробежка, кино…
+      {/* Один ряд вместо заголовка-ссылки, поиска и фильтра: лупа → категории → «Фильтры». */}
+      <div className="cats hmcats">
+        <Link className="cat gl hmsrch" href="/search" aria-label="Поиск">
+          <Ic n="search" />
         </Link>
-        <Link className="rb k" href="/search?filters=1" aria-label="Фильтры" style={{ width: 50, height: 50 }}>
-          <Ic n="filter" />
-        </Link>
-      </div>
-
-      <div className="cats" style={{ marginTop: 14 }}>
         {cats.map((c) => (
           <button key={c.id} className="cat gl" onClick={() => openCategory(c)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -378,6 +367,10 @@ function HomeScreen() {
             <Chr shape="cloud" pal="mint" face="smile" />
           </span>
           Другое
+        </Link>
+        <Link className="cat gl hmflt" href="/search?filters=1">
+          <Ic n="filter" />
+          Фильтры
         </Link>
       </div>
 

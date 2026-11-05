@@ -479,8 +479,8 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* Главная: три раздела («Личные встречи», «Люди в твоём городе», «Афиша заведений») —
    одна сетка для всех карточек: один размер, фото целиком, снизу тёмный градиент.
    Внутри — поля 12px; сверху метки (24px); снизу всегда: название (1 строка) → детали (1 строка) → плашка (26px). */
-.P .rail.hm{--hmw:clamp(150px,40vw,188px);--hmp:12px;gap:10px;padding-top:2px}
-.P .rail.hm>.hero,.P .rail.hm>.pcard,.P .rail.hm>.acard,.P .rail.hm>.hmsk{flex:none;width:var(--hmw);height:calc(var(--hmw)*1.42);border-radius:22px;box-shadow:0 14px 26px -18px rgba(40,10,90,.5)}
+.P .rail.hm{--hmw:clamp(150px,calc((100vw - 66px)/2),232px);--hmp:12px;gap:10px;padding-top:2px}
+.P .rail.hm>.hero,.P .rail.hm>.pcard,.P .rail.hm>.acard,.P .rail.hm>.hmsk{flex:none;width:var(--hmw);height:calc(var(--hmw)*1.5);border-radius:22px;box-shadow:0 14px 26px -18px rgba(40,10,90,.5)}
 .P .rail.hm>.hero::after,.P .rail.hm>.pcard::after,.P .rail.hm>.acard.v::after,.P .rail.hm>.acard.city::after{background:linear-gradient(180deg,rgba(14,8,28,.2) 0%,rgba(14,8,28,0) 24%,rgba(14,8,28,0) 42%,rgba(14,8,28,.62) 66%,rgba(14,8,28,.94) 100%)}
 /* верх: метки одной высоты, по левому краю, друг под другом */
 .P .rail.hm .hero .tl{left:var(--hmp);top:var(--hmp);right:var(--hmp);display:flex;flex-direction:column;align-items:flex-start;gap:5px}
@@ -531,3 +531,17 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .rail.hm .acard.invite div{gap:12px}
 .P .rail.hm .acard.invite .hmplus{width:44px;height:44px;border-radius:50%;background:var(--g);color:#fff;display:grid;place-items:center;box-shadow:0 8px 18px -8px rgba(162,77,255,.8)}
 .P .rail.hm .acard.invite .hmplus .ic{width:22px;height:22px;stroke-width:2.4}
+/* Верх главной: заголовок и один ряд «лупа · категории · Фильтры». */
+.P .hmh{font-size:30px;margin:16px 0 0}
+.P .cats.hmcats{margin-top:12px}
+.P .cat.hmsrch{width:46px;padding:0;justify-content:center;color:var(--ink)}
+.P .cat.hmsrch .ic{width:20px;height:20px}
+.P .cat.hmflt{padding:0 16px 0 14px;gap:7px;color:var(--ink)}
+.P .cat.hmflt .ic{width:18px;height:18px}
+/* Афиша шире — внутри целиком два события */
+.P .afisha:has(.rail.hm){margin-left:-12px;margin-right:-12px;padding-left:14px;padding-right:14px}
+.P .afisha:has(.rail.hm) .rail.hm{margin:0 -14px;padding-left:14px;padding-right:14px;scroll-padding-left:14px}
+/* Цифра на «Встречи»: ровный фирменный кружок 17px у значка, цифра точно по центру
+   (размеры подобраны так, чтобы цифра не сдвигалась при округлении до пикселей). */
+.P .tab .tbadge{position:absolute;top:5px;left:calc(50% + 10px);box-sizing:border-box;display:block;width:17px;height:17px;padding:0 0 0 1px;border-radius:50%;background:linear-gradient(135deg,#FF6FA0,#A24DFF);color:#fff;font-size:10px;font-weight:700;line-height:17px;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:0;text-align:center;box-shadow:0 2px 8px rgba(255,111,160,.55);pointer-events:none}
+.P .tab .tbadge.w{width:auto;min-width:23px;padding:0 5px 0 6px;border-radius:9px}
