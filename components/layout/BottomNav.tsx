@@ -15,7 +15,7 @@ const TABS = [
   { href: "/feed", label: "Главная", icon: "home" },
   { href: "/map", label: "Карта", icon: "map" },
   { href: "/create", label: "", icon: "plus" },
-  { href: "/my-events", label: "Встречи", icon: "cal" },
+  { href: "/my-events", label: "Встречи", icon: "people" },
   { href: "/profile", label: "Профиль", icon: "user" },
 ] as const;
 
@@ -76,10 +76,7 @@ export function BottomNav() {
           >
             <Ic n={t.icon} />
             {t.href === "/my-events" && badge > 0 && (
-              <span
-                aria-label={`Новое на встречах: ${badge}`}
-                style={{ position: "absolute", top: 4, left: "58%", minWidth: 18, height: 18, padding: "0 5px", borderRadius: 99, background: "#FF3B6B", color: "#fff", fontSize: 11, fontWeight: 700, lineHeight: "18px", textAlign: "center", boxShadow: "0 0 0 2px rgba(22,18,31,.85)" }}
-              >
+              <span className={`tbadge ${badge > 9 ? "w" : ""}`} aria-label={`Новое на встречах: ${badge}`}>
                 {badge > 9 ? "9+" : badge}
               </span>
             )}
