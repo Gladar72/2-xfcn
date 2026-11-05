@@ -592,7 +592,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .ev.ev2 .sheet2 .tiles3 span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .P .ev.ev2 .sheet2 .abtns .sm{white-space:nowrap;gap:6px;font-size:12.5px;min-width:0}
 /* Отступ заголовка под «Ищем компанию в …» */
-.P .hmh{margin-top:22px}
+.P h1.t.hmh{margin-top:22px}
 /* «Это взаимно!» — праздничный экран на весь экран (размеры от высоты экрана, чтобы влезало на маленьких). */
 .P .mcel{--u:min(1px,calc(100dvh / 844));position:absolute;inset:0;z-index:80;overflow:hidden;color:#fff;font-family:var(--f)}
 .P .mcel .mc-bg{position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 35%,rgba(162,77,255,.96),rgba(76,30,160,.97) 55%,rgba(30,12,60,.98));opacity:0;animation:mcFade .45s ease-out .05s forwards}
