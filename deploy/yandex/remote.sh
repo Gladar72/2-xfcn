@@ -207,6 +207,9 @@ deploy() {
     < "$APP/supabase/migrations/0077_people_discovery.sql"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
     < "$APP/supabase/migrations/0078_people_filters.sql"
+  # Подписка на организаторов (идемпотентно; нужна новой версии API).
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
+    < "$APP/supabase/migrations/0079_follows.sql"
   log "build & start app"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"

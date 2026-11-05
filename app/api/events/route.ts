@@ -1,4 +1,5 @@
 import { cityDates } from "@/lib/events/local-dates";
+import { notifyFollowers } from "@/lib/telegram/follow-notify";
 import { NextRequest, NextResponse } from "next/server";
 import { anonGender, anonymousOrganizerName, canSeeAnonymousDetails } from "@/lib/events/anonymity";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -776,6 +777,14 @@ export async function POST(req: NextRequest) {
 
   // Анонса каждой новой встречи больше нет — раз в день приходит подборка по интересам
   // (lib/telegram/event-digest.ts).
+  // Подписчикам организатора — сразу (анонимные встречи не рассылаются).
+  void notifyFollowers(admin, {
+    eventId: createdEvent.id,
+    organizerId: currentUser.userId,
+    title: input.title ?? "",
+    isBusiness: input.isBusiness,
+    isAnonymous: !input.isBusiness && !!input.isAnonymous,
+  }).catch((err) => console.error("notifyFollowers:", err));
 
   // Автор сразу видит свою встречу в ленте, не дожидаясь конца 15-секундного кэша.
   clearFeedCache();

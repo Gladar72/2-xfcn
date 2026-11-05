@@ -692,3 +692,34 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .me2 .memenu a>.ic:first-child{width:20px;height:20px;color:#D9C7FF;flex:none}
 .P .me2 .memenu span{flex:1}
 .P .me2 .memenu .cv{color:rgba(255,255,255,.4)}
+/* ===== Профиль человека / заведения (pr2): тёмное стекло, фон — фото размытое,
+   общие интересы без обводки, ближайшие события организатора, колокольчик подписки. ===== */
+.P .pr.pr2{background:#140B26!important;color:#fff}
+.P .pr.pr2 .evbg{position:absolute;inset:-60px;z-index:0;background:linear-gradient(150deg,#2B1748,#5A2A6A) center/cover;filter:blur(42px) saturate(1.35) brightness(.5);pointer-events:none}
+.P .pr.pr2 .gal{background:transparent;-webkit-mask-image:linear-gradient(180deg,#000 72%,transparent 100%);mask-image:linear-gradient(180deg,#000 72%,transparent 100%)}
+.P .pr.pr2.deck .gal{-webkit-mask-image:none;mask-image:none}
+.P .pr.pr2 .gal::after{background:linear-gradient(180deg,rgba(14,8,28,.42),rgba(14,8,28,0) 18%,rgba(14,8,28,0) 50%,rgba(14,8,28,.6) 86%,rgba(14,8,28,0))}
+.P .pr.pr2 .gal .nm h1{font-weight:600}
+.P .pr.pr2 .gal .nm .pill{height:30px;padding:0 12px;border-radius:15px;font-size:13px;font-weight:500}
+.P .pr.pr2 .sheet2{position:relative;isolation:isolate;border-radius:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;color:#fff;padding:12px 16px 150px;gap:12px}
+.P .pr.pr2 .sheet2::before{content:"";position:absolute;left:0;right:0;top:-40px;bottom:0;z-index:-1;background:rgba(20,11,38,.42);-webkit-backdrop-filter:blur(26px) saturate(1.3);backdrop-filter:blur(26px) saturate(1.3);-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 90px);mask-image:linear-gradient(180deg,transparent 0,#000 90px)}
+.P .pr.pr2 .sheet2 .blk-h b{color:#fff}
+.P .pr.pr2 .sheet2 .blk-h span,.P .pr.pr2 .sheet2 .report{color:rgba(255,255,255,.55)}
+.P .pr.pr2 .sheet2 .about{color:rgba(255,255,255,.88);padding:14px 16px;border-radius:22px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13)}
+.P .pr.pr2 .sheet2 .itag,.P .pr.pr2 .sheet2 .itag.common{background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);color:#fff;-webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px)}
+.P .pr.pr2 .fevs{display:grid;gap:8px}
+.P .pr.pr2 .fev{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:20px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.13);color:#fff;text-align:left}
+.P .pr.pr2 .fev .d{width:40px;flex:none;text-align:center;display:grid;line-height:1.1}
+.P .pr.pr2 .fev .d small{font-size:12px;color:rgba(255,255,255,.6)}
+.P .pr.pr2 .fev .d b{font-size:20px;font-weight:600;color:#fff}
+.P .pr.pr2 .fev .fim{width:52px;height:52px;border-radius:14px;object-fit:cover;flex:none;position:relative;overflow:hidden}
+.P .pr.pr2 .fev .fim.gfx img{width:70%}
+.P .pr.pr2 .fev .t{flex:1;min-width:0;display:grid;gap:2px}
+.P .pr.pr2 .fev .t b{font-size:14.5px;font-weight:600;line-height:1.25;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.P .pr.pr2 .fev .t>span{font-size:12.5px;color:rgba(255,255,255,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* нижняя панель — тёмное стекло */
+.P .pr.pr2 .cta{left:12px;right:12px;bottom:calc(var(--bot) + 8px);padding:0;gap:8px;background:none}
+.P .pr.pr2 .cta .rb{background:rgba(25,14,48,.72);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:#fff}
+.P .pr.pr2 .cta .fbell.on{background:linear-gradient(135deg,#FF8FB5,#A24DFF);box-shadow:0 10px 24px -10px rgba(162,77,255,.9)}
+.P .pr.pr2 .cta .btn{min-width:0;padding:0 14px}
+.P .pr.pr2 .cta .btn>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
