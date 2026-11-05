@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { resizeImageFile } from "@/lib/photos/resize-image-client";
+import { useProfilePhoto } from "@/components/profile/useProfilePhoto";
 import { photoThumb } from "@/lib/photos/thumb";
 import { interestIcon } from "@/lib/data/interests";
-import { apiErrorText } from "@/lib/validation/api-error-text";
 import { Ic, Screen, Toast } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
 
@@ -26,11 +25,8 @@ export default function EditProfilePage() {
   const [bio, setBio] = useState("");
   const [name, setName] = useState("");
   const [birthText, setBirthText] = useState("");
-  const [busySlot, setBusySlot] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const input = useRef<HTMLInputElement>(null);
-  const slot = useRef(0);
 
   useEffect(() => {
     fetch("/api/me/profile")
@@ -51,33 +47,17 @@ export default function EditProfilePage() {
     setTimeout(() => setToast(null), 2600);
   }
 
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file || !p) return;
-    const s = slot.current;
-    setBusySlot(s);
-    try {
-      const dataUrl = await resizeImageFile(file, 1600, 0.9);
-      const res = await fetch(s === 0 ? "/api/me/avatar" : "/api/me/photos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ photoBase64: dataUrl }),
-      });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        flash(d.error === "photo_rejected" ? "Это фото не прошло проверку — выбери другое" : apiErrorText(d, "Не получилось загрузить фото", res.status));
-        return;
-      }
-      if (s === 0) setP({ ...p, avatarUrl: d.avatarUrl, photos: [d.avatarUrl, ...(p.photos ?? []).slice(1)] });
-      else setP({ ...p, photos: d.photos });
+  // Выбор фото → вертикальный редактор 3:4 → загрузка.
+  const photo = useProfilePhoto({
+    onDone: (r) => {
+      if (!p) return;
+      if (r.main) setP({ ...p, avatarUrl: r.avatarUrl, photos: [r.avatarUrl, ...(p.photos ?? []).slice(1)] });
+      else setP({ ...p, photos: r.photos });
       flash("Фото добавлено");
-    } catch {
-      flash("Проблема с соединением");
-    } finally {
-      setBusySlot(null);
-    }
-  }
+    },
+    onError: flash,
+  });
+  const busySlot = photo.busySlot;
 
   async function removeExtra(url: string) {
     if (!p) return;
@@ -155,8 +135,7 @@ export default function EditProfilePage() {
                     alt=""
                     onClick={() => {
                       if (i === 0) {
-                        slot.current = 0;
-                        input.current?.click();
+                        photo.pick(0);
                       }
                     }}
                   />
@@ -173,8 +152,7 @@ export default function EditProfilePage() {
                 key={i}
                 className="phs gl"
                 onClick={() => {
-                  slot.current = i === 0 || !photos[0] ? 0 : i;
-                  input.current?.click();
+                  photo.pick(i === 0 || !photos[0] ? 0 : i);
                 }}
                 aria-label="Добавить фото"
               >
@@ -186,7 +164,7 @@ export default function EditProfilePage() {
             );
           })}
         </div>
-        <input ref={input} type="file" accept="image/*" hidden onChange={onFile} />
+        {photo.ui}
 
         <span className="lbl">Имя</span>
         <label className="field gl">
