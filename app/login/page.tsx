@@ -1,6 +1,5 @@
 "use client";
 
-import { Creature } from "@/components/brand/Creature";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
@@ -164,16 +163,20 @@ function LoginInner() {
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
   return (
-    <main className="K" style={{ position: "fixed", inset: 0, overflow: "hidden", background: "var(--pearl)", color: "var(--ink)", fontFamily: "var(--disp)" }}>
-      <div className="m-aurora" aria-hidden style={{ position: "absolute", inset: 0 }} />
-      <div style={{ position: "absolute", left: "50%", top: "max(14vh, 70px)", transform: "translateX(-50%)" }}>
-        <Creature size={220} variant="e" />
+    <main className="K" style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#17141F", color: "#fff", fontFamily: "var(--disp)" }}>
+      <div className="k-abg" aria-hidden style={{ backgroundImage: "url(/brand/auth/auth_bg.webp)" }} />
+      <div className="k-ashade" aria-hidden />
+      <div className="k-alogo" style={{ top: "34%" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/auth/wordmark-white.svg" alt="место" />
+        <p>
+          Найди <em>компанию</em>
+          <br />
+          на сегодня
+        </p>
       </div>
-      <div className="k-authc k-g" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 20px)", maxWidth: 440, margin: "0 auto" }}>
-        <h1 className="k-h1">
-          Войти в <em>Место</em>
-        </h1>
-        <p>Через Telegram быстрее всего: имя и фото подтянутся сами, а встречи из мини‑приложения сохранятся.</p>
+      <div className="k-abtns" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)", maxWidth: 440, margin: "0 auto" }}>
+        <small>Через Telegram быстрее всего — имя и фото подтянутся сами</small>
         {EMAIL_LOGIN && (
           <div style={{ marginBottom: 14 }}>
             {step === "email" ? (
@@ -218,8 +221,8 @@ function LoginInner() {
         )}
         <TelegramLoginWidget onAuth={handleTelegramAuth} />
         {error && <p style={{ color: "#C2413A", fontSize: 14, margin: "12px 0 0", textAlign: "center" }}>{error}</p>}
-        <p className="k-legal">
-          Продолжая, вы принимаете <a href="/legal/offer">публичную оферту</a> и <a href="/legal/privacy">политику конфиденциальности</a>
+        <p className="k-alegal">
+          Продолжая, вы принимаете <a href="/legal/offer">оферту</a> и <a href="/legal/privacy">политику конфиденциальности</a>
         </p>
       </div>
     </main>
