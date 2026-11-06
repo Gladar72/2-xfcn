@@ -4,14 +4,13 @@ import { useEffect, useState } from "react";
 
 /**
  * Анимации брендбука 2026, как в прототипе:
- *  — нажатие: кнопка мягко «проседает», под пальцем расходится свечение;
+ *  — нажатие: кнопка мягко «проседает»; фотографии при прокрутке не сжимаются;
  *  — «Сердечко отправлено»: карточка по центру экрана, сама исчезает
  *    (вызывается событием window "mesto:heartpop").
  * Один обработчик на весь документ — ничего не добавляет в сами экраны.
  */
 const PRESS = ".k-pr, .P .btn, .P .rb, .P .chip, .P .cat, .P .row, .P .ci, .P .mcard, .P .nav26 .ntab";
-const GLOW = ".k-pr, .P .btn";
-const GLOW_ON = false;
+const PHOTO_CARD = ".k-mt, .k-hc, .pcard";
 
 export function Motion26() {
   const [heart, setHeart] = useState(0);
@@ -21,34 +20,24 @@ export function Motion26() {
     // Нажатие показываем с задержкой и отменяем, если палец поехал (листание) —
     // при прокрутке карточки не «проседают».
     let pend: { el: HTMLElement; x: number; y: number; t: number } | null = null;
+    const up = () => {
+      if (!pend) return;
+      window.clearTimeout(pend.t);
+      pend.el.classList.remove("k-down");
+      pend = null;
+    };
     const move = (e: PointerEvent) => {
       if (!pend) return;
       if (Math.abs(e.clientX - pend.x) > 6 || Math.abs(e.clientY - pend.y) > 6) {
-        window.clearTimeout(pend.t);
-        pend.el.classList.remove("k-down");
-        pend = null;
+        up();
       }
     };
     const down = (e: PointerEvent) => {
+      up();
       const t = e.target as Element | null;
       const el = t?.closest?.(PRESS) as HTMLElement | null;
-      if (!el || (el as HTMLButtonElement).disabled) return;
-      if (pend) window.clearTimeout(pend.t);
+      if (!el || reduce || el.matches(PHOTO_CARD) || (el as HTMLButtonElement).disabled) return;
       pend = { el, x: e.clientX, y: e.clientY, t: window.setTimeout(() => el.classList.add("k-down"), 90) };
-      // 06.11: круглое свечение под пальцем убрано — на телефоне выглядело как «кругляшок».
-      if (reduce || !GLOW_ON || !el.matches(GLOW)) return;
-      const r = el.getBoundingClientRect();
-      const g = document.createElement("span");
-      g.className = "k-glow";
-      g.style.left = `${e.clientX - r.left}px`;
-      g.style.top = `${e.clientY - r.top}px`;
-      el.appendChild(g);
-      window.setTimeout(() => g.remove(), 650);
-    };
-    const up = () => {
-      if (pend) window.clearTimeout(pend.t);
-      pend = null;
-      document.querySelectorAll(".k-down").forEach((x) => x.classList.remove("k-down"));
     };
     const pop = () => setHeart((n) => n + 1);
     document.addEventListener("pointerdown", down, { passive: true });
@@ -58,6 +47,7 @@ export function Motion26() {
     window.addEventListener("scroll", up, { passive: true, capture: true });
     window.addEventListener("mesto:heartpop", pop);
     return () => {
+      up();
       document.removeEventListener("pointerdown", down);
       document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);

@@ -19,6 +19,7 @@ import { goBack } from "@/lib/nav/back";
 import { ApiReadError, getJson } from "@/lib/http/get-json";
 import { markCachedChatRead } from "@/lib/chat/list-cache";
 import { ChatScrollbar } from "@/components/chat/ChatScrollbar";
+import { hasReadMessage } from "@/lib/chat/read-status";
 
 interface ChatPageProps {
   // Next.js 14 (в этом проекте) передаёт params клиентским компонентам
@@ -117,7 +118,6 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     toastTimerRef.current = setTimeout(() => setToast(null), 2600);
   }, []);
-  const myIdRef = useRef<string | null>(null);
   // Сообщения, загруженные из истории, — без анимации появления (иначе при входе дёргается весь список).
   const quietIdsRef = useRef(new Set<string>());
   const markQuiet = (list: { id: string }[]) => list.forEach((m) => quietIdsRef.current.add(m.id));
@@ -157,7 +157,24 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
   const [composeH, setComposeH] = useState(150);
   const clientRef = useRef<SupabaseClient | null>(null);
   const channelRef = useRef<RealtimeChannel | null>(null);
-  const markReadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestMessageId = messages.at(-1)?.id;
+  useEffect(() => {
+    if (loading || !myUserId || !atBottom || accessBlocked) return;
+    const controller = new AbortController();
+    const markRead = () => {
+      const list = listRef.current;
+      if (document.hidden || !list || list.scrollHeight - list.clientHeight - list.scrollTop > 48) return;
+      markCachedChatRead(conversationId);
+      fetch(`/api/conversations/${conversationId}`, {
+        method: "PATCH", signal: controller.signal,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "mark_read" }),
+      }).catch(() => {});
+    };
+    const timer = setTimeout(markRead, 300);
+    document.addEventListener("visibilitychange", markRead);
+    return () => { clearTimeout(timer); controller.abort(); document.removeEventListener("visibilitychange", markRead); };
+  }, [loading, myUserId, atBottom, accessBlocked, latestMessageId, conversationId, listRef]);
 
   useEffect(() => {
     let cancelled = false;
@@ -181,9 +198,8 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
         if (cancelled) return;
 
         setMyUserId(me.userId);
-        myIdRef.current = me.userId;
         markQuiet(history.messages ?? []);
-        setMessages(((history.messages ?? []) as MessageData[]).map(normMessage));
+        setMessages(previous => mergeServerMessages(previous, history.messages ?? []));
         setHasMore(!!history.hasMore);
         setEventTitle(history.eventTitle ?? null);
         setEventStatus(history.eventStatus ?? null);
@@ -199,12 +215,6 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
         setMembers(history.members ?? []);
         historyLoaded = true;
         setLoading(false);
-        markCachedChatRead(conversationId);
-        fetch(`/api/conversations/${conversationId}`, {
-          method: "PATCH", signal: controller.signal,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "mark_read" }),
-        }).catch(() => {});
 
         const tokenData = await tokenPromise;
         if (cancelled) return;
@@ -219,7 +229,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
         const channel = client
           .channel(`conversation:${conversationId}`, { config: { private: true } })
           .on("broadcast", { event: "message" }, ({ payload }) => {
-            const row = payload as MessageData & { reactions?: { emoji: string; userIds: string[] }[] };
+            const row = payload as MessageData & { clientMessageId?: string; reactions?: { emoji: string; userIds: string[] }[] };
             if (!row?.id) return;
             const incoming = normMessage({ ...row, reactions: shapeReactions(row.reactions, me.userId) });
             setMessages((prev) => {
@@ -230,8 +240,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                 (m) =>
                   m.id.startsWith("temp-") &&
                   m.senderId === row.senderId &&
-                  m.content === row.content &&
-                  !!m.imageUrl === !!row.imageUrl
+                  m.id === `temp-${row.clientMessageId ?? row.id}`
               );
               if (tempIndex !== -1) {
                 quietIdsRef.current.add(incoming.id);
@@ -239,17 +248,6 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
               }
               return [...prev, incoming];
             });
-            // Чат открыт — отмечаем входящие прочитанными (не чаще раза в 3 с).
-            if (row.senderId !== me.userId && !markReadTimerRef.current) {
-              markReadTimerRef.current = setTimeout(() => {
-                markReadTimerRef.current = null;
-                fetch(`/api/conversations/${conversationId}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ action: "mark_read" }),
-                }).catch(() => {});
-              }, 3000);
-            }
           })
           .on("broadcast", { event: "edit" }, ({ payload }) => {
             const p = payload as { id: string; content: string; editedAt: string };
@@ -307,8 +305,6 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
       }
       clientRef.current = null;
       channelRef.current = null;
-      if (markReadTimerRef.current) clearTimeout(markReadTimerRef.current);
-      markReadTimerRef.current = null;
     };
   }, [conversationId, attempt, router]);
 
@@ -362,14 +358,8 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
         .then((r) => (r.ok ? r.json() : null))
         .then((d: { messages?: MessageData[] } | null) => {
           if (!d?.messages) return;
-          const server = new Map(d.messages.map((m) => [m.id, normMessage(m)]));
-          setMessages((prev) => {
-            const ids = new Set(prev.map((m) => m.id));
-            const fresh = [...server.values()].filter((m) => !ids.has(m.id));
-            // Пока были в фоне: правки, удаления и реакции тоже обновляем.
-            const merged = prev.map((m) => server.get(m.id) ?? m);
-            return [...merged, ...fresh].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
-          });
+          // Reconcile by identity, including sends whose HTTP response was lost.
+          setMessages(previous => mergeServerMessages(previous, d.messages!));
         })
         .catch(() => {});
     }
@@ -426,79 +416,76 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
   // Отправка как в Telegram: сообщение сразу в ленте; при сбое сети — повторы,
   // а если так и не ушло — остаётся с «Не отправлено · Повторить» (не пропадает).
   const bodiesRef = useRef(new Map<string, { content: string; image?: string; replyToId?: string }>());
+  const pendingSends = useRef(new Set<string>());
 
   async function postMessage(tempId: string, body: { content: string; image?: string; replyToId?: string }) {
+    if (pendingSends.current.has(tempId)) return;
+    // A send already requested by the user must finish even if they leave the chat.
+    pendingSends.current.add(tempId);
     bodiesRef.current.set(tempId, body);
     setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: true, failed: false } : m)));
-    const startedAt = Date.now();
-    for (let attempt = 0; attempt < 3; attempt++) {
-      if (attempt > 0) {
-        await sleep(attempt === 1 ? 1200 : 3000);
-        // Ответ мог потеряться, а сообщение — сохраниться: проверяем, чтобы не задвоить.
+    try {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (attempt > 0) {
+          await sleep(attempt === 1 ? 1200 : 3000);
+        }
+        const request = new AbortController();
+        const abort = () => request.abort();
+        const timeout = setTimeout(abort, 20_000);
         try {
-          const r = await fetch(`/api/conversations/${conversationId}/messages?limit=20`);
-          const d = r.ok ? ((await r.json()) as { messages?: MessageData[] }) : null;
-          const found = d?.messages?.find(
-            (m) => m.senderId === myIdRef.current && m.content === body.content && Date.parse(m.createdAt) >= startedAt - 60_000 && !!m.imageUrl === !!body.image
-          );
-          if (found) {
-            quietIdsRef.current.add(found.id);
-            setMessages((prev) => (prev.some((m) => m.id === found.id) ? prev.filter((m) => m.id !== tempId) : prev.map((m) => (m.id === tempId ? normMessage(found) : m))));
+          const res = await fetch(`/api/conversations/${conversationId}/messages`, {
+            method: "POST",
+            signal: request.signal,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...body, clientMessageId: tempId.slice(5) }),
+          });
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.messageId) {
             bodiesRef.current.delete(tempId);
+            quietIdsRef.current.add(data.messageId);
+            setMessages((prev) =>
+              prev.some((m) => m.id === data.messageId)
+                ? prev.filter((m) => m.id !== tempId)
+                : prev.map((m) =>
+                    m.id === tempId
+                      ? { ...m, id: data.messageId, createdAt: data.createdAt ?? m.createdAt, imageUrl: data.imageUrl ?? m.imageUrl, uploading: false, pending: false, failed: false }
+                      : m
+                  )
+            );
             return;
           }
-        } catch {}
-      }
-      try {
-        const res = await fetch(`/api/conversations/${conversationId}/messages`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        const data = await res.json().catch(() => ({}));
-        if (res.ok && data.messageId) {
-          bodiesRef.current.delete(tempId);
-          quietIdsRef.current.add(data.messageId);
-          setMessages((prev) =>
-            prev.some((m) => m.id === data.messageId)
-              ? prev.filter((m) => m.id !== tempId)
-              : prev.map((m) =>
-                  m.id === tempId
-                    ? { ...m, id: data.messageId, createdAt: data.createdAt ?? m.createdAt, imageUrl: data.imageUrl ?? m.imageUrl, uploading: false, pending: false, failed: false }
-                    : m
-                )
-          );
-          return;
+          // Ошибки, которые повтором не исправить: убираем и возвращаем текст в поле.
+          if (res.status >= 400 && res.status < 500) {
+            bodiesRef.current.delete(tempId);
+            setMessages((prev) => prev.filter((m) => m.id !== tempId));
+            setDraft((d) => d || body.content);
+            if (body.image) setPendingImage((p) => p ?? body.image ?? null);
+            showToast(
+              data.error === "photo_rejected"
+                ? "Фото не прошло проверку и не может быть отправлено."
+                : data.error === "photo_too_large"
+                  ? "Фото слишком большое."
+                  : data.error === "photo_invalid"
+                    ? "Этот формат фото не поддерживается."
+                    : data.error === "event_closed"
+                      ? "Событие закрыто — писать в чат уже нельзя."
+                      : data.error === "message_too_long"
+                        ? "Слишком длинное сообщение."
+                        : res.status === 401
+                          ? "Сессия устарела — перезапусти приложение."
+                          : "Не получилось отправить сообщение."
+            );
+            return;
+          }
+        } catch {
+          // сеть — пробуем ещё раз
+        } finally {
+          clearTimeout(timeout);
         }
-        // Ошибки, которые повтором не исправить: убираем и возвращаем текст в поле.
-        if (res.status >= 400 && res.status < 500) {
-          bodiesRef.current.delete(tempId);
-          setMessages((prev) => prev.filter((m) => m.id !== tempId));
-          setDraft((d) => d || body.content);
-          if (body.image) setPendingImage((p) => p ?? body.image ?? null);
-          showToast(
-            data.error === "photo_rejected"
-              ? "Фото не прошло проверку и не может быть отправлено."
-              : data.error === "photo_too_large"
-                ? "Фото слишком большое."
-                : data.error === "photo_invalid"
-                  ? "Этот формат фото не поддерживается."
-                  : data.error === "event_closed"
-                    ? "Событие закрыто — писать в чат уже нельзя."
-                    : data.error === "message_too_long"
-                      ? "Слишком длинное сообщение."
-                      : res.status === 401
-                        ? "Сессия устарела — перезапусти приложение."
-                        : "Не получилось отправить сообщение."
-          );
-          return;
-        }
-      } catch {
-        // сеть — пробуем ещё раз
       }
-    }
-    setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: false, failed: true } : m)));
-    showToast("Нет связи — сообщение не отправлено. Нажми «Повторить».");
+      setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, pending: false, failed: true } : m)));
+      showToast("Нет связи — сообщение не отправлено. Нажми «Повторить».");
+    } finally { pendingSends.current.delete(tempId); }
   }
 
   function retryMessage(m: MessageData) {
@@ -508,7 +495,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
 
   function sendNew(content: string, image?: string | null) {
     if (!myUserId || isEventClosed) return;
-    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const tempId = `temp-${crypto.randomUUID()}`;
     const reply = replyTo;
     setMessages((prev) => [
       ...prev,
@@ -668,6 +655,10 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
     ? visibleParticipants
     : visibleParticipants.slice(0, PARTICIPANTS_PAGE_SIZE);
   const hiddenParticipantsCount = visibleParticipants.length - participantsToShow.length;
+  let lastOwnId: string | undefined;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i]!.senderId === myUserId) { lastOwnId = messages[i]!.id; break; }
+  }
 
   if (accessBlocked) {
     return (
@@ -807,9 +798,9 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
           )}
           {messages.map((message, index) => {
             const prev = messages[index - 1];
-            const readers = members.filter((m) => m.lastReadAt && message.createdAt <= m.lastReadAt);
+            const readers = members.filter((m) => hasReadMessage(message.createdAt, m.lastReadAt));
             const isGroup = members.length > 1;
-            const isLastOwn = message.senderId === myUserId && !messages.slice(index + 1).some((m) => m.senderId === myUserId);
+            const isLastOwn = message.id === lastOwnId;
             const showDaySeparator = !prev || !isSameDay(prev.createdAt, message.createdAt);
             const isOwn = message.senderId === myUserId;
             const readStatus: "sent" | "partial" | "read" =
@@ -1106,7 +1097,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
           <div style={{ display: "grid", gap: 8 }}>
             {readersFor &&
               members.map((m) => {
-                const isRead = !!(m.lastReadAt && readersFor.createdAt <= m.lastReadAt);
+                const isRead = hasReadMessage(readersFor.createdAt, m.lastReadAt);
                 return (
                   <div key={m.id} className="apl gl">
                     {m.avatarUrl ? (
@@ -1300,12 +1291,12 @@ function mergeServerMessages(previous: MessageData[], incoming: MessageData[]): 
     const row = normMessage(raw);
     const existing = merged.findIndex((m) => m.id === row.id);
     const index = existing >= 0 ? existing : merged.findIndex((m) =>
-      m.id.startsWith("temp-") && m.senderId === row.senderId && m.content === row.content && !!m.imageUrl === !!row.imageUrl
+      m.id === `temp-${row.id}` && m.senderId === row.senderId
     );
     if (index >= 0) merged[index] = row;
     else merged.push(row);
   }
-  return merged.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  return merged.sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
 }
 
 function normMessage(m: MessageData): MessageData {

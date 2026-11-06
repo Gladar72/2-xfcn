@@ -17,8 +17,7 @@ test("legacy account is prompted for a profile photo when choosing an open event
   await page.getByRole("button", { name: /Открытая встреча/ }).click();
   await expect(page.getByRole("heading", { name: "Добавь своё фото" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Добавить фото профиля" })).toBeVisible();
-  await expect(page.locator(".m-peek").filter({ hasText: "Добавь своё фото" })).toBeVisible();
-  await expect(page.locator(".m-peek .bb").filter({ hasText: "Добавь своё фото" })).toHaveCSS("opacity", "1");
+  await expect(page.getByTestId("organizer-photo-gate")).toBeVisible();
   await page.screenshot({ path: testInfo.outputPath("organizer-photo.png") });
   await expect(page.getByRole("button", { name: "Далее", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Назад", exact: true }).click();

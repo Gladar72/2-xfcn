@@ -3,6 +3,7 @@ import { BottomNav } from "@/components/layout/BottomNav";
 import { PendingReviewModal } from "@/components/reviews/PendingReviewModal";
 import { MatchOnOpen } from "@/components/people/MatchOnOpen";
 import { HomeScreenAsk } from "@/components/telegram/HomeScreenAsk";
+import { ActivityHeartbeat } from "@/components/people/ActivityHeartbeat";
 
 /**
  * Корень приложения — контейнер .P из прототипа (стили app/proto.css):
@@ -12,6 +13,7 @@ import { HomeScreenAsk } from "@/components/telegram/HomeScreenAsk";
 export default function AppSectionLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="P K">
+      <ActivityHeartbeat />
       {children}
       <Suspense>
         <BottomNav />

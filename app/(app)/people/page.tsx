@@ -10,7 +10,7 @@ import { PeopleFilterSheet } from "@/components/people/PeopleFilterSheet";
 import { DEFAULT_PEOPLE_FILTERS, hasPeopleFilters, peopleFilterParams, readPeopleFilters, type PeopleFilters } from "@/lib/people/filters";
 import { goBack } from "@/lib/nav/back";
 import { watchMyLocation } from "@/lib/geo/client-location";
-import { photoThumb } from "@/lib/photos/thumb";
+import { PersonPhoto, personPhotoUrl } from "@/components/people/PersonPhoto";
 import { usePeopleVisitSeed } from "@/lib/people/use-visit-seed";
 
 interface Card {
@@ -24,6 +24,8 @@ interface Card {
   sharedInterests: string[];
   distanceKm?: number | null;
   distanceM?: number | null;
+  gender?: string | null;
+  lastActiveAt?: string | null;
 }
 
 /** Короткий профиль из карточки — показываем сразу, пока грузится полный. */
@@ -31,6 +33,8 @@ function quick(c: Card): Person {
   return {
     id: c.id,
     name: c.name,
+    gender: c.gender,
+    lastActiveAt: c.lastActiveAt,
     age: c.age,
     city: c.city,
     avatarUrl: c.avatarUrl,
@@ -89,6 +93,12 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
   const [ix, setIx] = useState(0);
   const [from, setFrom] = useState<1 | -1 | 0>(0);
   const cache = useRef(new Map<string, Person | null>());
+  const profileRequests = useRef(new Map<string, AbortController>());
+  useEffect(() => () => {
+    for (const controller of profileRequests.current.values()) controller.abort();
+    profileRequests.current.clear();
+    cache.current.clear();
+  }, []);
   const [, force] = useState(0);
   const [city, setCity] = useState(cityFilter ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -101,6 +111,8 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
   const distanceRequest = useRef<AbortController | null>(null);
   const generation = useRef(0);
   const currentCard = useRef<string | null>(null);
+  const swipeClickUntil = useRef(0);
+  const touchOrigin = useRef<{ x: number; y: number } | null>(null);
   currentCard.current = cards?.[ix]?.id ?? null;
   const request = useRef<AbortController | null>(null);
   const loaded = useRef(false);
@@ -228,21 +240,38 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
   // Заранее подгружаем соседей: следующий профиль и его фото уже готовы.
   useEffect(() => {
     if (!cards) return;
-    for (const c of [cards[ix], cards[ix + 1], cards[ix + 2], cards[ix - 1]]) {
+    // Keep a small window of full profiles, not every photo set ever swiped.
+    const retained = new Set(cards.slice(Math.max(0, ix - 12), ix + 12).map(c => c.id));
+    for (const id of cache.current.keys()) if (!retained.has(id)) cache.current.delete(id);
+    const neighbours = [cards[ix], cards[ix + 1], cards[ix + 2], cards[ix - 1]];
+    const needed = new Set(neighbours.flatMap(c => c ? [c.id] : []));
+    for (const [id, controller] of profileRequests.current) {
+      if (!needed.has(id)) {
+        controller.abort();
+        profileRequests.current.delete(id);
+        cache.current.delete(id);
+      }
+    }
+    for (const c of neighbours) {
       if (!c || cache.current.has(c.id)) continue;
       cache.current.set(c.id, null);
-      if (c.avatarUrl) new Image().src = photoThumb(c.avatarUrl, 300);
-      fetch(`/api/users/${c.id}`)
-        .then((r) => r.json())
+      const controller = new AbortController();
+      profileRequests.current.set(c.id, controller);
+      if (c.avatarUrl) new Image().src = personPhotoUrl(c.avatarUrl);
+      fetch(`/api/users/${c.id}`, { signal: controller.signal })
+        .then((r) => { if (!r.ok) throw new Error("profile_unavailable"); return r.json(); })
         .then((d) => {
-          if (!d.error && d.id === c.id) {
-            for (const src of (d.photos ?? []) as string[]) new Image().src = photoThumb(src, 300);
+          if (!d.error && d.id === c.id && !controller.signal.aborted) {
+            // Neighbours need their cover only; the active gallery loads its other photos.
+            for (const src of ((d.photos ?? []) as string[]).slice(0, 1)) new Image().src = personPhotoUrl(src);
             const latest = latestCards.current?.find((item) => item.id === c.id) ?? c;
             cache.current.set(c.id, { ...d, city: latest.city, distanceKm: latest.distanceKm, distanceM: latest.distanceM });
-            force((n) => n + 1);
+            // Prefetched neighbours should not repaint the card under the finger.
+            if (currentCard.current === c.id) force((n) => n + 1);
           }
         })
-        .catch(() => {});
+        .catch(() => { if (!controller.signal.aborted) cache.current.delete(c.id); })
+        .finally(() => { if (profileRequests.current.get(c.id) === controller) profileRequests.current.delete(c.id); });
     }
   }, [cards, ix]);
 
@@ -317,13 +346,29 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
   const next = cards[ix + 1];
   const cached = cache.current.get(c.id);
   return (
-    <>
+    <div className="people-stack" style={{ display: "contents" }}
+      onTouchStartCapture={e => {
+        swipeClickUntil.current = 0;
+        const touch = e.touches[0];
+        touchOrigin.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+      }}
+      onTouchMoveCapture={e => {
+        const start = touchOrigin.current;
+        const touch = e.touches[0];
+        if (start && touch && Math.max(Math.abs(touch.clientX - start.x), Math.abs(touch.clientY - start.y)) > 10) {
+          swipeClickUntil.current = performance.now() + 500;
+        }
+      }}
+      onClickCapture={e => {
+        // iOS may deliver the old gesture's compatibility click after the card
+        // unmounts. Keep this guard outside PersonView so it survives that swap.
+        if (e.detail !== 0 && performance.now() < swipeClickUntil.current) { e.preventDefault(); e.stopPropagation(); }
+      }}>
       {toolbar}
       {/* Под карточкой видно следующего — как стопка в Tinder. */}
       <div className="deck-under">
         {next?.avatarUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoThumb(next.avatarUrl, 420, true)} alt="" decoding="async" />
+          <PersonPhoto key={next.id} src={next.avatarUrl} />
         )}
       </div>
       <PersonView
@@ -333,11 +378,12 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
       deck={{
         from,
         onSwipe: (dir) => {
+          swipeClickUntil.current = performance.now() + 500;
           setFrom(dir);
           setIx((i) => i + 1);
         },
       }}
       />
-    </>
+    </div>
   );
 }

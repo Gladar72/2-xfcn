@@ -6,7 +6,7 @@ import { approxDistanceKm, approxDistanceM, freshPoint } from "@/lib/geo/approx-
 import { readPeopleFilters, UUID_PATTERN } from "@/lib/people/filters";
 
 export const dynamic = "force-dynamic";
-const USER_FIELDS = "id, name, city, gender, avatar_url, birth_date, rating_avg, completed_meetings_count, approx_lat, approx_lon, approx_location_at, show_distance";
+const USER_FIELDS = "id, name, city, gender, last_active_at, avatar_url, birth_date, rating_avg, completed_meetings_count, approx_lat, approx_lon, approx_location_at, show_distance";
 
 export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
@@ -69,7 +69,7 @@ export async function GET(req: Request) {
     const common = shared.get(u.id as string) ?? [];
     return {
       id: u.id, name: u.name, city: u.city, gender: u.gender,
-      avatarUrl: u.avatar_url, age: age(u.birth_date as string),
+      lastActiveAt: u.last_active_at ?? null, avatarUrl: u.avatar_url, age: age(u.birth_date as string),
       ratingAvg: Number(u.rating_avg ?? 0), completedMeetingsCount: Number(u.completed_meetings_count ?? 0),
       sharedInterests: common.slice(0, 3), sharedCount: common.length,
       distanceKm: approxDistanceKm(me, u), distanceM: approxDistanceM(me, u),

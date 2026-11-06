@@ -30,6 +30,7 @@ const meeting = (i: number) => ({
 const events = Array.from({ length: 8 }, (_, i) => meeting(i));
 
 async function fixture(page: Page) {
+  await page.addInitScript(() => localStorage.setItem("mesto_home_ask", "added"));
   await page.routeWebSocket(/\/realtime\/v1\/websocket/, () => {});
   await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;

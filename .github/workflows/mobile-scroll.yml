@@ -5,7 +5,27 @@ on:
     paths:
       - 'components/people/**'
       - 'components/proto/ScreenTransitions.tsx'
+      - 'components/proto/Motion26.tsx'
+      - 'components/proto/k.tsx'
+      - 'components/brand/Creature.tsx'
+      - 'components/chat/**'
+      - 'components/proto/ui.tsx'
+      - 'components/telegram/HomeScreenAsk.tsx'
+      - 'components/events/**'
       - 'app/(app)/people/**'
+      - 'app/(app)/feed/**'
+      - 'app/(app)/events/**'
+      - 'app/(app)/layout.tsx'
+      - 'app/api/people/**'
+      - 'app/api/users/**'
+      - 'app/api/conversations/**'
+      - 'app/chats/**'
+      - 'app/k26*.css'
+      - 'lib/people/**'
+      - 'lib/photos/**'
+      - 'lib/chat/**'
+      - 'lib/nav/**'
+      - 'public/brand/creature/**'
       - 'app/proto-app.css'
       - 'tests/browser/**'
       - 'playwright.config.ts'
@@ -31,8 +51,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
-      - name: Mobile gestures, navigation, shuffle and scroll boundaries
-        run: npx playwright test tests/browser/people-gestures.spec.ts tests/browser/people-shuffle.spec.ts tests/browser/scroll-boundaries.spec.ts --timeout=60000 --reporter=line
+      - name: Mobile navigation, gestures, chat and event flows
+        run: npx playwright test --timeout=60000 --reporter=line
       - name: Unit tests
         run: npm test
       - name: Production build

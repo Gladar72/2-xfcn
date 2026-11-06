@@ -9,18 +9,30 @@
  */
 let depth = 0;
 let installed = false;
+const DEPTH_KEY = "__mestoNavDepth";
 
 export function installNavDepth() {
   if (installed || typeof window === "undefined") return;
   installed = true;
   const H = window.history;
   const push0 = H.pushState.bind(H);
-  H.pushState = (...a: Parameters<History["pushState"]>) => {
-    depth += 1;
-    return push0(...a);
+  const replace0 = H.replaceState.bind(H);
+  depth = Number.isInteger(H.state?.[DEPTH_KEY]) ? H.state[DEPTH_KEY] : 0;
+  replace0({ ...H.state, [DEPTH_KEY]: depth }, "", window.location.href);
+  H.replaceState = (state, unused, url) => replace0({ ...state, [DEPTH_KEY]: depth }, unused, url);
+  H.pushState = (state, unused, url) => {
+    const target = new URL(url == null ? window.location.href : String(url), window.location.href);
+    // Repeated state updates for the current screen must not require repeated
+    // taps on Back. Preserve Next's state, but replace the current entry.
+    if (target.href === window.location.href) {
+      return replace0({ ...state, [DEPTH_KEY]: depth }, unused, url);
+    }
+    const next = depth + 1;
+    push0({ ...state, [DEPTH_KEY]: next }, unused, url);
+    depth = next;
   };
-  window.addEventListener("popstate", () => {
-    depth = Math.max(0, depth - 1);
+  window.addEventListener("popstate", (event) => {
+    depth = Number.isInteger(event.state?.[DEPTH_KEY]) ? event.state[DEPTH_KEY] : 0;
   });
 }
 

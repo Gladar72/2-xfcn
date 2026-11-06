@@ -10,7 +10,8 @@ import { MatchCelebration } from "@/components/people/MatchCelebration";
 import { useGuide } from "@/lib/mosya/guide";
 import { peek, say } from "@/lib/mosya/peek";
 import { goBack } from "@/lib/nav/back";
-import { photoThumb } from "@/lib/photos/thumb";
+import { PresenceLabel } from "@/components/people/PresenceLabel";
+import { PersonPhoto, personPhotoUrl } from "@/components/people/PersonPhoto";
 import { distanceLabel, personDistanceLabel } from "@/lib/geo/approx-distance";
 import { suggestMeet } from "@/lib/mosya/suggest";
 
@@ -50,6 +51,7 @@ export interface Person {
   /** Примерное расстояние, целые км (0 — меньше километра). */
   distanceKm?: number | null;
   distanceM?: number | null;
+  lastActiveAt?: string | null;
   /** "female" | "male" — для «поставил/поставила» на экране взаимности. */
   gender?: string | null;
 }
@@ -83,9 +85,17 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   const [inviteOpen, setInviteOpen] = useState(false);
   const [myEvents, setMyEvents] = useState<MyEvent[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const directRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => directRequest.current?.abort(), []);
   const [gi, setGi] = useState(0);
+  const [shownPhoto, setShownPhoto] = useState<string | null>(null);
+  const [readyPhotos, setReadyPhotos] = useState<Set<string>>(() => new Set());
+  const requestedPhoto = (person?.photos?.length ? person.photos : [person?.avatarUrl])[gi];
+  useEffect(() => {
+    if (requestedPhoto && readyPhotos.has(requestedPhoto)) setShownPhoto(requestedPhoto);
+  }, [requestedPhoto, readyPhotos]);
   const swipe = useRef<{ x: number; y: number; t: number; top: boolean; axis: "x" | "y" | null } | null>(null);
-  const card = useRef<HTMLElement>(null);
+  const card = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -93,21 +103,38 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   const [inviteNote, setInviteNote] = useState("");
   // «Сердечко»: поставил ли я, взаимно ли; вспышка сердца и экран «Это взаимно!».
   const [liked, setLiked] = useState(false);
+  const likeVersion = useRef(0);
+  const likePending = useRef(false);
+  const [likeBusy, setLikeBusy] = useState(false);
   const [burst, setBurst] = useState(false);
   const [matchOpen, setMatchOpen] = useState(false);
   const [meAvatar, setMeAvatar] = useState<string | null>(null);
   // Подписка на организатора: новые открытые события приходят сами (в бот и push).
   const [follow, setFollow] = useState<FollowInfo | null>(null);
+  const [followError, setFollowError] = useState(false);
+  const [followRetry, setFollowRetry] = useState(0);
+  const [followBusy, setFollowBusy] = useState(false);
+  const followPending = useRef(false);
   useEffect(() => {
     if (!person?.id) return;
+    const controller = new AbortController();
     setFollow(null);
-    fetch(`/api/follows?userId=${person.id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setFollow({ following: !!d.following, followers: d.followers ?? 0, events: Array.isArray(d.events) ? d.events : [] }))
-      .catch(() => {});
-  }, [person?.id]);
+    setFollowError(false);
+    fetch(`/api/follows?userId=${person.id}`, { signal: controller.signal })
+      .then((r) => { if (!r.ok) throw new Error("follow"); return r.json(); })
+      .then((d) => { if (!controller.signal.aborted) setFollow({ following: !!d.following, followers: d.followers ?? 0, events: Array.isArray(d.events) ? d.events : [] }); })
+      .catch(() => { if (!controller.signal.aborted) setFollowError(true); });
+    return () => controller.abort();
+  }, [person?.id, followRetry]);
   async function toggleFollow() {
-    if (!person || !follow) return;
+    if (!person || followPending.current) return;
+    if (!follow) {
+      if (followError) { setFollowError(false); setFollowRetry(n => n + 1); }
+      return;
+    }
+    followPending.current = true;
+    setFollowBusy(true);
+    const previous = follow;
     const next = !follow.following;
     setFollow({ ...follow, following: next, followers: Math.max(0, follow.followers + (next ? 1 : -1)) });
     try {
@@ -118,18 +145,24 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       setToast(next ? `Подписка оформлена — новые события ${person.name} придут сами` : "Подписка отменена");
       setTimeout(() => setToast(null), 2600);
     } catch {
-      setFollow((f) => (f ? { ...f, following: !next, followers: Math.max(0, f.followers + (next ? -1 : 1)) } : f));
+      setFollow(previous);
       setToast("Не получилось — попробуй ещё раз");
       setTimeout(() => setToast(null), 2200);
+    } finally {
+      followPending.current = false;
+      setFollowBusy(false);
     }
   }
   useEffect(() => {
     if (!person?.id) return;
     setLiked(false);
-    fetch(`/api/likes?userId=${person.id}`)
+    const controller = new AbortController();
+    const version = ++likeVersion.current;
+    fetch(`/api/likes?userId=${person.id}`, { signal: controller.signal })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d && setLiked(!!d.liked))
+      .then((d) => { if (d && !controller.signal.aborted && version === likeVersion.current) setLiked(!!d.liked); })
       .catch(() => {});
+    return () => controller.abort();
   }, [person?.id]);
   // Подсказка Моси про сердечко — один раз, на втором человеке в колоде (первый — общий гид).
   const seenInDeck = useRef(0);
@@ -146,7 +179,12 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
     return;
   }, [deck, person?.id, person?.name]);
   async function heart() {
-    if (!person) return;
+    if (!person || likePending.current) return;
+    // A pending GET describes the state before this tap. Do not let it overwrite
+    // the mutation, and serialize taps so POST/DELETE cannot finish backwards.
+    likeVersion.current += 1;
+    likePending.current = true;
+    setLikeBusy(true);
     if (liked) {
       // Нажал ещё раз — убираем сердечко (случайно поставил), как в других сервисах.
       setLiked(false);
@@ -155,6 +193,8 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         .catch(() => false);
       if (!ok) setLiked(true);
       else say("Сердечко убрано");
+      likePending.current = false;
+      setLikeBusy(false);
       return;
     }
     setLiked(true);
@@ -188,6 +228,9 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       }
     } catch {
       setLiked(false);
+    } finally {
+      likePending.current = false;
+      setLikeBusy(false);
     }
   }
   // Пришли с экрана «Это взаимно!» при входе: ?act=invite — сразу позвать, ?act=chat — написать.
@@ -217,10 +260,12 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
 
   useEffect(() => {
     if (initial) return;
-    fetch(`/api/users/${id}`)
+    const controller = new AbortController();
+    fetch(`/api/users/${id}`, { signal: controller.signal })
       .then((r) => r.json())
       .then((d) => (d.error ? setError("Профиль не найден.") : setPerson(d)))
-      .catch(() => setError("Проблема с соединением."));
+      .catch(() => { if (!controller.signal.aborted) setError("Проблема с соединением."); });
+    return () => controller.abort();
   }, [id, initial]);
 
   // Все фото человека грузим сразу — быстрые тапы не показывают пустоту.
@@ -228,7 +273,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
     for (const src of person?.photos ?? []) {
       const im = new Image();
       im.decoding = "async";
-      im.src = photoThumb(src, 420);
+      im.src = personPhotoUrl(src);
     }
   }, [person?.photos]);
 
@@ -278,15 +323,19 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   }
 
   async function openDirect(eventId?: string) {
-    if (!person || busy) return;
+    if (!person || directRequest.current) return;
+    const controller = new AbortController();
+    directRequest.current = controller;
     setBusy(true);
     try {
       const res = await fetch("/api/conversations/direct", {
         method: "POST",
+        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: person.id, eventId, message: eventId ? inviteNote.trim() || undefined : undefined }),
       });
       const d = await res.json().catch(() => ({}));
+      if (controller.signal.aborted) return;
       if (!res.ok || !d.conversationId) {
         const INVITE_ERR: Record<string, string> = {
           event_unavailable: "Эта встреча уже закрыта — выбери другую",
@@ -306,7 +355,10 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         setInviteNote("");
         peek({ pose: "jump", text: `Позвал! ${person.name} получит приглашение в Telegram`, quick: true, low: true });
       } else router.push(`/chats/${d.conversationId}`);
+    } catch {
+      if (!controller.signal.aborted) say("Не получилось открыть чат — попробуй ещё раз");
     } finally {
+      directRequest.current = null;
       setBusy(false);
     }
   }
@@ -386,18 +438,17 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
 
   return (
     <section
-      ref={card}
       className={`scr pr pr2 aurora ${deck ? `deck ${deck.from === 1 ? "dk-r" : deck.from === -1 ? "dk-l" : "dk-0"}` : "in"}`}
       data-id="person"
       data-transition={deck ? "deck" : undefined}
     >
-      {/* Фон экрана — то же фото, размытое и затемнённое: у каждого человека свой цвет. */}
-      <div className="evbg" aria-hidden style={photos[gi] ? { backgroundImage: `url(${photoThumb(photos[gi]!, 120)})` } : undefined} />
+      <div className="person-swipe-surface" ref={card}>
+      <div className="evbg" aria-hidden />
       <div className="gal">
         {photos.length ? (
-          photos.map((src, i) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img key={src} src={photoThumb(src, 420)} className={i === gi ? "on" : ""} alt="" decoding="async" />
+          photos.map((src) => (
+            <PersonPhoto key={src} src={src} className={src === (shownPhoto ?? photos[0]) ? "on" : ""}
+              onReady={() => setReadyPhotos(previous => previous.has(src) ? previous : new Set([...previous, src]))} />
           ))
         ) : (
           <div style={{ position: "absolute", inset: 0, background: "var(--g)", display: "grid", placeItems: "center" }}>
@@ -423,6 +474,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             {person.age ? `, ${person.age}` : ""}
           </h1>
           </div>
+          <PresenceLabel lastActiveAt={person.lastActiveAt} gender={person.gender} />
           <p>
             {(person.distanceM !== undefined ? personDistanceLabel(person.distanceM) : distanceLabel(person.distanceKm)) && (
               <span className="pill glass dist">
@@ -539,12 +591,12 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           <Ic n="up" />
         </button>
         <div className="sheet2" style={{ marginTop: "min(72vh, 600px)" }}>
-          <div className="blk">
+          {person.bio?.trim() && <div className="blk">
             <div className="blk-h">
               <b>О себе</b>
             </div>
-            <p className="about">{person.bio === undefined ? "" : person.bio || "Пока без описания"}</p>
-          </div>
+            <p className="about">{person.bio}</p>
+          </div>}
           {common.length > 0 && (
             <div className="blk">
               <div className="blk-h">
@@ -607,6 +659,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           </button>
         </div>
       </div>
+      </div>
       <div className="cta">
         <button className="rb gl" onClick={() =>
             person.canMessage === false
@@ -615,18 +668,16 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           }
           disabled={busy}
           aria-label="Написать"
-          style={{ width: 56, height: 56, opacity: person.canMessage === false ? 0.45 : 1 }}
         >
           <Ic n="chat" />
         </button>
         <button
           className="rb gl"
           onClick={heart}
+          disabled={likeBusy}
           aria-label={liked ? "Убрать сердечко" : "Поставить сердечко"}
           aria-pressed={liked}
           style={{
-            width: 56,
-            height: 56,
             flex: "none",
             ...(liked ? { background: "linear-gradient(135deg,#FF8FB5,#FF4F8B)", boxShadow: "0 10px 26px rgba(255,79,139,.5)" } : {}),
           }}
@@ -635,17 +686,16 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
           </svg>
         </button>
-        {follow && (
-          <button
-            className={`rb gl fbell${follow.following ? " on" : ""}`}
-            onClick={toggleFollow}
-            aria-label={follow.following ? "Вы подписаны — отписаться" : "Подписаться на события"}
-            aria-pressed={follow.following}
-            style={{ width: 56, height: 56, flex: "none" }}
-          >
-            <Ic n="bell" />
-          </button>
-        )}
+        <button
+          className={`rb gl fbell${follow?.following ? " on" : ""}`}
+          onClick={toggleFollow}
+          disabled={followBusy || (!follow && !followError)}
+          aria-busy={followBusy || (!follow && !followError)}
+          aria-label={followError ? "Повторить загрузку подписки" : follow?.following ? "Вы подписаны — отписаться" : "Подписаться на события"}
+          aria-pressed={follow?.following ?? false}
+        >
+          <Ic n="bell" />
+        </button>
         <button className="btn v pinv" onClick={openInvite}>
           <Ic n="cal" />
           <span>Позвать на встречу</span>

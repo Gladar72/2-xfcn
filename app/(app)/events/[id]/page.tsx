@@ -1,9 +1,10 @@
 "use client";
 
 import { anonymousTag } from "@/lib/events/anonymity";
+import { EventParticipants } from "@/components/events/EventParticipants";
 import { EventPlaceMap } from "@/components/events/EventPlaceMap";
 import { markerIconFor } from "@/components/map/EventsMap";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiReadError, getJson } from "@/lib/http/get-json";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -118,6 +119,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const [promo, setPromo] = useState<{ status: PromoStatus | null; city: string | null; utcOffset: number } | null>(null);
   const [pendingApplicants, setPendingApplicants] = useState<ApplicantCardData[]>([]);
   const [processingApplicantId, setProcessingApplicantId] = useState<string | null>(null);
+  const removingParticipant = useRef(false);
   useGuide("event", { when: !loading });
 
   const loadPendingApplicants = useCallback(() => {
@@ -359,6 +361,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   }, [error, event]);
 
   async function removeParticipant(userId: string) {
+    if (removingParticipant.current) return;
+    removingParticipant.current = true;
     setRemovingId(userId);
     try {
       const res = await fetch(`/api/events/${eventId}/members/${userId}`, { method: "DELETE" });
@@ -367,23 +371,26 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         flash(data.error === "event_already_started" ? "Встреча уже началась — убрать участника нельзя." : apiErrorText(data, "Не получилось убрать участника.", res.status));
         return;
       }
-      fetch(`/api/events/${eventId}`)
+      setEvent(previous => previous ? { ...previous, participants: previous.participants.filter(p => p.id !== userId), seatsTaken: Math.max(0, previous.seatsTaken - 1) } : previous);
+      await fetch(`/api/events/${eventId}`)
         .then((r) => r.json())
         .then((d) => !d.error && setEvent(d))
         .catch(() => flash("Не удалось обновить встречу. Открой её ещё раз."));
     } catch {
       flash("Проблема с соединением. Попробуй ещё раз.");
     } finally {
+      removingParticipant.current = false;
       setRemovingId(null);
     }
   }
 
   if (loading) {
     return (
-      <section className="scr ev aurora fade" data-id="event">
-        <div className="sk" style={{ position: "absolute", left: 0, right: 0, top: 0, height: 330, borderRadius: 0 }} />
-        <div className="body">
-          <div className="sheet2" style={{ marginTop: 290 }}>
+      <section className="scr k-ev k-event-loading fade" data-id="event" aria-busy="true" aria-label="Загрузка встречи">
+        <div className="k-tbar"><button className="k-rb k-gw k-pr" onClick={() => goBack(router, "/feed")} aria-label="Назад"><KI n="back" /></button></div>
+        <div className="scroll">
+          <div className="k-spacer" />
+          <div style={{ display: "grid", gap: 16 }}>
             <div className="sk" style={{ height: 32, width: "60%" }} />
             <div className="sk" style={{ height: 70 }} />
             <div className="sk" style={{ height: 74 }} />
@@ -470,12 +477,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
       </div>
     );
   } else if (mine) {
-    ctaBtn = active ? (
-      <Link className="btn v" href={`/events/${event.id}/edit`}>
-        <Ic n="edit" />
-        Редактировать
-      </Link>
-    ) : (
+    ctaBtn = active ? null : (
       <button className="btn o" disabled>
         {event.status === "completed" ? "Встреча завершена" : "Встреча отменена"}
       </button>
@@ -533,9 +535,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const evPhoto = event.photoUrl ? photoThumb(event.photoUrl, 1100) : null;
 
   return (
-    <section className="scr k-ev in" data-id="event">
-      {/* Фон экрана — то же фото, сильно размытое: у каждого события свой цвет. */}
-      <div className="k-evbg" aria-hidden style={event.photoUrl ? { backgroundImage: `url(${photoThumb(event.photoUrl, 240)})` } : { background: "linear-gradient(160deg,#3A3646,#17141F)" }} />
+    <section className={`scr k-ev in${canManage ? " k-ev-owner" : ""}`} data-id="event">
+      {/* Neutral brand surface keeps white text readable below every cover. */}
+      <div className="k-evbg" aria-hidden />
       <div className="k-evph" aria-hidden style={evPhoto ? { backgroundImage: `url(${evPhoto})` } : undefined} />
       <div className="k-tbar">
         <button className="k-rb k-gw k-pr" onClick={() => goBack(router, "/feed")} aria-label="Назад">
@@ -545,11 +547,6 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           <button className="k-rb k-gw k-pr" onClick={() => setShareOpen(true)} aria-label="Поделиться">
             <KI n="share" />
           </button>
-          {canManage && (
-            <Link className="k-rb k-gw k-pr" href={`/events/${event.id}/edit`} aria-label="Редактировать">
-              <KI n="edit" />
-            </Link>
-          )}
         </div>
       </div>
 
@@ -587,7 +584,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </span>
             </div>
           )}
-          <div className="k-tiles k-t4">
+          <div className={`k-tiles k-t4${event.isBusiness ? " k-business-tiles" : ""}`}>
             <div className="k-tile k-gd">
               <small>
                 <KI n="cal" />
@@ -619,7 +616,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             {chatId ? (
               <Link className="k-tile k-gd k-pr k-tchat" href={`/chats/${chatId}`} aria-label="Чат встречи">
                 <KI n="chat" />
-                <small>Чат</small>
+                <small>{event.isBusiness ? "Чат события" : "Чат"}</small>
               </Link>
             ) : (
               <button
@@ -628,7 +625,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 aria-label="Чат встречи"
               >
                 <KI n="chat" />
-                <small>Чат</small>
+                <small>{event.isBusiness ? "Чат события" : "Чат"}</small>
               </button>
             )}
           </div>
@@ -654,8 +651,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 </span>
                 <span className="k-x">
                   <b>
-                    {organizer.name}
-                    {mine ? " · это ты" : organizer.age ? `, ${organizer.age}` : ""} · организатор
+                    {event.isBusiness ? organizer.name : organizer.name.trim().split(/\s+/)[0]}
+                    {mine ? " · это ты" : ""} · организатор
                   </b>
                   <small>
                     {[
@@ -677,43 +674,20 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 {isLive ? "Уже на месте" : "Идут"} · {going}
               </b>
             </div>
-            <div className="k-who" style={{ flexWrap: "wrap" }}>
-              {organizer && !hid && (
-                <Link className="k-wp k-pr" href={mine ? "/profile" : `/people/${organizer.id}`}>
-                  <span style={bg(organizer.avatarUrl, 160)}>{!organizer.avatarUrl && organizer.name.charAt(0).toUpperCase()}</span>
-                  {mine ? "Ты" : firstName(organizer.name)}
-                </Link>
-              )}
-              {organizer && hid && (
-                <button className="k-wp k-pr" onClick={() => setAnonOpen(true)}>
-                  <span className="k-free">
-                    <Chr shape="ball" pal={anonPal} face="hidden" />
-                  </span>
-                  {anonWho ?? "Скрыт"}
-                </button>
-              )}
-              {event.participants.map((p, i) =>
-                p.anonymous ? (
-                  <button key={`anon-${i}`} className="k-wp k-pr" onClick={() => setAnonOpen(true)}>
-                    <span className="k-free">
-                      <Chr shape="ball" pal={anonPal} face="hidden" />
-                    </span>
-                    {p.name}
-                  </button>
-                ) : (
-                  <Link key={p.id} className="k-wp k-pr" href={`/people/${p.id}`}>
-                    <span style={bg(p.avatarUrl, 160)}>{!p.avatarUrl && p.name.charAt(0).toUpperCase()}</span>
-                    {firstName(p.name)}
-                  </Link>
-                )
-              )}
-              {!isFull && st === "none" && active && (
-                <button className="k-wp k-pr" onClick={() => setJoinPhase("confirm")}>
-                  <span className="k-free">+{free}</span>
-                  свободно
-                </button>
-              )}
-            </div>
+            <EventParticipants
+              people={[
+                ...(organizer ? [{ ...organizer, name: hid ? anonWho ?? "Организатор скрыт" : organizer.name, anonymous: hid, mine }] : []),
+                ...event.participants,
+              ]}
+              onAnonymous={() => setAnonOpen(true)}
+              onRemove={canManage && !hasStarted ? removeParticipant : undefined}
+              removingId={removingId}
+            />
+            {!isFull && st === "none" && active && (
+              <button className="k-chip k-gw" style={{ marginTop: 12 }} onClick={() => setJoinPhase("confirm")}>
+                Свободных мест: {free}
+              </button>
+            )}
           </div>
 
           {event.description && (
@@ -889,39 +863,6 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   ))}
                 </div>
               )}
-              {event.participants.length > 0 && (
-                <div className="blk">
-                  <div className="blk-h">
-                    <b>Участники</b>
-                    <span>
-                      {going} из {max}
-                    </span>
-                  </div>
-                  {event.participants.map((p) => (
-                    <div key={p.id} className="apl gl">
-                      <Link href={`/people/${p.id}`}>
-                        {p.avatarUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={photoThumb(p.avatarUrl, 88)} alt="" />
-                        ) : (
-                          <span className="tgava" style={{ position: "static", width: 44, height: 44, borderRadius: "50%", fontSize: 18 }}>
-                            {p.name.charAt(0).toUpperCase()}
-                          </span>
-                        )}
-                      </Link>
-                      <div>
-                        <b>{p.name}</b>
-                        <span>Участник</span>
-                      </div>
-                      {!hasStarted && (
-                        <button className="sm no" disabled={removingId === p.id} onClick={() => removeParticipant(p.id)}>
-                          Убрать
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
               <div className="tiles2">
                 {event.status === "published" ? (
                   <button className={`gl ${promo?.status ? "pron" : ""}`} onClick={() => (promo?.status ? setPromoDone(true) : setPromoOpen(true))}>
@@ -972,24 +913,23 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   )}
                 </>
               ) : (
-                <button className="report" onClick={() => setConfirmingCancel(true)}>
+                <button className="k-cancel-event" onClick={() => setConfirmingCancel(true)}>
                   Отменить встречу
                 </button>
               )}
             </div>
           )}
 
-          <div style={{ height: 150 }} />
         </div>
       </div>
 
-      <div className="k-evfade" aria-hidden />
+      {!canManage && <><div className="k-evfade" aria-hidden />
       <div className="k-cta k-gd">
         <button className="k-rb k-gw k-pr" onClick={() => setShareOpen(true)} aria-label="Поделиться">
           <KI n="share" />
         </button>
         <div className="k-ctab">{ctaBtn}</div>
-      </div>
+      </div></>}
 
       {showNudge && !shareOpen && (
         <div style={{ position: "fixed", left: 14, right: 14, bottom: 112, zIndex: 40 }}>
@@ -1146,9 +1086,4 @@ function EmptyIllMini() {
       </span>
     </div>
   );
-}
-
-/** «Вероника Владиславовна» → «Вероника»: в «Кто идёт» — только имена, ровно. */
-function firstName(name: string) {
-  return (name ?? "").trim().split(/\s+/)[0] ?? name;
 }

@@ -400,14 +400,14 @@ export function Sheet({
       return () => { cancelAnimationFrame(r); cancelAnimationFrame(inner); };
     }
     setOn(false);
-    const t = setTimeout(() => setMounted(false), 450);
+    const t = setTimeout(() => setMounted(false), 220);
     return () => clearTimeout(t);
   }, [open]);
   if (!mounted) return null;
   return (
     <Overlay>
-      <button type="button" className={`scrim ${on ? "on" : ""}`} aria-label={label ? `Закрыть: ${label}` : "Закрыть диалог"} onPointerDown={(e) => e.preventDefault()} onClick={onClose} />
-      <div className={`sheetx ${cls} ${on ? "on" : ""}`} role="dialog" aria-modal="true" aria-label={label}>
+      <button type="button" className={`scrim ${on && open ? "on" : ""}`} style={{ pointerEvents: open ? "auto" : "none" }} aria-hidden={!open || undefined} tabIndex={open ? 0 : -1} aria-label={label ? `Закрыть: ${label}` : "Закрыть диалог"} onPointerDown={(e) => e.preventDefault()} onClick={onClose} />
+      <div ref={element => { if (element) element.inert = !open; }} className={`sheetx ${cls} ${on && open ? "on" : ""}`} style={{ pointerEvents: open ? undefined : "none" }} aria-hidden={!open || undefined} role="dialog" aria-modal="true" aria-label={label}>
         {grab && <span className="grab" />}
         {children}
       </div>

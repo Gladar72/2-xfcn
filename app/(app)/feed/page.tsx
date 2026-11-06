@@ -76,7 +76,7 @@ function FeedPageContent() {
   const sp = useSearchParams();
   const category = sp.get("category");
   const type = sp.get("type");
-  return category ? <CategoryScreen slug={category} type={type} /> : <HomeScreen />;
+  return category ? <CategoryScreen key={`${category}:${type}:${sp.get("city")}`} slug={category} type={type} city={sp.get("city")} /> : <HomeScreen />;
 }
 
 // Short-lived display state within this document only; login/logout reload
@@ -121,7 +121,6 @@ function HomeScreen() {
   } | null>(null);
   const [unreadNotif, setUnreadNotif] = useState(false);
   const [trainOpen, setTrainOpen] = useState(false);
-  const [empty, setEmpty] = useState<{ slug: string; name: string; type?: string } | null>(null);
   useGuide("feed", { when: events !== null });
   useEffect(() => {
     if (events) homeSnapshot = { at: Date.now(), city, categories, trainingTypes, events, biz, cityEv, people };
@@ -247,26 +246,18 @@ function HomeScreen() {
     if (p) setPlan({ ev: { id: p.id, title: p.title, eventDate: p.eventDate, eventTime: p.eventTime, photoUrl: p.photoUrl ?? null, category: p.category, isBusiness: p.isBusiness }, label: "Заявка отправлена" });
   }, [events, plan]);
 
-  async function openCategory(c: Category, typeSlug?: string) {
+  function openCategory(c: Category, typeSlug?: string) {
     if (c.slug === "training" && !typeSlug) {
       setTrainOpen(true);
       return;
     }
     setTrainOpen(false);
-    const q = new URLSearchParams({ category: c.slug, page: "0" });
+    const q = new URLSearchParams({ category: c.slug });
     if (typeSlug) q.set("type", typeSlug);
     if (city) q.set("city", city);
-    try {
-      const d = await fetch(`/api/events?${q}`).then((r) => r.json());
-      if (Array.isArray(d.items) && d.items.length === 0) {
-        const tName = trainingTypes.find((t) => t.slug === typeSlug)?.name;
-        setEmpty({ slug: c.slug, name: tName ?? SHORT[c.slug] ?? c.name, type: typeSlug });
-        return;
-      }
-    } catch {
-      /* сеть — просто открываем раздел */
-    }
-    router.push(`/feed?category=${c.slug}${typeSlug ? `&type=${typeSlug}` : ""}`);
+    // Open immediately. The destination owns loading, empty and retry states;
+    // waiting here made a slow network look like a missed tap.
+    router.push(`/feed?${q}`);
   }
 
   // «Популярное сегодня»: сначала все продвинутые встречи города (и бизнес тоже) в порядке
@@ -498,16 +489,6 @@ function HomeScreen() {
         </div>
       </Sheet>
 
-      <Sheet open={!!empty} onClose={() => setEmpty(null)}>
-        <EmptyCat name={empty?.name ?? ""} />
-        <Link className="btn v" href={`/create?category=${empty?.slug ?? ""}${empty?.type ? `&type=${empty.type}` : ""}`}>
-          Создать первым
-        </Link>
-        <button className="btn o" onClick={() => setEmpty(null)}>
-          Не сейчас
-        </button>
-      </Sheet>
-
       <Sheet open={cityOpen} onClose={() => setCityOpen(false)}>
         <h2 className="t">
           Выбери <em>город</em>
@@ -532,20 +513,8 @@ function HomeScreen() {
   );
 }
 
-function EmptyCat({ name }: { name: string }) {
-  return (
-    <div className="anonbox">
-      <div className="empty" style={{ padding: 0 }}>
-        <EmptyIll />
-      </div>
-      <b>Такую встречу ещё никто не создал</b>
-      <span>«{name}» в твоём городе пока нет ни одной активной встречи — стань первым.</span>
-    </div>
-  );
-}
-
 /* ================= экран категории ================= */
-function CategoryScreen({ slug, type }: { slug: string; type: string | null }) {
+function CategoryScreen({ slug, type, city }: { slug: string; type: string | null; city: string | null }) {
   const router = useRouter();
   const [events, setEvents] = useState<FeedEvent[] | null>(null);
   const [title, setTitle] = useState(SHORT[slug] ?? "");
@@ -553,23 +522,31 @@ function CategoryScreen({ slug, type }: { slug: string; type: string | null }) {
   const [joinEvent, setJoinEvent] = useState<FeedEvent | null>(null);
   const [joinPhase, setJoinPhase] = useState<"confirm" | "sending" | "done" | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
+    setEvents(null);
+    setLoadError(false);
+    setTitle(SHORT[slug] ?? "Встречи");
     const q = new URLSearchParams({ category: slug, page: "0" });
     if (type) q.set("type", type);
-    fetch(`/api/events?${q}`)
-      .then((r) => r.json())
-      .then((d) => setEvents(d.items ?? []))
-      .catch(() => setEvents([]));
+    if (city) q.set("city", city);
+    fetch(`/api/events?${q}`, { signal: controller.signal })
+      .then((r) => { if (!r.ok) throw new Error("events_unavailable"); return r.json(); })
+      .then((d) => { if (!controller.signal.aborted) setEvents(d.items ?? []); })
+      .catch(() => { if (!controller.signal.aborted) { setLoadError(true); setEvents(null); } });
     if (type)
-      fetch("/api/categories")
+      fetch("/api/categories", { signal: controller.signal })
         .then((r) => r.json())
         .then((d) => {
           const t = (d.trainingTypes ?? []).find((x: TrainingType) => x.slug === type);
-          if (t) setTitle(t.name);
+          if (t && !controller.signal.aborted) setTitle(t.name);
         })
         .catch(() => {});
-  }, [slug, type]);
+    return () => controller.abort();
+  }, [slug, type, city, attempt]);
 
   function flash(t: string) {
     setToast(t);
@@ -616,7 +593,11 @@ function CategoryScreen({ slug, type }: { slug: string; type: string | null }) {
         <h1 className="t">{title}</h1>
       </div>
       <div className="list" style={{ marginTop: 14 }}>
-        {events === null && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
+        {loadError && <div className="empty" role="status">
+          <b>Не удалось загрузить встречи.</b>
+          <button className="btn o" onClick={() => setAttempt(n => n + 1)}>Попробовать снова</button>
+        </div>}
+        {events === null && !loadError && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
         {events?.map((e) => (
           <RowCard
             key={e.id}

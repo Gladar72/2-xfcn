@@ -61,7 +61,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "invalid_action" }, { status: 400 });
   }
 
-  await admin.from("conversation_members").update(updates).eq("id", membership.id);
+  const { error } = await admin.from("conversation_members").update(updates).eq("id", membership.id);
+  if (error) return NextResponse.json({ error: "update_failed" }, { status: 503 });
 
   // Галочки «прочитано» у собеседников — через Broadcast в канал чата.
   if (action === "mark_read") {

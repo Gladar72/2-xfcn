@@ -35,7 +35,7 @@ async function move(page: Page, x: number, y = 250) {
 async function end(page: Page, x: number, y = 250) {
   await body(page).dispatchEvent('touchend', { touches: [], changedTouches: [{ identifier: 0, clientX: x, clientY: y }] });
 }
-const translateX = (page: Page) => active(page).evaluate(el => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41);
+const translateX = (page: Page) => active(page).locator('.person-swipe-surface').evaluate(el => new DOMMatrixReadOnly(getComputedStyle(el).transform).m41);
 
 test('cancelled horizontal drag returns to rest and the next gesture changes only one person', async ({ page }) => {
   await setup(page); await page.goto('/people?city=Тюмень');
@@ -63,6 +63,35 @@ test('reversing direction immediately after a swipe follows the finger instead o
   await expect(active(page).locator('h1')).toHaveText('Анкета 2, 30');
   await expect(active(page)).toHaveCount(1);
   await expect(page.locator('section.scr.ghost')).toHaveCount(0);
+});
+
+test('chat and bell stay fixed through dragging and the outgoing animation, including slow subscriptions', async ({ page }) => {
+  await setup(page);
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/follows?**', async route => {
+    await gate;
+    await route.fulfill({ json: { following: false, followers: 0, events: [] } }).catch(() => {});
+  });
+  try {
+    await page.goto('/people?city=Тюмень');
+    const bell = () => active(page).locator('.fbell');
+    await expect(bell()).toBeVisible();
+    const before = await bell().boundingBox();
+    await start(page, 280); await move(page, 160);
+    expect(await bell().boundingBox()).toEqual(before);
+    await expect(bell()).toHaveCSS('opacity', '1');
+    await end(page, 100);
+    // This sample is during the outgoing card animation, before replacement.
+    expect(await bell().boundingBox()).toEqual(before);
+    await expect(active(page).locator('h1')).toHaveText('Анкета 1, 30');
+    expect(await bell().boundingBox()).toEqual(before);
+    await expect(bell()).toHaveCSS('opacity', '1');
+    release();
+    await expect(bell()).toBeEnabled();
+    expect(await bell().boundingBox()).toEqual(before);
+    await expect(active(page).getByRole('button', { name: 'Написать', exact: true })).toHaveCSS('opacity', '1');
+  } finally { release(); }
 });
 
 test('a photo swipe followed by its compatibility click advances one photo, and the next tap still works', async ({ page }) => {

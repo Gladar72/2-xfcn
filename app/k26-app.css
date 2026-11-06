@@ -1,7 +1,6 @@
 /* Брендбук 2026 — то, что в прототипе делал скрипт, а в приложении нужно стилями:
    нажатие кнопок, скелетоны загрузки, точка «есть новое». */
 .K .k-pr{-webkit-tap-highlight-color:transparent}
-.K .k-pr:active{transform:scale(.96);transition:transform .12s ease}
 .K .k-dotn{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--chromeB);box-shadow:0 0 0 2px #fff}
 .K .k-sk{background:linear-gradient(100deg,rgba(255,255,255,.45) 20%,rgba(255,255,255,.8) 40%,rgba(255,255,255,.45) 60%) 0 0/200% 100%;animation:k-shimmer 1.4s linear infinite}
 .K .k-sk::after{display:none}
@@ -184,7 +183,6 @@
 .P .people-deck [data-id=person]{background:#17141F}
 .P .people-deck .gal{background:#17141F}
 .P .gal::after{background:linear-gradient(180deg,rgba(10,8,14,.38),transparent 24%,transparent 60%,rgba(10,8,14,.62))}
-.P .people-deck .gal>img{transition:none;transform:none}
 .P .deck-under{background:#17141F}
 .P .deck-under img{filter:none;transform:none;border-radius:0}
 /* Встреча: описание видно (белым), имена в «Кто идёт» — в одну строку. */
@@ -204,8 +202,8 @@
    отсюда были «синий фон» и подлагивания при листании. */
 .P .pr.deck .gal::after,.P .pr .gal::after{background:linear-gradient(180deg,rgba(10,8,14,.36),transparent 22%,transparent 55%,rgba(10,8,14,.78))!important}
 .P .pr.pr2 .evbg{filter:none!important;background:#17141F!important;background-image:none!important;inset:0}
-.P .pr.deck .gal>img{transition:none!important}
-.P .pr.pr2,.P .pr.deck{background:#17141F}
+.P .pr.pr2 .gal>img{transition:opacity .18s ease;transform:none!important;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.P .pr.pr2,.P .pr.deck{background:#17141F!important}
 /* Встреча: кнопки «Маршрут / Скопировать адрес» — под картой, не поверх; «+10» ровно по центру;
    при прокрутке текст не залезает под кнопки Telegram сверху — мягкое затемнение. */
 .K .k-ev .k-mapact{position:static;display:flex;gap:6px;padding:10px 12px 12px}
@@ -222,7 +220,7 @@
    «Пожаловаться или заблокировать» — настоящая кнопка. */
 .P .people-deck .aurora,.P .people-deck .scr{background:#17141F!important}
 .P .people-deck .sk{background:rgba(255,255,255,.06)!important}
-.P .pr.pr2 .sheet2{padding-bottom:calc(var(--bot) + 84px)!important}
+.P .pr.pr2 .sheet2{padding-bottom:calc(var(--bot) + 72px)!important}
 .P .pr.pr2 .sheet2 .report{justify-self:stretch;height:46px;border-radius:23px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:rgba(255,255,255,.85)!important;font:500 14px var(--disp);margin-top:4px}
 /* Места в создании — текстом, без пустых квадратиков. */
 .K .k-rp.k-rpt{padding:10px 14px}
@@ -243,14 +241,17 @@
 .P .people-deck .scr.aurora::after,.P .pr.pr2::after{display:none}
 /* Главная: в лентах «Личные встречи» и «Афиша заведений» — ровно две карточки на экран,
    одинаковые отступы по бокам; остальное листается вбок, всё — по «Все». */
-.K .k-hs>.k-hc,.K .k-hs>.k-inv,.K .k-hs>.k-sk.k-hc{width:calc((100vw - 52px) / 2);max-width:220px;height:auto;aspect-ratio:3/4.2;scroll-snap-align:start}
+.K .k-hs>.k-hc,.K .k-hs>.k-inv,.K .k-hs>.k-sk.k-hc{width:calc((100% - 16px) / 2);max-width:220px;height:auto;aspect-ratio:3/4.2;scroll-snap-align:start}
 .K .k-hs:has(>.k-hc){scroll-snap-type:x mandatory;scroll-padding-left:20px}
 .K .k-biz .k-hs{scroll-padding-left:14px}
-.K .k-biz .k-hs>.k-hc,.K .k-biz .k-hs>.k-inv{width:calc((100vw - 52px) / 2)}
+.K .k-biz .k-hs>.k-hc,.K .k-biz .k-hs>.k-inv{width:calc((100% - 16px) / 2)}
 /* «О себе» у человека: без пустого места — блок по высоте содержимого, прижат к кнопкам снизу. */
 .P .pr.pr2 .sheet2{min-height:0!important}
 /* Профиль человека: фото крупнее, плашка «О себе» начинается ниже; иконки интересов на тёмном — светлые. */
-.P .pr.pr2:not(.deck) .gal{height:min(82vh,700px)!important}
+.P .pr.pr2:not(.deck) .gal{height:100%!important;-webkit-mask-image:none;mask-image:none}
+.P .pr.pr2:not(.deck) .gal .nm{bottom:calc(var(--bot) + 88px);right:76px}
+.P .pr.pr2:not(.deck) .body .sheet2{margin-top:var(--tg-viewport-stable-height,100dvh)!important}
+.P .pr.pr2 .upk{display:grid;place-items:center;position:absolute;right:20px;top:calc(var(--tg-viewport-stable-height,100dvh) - var(--bot) - 140px);width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.22);color:#fff;pointer-events:auto;z-index:2}
 .P .pr.pr2 .sheet2 .itag img{filter:none;opacity:1;background:#fff;border-radius:50%;padding:3px;box-sizing:border-box}
 /* 06.11: карта в создании видна сразу; ⤢ — на весь экран (поверх всего, через body) */
 .K .k-mapprev{position:relative;overflow:hidden;border-radius:24px;padding:0}
@@ -271,6 +272,47 @@
 @keyframes k-mf{0%{opacity:0}4.1667%{opacity:1}8.33%{opacity:1}8.34%{opacity:0}100%{opacity:0}}
 @keyframes k-mfz{0%{opacity:0}4.1667%{opacity:1}8.333%{opacity:0}100%{opacity:0}}
 @media (prefers-reduced-motion: reduce){.k-crl>img{animation:none}}
+
+/* Stable portrait hand-off: the incoming card matches the already-visible photo. */
+.P .pr.dk-r,.P .pr.dk-l{animation:none}
+.P .pr.pr2 .cta .rb{width:48px;height:52px;background:rgba(23,20,31,.78);color:#fff}
+.P .pr.pr2 .cta .fbell.on{background:rgba(255,255,255,.94);color:var(--ink);box-shadow:none}
+.P .pr.pr2 .cta .btn{min-width:0;font-size:14px;line-height:1.15;padding:0 10px}
+.P .pr.pr2 .cta .btn>span{white-space:normal}
+.P .pr.pr2 .cta .btn>.ic{display:none}
+.P .pr.pr2 .presence{display:block;margin-top:6px;font:400 13px/1.3 var(--disp);color:rgba(255,255,255,.88)}
+.P .pr.pr2 .presence i{display:inline-block;width:6px;height:6px;background:#69D9A0;border-radius:50%;margin-right:6px;vertical-align:middle}
+.P .pr.pr2 .body,.P .pr.pr2 .gal{-webkit-tap-highlight-color:transparent}
+/* Both personal and business events leave more of the cover unobstructed. */
+.K .k-ev .k-spacer{height:clamp(330px,52dvh,450px)}
+.K .k-ev .k-evph{height:clamp(560px,78dvh,680px)}
+.K .k-ev .k-title{overflow-wrap:anywhere}
+.K .k-ev .k-card>.k-chip{height:auto!important;min-height:32px;max-width:100%;white-space:normal;line-height:1.35;padding-top:6px;padding-bottom:6px}
+.K .k-hc .k-tg{max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;line-height:28px}
+.K .k-hc .k-tt{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:3;overflow:hidden;overflow-wrap:anywhere}
+.K .k-hc .k-cta{max-width:100%;padding:0 10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Padding belongs to the actual .scroll containers, not the prototype .k-scroll. */
+.P .scr:is([data-id=settings],[data-id=privacy],[data-id=chats],[data-id=notif],[data-id=cat],[data-id=search],[data-id=applications],[data-id=tickets],[data-id=reviews],[data-id=business],[data-id=support])>.scroll{padding-bottom:calc(var(--bot) + 24px)}
+.K .k-ev>.scroll{padding-bottom:calc(var(--bot) + 96px)}
+@media(prefers-reduced-motion:reduce){.P .pr.pr2 .gal>img{transition:none}}
+
+.K .participant-preview{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}
+.K .participant-preview .k-wp{min-width:0;max-width:none;width:100%;border-radius:0}
+.K .k-who .k-wp .participant-avatar{width:min(48px,100%);height:auto;aspect-ratio:1;border-radius:50%;flex:none;overflow:hidden}
+.K .participant-avatar img{width:100%;height:100%;object-fit:cover}
+.K .k-who .k-wp .participant-name{display:block;width:100%;height:auto;border:0;border-radius:0;background:none;font:500 11px/1.3 var(--disp);overflow:hidden;text-overflow:ellipsis}
+.P .participant-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.P .participant-heading h2{margin:0;font:500 22px var(--disp)}
+.P .participant-list{display:grid;gap:6px}
+.P .participant-row{display:flex;align-items:center;gap:12px;min-width:0;padding:8px 0;color:var(--ink);text-align:left}
+.P .participant-row .participant-avatar{display:flex;align-items:center;justify-content:center;width:48px;height:48px;flex:none;border-radius:50%;overflow:hidden;background:rgba(23,20,31,.08)}
+.P .participant-row .participant-name{flex:1;min-width:0;overflow-wrap:anywhere}
+.P .participant-row>.ic{flex:none}
+.P .participant-entry{display:flex;gap:12px;align-items:center;min-width:0}
+.P .participant-entry>.participant-row{flex:1;min-width:0}
+.P .participant-entry>.sm{flex:none;min-height:44px}
+.K .participant-expand{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:44px;margin-top:12px;padding:8px 12px;border-radius:18px;background:rgba(255,255,255,.1);color:#fff;font:500 14px var(--disp)}
+
 /* 06.11: на странице события «Маршрут / Скопировать» над картой */
 .K .k-ev .k-mapact{padding:0 12px 12px}
 /* 06.11: карточка «Поделиться» как в прототипе — плашка в одну строку, название по длине, текст на фото читается */
@@ -285,6 +327,34 @@
 @media (prefers-reduced-motion: reduce){.k-crl{animation:none}}
 .P .nav26 .k-crl{animation:k-wob 4.5s ease-in-out infinite!important}
 .P .pr .pinv.btn{background:#fff!important;color:#17141F!important;box-shadow:0 10px 26px rgba(0,0,0,.25)}
+.K .k-tiles.k-business-tiles{grid-template-columns:repeat(3,minmax(0,1fr))}
+.K .k-tiles.k-business-tiles .k-tchat{grid-column:1/-1;min-height:52px;flex-direction:row;justify-content:center;gap:10px}
+.K .k-tiles.k-business-tiles .k-tchat small{font:500 15px var(--disp);opacity:1}
+.P .pr.pr2 .cta .fbell:disabled{opacity:1;cursor:default}
+.P .sheetx:not(.on){transition-duration:.22s;transition-timing-function:var(--ease)}
+.K .k-ev .k-cancel-event{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;margin-top:16px;border:1px solid rgba(255,255,255,.24);border-radius:26px;background:rgba(255,255,255,.1);color:#fff;font:500 15px var(--disp)}
+/* Profile actions stay still while the portrait moves under the finger. */
+.P .person-swipe-surface{position:absolute;inset:0;background:#17141F}
+.P .people-deck .pr.pr2{background:transparent!important}
+.P .deck-under img{object-position:50% 0%}
+.P .pr.pr2 .gal>img{object-position:50% 0%}
+.P .pr.pr2 .gal::after{background:linear-gradient(180deg,rgba(23,20,31,.32),transparent 22%,transparent 50%,rgba(23,20,31,.88) 90%,#17141F)}
+.P .pr.pr2 .evbg{background:#17141F;filter:none;inset:0}
+.P .pr.pr2 .sheet2::before{background:linear-gradient(180deg,transparent,#17141F 40px);-webkit-backdrop-filter:none;backdrop-filter:none;-webkit-mask-image:none;mask-image:none}
+.P .pr.pr2 .sheet2 .about{min-height:0;height:auto;color:#F5F4F7;background:#2B2833}
+.P .pr.pr2 .sheet2 .blk-h span{color:#C6C3CD}
+.P .pr.pr2 .sheet2 .itag,.P .pr.pr2 .sheet2 .itag.common{background:#2B2833;-webkit-backdrop-filter:none;backdrop-filter:none}
+/* A single owner action group follows the map; no duplicate fixed edit footer. */
+.K .k-ev-owner>.scroll{padding-bottom:calc(var(--bot) + 24px)}
+.K .k-ev .orgb{margin-top:16px;gap:12px}
+.K .k-ev .tiles2{gap:12px}
+.K .k-ev .orgb .blk,.K .k-ev .k-cancel-event{margin-top:0}
+.K .k-ev .k-evbg{background-image:none!important;background:#17141F!important;filter:none;transform:none;inset:0}
+.K .k-ev .k-evph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 28%,rgba(23,20,31,.32) 48%,rgba(23,20,31,.84) 68%,#17141F)}
+.K .k-ev .k-card .blk,.K .k-ev .k-card .evnote,.K .k-ev .k-card .chatprev,.K .k-ev .k-card .apl,.K .k-ev .k-card .tiles2>*{background:#2B2833!important;-webkit-backdrop-filter:none;backdrop-filter:none}
+.K .k-ev .k-blk,.K .k-ev .k-host{background:#2B2833;-webkit-backdrop-filter:none;backdrop-filter:none}
+.K .k-event-loading{background:#17141F}
+.K .k-event-loading .sk{background:rgba(255,255,255,.08)}
 /* 06.11: подсказка «только события заведений» — просто текст, не заезжает на кнопки масштаба */
 .P .bizmap-note{right:76px;padding:10px 14px;font:400 13px/1.4 var(--disp);color:var(--ink)}
 .P .bizmap-note img{display:none}

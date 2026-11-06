@@ -273,23 +273,40 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // Фото (необязательно) — data URL, уже ужатый телефоном; с ним текст
   // можно не писать (подпись к фото необязательна, как в Telegram).
   const imageDataUrl = typeof body?.image === "string" ? body.image : null;
+  // A retry keeps the same UUID, while two intentional equal messages use different UUIDs.
+  const clientMessageId = body?.clientMessageId;
+  if (clientMessageId !== undefined && (typeof clientMessageId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(clientMessageId))) {
+    return NextResponse.json({ error: "invalid_message_id" }, { status: 400 });
+  }
   const replyToId = typeof body?.replyToId === "string" && /^[0-9a-f-]{36}$/i.test(body.replyToId) ? body.replyToId : null;
   if (!content && !imageDataUrl) return NextResponse.json({ error: "empty_message" }, { status: 400 });
   if (content.length > 2000) return NextResponse.json({ error: "message_too_long" }, { status: 422 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
 
   const membership = await assertMembership(admin, conversationId, currentUser.userId);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (membership.is_blocked) return NextResponse.json({ error: "blocked" }, { status: 403 });
 
+  const existingMessage = () => admin.from("messages")
+    .select("id, created_at, image_url, deleted_at")
+    .eq("id", clientMessageId).eq("conversation_id", conversationId).eq("sender_id", currentUser.userId).maybeSingle();
+  const sentResponse = (message: { id: string; created_at: string; image_url: string | null; deleted_at: string | null }) =>
+    NextResponse.json({ status: "sent", messageId: message.id, createdAt: message.created_at, imageUrl: message.deleted_at ? null : message.image_url });
+  if (clientMessageId) {
+    const existing = await existingMessage();
+    if (existing.error) return NextResponse.json({ error: "send_failed" }, { status: 503 });
+    if (existing.data) return sentResponse(existing.data);
+  }
+
   // Если событие уже прошло или отменено — чат закрывается на отправку
   // новых сообщений (переписку по-прежнему можно читать и открывать).
-  const { data: conversationRow } = await admin
+  const { data: conversationRow, error: conversationError } = await admin
     .from("conversations")
     .select("events(status)")
     .eq("id", conversationId)
     .maybeSingle();
+  if (conversationError) return NextResponse.json({ error: "send_failed" }, { status: 503 });
   const eventStatus = (conversationRow?.events as unknown as { status: string } | null)?.status;
   if (eventStatus === "completed" || eventStatus === "cancelled") {
     return NextResponse.json({ error: "event_closed" }, { status: 422 });
@@ -325,10 +342,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: message, error } = await admin
     .from("messages")
-    .insert({ conversation_id: conversationId, sender_id: currentUser.userId, content, image_url: imageUrl, reply_to_id: replyTo?.id ?? null })
+    .insert({ ...(clientMessageId ? { id: clientMessageId } : {}), conversation_id: conversationId, sender_id: currentUser.userId, content, image_url: imageUrl, reply_to_id: replyTo?.id ?? null })
     .select("id, created_at")
     .single();
 
+  if (error?.code === "23505" && clientMessageId) {
+    const existing = await existingMessage();
+    if (existing.data) return sentResponse(existing.data);
+    return NextResponse.json({ error: "message_id_conflict" }, { status: 409 });
+  }
   if (error || !message) return NextResponse.json({ error: "send_failed" }, { status: 500 });
 
   // Сразу рассылаем сообщение всем, у кого открыт этот чат (Broadcast),
@@ -336,6 +358,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   await Promise.all([
     broadcastToConversation(conversationId, "message", {
       id: message.id,
+      ...(clientMessageId ? { clientMessageId } : {}),
       senderId: currentUser.userId,
       content,
       imageUrl,

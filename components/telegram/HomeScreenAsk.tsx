@@ -49,7 +49,7 @@ export function HomeScreenAsk() {
 
   useEffect(() => {
     const w = getTelegramWebApp();
-    if (!w) return;
+    if (!w?.initData) return;
     if (read(KEY) === "added") return;
     const n = Number(read(LAUNCHES) ?? "0") + 1;
     write(LAUNCHES, String(n));
@@ -67,14 +67,26 @@ export function HomeScreenAsk() {
     // (не чаще раза в сутки) и ещё раз, если человек провёл в приложении 3 минуты (не чаще раза в 6 часов).
     const last = Number(read(KEY) ?? "0") || 0;
     const ago = Date.now() - last;
-    const show = (ms: number) => window.setTimeout(() => {
-      write(KEY, String(Date.now()));
-      setOpen(true);
-    }, ms);
-    const timers: number[] = [];
+    let disposed = false;
+    let timer = 0;
+    const show = (ms: number) => {
+      if (disposed) return;
+      timer = window.setTimeout(() => {
+        // A delayed offer must never cover a profile, filters, keyboard or an
+        // existing dialog while the user is trying to close or operate it.
+        const editing = document.activeElement?.matches("input, textarea, [contenteditable=true]");
+        if (document.hidden || window.location.pathname !== "/feed" || window.location.search ||
+            editing || document.querySelector('[role="dialog"]')) {
+          show(10_000);
+          return;
+        }
+        write(KEY, String(Date.now()));
+        setOpen(true);
+      }, ms);
+    };
     const go = () => {
-      if (n === 1 || ago > LATER_DAYS * 864e5) timers.push(show(2500));
-      else if (ago > 6 * 36e5) timers.push(show(3 * 60e3));
+      if (n === 1 || ago > LATER_DAYS * 864e5) show(2500);
+      else if (ago > 6 * 36e5) show(3 * 60e3);
     };
     if (canNative && w.checkHomeScreenStatus) {
       w.checkHomeScreenStatus((status) => {
@@ -83,13 +95,15 @@ export function HomeScreenAsk() {
       });
     } else go();
     return () => {
-      timers.forEach((t) => window.clearTimeout(t));
+      disposed = true;
+      window.clearTimeout(timer);
       if (canNative) w.offEvent("homeScreenAdded", added);
     };
   }, []);
 
-  // Не мешаем во время создания встречи и в чате.
-  const busy = /^\/(create|chats\/)/.test(path ?? "");
+  // An automatic offer belongs only on the home screen.
+  const busy = path !== "/feed";
+  useEffect(() => { if (busy) setOpen(false); }, [busy]);
 
   function later() {
     write(KEY, String(Date.now()));

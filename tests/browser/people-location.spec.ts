@@ -59,15 +59,15 @@ const visible = (page: Page, value: boolean) => page.evaluate((value) => {
 test("movement updates home cards and distances without replacing the open person", async ({ page }) => {
   const writes = await fixture(page);
   await page.goto("/feed");
-  await expect(page.locator(".pcard")).toContainText("Анна");
-  await expect(page.locator(".pcard")).toContainText("≈ 700");
+  await expect(page.locator(".k-mt")).toContainText("Анна");
+  await expect(page.locator(".k-mt")).toContainText("≈ 700");
   expect(writes[0]!.lat).toBeCloseTo(57.15, 5);
   expect(writes[0]!.lon).toBeCloseTo(65.53, 5);
   await move(page, 55.75, 37.615);
   await page.clock.fastForward(31_000);
-  await expect(page.locator(".pcard")).toContainText("Борис");
-  await expect(page.locator(".pcard")).toContainText("≈ 2,3");
-  await page.locator(".pcard").tap();
+  await expect(page.locator(".k-mt")).toContainText("Борис");
+  await expect(page.locator(".k-mt")).toContainText("≈ 2,3");
+  await page.locator(".k-mt").tap();
   await expect(page.locator('section[data-id="person"]:not(.ghost) .dist')).toContainText("≈ 2,3");
   await move(page, 57.15, 65.53);
   await page.clock.fastForward(31_000);
@@ -78,15 +78,15 @@ test("movement updates home cards and distances without replacing the open perso
 test("returning to the app refreshes location and watching stops while hidden", async ({ page }) => {
   const writes = await fixture(page);
   await page.goto("/feed");
-  await expect(page.locator(".pcard")).toContainText("≈ 700");
+  await expect(page.locator(".k-mt")).toContainText("≈ 700");
   await visible(page, false);
   const count = writes.length;
   await move(page, 55.75, 37.615);
   await page.clock.fastForward(31_000);
   expect(writes).toHaveLength(count);
   await visible(page, true);
-  await expect(page.locator(".pcard")).toContainText("Борис");
-  await expect(page.locator(".pcard")).toContainText("≈ 2,3");
+  await expect(page.locator(".k-mt")).toContainText("Борис");
+  await expect(page.locator(".k-mt")).toContainText("≈ 2,3");
 });
 
 test("an empty city still offers geolocation and explicit permission loads nearby people", async ({ page }) => {
@@ -95,16 +95,16 @@ test("an empty city still offers geolocation and explicit permission loads nearb
   await expect(page.getByRole("button", { name: /Показать, кто рядом/ })).toBeVisible();
   expect(writes).toHaveLength(0);
   await page.getByRole("button", { name: /Показать, кто рядом/ }).tap();
-  await expect(page.locator(".pcard")).toContainText("Анна");
-  await expect(page.locator(".pcard")).toContainText("≈ 700");
+  await expect(page.locator(".k-mt")).toContainText("Анна");
+  await expect(page.locator(".k-mt")).toContainText("≈ 700");
 });
 
 test("permission denied preserves city fallback without invented distances or automatic requests", async ({ page }) => {
   const writes = await fixture(page, "denied");
   await page.goto("/feed");
   await expect(page.getByText("Люди в твоём городе", { exact: true })).toBeVisible();
-  await expect(page.locator(".pcard")).not.toContainText("≈");
+  await expect(page.locator(".k-mt")).not.toContainText("≈");
   await page.getByRole("button", { name: /Показать, кто рядом/ }).tap();
   expect(writes).toHaveLength(0);
-  await expect(page.locator(".pcard")).toContainText("Анна");
+  await expect(page.locator(".k-mt")).toContainText("Анна");
 });

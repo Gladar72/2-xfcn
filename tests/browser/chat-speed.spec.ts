@@ -140,6 +140,7 @@ test("returning home keeps its cards while slow requests refresh in the backgrou
   await page.route("**/api/events?**", (r) => r.fulfill({ json: { items: new URL(r.request().url()).searchParams.has("business") ? [] : [event] } }));
   await page.goto("/feed");
   await expect(page.getByText(event.title, { exact: true }).first()).toBeVisible();
+  await page.getByRole("link", { name: "Встречи", exact: true }).click();
   await page.getByRole("link", { name: "Чаты", exact: true }).click();
   await page.getByRole("button", { name: "Личные", exact: true }).click();
   await page.getByRole("link", { name: /Алексей/ }).click();
@@ -150,6 +151,8 @@ test("returning home keeps its cards while slow requests refresh in the backgrou
     await page.locator('section:not(.ghost)').getByRole("button", { name: "Назад", exact: true }).click();
     await expect(page).toHaveURL(/\/chats$/);
     await page.locator('section:not(.ghost)').getByRole("button", { name: "Назад", exact: true }).click();
+    await expect(page).toHaveURL(/\/my-events$/);
+    await page.getByRole("link", { name: "Главная", exact: true }).click();
     await expect(page).toHaveURL(/\/feed$/);
     await expect(page.getByText(event.title, { exact: true }).first()).toBeVisible();
     pending.release();

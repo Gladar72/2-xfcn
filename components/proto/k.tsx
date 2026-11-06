@@ -61,7 +61,7 @@ export function TwoLine({ text }: { text: string }) {
   if (i < 3 || t.length > 34) return <>{t}</>;
   return (
     <>
-      {t.slice(0, i)}
+      {t.slice(0, i)}{" "}
       <br />
       <em>{t.slice(i + 1)}</em>
     </>
@@ -105,7 +105,7 @@ export function KHc({ e, cta, tag }: { e: HeroEvent & { myApplicationStatus?: st
         ? `${going} из ${max} · анонимно`
         : `${going} из ${max}${kind ? ` · ${kind.toLowerCase()}` : ""}`;
   const status =
-    e.isMine ? "Моя встреча" : e.myApplicationStatus === "approved" ? "Ты идёшь" : e.myApplicationStatus === "pending" ? "Заявка отправлена" : null;
+    e.isMine ? "Моя встреча" : e.myApplicationStatus === "accepted" ? "Ты идёшь" : e.myApplicationStatus === "pending" ? "Заявка отправлена" : null;
   return (
     <Link href={`/events/${e.id}`} className="k-hc k-pr" style={bg(e.photoUrl, 600)}>
       <span className="k-chip k-gw k-tg">{tag ?? defTag}</span>

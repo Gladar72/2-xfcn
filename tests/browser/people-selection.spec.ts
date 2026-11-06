@@ -24,7 +24,7 @@ test("a nearby photo opens that exact person and swiping still opens the next pe
   const requests: string[] = [];
   page.on("request", (r) => { if (r.url().includes("/api/people?deck=1")) requests.push(r.url()); });
   await page.goto("/feed");
-  await page.locator(".pcard").filter({ hasText: anna.name }).tap();
+  await page.locator(".k-mt").filter({ hasText: anna.name }).tap();
   await expect(active(page).getByRole("heading", { name: "Анна, 28", exact: true })).toBeVisible();
   await expect(active(page).locator(".gal > img.on")).toHaveAttribute("src", anna.avatarUrl);
   expect(requests.some((url) => new URL(url).searchParams.get("start") === anna.id)).toBe(true);

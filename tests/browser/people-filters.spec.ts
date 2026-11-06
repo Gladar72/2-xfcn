@@ -95,10 +95,10 @@ test("pagination retries the same page without losing filters or replacing the s
 
 test("changing the home city refreshes people and opens the selected person in that city",async({page})=>{
   await setup(page); await page.goto("/feed");
-  await expect(page.locator(".pcard").first()).toContainText("Анна");
-  await page.locator("button.loc").tap(); await pickCity(page,"Москва");
-  await expect(page.locator(".pcard")).toHaveCount(1); await expect(page.locator(".pcard")).toContainText("Мария");
-  await page.locator(".pcard").tap(); await expect(active(page).locator("h1")).toHaveText("Мария, 28");
+  await expect(page.locator(".k-mt").first()).toContainText("Анна");
+  await page.locator("button[data-city]").tap(); await pickCity(page,"Москва");
+  await expect(page.locator(".k-mt")).toHaveCount(1); await expect(page.locator(".k-mt")).toContainText("Мария");
+  await page.locator(".k-mt").tap(); await expect(active(page).locator("h1")).toHaveText("Мария, 28");
   expect(new URL(page.url()).searchParams.get("city")).toBe("Москва");
   await expect(active(page).locator(".nm")).toContainText("Москва");
   await expect(page.getByRole("button",{name:"Выбрать город",exact:true})).toHaveCount(0);
@@ -123,7 +123,7 @@ test("age and branded interests fit narrow screens, apply together and reset fro
   expect(await long.evaluate(e=>e.scrollWidth<=e.clientWidth)).toBe(true);
   await page.getByPlaceholder("Найти интерес").fill("Кофе");
   await dialog.getByRole("button",{name:"Кофе",exact:true}).tap();
-  await expect(dialog.locator('.it img')).toHaveAttribute('src','/brand/cat3d/i_kofe.webp');
+  await expect(dialog.locator('.it img')).toHaveAttribute('src','/brand/pi/kofe.svg');
   await page.getByRole("button",{name:/^Готово/}).tap();
   await expect(page.getByRole("button",{name:"Показать анкеты",exact:true})).toBeInViewport();
   await page.getByRole("button",{name:"Показать анкеты",exact:true}).tap();
@@ -153,21 +153,21 @@ test("profile menu remains tappable and the filter backdrop closes with a single
 test("home requests use a fresh seed after reload and a city-scoped selection",async({page})=>{
   await setup(page); const requests:URL[]=[];
   page.on("request",r=>{const u=new URL(r.url());if(u.pathname==="/api/people")requests.push(u);});
-  await page.goto("/feed"); await expect(page.locator(".pcard").first()).toBeVisible();
+  await page.goto("/feed"); await expect(page.locator(".k-mt").first()).toBeVisible();
   const first=requests.at(-1)!.searchParams.get("seed"); expect(first).toBeTruthy();
-  await page.reload(); await expect(page.locator(".pcard").first()).toBeVisible();
+  await page.reload(); await expect(page.locator(".k-mt").first()).toBeVisible();
   expect(requests.at(-1)!.searchParams.get("seed")).not.toBe(first);
   expect(requests.every(u=>u.searchParams.get("city")==="Тюмень")).toBe(true);
 });
 
-test("approved filter layout uses real brand icons and Golos",async({page},testInfo)=>{
+test("filter layout uses the current brand icons and typeface",async({page},testInfo)=>{
   await setup(page); await page.setViewportSize({width:390,height:844});
   await page.goto("/people?city=Тюмень"); await expect(active(page).locator("h1")).toHaveText("Анна, 28");
   await page.getByRole("button",{name:"Фильтры",exact:true}).tap();
   await expect(page.getByRole("button",{name:"Кофе",exact:true})).toBeVisible();
   await page.evaluate(()=>document.fonts.ready);
   const sheet=page.getByRole("dialog",{name:"Фильтры людей"});
-  await expect(sheet).toHaveCSS("font-family",/golos/i);
+  await expect(sheet).toHaveCSS("font-family",/inter/i);
   await sheet.locator("img").evaluateAll(images=>Promise.all(images.map(i=>(i as HTMLImageElement).decode())));
   await expect(page.getByRole("button",{name:/^Все интересы/})).toBeInViewport();
   await page.screenshot({path:testInfo.outputPath("people-filter.png")});

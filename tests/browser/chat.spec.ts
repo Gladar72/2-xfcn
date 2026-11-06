@@ -14,6 +14,7 @@ const message = (n: number) => ({
 async function openChat(page: Page, options: { older?: boolean; failOlder?: boolean; empty?: boolean; messages?: MessageData[] } = {}) {
   const sockets = new Map<WebSocketRoute, string>();
   let historyRequests = 0;
+  let readWrites = 0;
   let failOlder = !!options.failOlder;
   let releaseHistory = () => {};
   const historyGate = new Promise<void>((resolve) => { releaseHistory = resolve; });
@@ -36,7 +37,9 @@ async function openChat(page: Page, options: { older?: boolean; failOlder?: bool
     const request = route.request();
     const url = new URL(request.url());
     let data: unknown = {};
-    if (url.pathname === "/api/me") data = { userId: "me" };
+    if (url.pathname === "/api/conversations/test-chat" && request.method() === "PATCH") {
+      if (request.postDataJSON().action === "mark_read") readWrites++;
+    } else if (url.pathname === "/api/me") data = { userId: "me" };
     else if (url.pathname === "/api/auth/realtime-token") {
       const payload = Buffer.from(JSON.stringify({ sub: "me", role: "authenticated", exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url");
       data = { token: `eyJhbGciOiJIUzI1NiJ9.${payload}.test` };
@@ -71,6 +74,7 @@ async function openChat(page: Page, options: { older?: boolean; failOlder?: bool
   return {
     releaseHistory,
     historyRequests: () => historyRequests,
+    readWrites: () => readWrites,
     sent,
     reactions,
     broadcast: async (event: string, payload: unknown) => {
@@ -95,6 +99,74 @@ const anchor = (page: Page) => page.locator(".msgs").evaluate((list) => {
   return { id: row.id, offset: row.getBoundingClientRect().top - top };
 });
 const offset = (page: Page, id: string) => page.locator(`#${id}`).evaluate((row) => row.getBoundingClientRect().top - row.closest(".msgs")!.getBoundingClientRect().top);
+
+test("a lost send response retries the same identifier without swallowing an identical earlier message", async ({ page }) => {
+  await openChat(page, { messages: [{ ...message(99), content: "Да", createdAt: new Date().toISOString() }] });
+  const requests: { content: string; clientMessageId: string }[] = [];
+  await page.route("**/api/conversations/test-chat/messages", async route => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const body = route.request().postDataJSON();
+    requests.push(body);
+    if (requests.length === 1) return route.abort("failed");
+    await route.fulfill({ json: { messageId: body.clientMessageId, createdAt: new Date().toISOString() } });
+  });
+  await page.getByPlaceholder("Сообщение").fill("Да");
+  await page.getByRole("button", { name: "Отправить", exact: true }).tap();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[0]!.clientMessageId).toBe(requests[1]!.clientMessageId);
+  await expect(page.locator(`#m-${requests[0]!.clientMessageId}`)).toHaveCount(1);
+  await expect(page.locator('#m-message-99')).toHaveCount(1);
+  await expect(page.locator('[data-message-id^="temp-"]')).toHaveCount(0);
+});
+
+test("equal pending messages reconcile correctly when their broadcasts arrive in reverse order", async ({ page }) => {
+  const chat = await openChat(page, { empty: true });
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const requests: { clientMessageId: string }[] = [];
+  await page.route("**/api/conversations/test-chat/messages", async route => {
+    if (route.request().method() !== "POST") return route.fallback();
+    const body = route.request().postDataJSON();
+    requests.push(body);
+    await gate;
+    await route.fulfill({ json: { messageId: body.clientMessageId, createdAt: new Date().toISOString() } }).catch(() => {});
+  });
+  try {
+    for (let i = 0; i < 2; i++) {
+      await page.getByPlaceholder("Сообщение").fill("Да");
+      await page.getByRole("button", { name: "Отправить", exact: true }).tap();
+    }
+    await expect.poll(() => requests.length).toBe(2);
+    expect(requests[0]!.clientMessageId).not.toBe(requests[1]!.clientMessageId);
+    const second = requests[1]!.clientMessageId;
+    await chat.broadcast("message", { ...message(2), id: second, clientMessageId: second, senderId: "me", content: "Да" });
+    await expect(page.locator(`#m-${second}`)).toHaveCount(1);
+    await expect(page.locator(`#m-temp-${requests[0]!.clientMessageId}`)).toHaveCount(1);
+    await expect(page.locator('.mwrap')).toHaveCount(2);
+    release();
+    await expect(page.locator('[data-message-id^="temp-"]')).toHaveCount(0);
+    await expect(page.locator('.mwrap')).toHaveCount(2);
+  } finally { release(); }
+});
+
+test("incoming messages remain unread while reading history or while the app is hidden", async ({ page }) => {
+  const chat = await openChat(page);
+  await expect.poll(chat.readWrites).toBeGreaterThan(0);
+  await scrollTo(page, 400);
+  const before = chat.readWrites();
+  await chat.broadcast("message", message(100));
+  await page.waitForTimeout(3300);
+  expect(chat.readWrites()).toBe(before);
+  await page.locator('.msgs').evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await expect.poll(chat.readWrites).toBeGreaterThan(before);
+  const visible = chat.readWrites();
+  await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: true }); document.dispatchEvent(new Event('visibilitychange')); });
+  await chat.broadcast("message", message(101));
+  await page.waitForTimeout(3300);
+  expect(chat.readWrites()).toBe(visible);
+  await page.evaluate(() => { Object.defineProperty(document, 'hidden', { configurable: true, value: false }); document.dispatchEvent(new Event('visibilitychange')); });
+  await expect.poll(chat.readWrites).toBeGreaterThan(visible);
+});
 
 test("fast scrollbar drags through a long conversation in both directions", async ({ page }, testInfo) => {
   await openChat(page, { messages: Array.from({ length: 300 }, (_, i) => message(i)) });
@@ -247,7 +319,8 @@ test("prepending history preserves the row read after a delayed request", async 
   const before = await anchor(page);
   chat.releaseHistory();
   await expect(page.locator("#m-message-0")).toBeAttached();
-  await expect.poll(() => offset(page, before.id)).toBeCloseTo(before.offset, 0);
+  // Mobile layout rounds fractional CSS pixels; a one-pixel drift is not a row jump.
+  await expect.poll(async () => Math.abs(await offset(page, before.id) - before.offset)).toBeLessThanOrEqual(1);
   expect(chat.historyRequests()).toBe(1);
   await expect(page.locator(".tobot .cnt")).toHaveCount(0);
 });
@@ -272,7 +345,7 @@ test("prepending on the same day keeps the first message in place when its date 
   const before = (await bubble.boundingBox())!.y;
   chat.releaseHistory();
   await expect(page.locator("#m-message-0")).toBeAttached();
-  await expect.poll(async () => (await bubble.boundingBox())!.y).toBeCloseTo(before, 0);
+  await expect.poll(async () => Math.abs((await bubble.boundingBox())!.y - before)).toBeLessThanOrEqual(1);
 });
 
 test("keyboard-sized viewport and multiline composer keep bottom or reading anchor", async ({ page }) => {
@@ -408,7 +481,7 @@ test("cancel edit and reply to a long message keep the send action reachable", a
   await expect(page.getByRole("button", { name: "Отправить", exact: true })).toBeInViewport({ ratio: 1 });
   await page.getByRole("textbox", { name: "Сообщение", exact: true }).fill("Подтверждаю");
   await page.getByRole("button", { name: "Отправить", exact: true }).tap();
-  await expect.poll(() => chat.sent).toEqual([{ content: "Подтверждаю", replyToId: "message-100" }]);
+  await expect.poll(() => chat.sent).toMatchObject([{ content: "Подтверждаю", replyToId: "message-100" }]);
 });
 
 test("an image caption can be cleared without sending a separate message", async ({ page }) => {
