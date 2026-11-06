@@ -73,7 +73,7 @@ for (const [name, url] of [["mk", "/create"], ["mkbiz", "/create?business=true"]
     await page.waitForTimeout(3000);
     for (let i = 0; i < 7; i++) {
       await page.screenshot({ path: `${DIR}/${info.project.name}-${name}${i}.png` });
-      const kind = page.locator("section.scr:not(.ghost) button.ownw").first();
+      const kind = page.locator("section.scr:not(.ghost) button.ownw").filter({ hasText: name === "mk" ? "Открытая встреча" : "Событие для бизнеса" }).first();
       if (await kind.count()) {
         await kind.click({ timeout: 2000 }).catch(() => {});
         await page.waitForTimeout(1200);
