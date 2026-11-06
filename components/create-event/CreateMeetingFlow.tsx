@@ -650,7 +650,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             </button>
           </div>
         </div>
-        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={publishedId} title={title} when={sumTxt} version={photo ?? ""} />
+        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={publishedId} title={title} when={sumTxt} version={photo ?? ""} photo={photo} chip={`${catLabel} · ${DAYS[di]?.s}, ${hh}:${pad2(mi * 5)}`} meta={[isAnonymous ? null : placeName, `0 из ${seatsTotal}`].filter(Boolean).join(" · ")} />
       </section>
     );
   }
