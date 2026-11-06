@@ -900,7 +900,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                       <button
                         key={c.slice(-40) + i}
                         className={`aic ${photo === c ? "on" : ""}`}
-                        style={{ animationDelay: `${i * 0.05}s`, ...(isPresetCover(c) && covers.length === 1 ? { gridColumn: "1 / -1", aspectRatio: "1.5" } : isPresetCover(c) ? { aspectRatio: "3 / 4" } : {}) }}
+                        style={{ animationDelay: `${i * 0.05}s`, ...(isPresetCover(c) ? { aspectRatio: "3 / 4" } : {}) }}
                         onClick={() => setPhoto(c)}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}

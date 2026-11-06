@@ -83,6 +83,8 @@ for (const [name, url] of [["mk", "/create"], ["mkbiz", "/create?business=true"]
       if (await opt.count()) await opt.click({ timeout: 2000 }).catch(() => {});
       const title = page.locator("section.scr:not(.ghost) input[maxlength='100']").first();
       if (await title.count()) await title.fill("Тестовая встреча").catch(() => {});
+      const about = page.locator("section.scr:not(.ghost) textarea").first();
+      if (await about.count()) await about.fill("Пьём кофе и знакомимся, всех ждём").catch(() => {});
       const next = page.getByRole("button", { name: /Далее|Дальше|Продолжить/ }).last();
       if (!(await next.count())) break;
       await next.click({ timeout: 2000 }).catch(() => {});
