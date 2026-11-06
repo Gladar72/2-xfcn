@@ -44,7 +44,7 @@ const COVER_SETS: Record<string, string[]> = {
 export const COVER_LIBRARY: { key: string; label: string; icon: string }[] = [
   { key: "running", label: "Бег", icon: "/brand/pi/run.svg" },
   { key: "cinema", label: "Кино", icon: "/brand/pi/kino.svg" },
-  { key: "hyrox", label: "Хайрокс", icon: "/brand/pi/hyrox.svg" },
+  { key: "hyrox", label: "Hyrox", icon: "/brand/pi/hyrox.svg" },
   { key: "coffee", label: "Кофе", icon: "/brand/pi/kofe.svg" },
   { key: "dinner", label: "Ужин", icon: "/brand/pi/uzhin.svg" },
   { key: "gym", label: "Спортзал", icon: "/brand/pi/sportzal.svg" },
