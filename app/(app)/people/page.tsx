@@ -323,7 +323,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
       <div className="deck-under">
         {next?.avatarUrl && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoThumb(next.avatarUrl, 300)} alt="" decoding="async" />
+          <img src={photoThumb(next.avatarUrl, 420, true)} alt="" decoding="async" />
         )}
       </div>
       <PersonView

@@ -218,3 +218,9 @@
 /* Мося в нижнем меню стоит ровно в вырезе вместе с «+», без покачивания и без ореола вокруг. */
 .P .nav26 .k-crf{animation:none!important}
 .P .nav26 .k-crf{filter:none!important}
+/* Люди: никакого синего между карточками (заглушка загрузки — тёмная), «О себе» без лишнего места снизу,
+   «Пожаловаться или заблокировать» — настоящая кнопка. */
+.P .people-deck .aurora,.P .people-deck .scr{background:#17141F!important}
+.P .people-deck .sk{background:rgba(255,255,255,.06)!important}
+.P .pr.pr2 .sheet2{padding-bottom:calc(var(--bot) + 84px)!important}
+.P .pr.pr2 .sheet2 .report{justify-self:stretch;height:46px;border-radius:23px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:rgba(255,255,255,.85)!important;font:500 14px var(--disp);margin-top:4px}
