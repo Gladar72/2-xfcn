@@ -316,12 +316,21 @@
 /* 06.11: на странице события «Маршрут / Скопировать» над картой */
 .K .k-ev .k-mapact{padding:0 12px 12px}
 /* 06.11: карточка «Поделиться» как в прототипе — плашка в одну строку, название по длине, текст на фото читается */
-.K .k-story .k-schip{max-width:calc(100% - 28px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(23,20,31,.35)}
+.K .k-story .k-schip{max-width:calc(100% - 28px);height:auto;white-space:normal;padding:0;border:0;border-radius:0;font:500 10.5px/1.4 var(--disp);-webkit-backdrop-filter:none;backdrop-filter:none;background:none}
 .K .k-story::after{background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,.1) 26%,rgba(10,8,20,.55) 52%,rgba(10,8,20,.92))}
 .K .k-story .k-stt{max-height:96px;overflow:hidden}
 .K .k-story .k-stt.k-stt2{font-size:21px}
 .K .k-story .k-stt.k-stt3{font-size:17px;line-height:1.15!important;letter-spacing:-.01em}
-.K .k-story .k-sme{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.K .k-story .k-sdetails{bottom:51px;display:flex;flex-direction:column;gap:8px;font:400 10.5px/1.4 var(--disp)}
+.K .k-story .k-sdescription{margin:0;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:7;overflow:hidden}
+.K .k-story .k-sdetails .k-sme{position:static;font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+.P .people-loading{background:#17141F!important;color:#fff}
+.P .people-loading .gal{height:100%;background:#17141F}
+.P .people-loading .gal>img{opacity:1;object-position:50% 0%}
+.P .people-loading .people-tools .rb{background:rgba(23,20,31,.6);color:#fff}
+.P .people-loading-caption{position:absolute;z-index:5;left:0;right:0;bottom:0;padding:100px 24px 60px;background:linear-gradient(transparent,rgba(23,20,31,.95));pointer-events:none}
+.P .people-loading-caption h1{margin:0 0 8px;font:400 30px/1.2 var(--disp)}
+.P .people-loading-caption p{margin:0;font:400 14px/1.4 var(--disp)}
 .k-crl{animation:k-wob 4.5s ease-in-out infinite;transform-origin:50% 62%;will-change:transform}
 @keyframes k-wob{0%,100%{transform:scale(1,1) rotate(0)}25%{transform:scale(1.025,.975) rotate(-1.5deg)}50%{transform:scale(.985,1.02) rotate(.8deg)}75%{transform:scale(1.015,.985) rotate(1.4deg)}}
 @media (prefers-reduced-motion: reduce){.k-crl{animation:none}}

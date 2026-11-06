@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { eventShareUrl } from "@/components/events/ShareEventButton";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 import { Ic, Sheet } from "./ui";
+import { storyDescription } from "@/lib/events/story-text";
 
 /**
  * «Поделиться событием»: чат Telegram, сторис Telegram, сторис Instagram, WhatsApp, ВКонтакте,
@@ -22,20 +23,6 @@ const TARGETS: { k: Target; short: string; bg: string }[] = [
   { k: "wa", short: "WhatsApp", bg: "#25D366" },
   { k: "vk", short: "VK", bg: "#0077FF" },
 ];
-
-/** Название в две строки, последнее слово — курсивом (как в прототипе). */
-function titleTwo(t: string) {
-  const s = t.trim();
-  const i = s.lastIndexOf(" ");
-  if (i < 3 || s.length > 34) return s;
-  return (
-    <>
-      {s.slice(0, i)}
-      <br />
-      <em>{s.slice(i + 1)}</em>
-    </>
-  );
-}
 
 function Glyph({ k }: { k: Target }) {
   const s = { width: 26, height: 26, viewBox: "0 0 24 24", fill: "none", stroke: "#fff", strokeWidth: 2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const, "aria-hidden": true };
@@ -69,6 +56,7 @@ export function ShareSheet({
   photo,
   chip,
   meta,
+  description,
 }: {
   open: boolean;
   onClose: () => void;
@@ -81,6 +69,7 @@ export function ShareSheet({
   photo?: string | null;
   chip?: string;
   meta?: string;
+  description?: string | null;
 }) {
   const [copied, setCopied] = useState(false);
   const [mode, setMode] = useState<"list" | "ig">("list");
@@ -94,8 +83,8 @@ export function ShareSheet({
     const tg = getTelegramWebApp();
     setStoryOk(!!tg?.shareToStory && (tg.isVersionAtLeast?.("7.8") ?? false));
   }, [open]);
-  // s3 — версия оформления сторис («Афиша», 29.10): при смене дизайна старые картинки в кэше CDN не показываются.
-  const v = hashKey(`s4|${version}|${title}|${when}`);
+  // Change the image URL after a layout or event edit so old CDN images expire.
+  const v = hashKey(`s5|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
   const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
   const igUrl = `${storyUrl}&ig=1`;
   // Картинку для сторис рисуем заранее, пока человек смотрит событие: к нажатию
@@ -201,9 +190,11 @@ export function ShareSheet({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className="k-swm" src="/brand/auth/wordmark-white.svg" alt="" />
               <span className="k-schip">{chip ?? when}</span>
-              <span className={`k-stt ${title.trim().length > 40 ? "k-stt3" : title.trim().length > 22 ? "k-stt2" : ""}`}>{titleTwo(title)}</span>
-              {meta && <span className="k-sme">{meta}</span>}
-              <span className="k-scta">Пойти со мной →</span>
+              <div className="k-sdetails">
+                {storyDescription(description, title) && <p className="k-sdescription">{storyDescription(description, title)}</p>}
+                {meta && <span className="k-sme">{meta}</span>}
+              </div>
+              <span className="k-scta">Пойти со мной</span>
             </div>
             <div className="k-shr2">
               {TARGETS.map((t) => (

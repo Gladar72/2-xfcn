@@ -96,3 +96,26 @@ test("a failed selection load can be retried without opening somebody else", asy
   await expect(active(page).getByRole("heading", { name: "Анна, 28", exact: true })).toBeVisible();
   await expect(active(page).locator(".gal > img.on")).toHaveAttribute("src", anna.avatarUrl);
 });
+
+test("a clicked home portrait remains visible while the deck request is slow", async ({ page }, info) => {
+  await fixture(page);
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route("**/api/people?deck=1**", async route => {
+    await gate;
+    await route.fulfill({ json: { items: [anna, boris], meHasLocation: true } }).catch(() => {});
+  });
+  try {
+    await page.goto("/feed");
+    await page.locator(".k-mt").filter({ hasText: anna.name }).tap();
+    const loading = page.getByRole("region", { name: "Загрузка профиля" });
+    await expect(loading.getByRole("heading", { name: "Анна, 28" })).toBeVisible();
+    await expect(loading.locator(".gal > img")).toHaveAttribute("src", anna.avatarUrl);
+    await expect(loading).toHaveCSS("background-color", "rgb(23, 20, 31)");
+    await expect(loading.getByRole("button", { name: "Поставить сердечко" })).toHaveCount(0);
+    await page.screenshot({ path: info.outputPath("loading-selected-profile.png") });
+    release();
+    await expect(active(page).getByRole("button", { name: "Поставить сердечко" })).toBeVisible();
+    await expect(active(page).locator(".gal > img.on")).toHaveAttribute("src", anna.avatarUrl);
+  } finally { release(); }
+});

@@ -35,8 +35,7 @@ function write(k: string, v: string) {
 export function addToHome(): boolean {
   const w = getTelegramWebApp();
   if (!w?.addToHomeScreen || !w.isVersionAtLeast?.("8.0")) return false;
-  w.addToHomeScreen();
-  return true;
+  try { w.addToHomeScreen(); return true; } catch { return false; }
 }
 
 export function HomeScreenAsk() {
@@ -48,56 +47,84 @@ export function HomeScreenAsk() {
   const [native, setNative] = useState(false);
 
   useEffect(() => {
-    const w = getTelegramWebApp();
-    if (!w?.initData) return;
-    if (read(KEY) === "added") return;
-    const n = Number(read(LAUNCHES) ?? "0") + 1;
-    write(LAUNCHES, String(n));
-    const canNative = !!w.addToHomeScreen && !!w.isVersionAtLeast?.("8.0");
-    setNative(canNative);
-    const added = () => {
-      write(KEY, "added");
-      setOpen(false);
-      setToast("Добавлено на экран «Домой»");
-      setTimeout(() => setToast(null), 2600);
-    };
-    if (canNative) w.onEvent("homeScreenAdded", added);
-
-    // Когда показываем: сразу после регистрации (первое открытие), при открытии сервиса
-    // (не чаще раза в сутки) и ещё раз, если человек провёл в приложении 3 минуты (не чаще раза в 6 часов).
-    const last = Number(read(KEY) ?? "0") || 0;
-    const ago = Date.now() - last;
     let disposed = false;
     let timer = 0;
-    const show = (ms: number) => {
+    let readyTimer = 0;
+    let statusTimer = 0;
+    let toastTimer = 0;
+    let unsubscribe = () => {};
+    const deadline = Date.now() + 10_000;
+    const init = () => {
       if (disposed) return;
-      timer = window.setTimeout(() => {
-        // A delayed offer must never cover a profile, filters, keyboard or an
-        // existing dialog while the user is trying to close or operate it.
-        const editing = document.activeElement?.matches("input, textarea, [contenteditable=true]");
-        if (document.hidden || window.location.pathname !== "/feed" || window.location.search ||
-            editing || document.querySelector('[role="dialog"]')) {
-          show(10_000);
-          return;
-        }
-        write(KEY, String(Date.now()));
-        setOpen(true);
-      }, ms);
+      const w = getTelegramWebApp();
+      // The Telegram script can arrive after the app has mounted.
+      if (!w?.initData) {
+        if (Date.now() < deadline) readyTimer = window.setTimeout(init, 250);
+        return;
+      }
+      const n = Number(read(LAUNCHES) ?? "0") + 1;
+      write(LAUNCHES, String(n));
+      const canNative = !!w.addToHomeScreen && !!w.isVersionAtLeast?.("8.0");
+      setNative(canNative);
+      const added = () => {
+        if (disposed) return;
+        window.clearTimeout(timer);
+        window.clearTimeout(statusTimer);
+        write(KEY, "added");
+        setOpen(false);
+        setToast("Добавлено на экран «Домой»");
+        toastTimer = window.setTimeout(() => setToast(null), 2600);
+      };
+      if (canNative) {
+        w.onEvent("homeScreenAdded", added);
+        unsubscribe = () => w.offEvent("homeScreenAdded", added);
+      }
+      const show = (ms: number) => {
+        if (disposed) return;
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          if (read(KEY) === "added") return;
+          const editing = document.activeElement?.matches("input, textarea, [contenteditable=true]");
+          if (document.hidden || window.location.pathname !== "/feed" || window.location.search ||
+              editing || document.querySelector('[role="dialog"]')) {
+            show(10_000);
+            return;
+          }
+          write(KEY, String(Date.now()));
+          setOpen(true);
+        }, ms);
+      };
+      const go = () => {
+        if (read(KEY) === "added") return;
+        const ago = Date.now() - (Number(read(KEY) ?? "0") || 0);
+        if (n === 1 || ago > LATER_DAYS * 864e5) show(2500);
+        else if (ago > 6 * 36e5) show(3 * 60e3);
+      };
+      if (canNative && w.checkHomeScreenStatus) {
+        // A missing native callback must not disable the offer forever.
+        statusTimer = window.setTimeout(go, 1500);
+        try {
+          w.checkHomeScreenStatus((status) => {
+            if (disposed) return;
+            window.clearTimeout(statusTimer);
+            if (status === "added" || status === "unsupported") {
+              window.clearTimeout(timer);
+              setOpen(false);
+              if (status === "added") write(KEY, "added");
+            } else {
+              // Recheck even a stored "added": the icon may have been removed.
+              if (status === "missed" && read(KEY) === "added") write(KEY, "0");
+              go();
+            }
+          });
+        } catch { window.clearTimeout(statusTimer); go(); }
+      } else go();
     };
-    const go = () => {
-      if (n === 1 || ago > LATER_DAYS * 864e5) show(2500);
-      else if (ago > 6 * 36e5) show(3 * 60e3);
-    };
-    if (canNative && w.checkHomeScreenStatus) {
-      w.checkHomeScreenStatus((status) => {
-        if (status === "added") write(KEY, "added");
-        else go();
-      });
-    } else go();
+    init();
     return () => {
       disposed = true;
-      window.clearTimeout(timer);
-      if (canNative) w.offEvent("homeScreenAdded", added);
+      [timer, readyTimer, statusTimer, toastTimer].forEach(id => window.clearTimeout(id));
+      unsubscribe();
     };
   }, []);
 

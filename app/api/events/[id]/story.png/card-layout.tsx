@@ -1,13 +1,10 @@
-/**
- * Сторис «Поделиться» — как карточка в прототипе (06.11): фото на весь экран,
- * сверху белый логотип и плашка «Бег · Сб, 08:00», снизу название (Inter Light),
- * строка «Место · 3 из 10» и белая кнопка «Пойти со мной →». Всё выровнено по
- * одной левой линии (80 px). В версии ig — пунктирная рамка под стикер «Ссылка».
- * Satori: только flex и абсолютное позиционирование.
- */
+import { storyDescription } from "@/lib/events/story-text";
+
+/** Story and preview share one left edge and plain Inter text. */
 export interface CardStoryData {
   chip: string;
   title: string;
+  description?: string | null;
   meta: string;
   cta: string;
   coverUrl: string | null;
@@ -34,12 +31,8 @@ export function CardStory(d: CardStoryData) {
   const fx = Math.round((W - fw) / 2);
   const fy = Math.round((H - fh) / 2);
 
-  const title = d.title.replace(/\s+/g, " ").trim();
-  const len = title.length;
-  const size = len <= 14 ? 124 : len <= 26 ? 104 : len <= 44 ? 86 : len <= 70 ? 70 : 58;
+  const description = storyDescription(d.description, d.title);
   const ctaTop = d.ig ? 1450 : 1560;
-  const metaTop = ctaTop - 40 - 46;
-  const titleBottom = metaTop - 26;
 
   return (
     <div style={{ width: W, height: H, display: "flex", position: "relative", background: INK, color: "#fff", fontFamily: "Inter" }}>
@@ -68,12 +61,8 @@ export function CardStory(d: CardStoryData) {
           style={{
             display: "flex",
             alignItems: "center",
-            height: 66,
-            padding: "0 30px",
-            borderRadius: 33,
-            background: "rgba(23,20,31,0.38)",
-            border: "2px solid rgba(255,255,255,0.45)",
-            fontSize: 30,
+            fontSize: 38,
+            lineHeight: 1.4,
             fontWeight: 500,
             color: "#fff",
             maxWidth: W - 2 * L,
@@ -83,11 +72,10 @@ export function CardStory(d: CardStoryData) {
         </div>
       </div>
 
-      {/* Название прижато к строке места снизу. */}
-      <div style={{ position: "absolute", left: L, width: W - 2 * L, top: 420, height: titleBottom - 420, display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
-        <div style={{ display: "flex", flexWrap: "wrap", fontSize: size, fontWeight: 300, lineHeight: 1.06, letterSpacing: -size * 0.035, color: "#fff" }}>{title}</div>
+      <div style={{ position: "absolute", left: L, width: W - 2 * L, bottom: H - ctaTop + 40, display: "flex", flexDirection: "column", gap: 26, fontSize: 38, fontWeight: 400, lineHeight: 1.4 }}>
+        {description && <div style={{ display: "flex", overflow: "hidden", maxHeight: 320, wordBreak: "break-word" }}>{description}</div>}
+        {d.meta && <div style={{ display: "flex", color: "rgba(255,255,255,0.86)" }}>{d.meta}</div>}
       </div>
-      <div style={{ position: "absolute", left: L, width: W - 2 * L, top: metaTop, display: "flex", fontSize: 34, fontWeight: 400, color: "rgba(255,255,255,0.86)" }}>{d.meta}</div>
 
       <div
         style={{
@@ -128,7 +116,7 @@ export function CardStory(d: CardStoryData) {
             color: "rgba(255,255,255,0.85)",
           }}
         >
-          ссылка
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg>
         </div>
       ) : null}
     </div>

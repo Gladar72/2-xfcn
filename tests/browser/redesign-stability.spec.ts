@@ -488,3 +488,59 @@ test('holding a photo before scrolling the feed does not trigger the press anima
     await expect(page).toHaveURL(/\/feed$/);
   }
 });
+
+test("share card aligns its text, shows the description and removes the duplicate title and arrow", async ({ page }, info) => {
+  await fixture(page);
+  const description = "Встречаемся у входа в парк. Лёгкая пробежка и кофе после тренировки.";
+  await page.route("**/api/events/meeting", r => r.fulfill({ json: {
+    ...event, title: "Бегаем 20", description, status: "published", viewerStatus: "none",
+    participants: [], costType: "free", placeName: "Парк Гагарина",
+  } }));
+  await page.goto("/events/meeting");
+  await page.getByRole("button", { name: "Поделиться", exact: true }).first().tap();
+  const story = page.locator(".k-story");
+  await expect(story).toBeVisible();
+  await expect(story.locator(".k-sdescription")).toHaveText(description);
+  await expect(story).not.toContainText("Бегаем 20");
+  await expect(story.locator(".k-scta")).toHaveText("Пойти со мной");
+  const layout = await story.evaluate(el => {
+    const logo = el.querySelector(".k-swm")!.getBoundingClientRect();
+    return [".k-schip", ".k-sdescription", ".k-sme"].map(selector => {
+      const node = el.querySelector(selector)!;
+      return { left: node.getBoundingClientRect().left - logo.left, font: getComputedStyle(node).fontSize,
+        fits: node.scrollHeight <= node.clientHeight + 1 };
+    });
+  });
+  for (const item of layout) { expect(Math.abs(item.left)).toBeLessThan(1); expect(item.font).toBe("10.5px"); expect(item.fits).toBe(true); }
+  await page.screenshot({ path: info.outputPath("share-card.png"), animations: "disabled" });
+});
+
+for (const status of ["missed", "silent", "added", "unsupported"] as const) {
+  test(`home screen offer handles delayed Telegram SDK and ${status} status`, async ({ page }) => {
+    await fixture(page);
+    await page.route("https://telegram.org/js/**", r => r.fulfill({ contentType: "application/javascript", body: "" }));
+    await page.goto("/feed");
+    await expect(page.locator('[data-id="home"] .k-mt').first()).toBeVisible();
+    await page.evaluate((status) => {
+      localStorage.setItem("mesto_home_ask", status === "missed" ? "added" : "0");
+      localStorage.setItem("mesto_launches", "3");
+      const listeners = new Map<string, () => void>();
+      window.Telegram = { WebApp: {
+        initData: "test", platform: "ios", ready() {}, expand() {}, isVersionAtLeast: () => true,
+        addToHomeScreen() { listeners.get("homeScreenAdded")?.(); },
+        checkHomeScreenStatus(cb: (s: string) => void) { if (status !== "silent") cb(status); },
+        onEvent(name: string, cb: () => void) { listeners.set(name, cb); }, offEvent(name: string) { listeners.delete(name); },
+      } as unknown as NonNullable<typeof window.Telegram>["WebApp"] };
+    }, status);
+    const offer = page.getByRole("dialog", { name: "Быстрый доступ" });
+    if (status === "missed" || status === "silent") {
+      await expect(offer).toBeVisible({ timeout: 8000 });
+      await offer.getByRole("button", { name: "Добавить", exact: true }).tap();
+      await expect(offer).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => localStorage.getItem("mesto_home_ask"))).toBe("added");
+    } else {
+      await page.waitForTimeout(4500);
+      await expect(offer).toHaveCount(0);
+    }
+  });
+}

@@ -12,6 +12,7 @@ import { goBack } from "@/lib/nav/back";
 import { watchMyLocation } from "@/lib/geo/client-location";
 import { PersonPhoto, personPhotoUrl } from "@/components/people/PersonPhoto";
 import { usePeopleVisitSeed } from "@/lib/people/use-visit-seed";
+import { selectedPersonPreview } from "@/lib/people/selected-preview";
 
 interface Card {
   id: string;
@@ -88,6 +89,7 @@ function DeckRoute() {
 
 function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter: string | null; filters: PeopleFilters }) {
   const router = useRouter();
+  const [preview] = useState(() => selectedPersonPreview(start));
   const [cards, setCards] = useState<Card[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ix, setIx] = useState(0);
@@ -294,10 +296,14 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
 
   if (cards === null)
     return (
-      <section className="scr pr aurora fade" data-id="person" data-transition="deck">
+      <section className="scr pr people-loading" data-id="person" data-transition="deck" aria-busy="true" aria-label="Загрузка профиля">
         {toolbar}
         <div className="gal">
-          <div className="sk" style={{ position: "absolute", inset: 0, borderRadius: 0 }} />
+          {preview?.avatarUrl ? <PersonPhoto src={preview.avatarUrl} className="on" /> : <div className="sk" style={{ position: "absolute", inset: 0, borderRadius: 0 }} />}
+        </div>
+        <div className="people-loading-caption">
+          {preview && <h1>{preview.name}{preview.age ? `, ${preview.age}` : ""}</h1>}
+          <p role="status">Загружаем профиль…</p>
         </div>
       </section>
     );

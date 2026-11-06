@@ -999,7 +999,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           }}
         />
       )}
-      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} when={shareWhen} version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`} photo={event.photoUrl} chip={`${catName} · ${shareWhen}`} meta={[event.isAnonymous ? null : realPlace(event.placeName), `${event.seatsTaken} из ${event.seatsTotal}`].filter(Boolean).join(" · ")} />
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} description={event.description} when={shareWhen} version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`} photo={event.photoUrl} chip={`${catName} · ${shareWhen}`} meta={[event.isAnonymous ? null : realPlace(event.placeName), `${event.seatsTaken} из ${event.seatsTotal}`].filter(Boolean).join(" · ")} />
 
       <Sheet open={anonOpen} onClose={() => setAnonOpen(false)}>
         <div className="anonbox">

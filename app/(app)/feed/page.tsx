@@ -20,6 +20,7 @@ import { KIND_LABEL } from "@/lib/city-events";
 import { personDistanceLabel } from "@/lib/geo/approx-distance";
 import { watchMyLocation, sendMyLocation } from "@/lib/geo/client-location";
 import { usePeopleVisitSeed } from "@/lib/people/use-visit-seed";
+import { rememberSelectedPerson } from "@/lib/people/selected-preview";
 
 interface Category {
   id: string;
@@ -410,6 +411,7 @@ function HomeScreen() {
             <Link
               key={q.id}
               className="k-mt k-pr"
+              onClick={() => rememberSelectedPerson(q)}
               href={`/people?start=${q.id}${city ? `&city=${encodeURIComponent(city)}` : ""}`}
               style={{ ...MZ[mosaic.length === 1 ? 0 : i], ...(mosaic.length === 1 ? { width: "100%" } : mosaic.length === 2 && i === 1 ? { height: 268 } : {}), ...bg(q.avatarUrl, 640, "center 30%") }}
             >

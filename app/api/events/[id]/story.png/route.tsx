@@ -472,8 +472,9 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
       CardStory({
         chip: `${catName} · ${whenTxt}`,
         title: e.title ?? "",
+        description: e.description,
         meta,
-        cta: e.is_business ? "Пойти →" : "Пойти со мной →",
+        cta: e.is_business ? "Пойти" : "Пойти со мной",
         coverUrl: cover?.dataUrl ?? null,
         coverRatio: cover?.ratio ?? 3 / 4,
         logo: `data:image/svg+xml;base64,${Buffer.from(logoWhite).toString("base64")}`,
