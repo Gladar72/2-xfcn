@@ -8,6 +8,7 @@ import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { PhoneStory } from "./phone-layout";
 import { InviteStory } from "./invite-layout";
 import { PosterStory } from "./poster-layout";
+import { CardStory } from "./card-layout";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -160,7 +161,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   // По умолчанию — «Афиша» (согласовано 29.10); ?layout=invite — приглашение (20.10),
   // ?layout=phone — телефон, ?layout=old — прежний вид.
   const layout = reqUrl.searchParams.get("layout");
-  if (layout !== "old") return phoneStoryResponse(e, ig, origin, tDb, layout === "phone" ? "phone" : layout === "invite" ? "invite" : "poster");
+  if (layout !== "old") return phoneStoryResponse(e, ig, origin, tDb, layout === "phone" ? "phone" : layout === "invite" ? "invite" : layout === "poster" ? "poster" : "card");
   // Обложка и её размытая копия — параллельно, а не одна за другой.
   const src = coverSource(e.photo_url);
   const [bold, medium, wordmark, shRect, shRound, glowMaskBuf, cover, blurRaw] = await Promise.all([
@@ -408,7 +409,7 @@ function ageOf(birth: string | null | undefined): number | null {
   return a > 0 && a < 120 ? a : null;
 }
 
-async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tDb: number, kind: "phone" | "invite" | "poster" = "phone") {
+async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tDb: number, kind: "phone" | "invite" | "poster" | "card" = "phone") {
   const t1 = Date.now();
   const one = <T,>(v: T | T[] | null | undefined): T | null => (Array.isArray(v) ? (v[0] ?? null) : (v ?? null));
   const org = one(e.organizer as unknown as { name: string | null; avatar_url: string | null; birth_date: string | null; gender: string | null } | null);
@@ -454,6 +455,43 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
     { name: "Golos", data: bold, weight: 700 as const, style: "normal" as const },
   ];
   const headers = { "Server-Timing": `db;dur=${tDb}, img;dur=${Date.now() - t1}`, "Cache-Control": "public, max-age=86400, s-maxage=2592000, stale-while-revalidate=86400" };
+  if (kind === "card") {
+    const [light, regular, med, semi] = await Promise.all([asset("Inter-Light.woff"), asset("Inter-Regular.woff"), asset("Inter-Medium.woff"), asset("Inter-SemiBold.woff")]);
+    const time = String(e.event_time).slice(0, 5);
+    const wdShort = date.toLocaleDateString("ru-RU", { weekday: "short", timeZone: "UTC" }).replace(/\./g, "");
+    const dm = date.toLocaleDateString("ru-RU", { day: "numeric", month: "short", timeZone: "UTC" }).replace(/\./g, "");
+    const whenTxt = dateTop === "сегодня" ? `Сегодня, ${time}` : dateTop === "завтра" ? `Завтра, ${time}` : `${wdShort.charAt(0).toUpperCase()}${wdShort.slice(1)}, ${dm}, ${time}`;
+    const CAT: Record<string, string> = { coffee: "Кофе", training: "Тренировка", cinema: "Кино", breakfast: "Завтрак", dinner: "Ужин", walk: "Прогулка", active: "Активный отдых", party: "Вечеринка", custom: "Встреча" };
+    const catName = e.is_business ? "Афиша" : e.is_anonymous ? "Анонимно" : CAT[catSlug ?? ""] ?? "Встреча";
+    const place = e.is_anonymous ? "место после одобрения" : placeName.replace(new RegExp(`^${city || "—"}[,\\s]+|[,\\s]+${city || "—"}$`, "gi"), "") || street.replace(/^ул(ица)?\.?\s*/i, "");
+    const seatsTxt = free > 0 ? `${e.seats_taken ?? 0} из ${e.seats_total ?? 0}` : "мест нет";
+    let meta = [place, seatsTxt].filter(Boolean).join(" · ");
+    if (meta.length > 44) meta = meta.slice(0, 43).trimEnd() + "…";
+    const logoWhite = wordmark.toString().replace(/#16121F/gi, "#FFFFFF");
+    return new ImageResponse(
+      CardStory({
+        chip: `${catName} · ${whenTxt}`,
+        title: e.title ?? "",
+        meta,
+        cta: e.is_business ? "Пойти →" : "Пойти со мной →",
+        coverUrl: cover?.dataUrl ?? null,
+        coverRatio: cover?.ratio ?? 3 / 4,
+        logo: `data:image/svg+xml;base64,${Buffer.from(logoWhite).toString("base64")}`,
+        ig,
+      }),
+      {
+        width: 1080,
+        height: 1920,
+        fonts: [
+          { name: "Inter", data: light, weight: 300 as const, style: "normal" as const },
+          { name: "Inter", data: regular, weight: 400 as const, style: "normal" as const },
+          { name: "Inter", data: med, weight: 500 as const, style: "normal" as const },
+          { name: "Inter", data: semi, weight: 600 as const, style: "normal" as const },
+        ],
+        headers,
+      }
+    );
+  }
   if (kind === "poster") {
     const oswald = await asset("Oswald-Bold.ttf");
     const time = String(e.event_time).slice(0, 5);
