@@ -8,7 +8,7 @@ import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { businessProblem, descriptionProblem, titleProblem } from "@/lib/events/quality";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
-import { coverFor, coverForText, isPresetCover } from "@/lib/photos/preset-cover";
+import { coverFor, coverForText, coverSetFor, isPresetCover } from "@/lib/photos/preset-cover";
 import { showGuide } from "@/lib/mosya/guide";
 import { confetti } from "@/lib/mosya/confetti";
 import { peek, say } from "@/lib/mosya/peek";
@@ -367,8 +367,11 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       return;
     }
     if (presetCover) {
-      setCovers([presetCover]);
-      if (!ownPhoto || photo !== ownPhoto) setPhoto(presetCover);
+      // Бег, кино, Hyrox — фирменный набор на выбор; остальные — одна обложка раздела.
+      const set = isOwn ? [] : coverSetFor(categorySlug, trainingTypeSlug, business);
+      const list = set.length ? set : [presetCover];
+      setCovers(list);
+      if (!ownPhoto && (!photo || !list.includes(photo))) setPhoto(list[0]!);
       return;
     }
     if (!iconSrc) return;
@@ -864,12 +867,12 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                       <button
                         key={c.slice(-40) + i}
                         className={`aic ${photo === c ? "on" : ""}`}
-                        style={{ animationDelay: `${i * 0.08}s`, ...(isPresetCover(c) ? { gridColumn: "1 / -1", aspectRatio: "1.5" } : {}) }}
+                        style={{ animationDelay: `${i * 0.05}s`, ...(isPresetCover(c) && covers.length === 1 ? { gridColumn: "1 / -1", aspectRatio: "1.5" } : isPresetCover(c) ? { aspectRatio: "3 / 4" } : {}) }}
                         onClick={() => setPhoto(c)}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img className="cv" src={c} alt={`Обложка ${i + 1}`} />
-                        <span className="aib">✦ Мося</span>
+                        {photo === c && <span className="aib">✓ Выбрано</span>}
                       </button>
                     ))}
               </div>
@@ -1250,7 +1253,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       {cropSrc && (
         <PhotoCropModal
           src={cropSrc}
-          aspectRatio={2 / 3}
+          aspectRatio={3 / 4}
           title="Обложка встречи"
           hint="Двигай фото пальцем, двумя пальцами — приблизить. Так обложка будет выглядеть на карточке"
           preview={{ title }}
