@@ -39,7 +39,7 @@ async function fixture(page: Page) {
       : path === "/api/me/pending-applications" ? { count: 2 }
       : path === "/api/events" || path === "/api/city-events" || path === "/api/me/events" ? { items: events, events }
       : /^\/api\/events\/test-\d+$/.test(path) ? events[0]
-      : path === "/api/people" ? { items: [person, { ...person, id: "p2", name: "Марина", age: 27 }] }
+      : path === "/api/people" ? { items: [person, { ...person, id: "p2", name: "Марина", age: 27 }].map((p) => ({ ...p, interests: ["Кофе", "Бег"], sharedInterests: ["Кофе"], sharedCount: 1 })) }
       : path === "/api/conversations" ? { items: [{ conversationId: "c1", eventTitle: null, eventStatus: null, unreadCount: 1, otherUser: { id: "other", name: "Алексей", avatarUrl: photo }, lastMessage: { content: "Давай встретимся вечером", createdAt: "2026-11-06T12:00:00Z" } }] }
       : path === "/api/categories" ? { categories: [{ slug: "coffee", name: "Кофе", emoji: null }], trainingTypes: [] }
       : path === "/api/subscriptions" ? { active: false }

@@ -381,7 +381,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
 
   const photos = person.photos?.length ? person.photos : person.avatarUrl ? [person.avatarUrl] : [];
   const common = person.commonInterests ?? [];
-  const others = person.interests.filter((i) => !common.includes(i));
+  const others = (person.interests ?? []).filter((i) => !common.includes(i));
   const meets = person.completedMeetingsCount;
 
   return (
