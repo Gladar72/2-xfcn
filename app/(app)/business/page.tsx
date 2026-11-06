@@ -4,24 +4,18 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useGuide } from "@/lib/mosya/guide";
-import { EmptyIll, HeroCard, Ic, Overlay, Screen, costShort, dayShort, eventIcon, type HeroEvent } from "@/components/proto/ui";
+import { EmptyIll, Ic, Screen, costShort, dayShort, type HeroEvent } from "@/components/proto/ui";
+import { KI, bg } from "@/components/proto/k";
+import { cityIn } from "@/components/promotions/Promote";
 import { CalendarSheet } from "@/components/proto/pickers";
 import { cityDates } from "@/lib/events/local-dates";
 import { goBack } from "@/lib/nav/back";
-import { Cover } from "@/components/proto/ui";
-import { KIND_LABEL, cityEventIcon, type CityEvent } from "@/lib/city-events";
+import { KIND_LABEL, type CityEvent } from "@/lib/city-events";
 import { bizCategoryCounts, bizCategoryIcon, matchesBizCategory } from "@/lib/events/biz-categories";
 
 /** Фильтр «Когда». */
 type When = "all" | "today" | "tomorrow" | "weekend" | "date";
-const WHEN: [When, string][] = [
-  ["all", "Все дни"],
-  ["today", "Сегодня"],
-  ["tomorrow", "Завтра"],
-  ["weekend", "Выходные"],
-];
 const WD = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
-const VIEW_KEY = "mesto_biz_view";
 
 function isoPlus(days: number) {
   const d = new Date();
@@ -30,12 +24,14 @@ function isoPlus(days: number) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-/** «Сегодня» / «Завтра» / «Сб, 1 нояб». */
+/** «Сегодня, 6 ноября» / «Завтра, суббота 7» / «Пн, 9 ноября» — как в прототипе. */
+const WDL = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
 function dayTitle(iso: string, today: string, tomorrow: string) {
-  if (iso === today) return "Сегодня";
-  if (iso === tomorrow) return "Завтра";
   const d = new Date(`${iso}T12:00:00`);
-  return `${WD[d.getDay()]}, ${dayShort(iso)}`;
+  const dm = d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  if (iso === today) return `Сегодня, ${dm}`;
+  if (iso === tomorrow) return `Завтра, ${WDL[d.getDay()]} ${d.getDate()}`;
+  return `${WD[d.getDay()]}, ${dm}`;
 }
 
 function inWhen(iso: string, endIso: string | null, when: When, pick: string | null, days: ReturnType<typeof cityDates>) {
@@ -62,20 +58,8 @@ export default function BusinessPage() {
   const [pick, setPick] = useState<string | null>(null);
   const [calOpen, setCalOpen] = useState(false);
   const [free, setFree] = useState(false);
-  const [view, setView] = useState<"cards" | "list">("cards");
+  const [searchOpen, setSearchOpen] = useState(false);
   useGuide("business");
-
-  useEffect(() => {
-    try {
-      if (localStorage.getItem(VIEW_KEY) === "list") setView("list");
-    } catch {}
-  }, []);
-  function changeView(v: "cards" | "list") {
-    setView(v);
-    try {
-      localStorage.setItem(VIEW_KEY, v);
-    } catch {}
-  }
 
   useEffect(() => {
     // Все страницы ленты заведений (раньше грузилась только первая — 20 событий).
@@ -127,7 +111,6 @@ export default function BusinessPage() {
   );
   const cityTagged = baseCity.map((c) => ({ c, tag: { title: c.title, kind: c.kind } }));
   const counts = bizCategoryCounts([...baseEvents, ...cityTagged.map((x) => x.tag)]);
-  const total = baseEvents.length + baseCity.length;
   const shownEvents = events === null ? null : baseEvents.filter((e) => matchesBizCategory(e, cat));
   const shownCity = cityTagged.filter((x) => matchesBizCategory(x.tag, cat)).map((x) => x.c);
   const filtered = !!cat || when !== "all" || free || !!query;
@@ -156,88 +139,69 @@ export default function BusinessPage() {
 
   const mapDate = when === "today" || when === "tomorrow" || when === "weekend" ? `&date=${when}` : "";
 
+  const city = events?.[0]?.city ?? cityEv[0]?.city ?? null;
+  const QD: [When, string][] = [
+    ["today", "Сегодня"],
+    ["tomorrow", "Завтра"],
+    ["weekend", "Выходные"],
+  ];
+
   return (
     <Screen id="business" anim="in">
-      <div className="bar-top">
-        <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад">
-          <Ic n="back" />
+      <div className="k-top">
+        <button className="k-rb k-g k-pr" onClick={() => goBack(router, "/feed")} aria-label="Назад">
+          <KI n="back" />
         </button>
-        <span />
+        <div className="k-pair k-g">
+          <Link className="k-pr" href={`/map?business=only${cat ? `&cat=${cat}` : ""}${mapDate}`} aria-label="На карте">
+            <KI n="map" />
+          </Link>
+          <i />
+          <button className="k-pr" onClick={() => setSearchOpen((v) => !v)} aria-label="Поиск">
+            <KI n="search" />
+          </button>
+        </div>
       </div>
-      <h1 className="t" style={{ marginTop: 18 }}>
-        Для <em>бизнеса</em>
+      <h1 className="k-h1" style={{ marginTop: 18 }}>
+        Афиша <em>заведений</em>
       </h1>
-      <p className="muted" style={{ margin: "8px 0 0", fontSize: 15, lineHeight: 1.5 }}>
-        Посетить или создать событие — концерты, дегустации, мастер-классы. Все события на общей карте города.
-      </p>
-      <Link className="btn v" style={{ marginTop: 16 }} href="/create?business=true">
-        <Ic n="plus" />
-        Создать событие
-      </Link>
-      <div className="how">
-        {(
-          [
-            ["1", "Создаёте событие", "с фото, временем и ценой билета"],
-            ["2", "Принимаете заявки", "гость получает номер билета"],
-            ["3", "Отмечаете на входе", "оплата — вам лично, на месте"],
-          ] as const
-        ).map(([n, b, s]) => (
-          <div key={n} className="gl">
-            <span className="k">{n}</span>
-            <b>{b}</b>
-            <span>{s}</span>
-          </div>
-        ))}
-      </div>
+      <p className="k-sub2">Кафе, бары и площадки{city ? ` в ${cityIn(city)}` : " рядом"}</p>
 
-      {/* Поиск и вид: карточки / списком. */}
-      <div className="bzf-top">
-        <label className="sfield gl">
+      {(searchOpen || q) && (
+        <label className="sfield gl" style={{ marginBottom: 12 }}>
           <Ic n="search" c="s" />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Событие или заведение" enterKeyHint="search" />
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Событие или заведение" enterKeyHint="search" />
           {q && (
             <button type="button" onClick={() => setQ("")} aria-label="Очистить">
               <Ic n="close" c="xs" />
             </button>
           )}
         </label>
-        <div className="bzf-view gl" role="tablist" aria-label="Вид">
-          <button type="button" className={view === "cards" ? "on" : ""} onClick={() => changeView("cards")} aria-label="Карточки">
-            <Ic n="grid" c="s" />
-          </button>
-          <button type="button" className={view === "list" ? "on" : ""} onClick={() => changeView("list")} aria-label="Списком">
-            <Ic n="list" c="s" />
-          </button>
-        </div>
-      </div>
+      )}
 
-      <span className="bzf-l">Раздел</span>
-      <div className="cats">
-        <button className={`cat ${!cat ? "on" : "gl"}`} style={{ paddingLeft: 16 }} onClick={() => setCat(null)}>
-          Все <span style={{ opacity: 0.55, marginLeft: 2 }}>{total}</span>
+      <div className="k-hs" style={{ gap: 8 }}>
+        <button className={`k-chip k-g k-pr ${!cat ? "k-on" : ""}`} onClick={() => setCat(null)}>
+          Все
         </button>
-        {counts.map(({ cat: c, count }) => (
-          <button key={c.key} className={`cat ${cat === c.key ? "on" : "gl"}`} onClick={() => setCat(cat === c.key ? null : c.key)}>
+        {counts.map(({ cat: c }) => (
+          <button key={c.key} className={`k-chip k-g k-pr ${cat === c.key ? "k-on" : ""}`} onClick={() => setCat(cat === c.key ? null : c.key)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={bizCategoryIcon(c)} alt="" />
+            <img src={bizCategoryIcon(c)} alt="" style={{ width: 20, height: 20 }} />
             {c.label}
-            <span style={{ opacity: 0.55, marginLeft: 2 }}>{count}</span>
           </button>
         ))}
       </div>
-
-      <span className="bzf-l">Когда</span>
-      <div className="cats">
-        {WHEN.map(([k, label]) => (
-          <button key={k} className={`cat np ${when === k ? "on" : "gl"}`} onClick={() => setWhen(k)}>
+      <div className="k-qd">
+        <button className={`k-chip k-g k-pr k-qcal ${when === "date" ? "k-on" : ""}`} onClick={() => setCalOpen(true)} aria-label="Календарь">
+          <KI n="cal" />
+          <span>{when === "date" && pick ? dayShort(pick) : ""}</span>
+        </button>
+        {QD.map(([k, label]) => (
+          <button key={k} className={`k-chip k-g k-pr ${when === k ? "k-on" : ""}`} onClick={() => setWhen(when === k ? "all" : k)}>
             {label}
           </button>
         ))}
-        <button className={`cat np ${when === "date" ? "on" : "gl"}`} onClick={() => setCalOpen(true)}>
-          <Ic n="cal" c="xs" />
-          {when === "date" && pick ? dayShort(pick) : "Дата"}
-        </button>
-        <button className={`cat np ${free ? "on" : "gl"}`} onClick={() => setFree(!free)}>
+        <button className={`k-chip k-g k-pr ${free ? "k-on" : ""}`} onClick={() => setFree(!free)}>
           Бесплатно
         </button>
       </div>
@@ -252,35 +216,24 @@ export default function BusinessPage() {
       )}
 
       {events === null && (
-        <div style={{ display: "grid", gap: 12, marginTop: 16 }}>
-          {[0, 1].map((i) => (
-            <div key={i} className="sk" style={{ height: 290, borderRadius: 32 }} />
+        <div style={{ display: "grid", gap: 8, marginTop: 16 }}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="sk" style={{ height: 136, borderRadius: 26 }} />
           ))}
         </div>
       )}
-      {groups.map(({ iso, list }) => (
-        <div key={iso}>
-          <div className="sec">
-            <b>{dayTitle(iso, days.today, days.tomorrow)}</b>
-            <span>
-              {list.length} {plural(list.length, "событие", "события", "событий")}
-            </span>
-          </div>
-          {view === "cards" ? (
-            <div style={{ display: "grid", gap: 12 }}>
-              {list.map((e) => (
-                <HeroCard key={e.id} e={e} full />
-              ))}
-            </div>
-          ) : (
-            <div style={{ display: "grid", gap: 8, gridTemplateColumns: "minmax(0, 1fr)" }}>
+      <div className="K">
+        <div className="k-list k-afl">
+          {groups.map(({ iso, list }) => (
+            <div key={iso} className="k-dgrp">
+              <h4 className="k-dayh">{dayTitle(iso, days.today, days.tomorrow)}</h4>
               {list.map((e) => (
                 <BizRow key={e.id} e={e} />
               ))}
             </div>
-          )}
+          ))}
         </div>
-      ))}
+      </div>
       {events !== null && events.length > 0 && shownEvents?.length === 0 && shownCity.length === 0 && (
         <div className="empty" style={{ marginTop: 16 }}>
           <b>Ничего не нашли</b>
@@ -290,37 +243,38 @@ export default function BusinessPage() {
           </button>
         </div>
       )}
-      {events?.length === 0 && (
+      {events?.length === 0 && shownCity.length === 0 && (
         <div className="empty">
           <EmptyIll />
-          <b>Пока нет событий</b>
-          <span>Стань первым — создай концерт, дегустацию или мастер-класс.</span>
+          <b>Заведения {city ? `в ${cityIn(city)}` : "рядом"} пока не публиковали события</b>
+          <span>Как только появятся — покажем здесь и на карте.</span>
         </div>
       )}
       {shownCity.length > 0 && (
-        <>
-          <div className="sec">
-            <b>Что ещё в городе</b>
-            <span>{shownCity.length}</span>
-          </div>
-          <div style={{ display: "grid", gap: 10 }}>
+        <div className="K">
+          <div className="k-dgrp">
+            <h4 className="k-dayh">Что ещё в городе</h4>
             {shownCity.map((c) => (
-              <Link key={c.id} href={`/city/${c.id}`} className="gl cityrow">
-                <Cover photoUrl={c.photoUrl} icon={cityEventIcon(c.kind)} cls="cr-ph" thumb={200} />
-                <div className="cr-i">
-                  <small>{KIND_LABEL[c.kind ?? ""] ?? "Событие"}</small>
+              <Link key={c.id} href={`/city/${c.id}`} className="k-afr k-g k-pr">
+                <i style={bg(c.photoUrl, 240)}>{c.priceText && <span className="k-chip k-gw">{c.priceText}</span>}</i>
+                <span className="k-x">
                   <b>{c.title}</b>
-                  <span>
-                    {cityDay(c)}
-                    {c.placeName ? ` · ${c.placeName}` : ""}
-                  </span>
-                </div>
-                {c.priceText && <span className="cr-p">{c.priceText}</span>}
+                  <small>
+                    {cityDay(c)} · {KIND_LABEL[c.kind ?? ""] ?? "Событие"}
+                  </small>
+                  {c.placeName && <small className="k-vn">{c.placeName}</small>}
+                </span>
               </Link>
             ))}
           </div>
-        </>
+        </div>
       )}
+
+      {/* Своё событие для заведения — внизу афиши. */}
+      <Link className="btn v" style={{ marginTop: 22 }} href="/create?business=true">
+        <Ic n="plus" />
+        Создать событие для заведения
+      </Link>
       <div style={{ height: 90 }} />
       <CalendarSheet
         open={calOpen}
@@ -333,13 +287,6 @@ export default function BusinessPage() {
           setCalOpen(false);
         }}
       />
-      {/* Как на главной — по центру внизу: карта только с событиями заведений, с теми же фильтрами. */}
-      <Overlay>
-        <Link className="mapfab" href={`/map?business=only${cat ? `&cat=${cat}` : ""}${mapDate}`}>
-          <Ic n="map" />
-          Карта
-        </Link>
-      </Overlay>
     </Screen>
   );
 }
@@ -349,28 +296,18 @@ function BizRow({ e }: { e: HeroEvent }) {
   const left = Math.max(0, e.seatsTotal - e.seatsTaken);
   const price = e.businessPricingType === "free" ? "Бесплатно" : costShort(e);
   return (
-    <Link href={`/events/${e.id}`} className="bzrow gl">
-      <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} cls="th" thumb={160} />
-      <div className="i">
+    <Link href={`/events/${e.id}`} className="k-afr k-g k-pr">
+      <i style={bg(e.photoUrl, 240)}>{price && <span className="k-chip k-gw">{left > 0 ? price : "Мест нет"}</span>}</i>
+      <span className="k-x">
         <b>{e.title}</b>
-        <span>
+        <small>
           {e.eventTime.slice(0, 5)}
           {e.placeName ? ` · ${e.placeName}` : ""}
-          {left > 0 ? ` · ${left} ${plural(left, "место", "места", "мест")}` : " · мест нет"}
-        </span>
-      </div>
-      <span className="bzp">{price}</span>
+        </small>
+        {e.organizer?.name && <small className="k-vn">{e.organizer.name}</small>}
+      </span>
     </Link>
   );
-}
-
-function plural(n: number, one: string, few: string, many: string) {
-  const a = Math.abs(n) % 100;
-  const b = a % 10;
-  if (a > 10 && a < 20) return many;
-  if (b > 1 && b < 5) return few;
-  if (b === 1) return one;
-  return many;
 }
 
 function cityDay(c: CityEvent) {
