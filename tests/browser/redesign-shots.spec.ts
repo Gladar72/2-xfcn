@@ -45,6 +45,7 @@ async function fixture(page: Page) {
           categories: [["coffee", "Попить кофе"], ["breakfast", "Совместный завтрак"], ["dinner", "Поужинать"], ["cinema", "Кино"], ["walk", "Прогулка"], ["party", "Вечеринка"], ["training", "Совместная тренировка"], ["active", "Активный отдых"], ["custom", "Своё предложение"]].map(([slug, name], i) => ({ id: `c${i}`, slug, name, emoji: null })),
           trainingTypes: [["running", "Бег"], ["padel", "Падел"], ["gym", "Зал"], ["hyrox", "HYROX"], ["football", "Футбол"], ["cycling", "Велосипед"], ["yoga", "Йога"]].map(([slug, name], i) => ({ id: `t${i}`, slug, name, emoji: null })),
         }
+      : path === "/api/places" ? { items: [["Кофемания", "ул. Республики, 14", 4.9], ["Surf Coffee", "ул. Ленина, 2а", 4.8], ["Coffee Like", "ул. Мельникайте, 72", 4.7]].map(([name, address, rating]) => ({ name, address, rating, reviews: 120, latitude: 57.15, longitude: 65.53 })) }
       : path === "/api/subscriptions" ? { active: true, plan: "start", events: { used: 1, limit: 3 }, boosts: { used: 0, limit: 1 } }
       : { items: [], events: [], people: [], count: 0 };
     await route.fulfill({ json });
@@ -86,6 +87,8 @@ for (const [name, url] of [["mk", "/create"], ["mkbiz", "/create?business=true"]
       if (await opt.count()) await opt.click({ timeout: 2000 }).catch(() => {});
       const title = page.locator("section.scr:not(.ghost) input[maxlength='100']").first();
       if (await title.count()) await title.fill("Тестовая встреча").catch(() => {});
+      const place = page.locator("section.scr:not(.ghost) button.plr").first();
+      if (await place.count()) await place.click({ timeout: 2000 }).catch(() => {});
       const about = page.locator("section.scr:not(.ghost) textarea").first();
       if (await about.count()) await about.fill("Пьём кофе и знакомимся, всех ждём").catch(() => {});
       const next = page.getByRole("button", { name: /Далее|Дальше|Продолжить/ }).last();
