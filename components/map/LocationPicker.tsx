@@ -29,10 +29,12 @@ interface LocationPickerProps {
    * пользователя: значок выбора места должен меняться вместе с типом
    * события), по умолчанию — обычный пин "Своё предложение". */
   markerIconSrc?: string;
+  /** Отступ кнопок «+ − где я» сверху (на весь экран — ниже кнопок Telegram). */
+  controlsTop?: number | string;
 }
 
 const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень
-const DEFAULT_MARKER_ICON = "/brand/markers/v2/pin-custom.png";
+const DEFAULT_MARKER_ICON = "/brand/markers/pin-ink.svg";
 
 export function LocationPicker({
   initialCenter,
@@ -41,6 +43,7 @@ export function LocationPicker({
   externalCoords,
   heightPx,
   markerIconSrc = DEFAULT_MARKER_ICON,
+  controlsTop = 10,
 }: LocationPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onPickRef = useRef(onPick);
@@ -80,9 +83,9 @@ export function LocationPicker({
         // Пропорции разные у разных иконок — свой пин почти квадратный
         // (≈944×1229), у бизнес-пина 1:1. Кончик пина — у нижнего края.
         const width = 36;
-        const height = markerIconSrc.includes("/v2/") ? Math.round(width * 1.25) : markerIconSrc.includes("marker-business") ? width : Math.round(width * (1229 / 944));
+        const height = markerIconSrc.includes("/v2/") || markerIconSrc.endsWith(".svg") ? Math.round(width * 1.25) : markerIconSrc.includes("marker-business") ? width : Math.round(width * (1229 / 944));
         const el = document.createElement("div");
-        el.style.cssText = `width:${width}px;height:${height}px;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));`;
+        el.style.cssText = `width:${width}px;height:${height}px;filter:drop-shadow(0 6px 10px rgba(23,20,31,0.3));`;
         el.innerHTML = `<img src="${markerIconSrc}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;" />`;
         marker = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(coordinates).addTo(activeMap);
       }
@@ -160,7 +163,7 @@ export function LocationPicker({
         // touch-action: none — жесты (щипок, перетаскивание) достаются карте, а не прокрутке страницы/Telegram.
         style={{ ...(heightPx ? { height: heightPx, minHeight: heightPx } : { minHeight: 280 }), touchAction: "none" }}
       />
-      <div style={{ position: "absolute", right: 10, top: 10, display: "flex", flexDirection: "column", gap: 8, zIndex: 5 }}>
+      <div style={{ position: "absolute", right: 10, top: controlsTop, display: "flex", flexDirection: "column", gap: 8, zIndex: 5 }}>
         <button type="button" style={btn} onClick={() => zoomBy(1)} aria-label="Приблизить">+</button>
         <button type="button" style={btn} onClick={() => zoomBy(-1)} aria-label="Отдалить">−</button>
         <button type="button" style={btn} onClick={locateMe} aria-label="Где я">

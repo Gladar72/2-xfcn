@@ -45,6 +45,9 @@ async function fixture(page: Page) {
           categories: [["coffee", "Попить кофе"], ["breakfast", "Совместный завтрак"], ["dinner", "Поужинать"], ["cinema", "Кино"], ["walk", "Прогулка"], ["party", "Вечеринка"], ["training", "Совместная тренировка"], ["active", "Активный отдых"], ["custom", "Своё предложение"]].map(([slug, name], i) => ({ id: `c${i}`, slug, name, emoji: null })),
           trainingTypes: [["running", "Бег"], ["padel", "Падел"], ["gym", "Зал"], ["hyrox", "HYROX"], ["football", "Футбол"], ["cycling", "Велосипед"], ["yoga", "Йога"]].map(([slug, name], i) => ({ id: `t${i}`, slug, name, emoji: null })),
         }
+      : path === "/api/events/test-0/ticket" ? { ticketCode: "FRM-007", checkedInAt: null, conversationId: "c1", event: { id: "test-0", title: "Вечеринка FORMA", photoUrl: photo, eventDate: "2026-11-08", eventTime: "23:00", eventEndTime: "04:00", placeName: "FORMA lounge", address: "ул. Республики, 14", latitude: 57.15, longitude: 65.53, status: "published", organizerName: "FORMA lounge", businessPricingType: "ticket", businessPricingDetails: "1500 ₽" } }
+      : path === "/api/events/test-0/tickets" ? { event: { title: "Вечеринка FORMA" }, tickets: [["Олег", "FRM-004", "2026-11-06T18:04:00Z"], ["Аня", "FRM-005", "2026-11-06T18:06:00Z"], ["Макс", "FRM-006", null], ["Даша", "FRM-007", null]].map(([name, code, at], i) => ({ userId: `u${i}`, name, avatarUrl: photo, ticketCode: code, checkedInAt: at })) }
+      : path === "/api/events/test-0/applications" ? { event: { title: "Кофе и разговоры", seatsTotal: 4, seatsTaken: 2 }, applications: [["Даша", 27, "pending"], ["Макс", 29, "pending"], ["Олег", 31, "accepted"]].map(([name, age, status], i) => ({ id: `a${i}`, status, applicant: { id: `p${i}`, name, avatarUrl: photo, age, bio: null, ratingAvg: 4.8, completedMeetingsCount: 3 } })) }
       : path === "/api/places" ? { items: [["Кофемания", "ул. Республики, 14", 4.9], ["Surf Coffee", "ул. Ленина, 2а", 4.8], ["Coffee Like", "ул. Мельникайте, 72", 4.7]].map(([name, address, rating]) => ({ name, address, rating, reviews: 120, latitude: 57.15, longitude: 65.53 })) }
       : path === "/api/subscriptions" ? { active: true, plan: "start", events: { used: 1, limit: 3 }, boosts: { used: 0, limit: 1 } }
       : { items: [], events: [], people: [], count: 0 };
@@ -57,7 +60,7 @@ const ROUTES = [
   ["people", "/people"], ["chats", "/chats"], ["notif", "/notifications"], ["search", "/search"],
   ["event", "/events/test-0"], ["create", "/create"], ["settings", "/settings"], ["plans", "/subscriptions"],
   ["biz", "/business"], ["ticket", "/events/test-0/ticket"], ["tickets", "/events/test-0/tickets"],
-  ["requests", "/events/test-0/applications"], ["edit", "/profile/edit"], ["login", "/login"],
+  ["requests", "/events/test-0/applications"], ["editev", "/events/test-0/edit"], ["edit", "/profile/edit"], ["login", "/login"],
   ["onboarding", "/onboarding"], ["offer", "/legal/offer"],
 ] as const;
 for (const [name, url] of ROUTES) {
