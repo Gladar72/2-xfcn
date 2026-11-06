@@ -219,13 +219,19 @@ function unregister(e: Entry) {
   }
 }
 
-export function Creature({ size: cssSize, variant = "p", className }: { size: number; variant?: Variant; className?: string }) {
+/**
+ * size — размер в CSS-пикселях; без него капля заполняет родителя
+ * (по меньшей стороне), например кружок аватарки анонима.
+ */
+export function Creature({ size: cssSize, variant = "p", className }: { size?: number; variant?: Variant; className?: string }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
+    const parent = c.parentElement;
+    const px = cssSize ?? Math.max(24, Math.min(parent?.clientWidth || 48, parent?.clientHeight || parent?.clientWidth || 48));
     const dpr = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
-    c.width = c.height = Math.round(cssSize * dpr);
+    c.width = c.height = Math.round(px * dpr);
     const ctx = c.getContext("2d");
     if (!ctx) return;
     ctx.imageSmoothingEnabled = true;
@@ -234,5 +240,6 @@ export function Creature({ size: cssSize, variant = "p", className }: { size: nu
     register(e);
     return () => unregister(e);
   }, [cssSize, variant]);
-  return <canvas ref={ref} className={className} style={{ width: cssSize, height: cssSize }} aria-hidden />;
+  const st = cssSize ? { width: cssSize, height: cssSize } : { width: "100%", height: "100%", objectFit: "contain" as const, maxWidth: "100%", maxHeight: "100%" };
+  return <canvas ref={ref} className={className} style={{ display: "block", ...st }} aria-hidden />;
 }

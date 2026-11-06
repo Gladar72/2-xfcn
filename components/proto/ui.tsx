@@ -9,8 +9,9 @@ import { anonymousTag } from "@/lib/events/anonymity";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import { Creature } from "@/components/brand/Creature";
 import { Icon, type IconName } from "@/components/brand/Icon";
-import { characterSvg, type Face, type Palette, type Shape } from "@/components/brand/characters";
+import type { Face, Palette, Shape } from "@/components/brand/characters";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { photoThumb } from "@/lib/photos/thumb";
 import { coverSources } from "@/lib/photos/cover-sources";
@@ -22,9 +23,13 @@ export function Ic({ n, c }: { n: IconName; c?: "s" | "xs" | string }) {
 }
 
 /** Живой персонаж-эмоция (облачко, звёздочка…) из прототипа. */
+/**
+ * Персонаж в интерфейсе — теперь везде наш Мося (живая капля брендбука 2026),
+ * без цветных фигурок. «hidden» (аноним) — капля без глаз.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function Chr({ shape, pal, face = "smile", seed }: { shape: Shape; pal: Palette; face?: Face; seed?: number }) {
-  const html = useMemo(() => characterSvg(shape, pal, face, seed), [shape, pal, face, seed]);
-  return <span style={{ display: "contents" }} dangerouslySetInnerHTML={{ __html: html }} />;
+  return <Creature variant={face === "hidden" ? "p" : "e"} />;
 }
 
 export interface Person {
@@ -428,26 +433,12 @@ export function Toast({ text }: { text: string | null }) {
 }
 
 /** Иллюстрация пустого состояния: три персонажа-эмоции (emptyIll прототипа). */
-export function EmptyIll({
-  a = ["flower", "sky", "calm"],
-  b = ["clover", "violet", "wow"],
-  c = ["star", "peach", "smile"],
-}: {
-  a?: [Parameters<typeof Chr>[0]["shape"], Parameters<typeof Chr>[0]["pal"], Parameters<typeof Chr>[0]["face"]];
-  b?: [Parameters<typeof Chr>[0]["shape"], Parameters<typeof Chr>[0]["pal"], Parameters<typeof Chr>[0]["face"]];
-  c?: [Parameters<typeof Chr>[0]["shape"], Parameters<typeof Chr>[0]["pal"], Parameters<typeof Chr>[0]["face"]];
-}) {
+/** Иллюстрация пустого экрана — Мося (раньше — три цветные фигурки). */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function EmptyIll(_props: { a?: [Shape, Palette, Face]; b?: [Shape, Palette, Face]; c?: [Shape, Palette, Face] }) {
   return (
-    <div className="ill">
-      <span style={{ left: 6, top: 36, width: 70, height: 70, position: "absolute" }}>
-        <Chr shape={a[0]} pal={a[1]} face={a[2]} />
-      </span>
-      <span style={{ left: 52, top: 0, width: 86, height: 86, position: "absolute" }}>
-        <Chr shape={b[0]} pal={b[1]} face={b[2]} />
-      </span>
-      <span style={{ left: 112, top: 52, width: 62, height: 62, position: "absolute" }}>
-        <Chr shape={c[0]} pal={c[1]} face={c[2]} />
-      </span>
+    <div className="ill" style={{ display: "grid", placeItems: "center", height: 120 }}>
+      <Creature size={110} variant="e" />
     </div>
   );
 }
