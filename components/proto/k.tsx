@@ -84,7 +84,9 @@ export function KHc({ e, cta, tag }: { e: HeroEvent & { myApplicationStatus?: st
   const when = `${dayShort(e.eventDate)}, ${e.eventTime.slice(0, 5)}`;
   const who = e.isBusiness
     ? `${left > 0 ? `${left} ${plural(left, "место", "места", "мест")}` : "мест нет"}`
-    : e.isAnonymous || e.organizerHidden || !e.organizer
+    : e.isAnonymous || e.organizerHidden
+      ? "анонимно"
+      : !e.organizer
       ? null
       : e.organizer.name;
   const kind = e.trainingType?.name ?? e.category?.name;
@@ -99,7 +101,9 @@ export function KHc({ e, cta, tag }: { e: HeroEvent & { myApplicationStatus?: st
       ? e.isPromoted || e.isBoosted
         ? "↑ В топе"
         : e.category?.name ?? "Афиша"
-      : `${going} из ${max}${e.isAnonymous ? " · анонимно" : kind ? ` · ${kind.toLowerCase()}` : ""}`;
+      : e.isAnonymous || e.organizerHidden
+        ? `${going} из ${max} · анонимно`
+        : `${going} из ${max}${kind ? ` · ${kind.toLowerCase()}` : ""}`;
   const status =
     e.isMine ? "Моя встреча" : e.myApplicationStatus === "approved" ? "Ты идёшь" : e.myApplicationStatus === "pending" ? "Заявка отправлена" : null;
   return (

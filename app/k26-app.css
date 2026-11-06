@@ -215,3 +215,6 @@
 /* Профиль: фото выше и больше, имя и белая плашка тарифа ниже — не режут лицо. */
 .K .k-pp .k-hero2{height:min(600px,78vh)}
 .K .k-pp .k-spacer{height:min(440px,56vh)}
+/* Мося в нижнем меню стоит ровно в вырезе вместе с «+», без покачивания и без ореола вокруг. */
+.P .nav26 .k-crf{animation:none!important}
+.P .nav26 .k-crf{filter:none!important}
