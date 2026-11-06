@@ -136,7 +136,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [categories, setCategories] = useState<Category[]>([]);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
   // Событие для бизнеса — три шага (без «Куда зовёшь?»): сразу «Название и обложка».
-  const [step, setStep] = useState(businessProp ? 2 : 1);
+  // Правка — сначала экран «Редактировать» (шаг 0, как в прототипе), из него — в нужный шаг.
+  const [step, setStep] = useState(editId ? 0 : businessProp ? 2 : 1);
   const [dir, setDir] = useState(1);
   const [toast, setToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -284,7 +285,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       .then((e) => {
         if (e.error) return;
         setBusiness(!!e.isBusiness);
-        if (e.isBusiness) setStep(2);
         setCategorySlug(e.category?.slug ?? null);
         if (e.bizCategory && BIZ_KEYS.has(e.bizCategory)) {
           setBizCategory(e.bizCategory);
@@ -496,6 +496,12 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       return;
     }
     if (step === 1 && (isOwn || (business && bizCategory === "other")) && !title) setTitle(own.trim());
+    if (editId) {
+      // В правке «Готово» возвращает на экран «Редактировать».
+      setDir(-1);
+      setStep(0);
+      return;
+    }
     if (step < 4) {
       setDir(1);
       setStep(step + 1);
@@ -505,10 +511,17 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   function goStep2() {
     setTimeout(() => {
       setDir(1);
-      setStep(2);
+      setStep(editId ? 0 : 2);
     }, 180);
   }
   function back() {
+    if (editId) {
+      if (step > 0) {
+        setDir(-1);
+        setStep(0);
+      } else goBack(router, `/events/${editId}`);
+      return;
+    }
     if (step > (business ? 2 : 1)) {
       setDir(-1);
       setStep(step - 1);
@@ -694,7 +707,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           <button className="k-rb k-g k-pr" onClick={back} aria-label={step > 1 || (chosen && !skipKind) ? "Назад" : "Закрыть"}>
             <KI n={step > 1 || (chosen && !skipKind) ? "back" : "x"} />
           </button>
-          <div className="k-wprog">
+          <div className="k-wprog" style={editId ? { visibility: "hidden" } : undefined}>
             {(business ? [2, 3, 4] : [1, 2, 3, 4]).map((i) => (
               <i key={i} className={chosen && i <= step ? "k-on" : ""} />
             ))}
@@ -727,6 +740,87 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   </button>
                 ))}
               </div>
+            </>
+          )}
+
+          {editId && step === 0 && (
+            <>
+              <h1 className="k-h1">Редактировать</h1>
+              <p className="k-sub2">Участники получат уведомление об изменениях</p>
+              <div className="k-ecw">
+                <div className="k-ecov" style={bgCover(photo)} />
+                <div className="k-ecb">
+                  <span className="k-fl">Обложка · вертикальная 3:4</span>
+                  <button className="k-btn k-l k-pr" onClick={() => fileRef.current?.click()}>
+                    Сменить
+                  </button>
+                  {!business && (
+                    <button className="k-btn k-l k-pr" onClick={() => { setDir(1); setStep(2); }}>
+                      Обложки
+                    </button>
+                  )}
+                </div>
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
+              <label className="k-ftit k-g">
+                <span className="k-fl">Название</span>
+                <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={100} />
+              </label>
+              <div className="k-fgrp">
+                <button className="k-frow k-g k-pr" onClick={() => { setDir(1); setStep(business ? 2 : 1); }}>
+                  <span className="k-fl">{business ? "Раздел" : "Направление"}</span>
+                  <span className="k-fv">{catLabel}</span>
+                  <KI n="chev" />
+                </button>
+                <button className="k-frow k-g k-pr" onClick={() => { setDir(1); setStep(3); }}>
+                  <span className="k-fl">Когда</span>
+                  <span className="k-fv">{sumTxt}</span>
+                  <KI n="chev" />
+                </button>
+                <button className="k-frow k-g k-pr" onClick={() => { setDir(1); setStep(3); }}>
+                  <span className="k-fl">Место</span>
+                  <span className="k-fv">{placeName || "Не выбрано"}</span>
+                  <KI n="chev" />
+                </button>
+                <div className="k-frow k-g k-fst">
+                  <span className="k-fl">{business ? "Гостей" : "Мест"}</span>
+                  <span className="k-stp">
+                    <button className="k-pr" aria-label="Меньше" onClick={() => {
+                      if (seatsTotal <= minSeats) flash(`Меньше ${minSeats} нельзя — уже подтверждены`);
+                      setSeatsTotal((n) => Math.max(minSeats, n - 1));
+                    }}>−</button>
+                    <b>{seatsTotal}</b>
+                    <button className="k-pr" aria-label="Больше" onClick={() => {
+                      if (seatsTotal >= seatsCap) flash(`На твоём тарифе — максимум ${seatsCap}`);
+                      setSeatsTotal((n) => Math.min(seatsCap, n + 1));
+                    }}>+</button>
+                  </span>
+                </div>
+                <button className="k-frow k-g k-pr" onClick={() => { setDir(1); setStep(4); }}>
+                  <span className="k-fl">{business ? "Стоимость" : "Расходы"}</span>
+                  <span className="k-fv">{costLabel}</span>
+                  <KI n="chev" />
+                </button>
+              </div>
+              <label className="k-fdesc k-g">
+                <span className="k-fl">Описание</span>
+                <textarea rows={3} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} />
+              </label>
+              {!business && (
+                <>
+                  <span className="k-lbl">Настройки</span>
+                  <button className="k-tg2 k-g k-pr" onClick={() => setIsAnonymous(!isAnonymous)}>
+                    <span className="k-tgt">
+                      <b>Анонимно</b>
+                      <small>Имя и фото откроются после одобрения</small>
+                    </span>
+                    <span className={`k-sw2 ${isAnonymous ? "k-on" : ""}`} />
+                  </button>
+                </>
+              )}
+              <button className="k-btn k-l k-pr" style={{ marginTop: 14, width: "100%", color: "#C2335A" }} onClick={() => router.push(`/events/${editId}`)}>
+                Отменить встречу — на странице встречи
+              </button>
             </>
           )}
 
@@ -1237,11 +1331,17 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           )}
         </div>
       </div>
-      {chosen && !(step === 1 && !business && !categorySlug) && (
+      {chosen && !(step === 1 && !business && !categorySlug && !editId) && (
         <div className="foot">
-          <button className="k-btn k-d k-pr" onClick={next} disabled={submitting}>
-            {step === 4 ? (submitting ? (editId ? "Сохраняем…" : "Публикуем…") : editId ? "Сохранить изменения" : "Опубликовать") : "Далее"}
-          </button>
+          {editId && step === 0 ? (
+            <button className="k-btn k-d k-pr" onClick={() => publish()} disabled={submitting}>
+              {submitting ? "Сохраняем…" : "Сохранить изменения"}
+            </button>
+          ) : (
+            <button className="k-btn k-d k-pr" onClick={next} disabled={submitting}>
+              {editId ? "Готово" : step === 4 ? (submitting ? "Публикуем…" : "Опубликовать") : "Далее"}
+            </button>
+          )}
         </div>
       )}
 
