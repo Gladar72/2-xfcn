@@ -111,3 +111,10 @@ for (const [name, url] of [["mk", "/create"], ["mkbiz", "/create?business=true"]
     }
   });
 }
+
+// Заставка при открытии (пока идёт вход) — как экран входа через Telegram.
+test("shot splash", async ({ page }, info) => {
+  await page.goto("/");
+  await page.waitForTimeout(900);
+  await page.screenshot({ path: `${DIR}/${info.project.name}-splash.png` });
+});
