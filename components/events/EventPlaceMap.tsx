@@ -25,7 +25,7 @@ interface EventPlaceMapProps {
  * Карта неподвижная — это картинка-превью, а не второй навигатор;
  * нажатие открывает карту приложения с этой встречей, маршрут — кнопкой «Маршрут ↗» (внешние карты).
  */
-export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallbackSrc, markerEvent, onOpen }: EventPlaceMapProps) {
+export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallbackSrc, markerEvent, onOpen, fill }: EventPlaceMapProps & { fill?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -76,7 +76,7 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
       aria-label={`Место встречи на карте${placeName ? `: ${placeName}` : ""}`}
       className="relative block w-full cursor-pointer overflow-hidden text-left"
       // isolation — всё, что рисует карта, остаётся «под» карточкой организатора.
-      style={{ aspectRatio: "1.4", borderRadius: "var(--m-radius)", background: "#F1EAFF", isolation: "isolate", zIndex: 0 }}
+      style={fill ? { height: "100%", background: "#ECEAF0", isolation: "isolate", zIndex: 0 } : { aspectRatio: "1.4", borderRadius: "var(--m-radius)", background: "#F1EAFF", isolation: "isolate", zIndex: 0 }}
     >
       {/* Заглушка под картой — видна, пока тайлы грузятся или если карта не загрузилась. */}
       {(!ready || failed) && (
@@ -101,6 +101,7 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
       <span className="absolute left-3 top-3 rounded bg-white/70 px-1.5 py-0.5 text-[9px] leading-none text-ink-600">
         © OpenStreetMap
       </span>
+      {!fill && (
       <button
         type="button"
         onClick={(e) => {
@@ -111,6 +112,7 @@ export function EventPlaceMap({ latitude, longitude, markerSrc, placeName, fallb
       >
         Маршрут ↗
       </button>
+      )}
     </div>
   );
 }

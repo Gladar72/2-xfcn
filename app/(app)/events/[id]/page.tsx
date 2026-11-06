@@ -681,6 +681,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 <div className="k-mapbox" style={{ display: "block", width: "100%", margin: 0, borderRadius: 0, height: 170, position: "relative" }}>
                   {event.latitude != null && event.longitude != null ? (
                     <EventPlaceMap
+                      fill
                       latitude={event.latitude}
                       longitude={event.longitude}
                       markerSrc={markerIconFor({ isBusiness: event.isBusiness, category: event.category })}
@@ -707,7 +708,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                   ) : (
                     <MiniMap />
                   )}
-                  <span className="k-mapact">
+                </div>
+                <span className="k-mapact">
                     {event.latitude != null && event.longitude != null && (
                       <button className="k-chip k-gw k-pr" onClick={() => openRoute(event.latitude!, event.longitude!)}>
                         <KI n="map" />
@@ -727,15 +729,16 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                         Скопировать адрес
                       </button>
                     )}
-                  </span>
-                </div>
+                </span>
               </>
             )}
           </div>
 
           <div className="k-blk k-gd">
             <div className="k-bh2">
-              <b className="k-bh">{isLive ? "Уже на месте" : "Кто идёт"}</b>
+              <b className="k-bh">
+                {isLive ? "Уже на месте" : "Идут"} · {going}
+              </b>
             </div>
             <div className="k-who" style={{ flexWrap: "wrap" }}>
               {organizer && !hid && (
@@ -962,15 +965,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             </div>
           )}
 
-          {(st === "pending" || st === "none") && !event.isBusiness && !chatId && (
-            <div className="k-blk k-gd" style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <KI n="chat" style={{ width: 20, height: 20, flex: "none" }} />
-              <span style={{ font: "400 13px/1.4 var(--disp)", opacity: 0.9 }}>
-                <b style={{ fontWeight: 500 }}>Чат встречи</b> откроется, когда организатор примет заявку
-              </span>
-            </div>
-          )}
-          <div style={{ height: 100 }} />
+          <div style={{ height: 92 }} />
         </div>
       </div>
 
