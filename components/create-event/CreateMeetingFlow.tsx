@@ -274,6 +274,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         setBusiness(!!e.isBusiness);
         setCategorySlug(e.category?.slug ?? null);
         if (e.bizCategory && BIZ_KEYS.has(e.bizCategory)) setBizCategory(e.bizCategory);
+        if (e.bizCategory === "other") setOwn(String(e.title ?? "").slice(0, 30));
         setTrainingTypeSlug(e.trainingType?.slug ?? null);
         setTitle(e.title ?? "");
         // Бизнес-события и «Своё» хранятся с категорией custom: без этого слова
@@ -322,7 +323,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     ? bizCategoryIcon(bizSection)
     : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/pi/other.svg" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
   const catLabel = bizSection
-    ? bizSection.label
+    ? bizSection.key === "other" && own.trim() ? own.trim() : bizSection.label
     : categorySlug === "training"
       ? trainingTypes.find((t) => t.slug === trainingTypeSlug)?.name ?? "Тренировка"
       : isOwn
@@ -430,6 +431,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   function problem(): string | null {
     if (step === 1 && business) {
       if (!bizCategory) return "Без раздела дальше не пущу 😉 Если не уверен — выбери самое близкое, поменять можно потом.";
+      if (bizCategory === "other" && own.trim().length < 2) return "Напиши одним-двумя словами, что за событие — например «дегустация». Так его найдут поиском";
     } else if (step === 1) {
       if (!categorySlug) return "Выбери, что планируешь.";
       if (categorySlug === "training" && !trainingTypeSlug) return "Выбери вид тренировки.";
@@ -438,7 +440,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     if (step === 2) {
       const t = titleProblem(title);
       if (t) return t;
-      const fullDesc = [isOwn && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". ");
+      const fullDesc = [(isOwn || (business && bizCategory === "other")) && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". ");
       const d = descriptionProblem(fullDesc);
       if (d) return d;
       // Мастер-классы и платные занятия — только через «Для бизнеса».
@@ -467,7 +469,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       flash(h);
       return;
     }
-    if (step === 1 && isOwn && !title) setTitle(own.trim());
+    if (step === 1 && (isOwn || (business && bizCategory === "other")) && !title) setTitle(own.trim());
     if (step < 4) {
       setDir(1);
       setStep(step + 1);
@@ -520,7 +522,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           businessPricingType: business ? bizPricing : undefined,
           businessPricingDetails: business ? (bizPricing === "ticket" ? `${ticketPrice.trim()} ₽` : bizPricing === "custom" ? bizTerms.trim() : undefined) : undefined,
           title: title.trim(),
-          description: [isOwn && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description]
+          description: [(isOwn || (business && bizCategory === "other")) && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description]
             .filter(Boolean)
             .join(". "),
           isBusiness: business,
@@ -701,7 +703,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               </p>
               {business ? (
                 <div className="k-cats">
-                  {BIZ_SECTIONS.map((c) => (
+                  {BIZ_SECTIONS.filter((c) => c.key !== "other").map((c) => (
                     <button key={c.key} className={`k-cat k-g k-pr ${bizCategory === c.key ? "k-on" : ""}`} onClick={() => setBizCategory(c.key)}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={bizCategoryIcon(c)} alt="" />
@@ -709,7 +711,27 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                     </button>
                   ))}
                 </div>
-              ) : (
+              ) : null}
+              {business && (
+                <>
+                  <button className={`k-own k-g k-pr ${bizCategory === "other" ? "k-on" : ""}`} onClick={() => setBizCategory("other")}>
+                    <span className="k-op">
+                      <KI n="plusp" />
+                    </span>
+                    <span>
+                      <b>Свой раздел</b>
+                      <small>Нет подходящего? Напиши сам — дегустация, фестиваль, ярмарка</small>
+                    </span>
+                  </button>
+                  {bizCategory === "other" && (
+                    <label className="k-field k-g" style={{ marginTop: 8 }}>
+                      <input autoFocus value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Например: дегустация, фестиваль" maxLength={30} />
+                      <span className="k-cnt2">{own.length}/30</span>
+                    </label>
+                  )}
+                </>
+              )}
+              {!business && (
                 <div className="k-cats">
                   {cats.map((c) => (
                     <button
