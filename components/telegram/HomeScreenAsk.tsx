@@ -8,12 +8,13 @@ import { Sheet, Toast } from "@/components/proto/ui";
 /**
  * «Быстрый доступ» (шторка прототипа): предлагаем добавить «Место»
  * на экран «Домой», чтобы открывать в одно касание. Показываем, только если
- * Telegram это умеет и ярлыка ещё нет; с первого запуска,
- * после «Позже» — снова через 14 дней.
+ * ярлыка ещё нет: после регистрации, при открытии (раз в сутки) и после 3 минут
+ * в приложении (раз в 6 часов). Если Telegram не умеет ставить значок сам —
+ * подсказываем, где это в меню «⋯».
  */
 const KEY = "mesto_home_ask";
 const LAUNCHES = "mesto_launches";
-const LATER_DAYS = 14;
+const LATER_DAYS = 1;
 
 function read(k: string) {
   try {
@@ -43,30 +44,47 @@ export function HomeScreenAsk() {
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
+  // Умеет ли Telegram сам поставить значок (иначе — подсказка, где это в меню «⋯»).
+  const [native, setNative] = useState(false);
+
   useEffect(() => {
     const w = getTelegramWebApp();
-    if (!w?.checkHomeScreenStatus || !w.isVersionAtLeast?.("8.0")) return;
+    if (!w) return;
+    if (read(KEY) === "added") return;
     const n = Number(read(LAUNCHES) ?? "0") + 1;
     write(LAUNCHES, String(n));
+    const canNative = !!w.addToHomeScreen && !!w.isVersionAtLeast?.("8.0");
+    setNative(canNative);
     const added = () => {
       write(KEY, "added");
       setOpen(false);
       setToast("Добавлено на экран «Домой»");
       setTimeout(() => setToast(null), 2600);
     };
-    w.onEvent("homeScreenAdded", added);
-    const last = read(KEY);
-    const due = n >= 1 && last !== "added" && (!last || Date.now() - Number(last) > LATER_DAYS * 864e5);
-    let t = 0;
-    if (due) {
+    if (canNative) w.onEvent("homeScreenAdded", added);
+
+    // Когда показываем: сразу после регистрации (первое открытие), при открытии сервиса
+    // (не чаще раза в сутки) и ещё раз, если человек провёл в приложении 3 минуты (не чаще раза в 6 часов).
+    const last = Number(read(KEY) ?? "0") || 0;
+    const ago = Date.now() - last;
+    const show = (ms: number) => window.setTimeout(() => {
+      write(KEY, String(Date.now()));
+      setOpen(true);
+    }, ms);
+    const timers: number[] = [];
+    const go = () => {
+      if (n === 1 || ago > LATER_DAYS * 864e5) timers.push(show(2500));
+      else if (ago > 6 * 36e5) timers.push(show(3 * 60e3));
+    };
+    if (canNative && w.checkHomeScreenStatus) {
       w.checkHomeScreenStatus((status) => {
-        if (status === "missed") t = window.setTimeout(() => setOpen(true), 2500);
         if (status === "added") write(KEY, "added");
+        else go();
       });
-    }
+    } else go();
     return () => {
-      window.clearTimeout(t);
-      w.offEvent("homeScreenAdded", added);
+      timers.forEach((t) => window.clearTimeout(t));
+      if (canNative) w.offEvent("homeScreenAdded", added);
     };
   }, []);
 
@@ -96,16 +114,22 @@ export function HomeScreenAsk() {
           </span>
         </div>
         <div style={{ display: "grid", gap: 10 }}>
-          <button
-            className="btn v"
-            onClick={() => {
-              write(KEY, String(Date.now()));
-              setOpen(false);
-              addToHome();
-            }}
-          >
-            Добавить
-          </button>
+          {native ? (
+            <button
+              className="btn v"
+              onClick={() => {
+                write(KEY, String(Date.now()));
+                setOpen(false);
+                addToHome();
+              }}
+            >
+              Добавить
+            </button>
+          ) : (
+            <p className="muted" style={{ margin: 0, fontSize: 14, lineHeight: 1.5, textAlign: "center" }}>
+              Нажми «⋯» вверху справа → «Добавить на экран „Домой“»
+            </p>
+          )}
           <button className="btn o" onClick={later}>
             Позже
           </button>
