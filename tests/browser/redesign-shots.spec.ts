@@ -77,17 +77,17 @@ for (const [name, url] of [["mk", "/create"], ["mkbiz", "/create?business=true"]
     await page.waitForTimeout(3000);
     for (let i = 0; i < 7; i++) {
       await page.screenshot({ path: `${DIR}/${info.project.name}-${name}${i}.png` });
-      const kind = page.locator("section.scr:not(.ghost) button.ownw").filter({ hasText: name === "mk" ? "Открытая встреча" : "Событие для бизнеса" }).first();
+      const kind = page.locator("section.scr:not(.ghost) button.k-opt3").filter({ hasText: name === "mk" ? "Открытая встреча" : "Событие для бизнеса" }).first();
       if (await kind.count()) {
         await kind.click({ timeout: 2000 }).catch(() => {});
         await page.waitForTimeout(1200);
         continue;
       }
-      const opt = page.locator("section.scr:not(.ghost) .grid4 button, section.scr:not(.ghost) .igrid button, section.scr:not(.ghost) .kinds button").first();
+      const opt = page.locator("section.scr:not(.ghost) .k-cats button.k-cat").first();
       if (await opt.count()) await opt.click({ timeout: 2000 }).catch(() => {});
       const title = page.locator("section.scr:not(.ghost) input[maxlength='100']").first();
       if (await title.count()) await title.fill("Тестовая встреча").catch(() => {});
-      const place = page.locator("section.scr:not(.ghost) button.plr").first();
+      const place = page.locator("section.scr:not(.ghost) button.k-rp").first();
       if (await place.count()) await place.click({ timeout: 2000 }).catch(() => {});
       const about = page.locator("section.scr:not(.ghost) textarea").first();
       if (await about.count()) await about.fill("Пьём кофе и знакомимся, всех ждём").catch(() => {});
