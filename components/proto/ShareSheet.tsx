@@ -95,7 +95,7 @@ export function ShareSheet({
     setStoryOk(!!tg?.shareToStory && (tg.isVersionAtLeast?.("7.8") ?? false));
   }, [open]);
   // s3 — версия оформления сторис («Афиша», 29.10): при смене дизайна старые картинки в кэше CDN не показываются.
-  const v = hashKey(`s3|${version}|${title}|${when}`);
+  const v = hashKey(`s4|${version}|${title}|${when}`);
   const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
   const igUrl = `${storyUrl}&ig=1`;
   // Картинку для сторис рисуем заранее, пока человек смотрит событие: к нажатию

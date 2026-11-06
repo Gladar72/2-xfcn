@@ -316,8 +316,6 @@ function MapPageContent() {
       </Sheet>
       {bizOnly && !error && !bizCat && (
         <div className="bizmap-note gl" style={bizCounts.length ? { top: "calc(var(--top) + 172px)" } : undefined}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/markers/v2/pin-business.png" alt="" />
           <span>
             Здесь только события заведений{resolvedCity ? ` в городе ${resolvedCity}` : " твоего города"} — кафе, бары, студии.
           </span>
