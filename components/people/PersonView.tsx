@@ -143,13 +143,18 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
     } catch {
       return;
     }
-    const t = setTimeout(() => peek({ pose: "wave", text: `Нравится человек? Поставь сердечко — ${person.name} узнает. Взаимно — сразу скажу 💜`, ms: 6000 }), 900);
-    return () => clearTimeout(t);
+    return;
   }, [deck, person?.id, person?.name]);
   async function heart() {
     if (!person) return;
     if (liked) {
-      say(`Сердечко у ${person.name} уже есть. Ответит взаимностью — скажу`);
+      // Нажал ещё раз — убираем сердечко (случайно поставил), как в других сервисах.
+      setLiked(false);
+      const ok = await fetch(`/api/likes?userId=${person.id}`, { method: "DELETE" })
+        .then((r) => r.ok)
+        .catch(() => false);
+      if (!ok) setLiked(true);
+      else say("Сердечко убрано");
       return;
     }
     setLiked(true);
@@ -308,11 +313,6 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
 
   function openInvite() {
     setInviteOpen(true);
-    // Мося подсказывает, куда позвать, — по интересам человека.
-    if (person) {
-      const sg = suggestMeet(person.interests, person.commonInterests ?? []);
-      if (sg) setTimeout(() => peek({ pose: "glasses", text: sg.text, ms: 6500 }), 450);
-    }
     if (myEvents === null)
       fetch("/api/me/events?scope=upcoming")
         .then((r) => r.json())
@@ -623,7 +623,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         <button
           className="rb gl"
           onClick={heart}
-          aria-label={liked ? "Сердечко поставлено" : "Поставить сердечко"}
+          aria-label={liked ? "Убрать сердечко" : "Поставить сердечко"}
           aria-pressed={liked}
           style={{
             width: 56,
@@ -649,7 +649,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         )}
         <button className="btn v" onClick={openInvite}>
           <Ic n="cal" />
-          <span>{follow ? "Позвать" : "Позвать на встречу"}</span>
+          <span>Позвать на встречу</span>
         </button>
       </div>
 

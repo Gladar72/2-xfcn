@@ -97,3 +97,18 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ ok: true, mutual });
 }
+
+/**
+ * DELETE /api/likes?userId=… — убрать своё сердечко (нажал случайно), как в других сервисах.
+ * Взаимность после этого пропадает; уведомление «Это взаимно» не трогаем.
+ */
+export async function DELETE(req: NextRequest) {
+  const me = await getCurrentUser();
+  if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const userId = req.nextUrl.searchParams.get("userId") ?? "";
+  if (!UUID.test(userId) || userId === me.userId) return NextResponse.json({ error: "bad_request" }, { status: 400 });
+  const admin = createAdminClient();
+  const { error } = await admin.from("notifications").delete().eq("user_id", userId).eq("type", "heart").eq("payload->>fromUserId", me.userId);
+  if (error) return NextResponse.json({ error: "failed" }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}

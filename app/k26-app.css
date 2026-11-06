@@ -200,3 +200,9 @@
 /* «Идёт сейчас» — зелёная точка, мягко мигает (как раньше). */
 .k-livedot{display:inline-block;width:8px;height:8px;border-radius:4px;background:#2FD07A;margin-right:6px;box-shadow:0 0 0 0 rgba(47,208,122,.7);animation:k-live 1.6s ease-out infinite;vertical-align:middle}
 @keyframes k-live{0%{box-shadow:0 0 0 0 rgba(47,208,122,.7)}70%{box-shadow:0 0 0 7px rgba(47,208,122,0)}100%{box-shadow:0 0 0 0 rgba(47,208,122,0)}}
+/* Люди (колода и профиль): без фиолетово-синих затемнений и без тяжёлого размытия фона —
+   отсюда были «синий фон» и подлагивания при листании. */
+.P .pr.deck .gal::after,.P .pr .gal::after{background:linear-gradient(180deg,rgba(10,8,14,.36),transparent 22%,transparent 55%,rgba(10,8,14,.78))!important}
+.P .pr.pr2 .evbg{filter:none!important;background:#17141F!important;background-image:none!important;inset:0}
+.P .pr.deck .gal>img{transition:none!important}
+.P .pr.pr2,.P .pr.deck{background:#17141F}
