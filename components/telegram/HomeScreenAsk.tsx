@@ -107,7 +107,7 @@ export function HomeScreenAsk() {
         </p>
         <div className="gl" style={{ display: "flex", alignItems: "center", gap: 14, padding: 12, borderRadius: 24 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/logo/app-icon.png" alt="" width={56} height={56} style={{ borderRadius: 14, flex: "none" }} />
+          <img src="/brand/logo/appicon-new.webp" alt="" width={56} height={56} style={{ borderRadius: 14, flex: "none" }} />
           <span style={{ display: "grid", gap: 2 }}>
             <b style={{ fontWeight: 600, fontSize: 16 }}>Место</b>
             <small className="muted" style={{ fontSize: 13 }}>Найди компанию на сегодня</small>

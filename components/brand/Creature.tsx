@@ -231,8 +231,8 @@ function unregister(e: Entry) {
  * Живой WebGL-рендер (выше) на телефонах тормозил: каждый кадр копировался
  * во все холсты на экране. Оставлен в файле на будущее, сейчас не используется.
  */
-const FRAMES = 12;
-const STEP = 0.5; // с на кадр — полный круг 6 с, как в шейдере
+const FRAMES = 24;
+const STEP = 0.5; // с на кадр — полный круг 12 с: соседние кадры близки, перетекание без скачков
 
 export function Creature({ size: cssSize, variant = "p", className }: { size?: number; variant?: Variant; className?: string }) {
   const st = cssSize ? { width: cssSize, height: cssSize } : { width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%" };

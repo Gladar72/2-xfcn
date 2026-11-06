@@ -251,7 +251,7 @@
 .P .pr.pr2 .sheet2{min-height:0!important}
 /* Профиль человека: фото крупнее, плашка «О себе» начинается ниже; иконки интересов на тёмном — светлые. */
 .P .pr.pr2:not(.deck) .gal{height:min(82vh,700px)!important}
-.P .pr.pr2 .sheet2 .itag img{filter:invert(1) brightness(2);opacity:.9}
+.P .pr.pr2 .sheet2 .itag img{filter:none;opacity:1;background:#fff;border-radius:50%;padding:3px;box-sizing:border-box}
 /* 06.11: карта в создании видна сразу; ⤢ — на весь экран (поверх всего, через body) */
 .K .k-mapprev{position:relative;overflow:hidden;border-radius:24px;padding:0}
 .K .k-mapprev .rounded-card{border-radius:24px}
@@ -265,9 +265,23 @@
 .K .k-ev .k-evfade{position:absolute;left:0;right:0;bottom:0;height:150px;z-index:29;pointer-events:none;background:linear-gradient(180deg,rgba(23,20,31,0) 0%,rgba(23,20,31,.9) 50%,#17141F 80%)}
 /* 06.11: живой Мося без рывков — кадры перетекают через opacity (видеокарта) */
 .k-crl{overflow:visible}
-.k-crl>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;opacity:0;will-change:opacity;animation:k-mf 6s linear infinite;pointer-events:none}
+.k-crl>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;opacity:0;will-change:opacity;animation:k-mf 12s linear infinite;pointer-events:none}
 .k-crl>img.k-crl0{opacity:1;animation:none}
 .k-crl>img.k-crlz{animation-name:k-mfz}
-@keyframes k-mf{0%{opacity:0}8.333%{opacity:1}16.66%{opacity:1}16.67%{opacity:0}100%{opacity:0}}
-@keyframes k-mfz{0%{opacity:0}8.333%{opacity:1}16.66%{opacity:0}100%{opacity:0}}
+@keyframes k-mf{0%{opacity:0}4.1667%{opacity:1}8.33%{opacity:1}8.34%{opacity:0}100%{opacity:0}}
+@keyframes k-mfz{0%{opacity:0}4.1667%{opacity:1}8.333%{opacity:0}100%{opacity:0}}
 @media (prefers-reduced-motion: reduce){.k-crl>img{animation:none}}
+/* 06.11: на странице события «Маршрут / Скопировать» над картой */
+.K .k-ev .k-mapact{padding:0 12px 12px}
+/* 06.11: карточка «Поделиться» как в прототипе — плашка в одну строку, название по длине, текст на фото читается */
+.K .k-story .k-schip{max-width:calc(100% - 28px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(23,20,31,.35)}
+.K .k-story::after{background:linear-gradient(180deg,rgba(0,0,0,.45),rgba(0,0,0,.1) 26%,rgba(10,8,20,.55) 52%,rgba(10,8,20,.92))}
+.K .k-story .k-stt{max-height:96px;overflow:hidden}
+.K .k-story .k-stt.k-stt2{font-size:21px}
+.K .k-story .k-stt.k-stt3{font-size:17px;line-height:1.15!important;letter-spacing:-.01em}
+.K .k-story .k-sme{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-crl{animation:k-wob 4.5s ease-in-out infinite;transform-origin:50% 62%;will-change:transform}
+@keyframes k-wob{0%,100%{transform:scale(1,1) rotate(0)}25%{transform:scale(1.025,.975) rotate(-1.5deg)}50%{transform:scale(.985,1.02) rotate(.8deg)}75%{transform:scale(1.015,.985) rotate(1.4deg)}}
+@media (prefers-reduced-motion: reduce){.k-crl{animation:none}}
+.P .nav26 .k-crl{animation:k-wob 4.5s ease-in-out infinite!important}
+.P .pr .pinv.btn{background:#fff!important;color:#17141F!important;box-shadow:0 10px 26px rgba(0,0,0,.25)}

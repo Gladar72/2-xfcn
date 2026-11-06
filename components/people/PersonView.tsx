@@ -228,7 +228,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
     for (const src of person?.photos ?? []) {
       const im = new Image();
       im.decoding = "async";
-      im.src = photoThumb(src, 420, true);
+      im.src = photoThumb(src, 420);
     }
   }, [person?.photos]);
 
@@ -397,7 +397,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         {photos.length ? (
           photos.map((src, i) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={src} src={photoThumb(src, 420, true)} className={i === gi ? "on" : ""} alt="" decoding="async" />
+            <img key={src} src={photoThumb(src, 420)} className={i === gi ? "on" : ""} alt="" decoding="async" />
           ))
         ) : (
           <div style={{ position: "absolute", inset: 0, background: "var(--g)", display: "grid", placeItems: "center" }}>
@@ -584,7 +584,6 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             <div className="blk">
               <div className="blk-h">
                 <b>Ближайшие события</b>
-                <span>{follow.events.length}</span>
               </div>
               <div className="fevs">
                 {follow.events.map((e) => (
@@ -647,7 +646,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
             <Ic n="bell" />
           </button>
         )}
-        <button className="btn v" onClick={openInvite}>
+        <button className="btn v pinv" onClick={openInvite}>
           <Ic n="cal" />
           <span>Позвать на встречу</span>
         </button>

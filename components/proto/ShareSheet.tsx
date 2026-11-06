@@ -201,7 +201,7 @@ export function ShareSheet({
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className="k-swm" src="/brand/auth/wordmark-white.svg" alt="" />
               <span className="k-schip">{chip ?? when}</span>
-              <span className="k-stt">{titleTwo(title)}</span>
+              <span className={`k-stt ${title.trim().length > 40 ? "k-stt3" : title.trim().length > 22 ? "k-stt2" : ""}`}>{titleTwo(title)}</span>
               {meta && <span className="k-sme">{meta}</span>}
               <span className="k-scta">Пойти со мной →</span>
             </div>
