@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useGuide } from "@/lib/mosya/guide";
-import { Cover, EmptyIll, Ic, Screen, dayLong, eventIcon } from "@/components/proto/ui";
+import { Screen, dayLong } from "@/components/proto/ui";
+import { KI, bg } from "@/components/proto/k";
+import { Creature } from "@/components/brand/Creature";
 import { ReviewSheet, type ReviewData } from "@/components/proto/ReviewSheet";
-import { photoThumb } from "@/lib/photos/thumb";
 import { doneHints, markHintDone } from "@/lib/meet-hints";
 
 interface MeetHint {
@@ -35,15 +36,15 @@ interface Reviewable {
   reviewableMembers: { id: string; name: string }[];
 }
 type Scope = "upcoming" | "archive";
+type Tab = 0 | 1 | 2;
 
-const WD = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 /** «Мои встречи» (SCR.meets прототипа). */
 export default function MyEventsPage() {
-  const [scope, setScope] = useState<Scope>("upcoming");
+  // Вкладки прототипа: «Я иду» и «Создал» — предстоящие (по роли), «Прошли» — архив.
+  const [tab, setTab] = useState<Tab>(0);
+  const scope: Scope = tab === 2 ? "archive" : "upcoming";
   const [items, setItems] = useState<MyEvent[] | null>(null);
-  const [day, setDay] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [reviewable, setReviewable] = useState<Reviewable[]>([]);
   const [review, setReview] = useState<{ eventId: string; title: string; member: { id: string; name: string } } | null>(null);
@@ -107,153 +108,110 @@ export default function MyEventsPage() {
     setReview(null);
   }
 
-  const week = Array.from({ length: 7 }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    return d;
-  });
-  const shown = (items ?? []).filter((e) => scope !== "upcoming" || !day || e.eventDate.slice(0, 10) === day);
+  const shown = (items ?? []).filter((e) => (tab === 0 ? e.role !== "organizer" : tab === 1 ? e.role === "organizer" : true));
+  const plural = (n: number, a: string, b: string, c: string) => {
+    const m10 = n % 10, m100 = n % 100;
+    return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20) ? b : c;
+  };
 
   return (
     <Screen id="meets">
-      <div className="top">
-        <h1 className="t">
+      <div className="k-top">
+        <h1 className="k-h1">
           Мои <em>встречи</em>
         </h1>
-        <Link className={`rb gl${unread > 0 ? " ping" : ""}`} href="/chats" aria-label="Чаты">
-          <Ic n="chat" />
-          {unread > 0 && <span className="cnt">{unread > 9 ? "9+" : unread}</span>}
+        <Link className="k-rb k-g k-pr" href="/chats" aria-label="Чаты" style={{ position: "relative", overflow: "visible" }}>
+          <span className="k-ic">
+            <KI n="chat" />
+            {unread > 0 && <span className="k-badge">{unread > 9 ? "9+" : unread}</span>}
+          </span>
         </Link>
       </div>
       {hints.slice(0, 3).map((h) => (
-        <div key={h.notificationId} className="gl" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 12px 12px 14px", borderRadius: 22, margin: "14px 0 0" }}>
-          <span style={{ position: "relative", width: 46, height: 46, flex: "none" }}>
-            {h.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoThumb(h.avatarUrl, 120)} alt="" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover" }} />
-            ) : (
-              <span style={{ display: "grid", placeItems: "center", width: 46, height: 46, borderRadius: "50%", background: "var(--g)", color: "#fff", fontWeight: 600 }}>
-                {h.name.charAt(0).toUpperCase()}
-              </span>
-            )}
-            <span style={{ position: "absolute", right: -4, bottom: -4, fontSize: 18, lineHeight: 1 }}>👋</span>
-          </span>
-          <span style={{ flex: 1, minWidth: 0 }}>
-            <b style={{ display: "block", fontSize: 14.5, lineHeight: 1.25 }}>
+        <div key={h.notificationId} className="k-mos k-g" style={{ paddingLeft: 8 }}>
+          <span style={{ width: 46, height: 46, borderRadius: 23, flex: "none", ...bg(h.avatarUrl, 160) }} />
+          <span className="k-t">
+            <b>
               {h.name}
-              {h.age ? `, ${h.age}` : ""} хочет с тобой на встречу
-            </b>
-            <span className="muted" style={{ display: "block", fontSize: 12.5, marginTop: 2 }}>
-              Позови куда-нибудь вместе
-            </span>
+              {h.age ? `, ${h.age}` : ""}
+            </b>{" "}
+            хочет с тобой на встречу
           </span>
-          <Link
-            className="btn v"
-            href={`/people/${h.userId}?invite=1`}
-            onClick={() => markHintDone(h.notificationId)}
-            style={{ width: "auto", height: 38, minHeight: 38, padding: "0 14px", fontSize: 14, flex: "none" }}
-          >
+          <Link className="k-go k-pr" href={`/people/${h.userId}?invite=1`} onClick={() => markHintDone(h.notificationId)}>
             Позвать
           </Link>
-          <button aria-label="Скрыть" onClick={() => closeHint(h)} style={{ background: "none", border: 0, padding: 4, color: "inherit", opacity: 0.5, flex: "none" }}>
-            <Ic n="close" c="xs" />
+          <button aria-label="Скрыть" className="k-pr" onClick={() => closeHint(h)} style={{ padding: 4, color: "var(--ink3)", flex: "none", display: "flex" }}>
+            <KI n="x" style={{ width: 16, height: 16 }} />
           </button>
         </div>
       ))}
-      <div className="seg gl" style={hints.length ? { marginTop: 14 } : undefined}>
-        <span className="si" style={{ width: "calc(50% - 4px)", transform: scope === "archive" ? "translateX(100%)" : "none" }} />
-        <button className={scope === "upcoming" ? "on" : ""} onClick={() => setScope("upcoming")}>
-          Предстоящие
-        </button>
-        <button className={scope === "archive" ? "on" : ""} onClick={() => setScope("archive")}>
-          Архив
-        </button>
+      <div className="k-tabs k-g">
+        {(["Я иду", "Создал", "Прошли"] as const).map((t, i) => (
+          <button key={t} className={`k-pr ${tab === i ? "k-on" : ""}`} onClick={() => setTab(i as Tab)}>
+            {t}
+          </button>
+        ))}
       </div>
-      {scope === "upcoming" && (
-        <div className="week gl">
-          {week.map((d) => {
-            const k = iso(d);
-            const has = (items ?? []).some((e) => e.eventDate.slice(0, 10) === k);
-            return (
-              <button key={k} className={`${day === k || (!day && k === iso(week[0]!)) ? "on" : ""} ${has ? "has" : ""}`} onClick={() => setDay(day === k ? null : k)}>
-                <span>{WD[d.getDay()]}</span>
-                <b>{d.getDate()}</b>
-              </button>
-            );
-          })}
+      <div className="k-list" key={tab}>
+        {items === null && [0, 1, 2].map((i) => <div key={i} className="k-li k-g k-sk" style={{ height: 94 }} />)}
+        {shown.map((e) => {
+          const past = scope === "archive";
+          const rv = reviewable.find((r) => r.eventId === e.id)?.reviewableMembers[0];
+          const pill: [string, string] =
+            e.status === "cancelled"
+              ? ["Отменена", "k-wait"]
+              : past
+                ? rv
+                  ? ["Оставь отзыв", "k-wait"]
+                  : ["Завершена", "k-ok"]
+                : e.role === "organizer"
+                  ? e.pendingApplicationsCount > 0
+                    ? [`${e.pendingApplicationsCount} ${plural(e.pendingApplicationsCount, "новая заявка", "новые заявки", "новых заявок")}`, "k-own"]
+                    : ["Активна", "k-ok"]
+                  : e.myStatus === "pending"
+                    ? ["Ждём ответа организатора", "k-wait"]
+                    : ["Тебя приняли", "k-ok"];
+          return (
+            <Link
+              key={e.id}
+              href={`/events/${e.id}`}
+              className="k-li k-g k-pr"
+              onClick={(ev) => {
+                if (past && rv) {
+                  ev.preventDefault();
+                  setReview({ eventId: e.id, title: e.title, member: rv });
+                }
+              }}
+            >
+              <i style={bg(e.photoUrl, 240)} />
+              <span className="k-x">
+                <b>{e.title}</b>
+                <small>
+                  {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}
+                  {e.placeName ? ` · ${e.placeName}` : ""}
+                </small>
+                <span className={`k-pill ${pill[1]}`}>{pill[0]}</span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
+      {items !== null && shown.length === 0 && (
+        <div className="k-cempty k-g" style={{ marginTop: 14 }}>
+          <Creature size={84} variant="e" />
+          <b>{tab === 2 ? "Прошедших встреч пока нет" : tab === 1 ? "Ты ещё ничего не создал" : "Ты пока никуда не идёшь"}</b>
+          <span>
+            {tab === 2
+              ? "После встречи здесь можно оценить участников"
+              : tab === 1
+                ? "Создай встречу — люди рядом её увидят"
+                : "Загляни на главную или создай свою встречу"}
+          </span>
+          <Link className="k-btn k-d k-pr" href={tab === 1 ? "/create" : "/feed"}>
+            {tab === 1 ? "Создать встречу" : "Найти встречу"}
+          </Link>
         </div>
       )}
-      <div style={{ marginTop: 16 }}>
-        <div className="list rvu" key={`${scope}-${day ?? ""}`}>
-          {items === null && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
-          {shown.map((e) => {
-            const past = scope === "archive";
-            const rv = reviewable.find((r) => r.eventId === e.id)?.reviewableMembers[0];
-            const st =
-              e.status === "cancelled"
-                ? "Отменена"
-                : past
-                  ? "Завершена"
-                  : e.role === "organizer"
-                    ? "Активна"
-                    : e.myStatus === "pending"
-                      ? "Ждём ответа"
-                      : "Ты в деле";
-            return (
-              <Link key={e.id} href={`/events/${e.id}`} className={`row gl ${past ? "past" : ""}`}>
-                <span className="thw">
-                  <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} cls="th" thumb={140} />
-                  {e.pendingApplicationsCount > 0 && <span className="redn abs">{e.pendingApplicationsCount}</span>}
-                </span>
-                <div className="i">
-                  <b>{e.title}</b>
-                  <span>
-                    {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}
-                    {e.placeName ? ` · ${e.placeName}` : ""}
-                  </span>
-                  <span>
-                    <span className={`role ${e.role === "organizer" ? "org" : ""}`}>{e.role === "organizer" ? "Организатор" : "Участник"}</span>
-                    <span className={`stt ${st === "Ждём ответа" ? "w" : ""}`}>{st}</span>
-                  </span>
-                </div>
-                {e.role === "organizer" && !past && (
-                  <span className="go-s" style={{ display: "grid", placeItems: "center" }} aria-label="Редактировать">
-                    <Ic n="edit" c="xs" />
-                  </span>
-                )}
-                {past && rv && (
-                  <button
-                    className="go-s"
-                    onClick={(ev) => {
-                      ev.preventDefault();
-                      setReview({ eventId: e.id, title: e.title, member: rv });
-                    }}
-                  >
-                    Оценить
-                  </button>
-                )}
-              </Link>
-            );
-          })}
-        </div>
-        {items !== null && shown.length === 0 && (
-          <div className="empty" style={{ paddingTop: 14 }}>
-            <EmptyIll a={["cloud", "mint", "calm"]} b={["ball", "lilac", "calm"]} c={["squ", "pink", "smile"]} />
-            <span>
-              {scope === "archive"
-                ? "Здесь будут прошедшие встречи — после них можно оценить участников."
-                : day
-                  ? "В этот день встреч нет."
-                  : "Ты пока никуда не идёшь — загляни в ленту или создай свою встречу."}
-            </span>
-            {scope === "upcoming" && !day && (
-              <Link className="btn k" href="/feed" style={{ marginTop: 6, width: "auto", padding: "0 22px", height: 46 }}>
-                Найти встречу
-              </Link>
-            )}
-          </div>
-        )}
-      </div>
       <ReviewSheet open={!!review} personName={review?.title ?? ""} onSubmit={sendReview} onClose={() => setReview(null)} />
     </Screen>
   );

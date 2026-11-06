@@ -9,3 +9,13 @@
 .K .k-hc,.K .k-mt{-webkit-mask-image:-webkit-radial-gradient(white,black)}
 .K img{image-rendering:auto}
 @media (prefers-reduced-motion: reduce){.K .k-pr:active{transform:none}.K .k-sk{animation:none}}
+/* Верхние кнопки поверх фото — под системной полосой Telegram. */
+.K .k-pp .k-tbar,.K .k-ev .k-tbar{top:calc(var(--top) - 6px)}
+.K .k-pp>.scroll,.K .k-ev>.scroll{z-index:1}
+.K .k-pp .k-hero2,.K .k-ev .k-hero{z-index:0}
+.K .k-pp .k-tbar,.K .k-ev .k-tbar{z-index:20}
+/* Строка-ссылка (меню в профиле, настройки). */
+.K .k-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px;padding:0 16px 0 18px;border-radius:22px;font:400 15px var(--disp);width:100%;text-align:left}
+.K .k-row svg{width:18px;height:18px;color:var(--ink3);flex:none}
+.K .k-ph3>a,.K .k-ph3>button{display:block;min-width:0}
+.K .k-ph3 i{width:100%}
