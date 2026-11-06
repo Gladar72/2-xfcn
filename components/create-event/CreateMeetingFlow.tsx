@@ -29,6 +29,8 @@ import { OrganizerPhotoGate } from "./OrganizerPhotoGate";
  *   2. Название и обложка — обложки рисует Мося, можно своё фото
  *   3. Когда и где — колёса дня и времени, календарь, длительность, место
  *   4. Кто и сколько — люди, расходы, открыто/анонимно, превью карточки
+ * Событие для бизнеса — три шага (2–4): раздел афиши сервер угадывает
+ * по названию (guessBizCategory), отдельного шага «Куда зовёшь?» нет.
  * Потом — «Встреча опубликована» и «Поделиться». На сервер уходят те же
  * поля, что и раньше (POST /api/events).
  */
@@ -128,7 +130,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
-  const [step, setStep] = useState(1);
+  // Событие для бизнеса — три шага (без «Куда зовёшь?»): сразу «Название и обложка».
+  const [step, setStep] = useState(businessProp ? 2 : 1);
   const [dir, setDir] = useState(1);
   const [toast, setToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -273,6 +276,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       .then((e) => {
         if (e.error) return;
         setBusiness(!!e.isBusiness);
+        if (e.isBusiness) setStep(2);
         setCategorySlug(e.category?.slug ?? null);
         if (e.bizCategory && BIZ_KEYS.has(e.bizCategory)) setBizCategory(e.bizCategory);
         if (e.bizCategory === "other") setOwn(String(e.title ?? "").slice(0, 30));
@@ -323,7 +327,9 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const iconSrc = bizSection
     ? bizCategoryIcon(bizSection)
     : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/pi/other.svg" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
-  const catLabel = bizSection
+  const catLabel = business && !bizSection
+    ? "событие"
+    : bizSection
     ? bizSection.key === "other" && own.trim() ? own.trim() : bizSection.label
     : categorySlug === "training"
       ? trainingTypes.find((t) => t.slug === trainingTypeSlug)?.name ?? "Тренировка"
@@ -477,7 +483,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     } else publish();
   }
   function back() {
-    if (step > 1) {
+    if (step > (business ? 2 : 1)) {
       setDir(-1);
       setStep(step - 1);
     } else if (chosen && !skipKind) {
@@ -491,6 +497,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   function pickKind(k: Kind) {
     setBusiness(k === "business");
     setIsAnonymous(k === "anon");
+    setStep(k === "business" ? 2 : 1);
     setDir(1);
     setTimeout(() => setChosen(true), 220);
   }
@@ -659,7 +666,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             <KI n={step > 1 || (chosen && !skipKind) ? "back" : "x"} />
           </button>
           <div className="k-wprog">
-            {[1, 2, 3, 4].map((i) => (
+            {(business ? [2, 3, 4] : [1, 2, 3, 4]).map((i) => (
               <i key={i} className={chosen && i <= step ? "k-on" : ""} />
             ))}
           </div>
