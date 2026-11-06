@@ -115,15 +115,8 @@ const DAYS = Array.from({ length: N_DAYS }, (_, i) => {
 const HOURS = Array.from({ length: 24 }, (_, h) => String(h));
 const MINS = Array.from({ length: 12 }, (_, m) => pad2(m * 5));
 
-/** Быстрые дни: сегодня, завтра и ближайшие пятница и суббота. */
-const QUICK_DAYS = (() => {
-  const out = [0, 1];
-  for (let i = 2; i < 9 && out.length < 4; i++) {
-    const wd = dayDate(i).getDay();
-    if (wd === 5 || wd === 6) out.push(i);
-  }
-  return out;
-})();
+/** Плитки дней (как в прототипе): неделя вперёд. */
+const TILE_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 export function CreateMeetingFlow({ business: businessProp = false, editId }: { business?: boolean; editId?: string } = {}) {
   const [business, setBusiness] = useState(businessProp);
@@ -950,25 +943,24 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               <h1 className="t">
                 Когда <em>и где</em>?
               </h1>
-              <p className="sub">Покрути день и время, как будильник на айфоне, или открой календарь.</p>
-              <div className="whsum gl">
-                <div>
-                  <small>Встреча</small>
-                  <b>{sumTxt}</b>
-                </div>
-                <button className="sm" onClick={() => setCalOpen(true)}>
-                  <Ic n="cal" c="xs" /> Календарь
-                </button>
+              <p className="sub">Выбери день и время — дальше место.</p>
+              {/* Как в прототипе: плитки ближайших дней, календарь и колёса «Начало». */}
+              <div className="dtiles">
+                {[...TILE_DAYS, ...(TILE_DAYS.includes(di) ? [] : [di])].map((i) => {
+                  const d = dayDate(i);
+                  return (
+                    <button key={i} className={di === i ? "on" : "gl"} onClick={() => setDi(i)}>
+                      <small>{i === 0 ? "Сегодня" : i === 1 ? "Завтра" : WD[d.getDay()]}</small>
+                      <b>{d.getDate()}</b>
+                    </button>
+                  );
+                })}
               </div>
-              <div className="chs nw" style={{ marginTop: 10 }}>
-                {QUICK_DAYS.map((i) => (
-                  <button key={i} className={di === i ? "on" : "gl"} onClick={() => setDi(i)}>
-                    {DAYS[i]?.chip}
-                  </button>
-                ))}
-              </div>
-              <div className="wheels gl">
-                <Wheel cls="d" items={DAYS.map((d) => d.s)} index={di} onChange={setDi} />
+              <button className="calbtn gl" onClick={() => setCalOpen(true)}>
+                <Ic n="cal" c="xs" /> Выбрать в календаре
+              </button>
+              <span className="lbl">Начало · {sumTxt}</span>
+              <div className="wheels gl tw">
                 <Wheel items={HOURS} index={hh} onChange={setHh} />
                 <span className="colon">:</span>
                 <Wheel items={MINS} index={mi} onChange={setMi} />
