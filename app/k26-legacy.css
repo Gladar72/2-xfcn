@@ -67,3 +67,12 @@
 .P .ci span{font:400 13px var(--disp);color:rgba(23,20,31,.58)}
 .P .ci .t{font:400 11px var(--disp);color:rgba(23,20,31,.38)}
 .P .ci .n{min-width:22px;height:22px;border-radius:11px;background:var(--ink);font:600 11px/1 var(--disp)}
+/* чат: пузыри и строка ввода как в прототипе */
+.P .m .bb{padding:11px 15px;border-radius:22px 22px 22px 8px;font:400 15px/1.35 var(--disp);background:rgba(255,255,255,.58);border:1px solid rgba(255,255,255,.95);box-shadow:none;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
+.P .m.me .bb{background:var(--ink);color:#fff;border:0;border-radius:22px 22px 8px 22px}
+.P .m .bb small{color:var(--ink);opacity:.6}
+.P .m .bb .mt{font-size:10px;opacity:.5}
+.P .m .mav{background:var(--pearl2);color:var(--ink)}
+.P .compose{background:rgba(244,242,248,.78)}
+.P .send{width:44px;height:44px;background:var(--ink)}
+.P .daysep{font:500 12px var(--disp);color:rgba(23,20,31,.58)}
