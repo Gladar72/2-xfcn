@@ -95,7 +95,7 @@ export function OnboardingWizard() {
   return (
     <div className="P">
       {intro < INTRO.length ? (
-        <IntroSlides index={intro} onNext={() => setIntro((i) => i + 1)} onSkip={() => setIntro(INTRO.length)} />
+        <IntroSlides index={intro} onNext={() => setIntro((i) => i + 1)} onBack={() => setIntro((i) => Math.max(0, i - 1))} />
       ) : intro === INTRO.length ? (
         <AuthScreen onContinue={() => setIntro(INTRO.length + 1)} />
       ) : (
@@ -143,8 +143,73 @@ function AuthScreen({ onContinue }: { onContinue: () => void }) {
   );
 }
 
+/** Слайдер «Далее»: кружок тянется вправо (как «сдвиньте» на айфоне); тап — тоже дальше. */
+function SwipeNext({ label, onDone }: { label: string; onDone: () => void }) {
+  const tr = useRef<HTMLDivElement>(null);
+  const kn = useRef<HTMLButtonElement>(null);
+  const [dx, setDx] = useState(0);
+  const [drag, setDrag] = useState(false);
+  const st = useRef({ sx: 0, max: 0, dx: 0 });
+  const max = () => (tr.current ? tr.current.offsetWidth - 68 : 200);
+  return (
+    <div
+      ref={tr}
+      className="k-tr k-g"
+      onClick={(e) => {
+        if (e.target === tr.current) onDone();
+      }}
+    >
+      <div className="k-fill" style={{ width: 68 + dx, transition: drag ? "none" : "width .5s var(--spring)" }} />
+      <button
+        ref={kn}
+        className="k-kn"
+        aria-label={label}
+        style={{ transform: `translateX(${dx}px)`, transition: drag ? "none" : "transform .5s var(--spring)" }}
+        onPointerDown={(e) => {
+          st.current = { sx: e.clientX, max: max(), dx: 0 };
+          kn.current?.setPointerCapture(e.pointerId);
+          setDrag(true);
+        }}
+        onPointerMove={(e) => {
+          if (!drag) return;
+          const v = Math.max(0, Math.min(st.current.max, e.clientX - st.current.sx));
+          st.current.dx = v;
+          setDx(v);
+        }}
+        onPointerUp={() => {
+          if (!drag) return;
+          setDrag(false);
+          const v = st.current.dx;
+          if (v > st.current.max * 0.6) {
+            setDx(st.current.max);
+            window.setTimeout(() => {
+              setDx(0);
+              onDone();
+            }, 260);
+          } else {
+            setDx(0);
+            if (v < 6) onDone();
+          }
+        }}
+        onPointerCancel={() => {
+          setDrag(false);
+          setDx(0);
+        }}
+      >
+        <KI n="chev" />
+      </button>
+      <span className="k-lb" style={{ opacity: 1 - dx / Math.max(1, st.current.max || 200) }} onClick={onDone}>
+        {label}
+      </span>
+      <span className="k-ar" onClick={onDone}>
+        ›››
+      </span>
+    </div>
+  );
+}
+
 /** Вводные слайды (intro прототипа): логотип, полоски, живой Мося, текст и «Далее». */
-function IntroSlides({ index, onNext, onSkip }: { index: number; onNext: () => void; onSkip: () => void }) {
+function IntroSlides({ index, onNext, onBack }: { index: number; onNext: () => void; onBack: () => void }) {
   useEffect(() => {
     if (index >= INTRO.length - 1) return;
     const t = setTimeout(onNext, 4200);
@@ -172,17 +237,12 @@ function IntroSlides({ index, onNext, onSkip }: { index: number; onNext: () => v
         <h1>{slide.title}</h1>
         <p>{slide.text}</p>
       </div>
-      <div className="i26-act">
-        <button className="k-rb k-g k-pr" style={{ width: 56, height: 56, borderRadius: 28 }} onClick={onSkip} aria-label="Пропустить">
-          <KI n="x" />
+      {/* Как в прототипе: «Назад» и слайдер «Далее» — тянешь кружок вправо, как на айфоне. */}
+      <div className="k-slide" style={{ bottom: "calc(var(--bot) + 30px)", left: 20, right: 20 }}>
+        <button className="k-bk k-pr" onClick={onBack} aria-label="Назад" style={{ opacity: index > 0 ? 1 : 0.35 }} disabled={index === 0}>
+          <KI n="back" />
         </button>
-        <button className="i26-slide k-g k-pr" onClick={onNext}>
-          <span className="i26-kn">
-            <KI n="chev" />
-          </span>
-          <span className="i26-lb">{index < INTRO.length - 1 ? "Далее" : "Начать"}</span>
-          <span className="i26-ar">›››</span>
-        </button>
+        <SwipeNext label={index < INTRO.length - 1 ? "Далее" : "Начать"} onDone={onNext} />
       </div>
     </section>
   );
