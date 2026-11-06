@@ -86,7 +86,7 @@ for (const [name, url] of [["mk", "/create"], ["mkbiz", "/create?business=true"]
       const opt = page.locator("section.scr:not(.ghost) .k-cats button.k-cat").first();
       if (await opt.count()) await opt.click({ timeout: 2000 }).catch(() => {});
       const title = page.locator("section.scr:not(.ghost) input[maxlength='100']").first();
-      if (await title.count()) await title.fill("Тестовая встреча").catch(() => {});
+      if (await title.count()) await title.fill(name === "mkbiz" ? "Квиз в баре" : "Тестовая встреча").catch(() => {});
       // Событие для бизнеса — своё фото обязательно: загружаем и подтверждаем кадр.
       const file = page.locator("section.scr:not(.ghost) input[type=file]").first();
       if (name === "mkbiz" && (await file.count()) && !(await page.locator(".k-cvg button.k-on").count())) {
