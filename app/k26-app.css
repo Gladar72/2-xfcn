@@ -187,3 +187,6 @@
 .P .people-deck .gal>img{transition:none;transform:none}
 .P .deck-under{background:#17141F}
 .P .deck-under img{filter:none;transform:none;border-radius:0}
+/* Встреча: описание видно (белым), имена в «Кто идёт» — в одну строку. */
+.K .k-ev .k-blk p{color:rgba(255,255,255,.9)!important;opacity:1}
+.K .k-wp{max-width:64px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

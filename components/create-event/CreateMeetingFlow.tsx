@@ -8,6 +8,7 @@ import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { businessProblem, descriptionProblem, titleProblem } from "@/lib/events/quality";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
+import { INTEREST_GROUPS } from "@/lib/data/interests";
 import { coverFor, coverForText, coverSetFor, isPresetCover } from "@/lib/photos/preset-cover";
 import { confetti } from "@/lib/mosya/confetti";
 import { Ic, Toast } from "@/components/proto/ui";
@@ -22,6 +23,9 @@ import { BIZ_SECTIONS, BIZ_KEYS, bizCategoryIcon, guessBizCategory } from "@/lib
 import { hasOrganizerPhoto } from "@/lib/events/organizer-photo";
 import { getJson } from "@/lib/http/get-json";
 import { OrganizerPhotoGate } from "./OrganizerPhotoGate";
+
+/** «Другое» в тренировках — все виды спорта из регистрации. */
+const OTHER_SPORTS = INTEREST_GROUPS[0]?.items ?? [];
 
 /**
  * Создание встречи в 4 шага — разметка и анимации из прототипа (SCR.create):
@@ -344,7 +348,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     : bizSection
     ? bizSection.key === "other" && own.trim() ? own.trim() : bizSection.label
     : categorySlug === "training"
-      ? trainingTypes.find((t) => t.slug === trainingTypeSlug)?.name ?? "Тренировка"
+      ? trainingTypeSlug === "custom" && own ? own : trainingTypes.find((t) => t.slug === trainingTypeSlug)?.name ?? "Тренировка"
       : isOwn
         ? own || "Своё"
         : (categorySlug && SHORT[categorySlug]) || "встречи";
@@ -454,12 +458,12 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     } else if (step === 1) {
       if (!categorySlug) return "Выбери, что планируешь.";
       if (categorySlug === "training" && !trainingTypeSlug) return "Выбери вид тренировки.";
-      if (isOwn && own.trim().length < 2) return "Напиши одним-двумя словами, чем займёмся — например «сапы». Так встречу найдут поиском";
+      if (categorySlug === "training" && trainingTypeSlug === "custom" && !own.trim()) return "Выбери, какая тренировка.";
     }
     if (step === 2) {
       const t = titleProblem(title);
       if (t) return t;
-      const fullDesc = [(isOwn || (business && bizCategory === "other")) && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". ");
+      const fullDesc = [(isOwn || (business && bizCategory === "other") || trainingTypeSlug === "custom") && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". ");
       const d = descriptionProblem(fullDesc);
       if (d) return d;
       // Мастер-классы и платные занятия — только через «Для бизнеса».
@@ -543,7 +547,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           businessPricingType: business ? bizPricing : undefined,
           businessPricingDetails: business ? (bizPricing === "ticket" ? `${ticketPrice.trim()} ₽` : bizPricing === "custom" ? bizTerms.trim() : undefined) : undefined,
           title: title.trim(),
-          description: [(isOwn || (business && bizCategory === "other")) && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description]
+          description: [(isOwn || (business && bizCategory === "other") || trainingTypeSlug === "custom") && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description]
             .filter(Boolean)
             .join(". "),
           isBusiness: business,
@@ -774,22 +778,56 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 <>
                   <span className="k-lbl">Какая тренировка?</span>
                   <div className="k-cats" style={{ marginTop: 0 }}>
-                    {trainingTypes.map((t) => (
-                      <button key={t.id} className={`k-cat k-g k-pr ${trainingTypeSlug === t.slug ? "k-on" : ""}`} onClick={() => setTrainingTypeSlug(t.slug)}>
+                    {trainingTypes
+                      .filter((t) => t.slug !== "custom")
+                      .map((t) => (
+                        <button
+                          key={t.id}
+                          className={`k-cat k-g k-pr ${trainingTypeSlug === t.slug ? "k-on" : ""}`}
+                          onClick={() => {
+                            setTrainingTypeSlug(t.slug);
+                            setOwn("");
+                          }}
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={trainingIcon(t.slug)} alt="" />
+                          {t.name}
+                        </button>
+                      ))}
+                    {trainingTypes.some((t) => t.slug === "custom") && (
+                      <button className={`k-cat k-g k-pr ${trainingTypeSlug === "custom" ? "k-on" : ""}`} onClick={() => setTrainingTypeSlug("custom")}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={trainingIcon(t.slug)} alt="" />
-                        {t.name}
+                        <img src="/brand/pi/other.svg" alt="" />
+                        Другое
                       </button>
-                    ))}
+                    )}
                   </div>
+                  {trainingTypeSlug === "custom" && (
+                    <>
+                      <span className="k-lbl">Выбери из всех — как при регистрации</span>
+                      <div className="k-cats" style={{ marginTop: 0 }}>
+                        {OTHER_SPORTS.filter(([n]) => !trainingTypes.some((t) => t.name.toLowerCase() === n.toLowerCase())).map(([n, ic]) => (
+                          <button key={n} className={`k-cat k-g k-pr ${own === n ? "k-on" : ""}`} onClick={() => setOwn(n)}>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={ic} alt="" />
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </>
               )}
               {!business && hasCustom && (
                 <button
                   className={`k-own k-g k-pr ${isOwn ? "k-on" : ""}`}
                   onClick={() => {
+                    // Как просили: «Своё предложение» — сразу дальше, без лишнего поля.
                     setCategorySlug("custom");
                     setTrainingTypeSlug(null);
+                    setOwn("");
+                    setDir(1);
+                    setStep(2);
                   }}
                 >
                   <span className="k-op">
@@ -800,12 +838,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                     <small>Не нашёл подходящего? Придумай сам — от сапов до вязания</small>
                   </span>
                 </button>
-              )}
-              {isOwn && (
-                <label className="k-field k-g" style={{ marginTop: 8 }}>
-                  <input autoFocus value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Например: сапы, вязание, бадминтон" maxLength={30} />
-                  <span className="k-cnt2">{own.length}/30</span>
-                </label>
               )}
             </>
           )}

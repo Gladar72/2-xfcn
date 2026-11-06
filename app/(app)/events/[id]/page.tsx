@@ -728,15 +728,12 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           <div className="k-blk k-gd">
             <div className="k-bh2">
               <b className="k-bh">{isLive ? "Уже на месте" : "Кто идёт"}</b>
-              <span>
-                {going} из {max}
-              </span>
             </div>
             <div className="k-who" style={{ flexWrap: "wrap" }}>
               {organizer && !hid && (
                 <Link className="k-wp k-pr" href={mine ? "/profile" : `/people/${organizer.id}`}>
                   <span style={bg(organizer.avatarUrl, 160)}>{!organizer.avatarUrl && organizer.name.charAt(0).toUpperCase()}</span>
-                  {mine ? "Ты" : organizer.name}
+                  {mine ? "Ты" : firstName(organizer.name)}
                 </Link>
               )}
               {organizer && hid && (
@@ -758,7 +755,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 ) : (
                   <Link key={p.id} className="k-wp k-pr" href={`/people/${p.id}`}>
                     <span style={bg(p.avatarUrl, 160)}>{!p.avatarUrl && p.name.charAt(0).toUpperCase()}</span>
-                    {p.name}
+                    {firstName(p.name)}
                   </Link>
                 )
               )}
@@ -780,8 +777,6 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </span>
             </div>
           )}
-
-          {event.description && <p className="about">{event.description}</p>}
 
           {event.status === "completed" && <div className="evnote gl">Встреча завершена. Спасибо, что были вместе!</div>}
           {event.status === "cancelled" && (
@@ -1133,4 +1128,9 @@ function EmptyIllMini() {
       </span>
     </div>
   );
+}
+
+/** «Вероника Владиславовна» → «Вероника»: в «Кто идёт» — только имена, ровно. */
+function firstName(name: string) {
+  return (name ?? "").trim().split(/\s+/)[0] ?? name;
 }
