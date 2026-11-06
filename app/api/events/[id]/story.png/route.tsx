@@ -414,7 +414,7 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
   const org = one(e.organizer as unknown as { name: string | null; avatar_url: string | null; birth_date: string | null; gender: string | null } | null);
   const catSlug = one(e.category as unknown as { slug: string } | null)?.slug ?? null;
   const ttSlug = one(e.training_type as unknown as { slug: string } | null)?.slug ?? null;
-  const iconPath = e.is_business ? CATEGORY_ICON.business : catSlug === "training" ? trainingIcon(ttSlug) : catSlug === "custom" ? "/brand/cat3d/i_games.webp" : catSlug ? CATEGORY_ICON[catSlug] : null;
+  const iconPath = e.is_business ? CATEGORY_ICON.business : catSlug === "training" ? trainingIcon(ttSlug) : catSlug ? CATEGORY_ICON[catSlug] : null;
   const iconName = iconPath?.match(/\/(i_[a-z]+)\.webp$/)?.[1] ?? null;
 
   const avatarSrc = !e.is_anonymous && !e.is_business && org?.avatar_url && /^https:\/\//.test(org.avatar_url) ? org.avatar_url : null;
