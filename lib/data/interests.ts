@@ -4,7 +4,9 @@
  * какую группу их положить и какую иконку показать. Неизвестный интерес
  * попадает в «Ещё» с иконкой-глобусом.
  */
-const I = (n: string) => `/brand/cat3d/i_${n}.svg`;
+/** Иконки прототипа 2026 (public/brand/pi). */
+const PI: Record<string, string> = { kofe: "kofe", zavtrak: "zavtraki", uzhin: "uzhiny", bar: "bars", pizza: "street", party: "parties", games: "games", cook: "cook", dogs: "dogs", biz: "network", banya: "banya", lang: "lang", run: "run", gym: "sportzal", yoga: "yoga", bike: "bike", hike: "hike", camp: "camp", ski: "ski", swim: "swim", football: "football", tennis: "tennis", box: "box", roller: "roller", travel: "travel", trip: "travel", world: "excursion", photo: "photo", kino: "kino", theatre: "theatre", music: "music", karaoke: "karaoke", guitar: "jam", art: "expo", books: "books", concert: "concert" };
+const I = (n: string) => (PI[n] ? `/brand/pi/${PI[n]}.svg` : `/brand/cat3d/i_${n}.svg`);
 
 export const INTEREST_GROUPS: { title: string; items: [name: string, icon: string][] }[] = [
   {
@@ -13,7 +15,7 @@ export const INTEREST_GROUPS: { title: string; items: [name: string, icon: strin
       ["Бег", I("run")], ["Спортзал", I("gym")], ["Йога", I("yoga")], ["Велосипед", I("bike")],
       ["Походы", I("hike")], ["Кемпинг", I("camp")], ["Лыжи и сноуборд", I("ski")], ["Бассейн", I("swim")],
       ["Футбол", I("football")], ["Теннис", I("tennis")], ["Единоборства", I("box")], ["Ролики", I("roller")],
-      ["Танцы", I("party")], ["Природа", I("hike")],
+      ["Танцы", "/brand/pi/dance.svg"], ["Природа", "/brand/pi/nature.svg"],
     ],
   },
   {
@@ -31,7 +33,7 @@ export const INTEREST_GROUPS: { title: string; items: [name: string, icon: strin
       ["Кофе", I("kofe")], ["Завтраки", I("zavtrak")], ["Ужины", I("uzhin")], ["Бары", I("bar")],
       ["Стритфуд", I("pizza")], ["Вечеринки", I("party")], ["Настолки", I("games")], ["Настольные игры", I("games")],
       ["Кулинария", I("cook")], ["Готовка", I("cook")], ["Прогулки с собакой", I("dogs")], ["Нетворкинг", I("biz")],
-      ["Технологии", I("biz")], ["Баня", I("banya")], ["Языковой обмен", I("lang")],
+      ["Технологии", "/brand/pi/network.svg"], ["Баня", I("banya")], ["Языковой обмен", I("lang")],
     ],
   },
 ];

@@ -655,7 +655,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
   const isEventClosed = eventStatus === "completed" || eventStatus === "cancelled";
   const headerTitle = eventTitle ?? (members.length === 1 ? (members[0]?.name ?? "Чат") : "Чат");
   const soleMember = members.length === 1 ? members[0] : null;
-  const categoryIcon = isBusiness ? "/brand/cat3d/i_biz.svg" : category ? CATEGORY_ICON[category.slug] : undefined;
+  const categoryIcon = isBusiness ? "/brand/pi/biz.svg" : category ? CATEGORY_ICON[category.slug] : undefined;
   const totalParticipantsCount = members.length + 1; // +1 — сам зашедший пользователь
 
   const visibleParticipants =
@@ -716,7 +716,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                 (soleMember?.name ?? "?").charAt(0).toUpperCase()
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={categoryIcon ?? "/brand/cat3d/i_games.svg"} alt="" />
+                <img src={categoryIcon ?? "/brand/pi/other.svg"} alt="" />
               )}
             </span>
           )}
@@ -762,7 +762,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                 ) : (
                   <span className="hav gfx" style={{ width: 44, height: 44, borderRadius: 12 }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={categoryIcon ?? "/brand/cat3d/i_games.svg"} alt="" />
+                    <img src={categoryIcon ?? "/brand/pi/other.svg"} alt="" />
                   </span>
                 )}
                 <div>

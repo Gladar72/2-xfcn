@@ -81,8 +81,9 @@ const KIND_ICON: Record<string, string> = {
   kids: "i_games",
   karaoke: "i_karaoke",
 };
+const KIND_PI: Record<string, string> = { concert: "concert", standup: "standup", theatre: "theatre", ballet: "theatre", exhibition: "expo", quiz: "quiz", party: "parties", festival: "music", sport: "sport", excursion: "excursion", fashion: "photo", workshop: "workshop", kids: "games", karaoke: "karaoke" };
 export function cityEventIcon(kind: string | null | undefined): string {
-  return `/brand/cat3d/${KIND_ICON[kind ?? ""] ?? "i_world"}.svg`;
+  return `/brand/pi/${KIND_PI[kind ?? ""] ?? "excursion"}.svg`;
 }
 
 /** Подписи типов для карточки. */

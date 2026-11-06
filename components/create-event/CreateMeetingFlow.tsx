@@ -70,13 +70,18 @@ const COSTS: [CostType, string][] = [
   ["free", "Без расходов"],
   ["negotiable", "По договорённости"],
 ];
-const DURS: [number, string][] = [
-  [60, "1 ч"],
-  [90, "1,5 ч"],
-  [120, "2 ч"],
-  [180, "3 ч"],
-  [240, "4 ч"],
-];
+/** Колесо «Сколько продлится» (как в прототипе): от 1 до 12 часов, шаг 30 минут. */
+const DUR_WHEEL: [number, string][] = Array.from({ length: 23 }, (_, i) => {
+  const m = 60 + i * 30;
+  return [m, `${Math.floor(m / 60)}${m % 60 ? ",5" : ""} ч`];
+});
+const durIndex = (m: number) => {
+  let best = 0;
+  DUR_WHEEL.forEach(([v], i) => {
+    if (Math.abs(v - m) < Math.abs(DUR_WHEEL[best]![0] - m)) best = i;
+  });
+  return best;
+};
 /** Подписи плиток — как в прототипе. */
 const SHORT: Record<string, string> = {
   training: "Тренировка",
@@ -165,7 +170,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [mi, setMi] = useState(0);
   const [calOpen, setCalOpen] = useState(false);
   const [duration, setDuration] = useState(120);
-  const [durOwn, setDurOwn] = useState(false);
   const [placeName, setPlaceName] = useState("");
   const [placeQuery, setPlaceQuery] = useState("");
   const [address, setAddress] = useState("");
@@ -340,7 +344,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const bizSection = business ? BIZ_SECTIONS.find((c) => c.key === bizCategory) ?? null : null;
   const iconSrc = bizSection
     ? bizCategoryIcon(bizSection)
-    : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/cat3d/i_games.svg" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
+    : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/pi/other.svg" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
   const catLabel = bizSection
     ? bizSection.label
     : categorySlug === "training"
@@ -959,62 +963,44 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               <button className="calbtn gl" onClick={() => setCalOpen(true)}>
                 <Ic n="cal" c="xs" /> Выбрать в календаре
               </button>
-              <span className="lbl">Начало · {sumTxt}</span>
-              <div className="wheels gl tw">
-                <Wheel items={HOURS} index={hh} onChange={setHh} />
-                <span className="colon">:</span>
-                <Wheel items={MINS} index={mi} onChange={setMi} />
-              </div>
-              <span className="lbl">Сколько продлится</span>
-              <div className="chs nw">
-                {DURS.map(([v, t]) => (
-                  <button
-                    key={v}
-                    className={duration === v && !durOwn ? "on" : "gl"}
-                    onClick={() => {
-                      setDuration(v);
-                      setDurOwn(false);
-                    }}
-                  >
-                    {t}
-                  </button>
-                ))}
-                <button className={durOwn ? "on" : "gl"} onClick={() => setDurOwn(true)}>
-                  Своё
-                </button>
-              </div>
-              {durOwn && (
-                <div className="rv">
-                  <div className="durrow">
-                    <label className="field gl">
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={23}
-                        value={Math.floor(duration / 60)}
-                        onChange={(e) => setDuration(Math.max(0, Math.min(23, Number(e.target.value || 0))) * 60 + (duration % 60))}
-                      />
-                      <span>ч</span>
-                    </label>
-                    <label className="field gl">
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={55}
-                        step={5}
-                        value={duration % 60}
-                        onChange={(e) => setDuration(Math.floor(duration / 60) * 60 + Math.max(0, Math.min(55, Number(e.target.value || 0))))}
-                      />
-                      <span>мин</span>
-                    </label>
+              <div className="wrow">
+                <div>
+                  <span className="lbl">Начало</span>
+                  <div className="wpair">
+                    <div className="wheels gl one">
+                      <Wheel items={HOURS} index={hh} onChange={setHh} />
+                    </div>
+                    <span className="colon">:</span>
+                    <div className="wheels gl one">
+                      <Wheel items={MINS} index={mi} onChange={setMi} />
+                    </div>
                   </div>
-                  <p className="hint2">Минимум 1 час. Окончание может быть на следующий день.</p>
                 </div>
-              )}
-
+                <div>
+                  <span className="lbl">Сколько продлится</span>
+                  <div className="wheels gl one">
+                    <Wheel items={DUR_WHEEL.map(([, t]) => t)} index={durIndex(duration)} onChange={(i) => setDuration(DUR_WHEEL[i]![0])} />
+                  </div>
+                </div>
+              </div>
               <span className="lbl">Место</span>
+              {recs.length > 0 && (
+                <>
+                  <div className="plrec2">
+                    {recs.slice(0, 3).map((p) => (
+                      <button key={p.name} className={`plr2 gl ${placeName === p.name ? "on" : ""}`} onClick={() => pickPlace(p)}>
+                        <i aria-hidden />
+                        <span className="x">
+                          <b>{p.name}</b>
+                          <small>{p.address || "отметим на карте"}</small>
+                        </span>
+                        {p.rating ? <span className="rt">★ {p.rating.toFixed(1).replace(".", ",")}</span> : null}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="plcap">Лучшие по рейтингу для «{catLabel}» · или найди своё</p>
+                </>
+              )}
               <label className="sfield gl plin" style={{ cursor: "text", height: 48 }}>
                 <Ic n="search" c="s" />
                 <input
@@ -1046,28 +1032,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   ))}
                   {drop.length === 0 && addrDrop.length === 0 && <div className="pln">Ищем… или нажми на карту — адрес определится сам</div>}
                 </div>
-              )}
-              {recs.length > 0 && (
-                <>
-                  <div className="aihead" style={{ margin: "10px 0 6px" }}>
-                    <span className="aitag">✦ Мося рекомендует для «{catLabel}»</span>
-                  </div>
-                  <div className="plrec">
-                    {recs.map((p) => (
-                      <button key={p.name} className={`plr gl ${placeName === p.name ? "on" : ""}`} onClick={() => pickPlace(p)}>
-                        <b>{p.name}</b>
-                        {p.rating ? (
-                          <span className="plrate">
-                            ★ {p.rating.toFixed(1).replace(".", ",")}
-                            {p.reviews ? ` · ${reviewsWord(p.reviews)}` : ""}
-                          </span>
-                        ) : null}
-                        {p.note ? <span className="plnote">{p.note}</span> : null}
-                        <span>{p.address || "отметим на карте"}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
               )}
               <div className="pmap">
                 <LocationPicker

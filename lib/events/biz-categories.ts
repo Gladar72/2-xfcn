@@ -116,7 +116,7 @@ export function guessBizCategory(e: BizCategorizable): string {
 }
 
 export function bizCategoryIcon(c: BizCategory) {
-  return `/brand/cat3d/${c.icon}.svg`;
+  return `/brand/pi/${BIZ_PI[c.key] ?? "other"}.svg`;
 }
 
 export interface BizCategorizable {
@@ -151,3 +151,19 @@ export function bizCategoryCounts(items: BizCategorizable[]): { cat: BizCategory
 export function matchesBizCategory(e: BizCategorizable, key: string | null | undefined) {
   return !key || bizCategoriesOf(e).includes(key);
 }
+
+/** Иконки разделов «Для бизнеса» — из прототипа 2026 (public/brand/pi). */
+const BIZ_PI: Record<string, string> = {
+  food: "food",
+  bars: "bars",
+  party: "clubs",
+  concerts: "concert",
+  theatre: "theatre2",
+  workshops: "workshop",
+  art: "expo",
+  games: "quiz",
+  cinema: "kino",
+  sport: "sport",
+  kids: "games",
+  other: "other",
+};
