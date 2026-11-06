@@ -179,7 +179,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .deck-under{position:absolute;inset:0;background:#222;overflow:hidden}
 .P .deck-under img{width:100%;height:100%;object-fit:cover;filter:brightness(.8);transform:scale(.96);border-radius:28px}
 .P .pr.deck .gal .nm .dist{background:rgba(23,20,31,.3)}
-.P .geo-ask{position:absolute;left:20px;right:20px;top:calc(var(--top) + 64px);z-index:7;display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;border-radius:18px;font-size:13px;line-height:1.35;color:#16121F}
+.P .geo-ask{position:absolute;left:20px;right:20px;top:calc(var(--top) + 64px);z-index:7;display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;border-radius:18px;font-size:13px;line-height:1.35;color:#17141F}
 .P .geo-ask button{flex:none;height:32px;padding:0 12px;border-radius:16px;background:var(--violet);color:#fff;font-size:13px;font-weight:500}
 .P .opt.idea{position:relative;border:1.5px solid rgba(23,20,31,.15)}
 .P .opt.idea .idea-ic{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#efe8ff,#ffe6f1);display:grid;place-items:center;flex:none}
@@ -221,7 +221,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .acard.v .vm .ic{width:13px;height:13px}
 .P .acard.v .vm i{width:3px;height:3px;border-radius:50%;background:currentColor;margin:0 4px}
 .P .acard.v .vr{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:9px}
-.P .acard.v .vp{height:26px;padding:0 10px;border-radius:999px;background:#fff;color:#16121F;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.P .acard.v .vp{height:26px;padding:0 10px;border-radius:999px;background:#fff;color:#17141F;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .P .acard.v .aava{flex:none;width:30px;height:30px;border-radius:50%;object-fit:cover;display:grid;place-items:center;font-weight:700;font-size:13px;color:#fff;background:var(--g);box-shadow:0 0 0 2px rgba(255,255,255,.85)}
 .P .hero .boost{background:rgba(255,255,255,.2);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3);font-size:11px;font-weight:600}
 .P .hero .boost.lv{background:#fff;box-shadow:none}
