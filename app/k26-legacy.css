@@ -78,7 +78,7 @@
 .P .daysep{font:500 12px var(--disp);color:rgba(23,20,31,.58)}
 /* выбор обложки: сетка 3:4 как в прототипе, выбранная — графитовая рамка с галочкой */
 .P .covers{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.P .covers button{border-radius:16px}
+.P .covers button{border-radius:16px;aspect-ratio:3/4}
 .P .covers button.on{box-shadow:0 0 0 2.5px var(--milk),0 0 0 4.5px var(--ink)}
 .P .covers .aib{left:auto;right:6px;top:6px;bottom:auto;padding:0 7px;height:20px;line-height:20px;background:var(--ink);color:#fff;font:600 10.5px/20px var(--disp)}
 .P .covers .up{aspect-ratio:3/4;background:rgba(23,20,31,.05);color:rgba(23,20,31,.58);font:500 11px var(--disp)}

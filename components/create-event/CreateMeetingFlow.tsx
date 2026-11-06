@@ -846,6 +846,12 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               <label className="field gl">
                 <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={business ? "Например, дегустация вин от сомелье" : "Например, кофе перед работой"} maxLength={100} />
               </label>
+              <span className="lbl">
+                Описание <small className="muted">пара слов: что будете делать и для кого</small>
+              </span>
+              <label className="field gl ta">
+                <textarea rows={3} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Что будем делать, как узнать друг друга" />
+              </label>
               <div className="aihead">
                 <span className="lbl" style={{ margin: 0 }}>
                   Обложка
@@ -895,7 +901,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               {!lib && (!isOwn || presetCover) && (
               <div className="covers">
                 {covers.length === 0
-                  ? [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "1", borderRadius: 18 }} />)
+                  ? [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "3 / 4", borderRadius: 16 }} />)
                   : covers.map((c, i) => (
                       <button
                         key={c.slice(-40) + i}
@@ -911,10 +917,12 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               </div>
               )}
               <div className="covers" style={{ marginTop: 8 }}>
-                <button className="up gl" onClick={() => fileRef.current?.click()}>
-                  <Ic n="camera" />
-                  Своё фото
-                </button>
+                {(isOwn && !presetCover) && (
+                  <button className="up gl" onClick={() => fileRef.current?.click()}>
+                    <Ic n="camera" />
+                    Своё фото
+                  </button>
+                )}
                 {ownPhoto && (
                   <button className={photo === ownPhoto ? "on" : ""} onClick={() => setPhoto(ownPhoto)}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -934,12 +942,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   ? "Фото обязательно: без него встречу не опубликовать."
                   : "Своё фото можно загрузить к любой встрече. Не загрузишь — будет обложка, которую подобрал Мося."}
               </p>
-              <span className="lbl">
-                Описание <small className="muted">пара слов: что будете делать и для кого</small>
-              </span>
-              <label className="field gl ta">
-                <textarea rows={3} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Что будем делать, как узнать друг друга" />
-              </label>
             </>
           )}
 
