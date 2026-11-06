@@ -1,0 +1,11 @@
+/* Брендбук 2026 — то, что в прототипе делал скрипт, а в приложении нужно стилями:
+   нажатие кнопок, скелетоны загрузки, точка «есть новое». */
+.K .k-pr{-webkit-tap-highlight-color:transparent}
+.K .k-pr:active{transform:scale(.96);transition:transform .12s ease}
+.K .k-dotn{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--chromeB);box-shadow:0 0 0 2px #fff}
+.K .k-sk{background:linear-gradient(100deg,rgba(255,255,255,.45) 20%,rgba(255,255,255,.8) 40%,rgba(255,255,255,.45) 60%) 0 0/200% 100%;animation:k-shimmer 1.4s linear infinite}
+.K .k-sk::after{display:none}
+@keyframes k-shimmer{to{background-position:-200% 0}}
+.K .k-hc,.K .k-mt{-webkit-mask-image:-webkit-radial-gradient(white,black)}
+.K img{image-rendering:auto}
+@media (prefers-reduced-motion: reduce){.K .k-pr:active{transform:none}.K .k-sk{animation:none}}

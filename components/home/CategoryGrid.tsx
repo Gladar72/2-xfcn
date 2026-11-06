@@ -89,7 +89,7 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
         {/* «Другое» — полный список встреч с фильтрами (/search) */}
         <button onClick={() => router.push("/search")} className="m-cat m-glass">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/cat3d/i_world.webp" alt="" />
+          <img src="/brand/cat3d/i_world.svg" alt="" />
           <span>Другое</span>
         </button>
       </div>
@@ -118,7 +118,7 @@ export function CategoryGrid({ categories, onTrainingPress }: CategoryGridProps)
       {/* «Для бизнеса» — афиша заведений, отдельный раздел (/business) */}
       <button onClick={() => router.push("/business")} className="m-press mt-3 flex w-full items-center gap-3 overflow-hidden rounded-[26px] p-3 pr-4 text-left text-white shadow-card-lg" style={{ background: "linear-gradient(120deg,#2A1F4E 0%,#5B3AA8 55%,#C871B6 100%)" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/cat3d/i_biz.webp" alt="" className="h-16 w-16 shrink-0 object-contain" />
+        <img src="/brand/cat3d/i_biz.svg" alt="" className="h-16 w-16 shrink-0 object-contain" />
         <span className="min-w-0 flex-1">
           <span className="m-chip m-chip-glass mb-1 h-6 px-2 text-[11px]">Афиша заведений</span>
           <b className="block text-[16px] font-medium">Для бизнеса</b>

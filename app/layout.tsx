@@ -7,6 +7,9 @@ import "./mesto.css";
 import "./globals.css";
 import "./proto.css";
 import "./proto-app.css";
+// Брендбук 2026: стили экранов прототипа (классы k-*, внутри .K).
+import "./k26.css";
+import "./k26-app.css";
 import { TelegramInit } from "@/components/telegram/TelegramInit";
 import { ScreenTransitions } from "@/components/proto/ScreenTransitions";
 

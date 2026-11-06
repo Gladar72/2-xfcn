@@ -8,15 +8,16 @@ import { say } from "@/lib/mosya/peek";
 import { JoinFlow } from "@/components/events/JoinFlow";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { apiErrorText } from "@/lib/validation/api-error-text";
-import { photoThumb } from "@/lib/photos/thumb";
 import { interestIcon } from "@/lib/data/interests";
-import { Chr, Cover, EmptyIll, HeroCard, Ic, MiniMap, RowCard, Screen, Sheet, Toast, eventIcon, type HeroEvent } from "@/components/proto/ui";
+import { EmptyIll, Ic, RowCard, Screen, Sheet, Toast, type HeroEvent } from "@/components/proto/ui";
+import { KI, KHc, TwoLine, bg } from "@/components/proto/k";
+import { Creature } from "@/components/brand/Creature";
 import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
 import { goBack } from "@/lib/nav/back";
 import { CityWheel } from "@/components/proto/pickers";
 import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
-import { KIND_LABEL, cityEventIcon } from "@/lib/city-events";
-import { distanceShort, personDistanceLabel } from "@/lib/geo/approx-distance";
+import { KIND_LABEL } from "@/lib/city-events";
+import { personDistanceLabel } from "@/lib/geo/approx-distance";
 import { watchMyLocation, sendMyLocation } from "@/lib/geo/client-location";
 import { usePeopleVisitSeed } from "@/lib/people/use-visit-seed";
 
@@ -118,7 +119,6 @@ function HomeScreen() {
     count: number;
     latest: { eventId: string; eventTitle: string; name: string; age: number | null; avatarUrl: string | null };
   } | null>(null);
-  const [unreadChats, setUnreadChats] = useState(0);
   const [unreadNotif, setUnreadNotif] = useState(false);
   const [trainOpen, setTrainOpen] = useState(false);
   const [empty, setEmpty] = useState<{ slug: string; name: string; type?: string } | null>(null);
@@ -205,17 +205,6 @@ function HomeScreen() {
       })
       .catch(() => {});
     loadPeople();
-    fetch("/api/conversations", { signal: requestController.current?.signal })
-      .then((r) => r.json())
-      .then((d) =>
-        // Непрочитанные сообщения во всех чатах; чаты прошедших/отменённых встреч не считаем.
-        setUnreadChats(
-          ((d.items ?? []) as { unreadCount?: number; eventStatus?: string | null }[])
-            .filter((i) => i.eventStatus !== "completed" && i.eventStatus !== "cancelled")
-            .reduce((s, i) => s + (i.unreadCount || 0), 0)
-        )
-      )
-      .catch(() => {});
     fetch("/api/notifications", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => setUnreadNotif((d.items ?? []).some((n: { isRead?: boolean }) => !n.isRead)))
@@ -287,273 +276,211 @@ function HomeScreen() {
   const personal = (events ?? []).filter((e) => !e.isBusiness);
   const pop = [...personal.filter((e) => e.isPromoted), ...personal.filter((e) => !e.isPromoted)];
   const bizSorted = [...biz.filter((e) => e.isPromoted || e.isBoosted), ...biz.filter((e) => !(e.isPromoted || e.isBoosted))];
-  const nearN = (events ?? []).filter((e) => !e.isBusiness && !e.isMine).length;
   const cats = categories.filter((c) => c.slug !== "custom");
   const training = categories.find((c) => c.slug === "training");
 
+  // Карточки людей: мозаика прототипа — одна большая и две маленькие.
+  const mosaic = people.slice(0, 3);
+  const MZ = [
+    { left: 0, top: 0, width: "calc(58% - 6px)", height: 268 },
+    { right: 0, top: 0, width: "calc(42% - 6px)", height: 128 },
+    { right: 0, top: 140, width: "calc(42% - 6px)", height: 128 },
+  ];
+
   return (
     <Screen id="home">
-      <div className="top">
-        <button className="loc" onClick={() => setCityOpen(true)}>
-          <small>Ищем компанию в</small>
-          <b data-city>
-            {city ?? "…"} <Ic n="down" c="s" />
-          </b>
+      <div className="k-top">
+        <button className="k-chip k-g k-pr" style={{ height: 40 }} onClick={() => setCityOpen(true)} data-city>
+          <KI n="pin" />
+          {city ?? "…"}
+          <KI n="down" />
         </button>
-        <div style={{ display: "flex", gap: 8 }}>
-          <Link className={`rb gl${unreadChats > 0 ? " ping" : ""}`} href="/chats" aria-label="Чаты">
-            <Ic n="chat" />
-            {unreadChats > 0 && <span className="cnt">{unreadChats > 9 ? "9+" : unreadChats}</span>}
-          </Link>
-          <Link className="rb gl" href="/notifications" aria-label="Уведомления">
-            <Ic n="bell" />
-            {unreadNotif && <span className="dot" />}
-          </Link>
-        </div>
+        <Link className="k-rb k-g k-pr" href="/notifications" aria-label="Уведомления" style={{ position: "relative", overflow: "visible" }}>
+          <KI n="bell" />
+          {unreadNotif && <span className="k-dotn" />}
+        </Link>
       </div>
 
-      <h1 className="t hmh">
-        Что ищешь <em>сегодня?</em>
+      <h1 className="k-h1" style={{ marginTop: 20, fontSize: 38 }}>
+        Найди <em>компанию</em>
+        <br />
+        на сегодня
       </h1>
 
-      {req ? (
-        <Link className="plan" href={`/events/${req.latest.eventId}`} aria-label="Открыть новую заявку">
-          <span style={{ position: "relative", flex: "none", display: "flex" }}>
-            {req.latest.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={photoThumb(req.latest.avatarUrl, 120)} alt="" style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", border: "2px solid #fff" }} />
-            ) : (
-              <span style={{ width: 46, height: 46, borderRadius: "50%", border: "2px solid #fff", display: "grid", placeItems: "center", fontWeight: 700, fontSize: 18, background: "rgba(255,255,255,.25)" }}>
-                {req.latest.name.slice(0, 1)}
-              </span>
-            )}
-            <span style={{ position: "absolute", right: -7, bottom: -4, background: "#fff", color: "#6C3BFF", fontSize: 11, fontWeight: 800, borderRadius: 99, padding: "1px 5px" }}>
-              +{req.count}
-            </span>
-          </span>
-          <div>
-            <span>{`Новая заявка · «${req.latest.eventTitle.length > 14 ? `${req.latest.eventTitle.slice(0, 13).trim()}…` : req.latest.eventTitle}»`}</span>
-            <b>{`${req.latest.name}${req.latest.age ? `, ${req.latest.age}` : ""} хочет пойти`}</b>
-          </div>
-          <Ic n="chev" c="s" />
+      {/* Один ряд: лупа → «Все» → категории → «Фильтры». */}
+      <div className="k-hs" style={{ marginTop: 14, gap: 8 }}>
+        <Link className="k-chip k-g k-pr" style={{ padding: "0 11px" }} href="/search" aria-label="Поиск">
+          <KI n="search" />
         </Link>
-      ) : plan && (
-        <Link className="plan" href={`/events/${plan.ev.id}`}>
-          <Cover photoUrl={plan.ev.photoUrl} icon={eventIcon(plan.ev)} cls="" thumb={120} />
-          <div>
-            <span>
-              {plan.label} · {whenText(plan.ev.eventDate, plan.ev.eventTime)}
-            </span>
-            <b>{plan.ev.title}</b>
-          </div>
-          <Ic n="chev" c="s" />
-        </Link>
-      )}
-
-      {/* Один ряд вместо заголовка-ссылки, поиска и фильтра: лупа → категории → «Фильтры». */}
-      <div className="cats hmcats">
-        <Link className="cat gl hmsrch" href="/search" aria-label="Поиск">
-          <Ic n="search" />
-        </Link>
+        <span className="k-chip k-g k-pr k-on">Все</span>
         {cats.map((c) => (
-          <button key={c.id} className="cat gl" onClick={() => openCategory(c)}>
+          <button key={c.id} className="k-chip k-pr k-g" onClick={() => openCategory(c)}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" />
+            <img src={CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" style={{ width: 22, height: 22, marginLeft: -4 }} />
             {SHORT[c.slug] ?? c.name}
           </button>
         ))}
-        <Link className="cat gl" href="/search">
-          <span className="ownic">
-            <Chr shape="cloud" pal="mint" face="smile" />
-          </span>
-          Другое
-        </Link>
-        <Link className="cat gl hmflt" href="/search?filters=1">
-          <Ic n="filter" />
+        <Link className="k-chip k-g k-pr" href="/search?filters=1">
+          <KI n="filter" />
           Фильтры
         </Link>
       </div>
 
-      <div className="sec hm">
-        <b>
-          Личные встречи <span className="hmt v">от людей</span>
-        </b>
-        <Link href="/search">Все →</Link>
+      {/* Плашка с Мосей: новая заявка → «ты в деле» → кто свободен рядом. */}
+      {req ? (
+        <Link className="k-mos k-g k-pr" href={`/events/${req.latest.eventId}`} aria-label="Открыть новую заявку">
+          <Creature size={58} variant="e" />
+          <span className="k-t">
+            <b>{`${req.latest.name}${req.latest.age ? `, ${req.latest.age}` : ""}`}</b> хочет на «{req.latest.eventTitle}»
+            {req.count > 1 ? ` · ещё ${req.count - 1}` : ""}
+          </span>
+          <span className="k-go">Открыть</span>
+        </Link>
+      ) : plan ? (
+        <Link className="k-mos k-g k-pr" href={`/events/${plan.ev.id}`}>
+          <Creature size={58} variant="e" />
+          <span className="k-t">
+            <b>{plan.label}</b> · {plan.ev.title}, {whenText(plan.ev.eventDate, plan.ev.eventTime)}
+          </span>
+          <span className="k-go">Открыть</span>
+        </Link>
+      ) : (
+        <Link className="k-mos k-g k-pr" href={city ? `/people?city=${encodeURIComponent(city)}` : "/people"}>
+          <Creature size={58} variant="e" />
+          <span className="k-t">
+            {people.length > 0 ? (
+              <>
+                <b>
+                  {people.length} {plural(people.length, "человек", "человека", "человек")}
+                </b>{" "}
+                рядом {people.length === 1 ? "свободен" : "свободны"} сегодня вечером
+              </>
+            ) : (
+              <>
+                <b>Найди компанию</b> — посмотри, кто рядом
+              </>
+            )}
+          </span>
+          <span className="k-go">Найти</span>
+        </Link>
+      )}
+
+      <div className="k-sec">
+        <div>
+          <h3>
+            Личные <em>встречи</em>
+          </h3>
+          <p>Планы людей рядом — присоединяйся</p>
+        </div>
+        <Link className="k-all k-g k-pr" href="/search">
+          Все
+        </Link>
       </div>
-      <p className="hms">Планы людей рядом — присоединяйся</p>
-      <div className="rail hm">
+      <div className="k-hs">
         {events === null
-          ? [0, 1, 2].map((i) => <div key={i} className="sk hmsk" />)
-          : pop.map((e) => <HeroCard key={e.id} e={e} />)}
+          ? [0, 1, 2].map((i) => <div key={i} className="k-hc k-sk" />)
+          : pop.map((e) => <KHc key={e.id} e={e} />)}
         {events !== null && pop.length === 0 && (
-          <Link href="/create" className="hero" style={{ display: "grid", placeItems: "center", textAlign: "center", color: "#fff", background: "var(--g)" }}>
-            <div style={{ padding: 24 }}>
-              <b style={{ fontSize: 18, fontWeight: 500 }}>Сегодня пока тихо</b>
-              <p style={{ marginTop: 8, opacity: 0.9, fontSize: 14 }}>Создай первую встречу в своём городе</p>
-            </div>
+          <Link href="/create" className="k-inv k-g k-pr">
+            <i>+</i>Сегодня пока тихо — создай первую встречу
           </Link>
         )}
       </div>
 
-      {(
-        <>
-          <div className="sec hm">
-            <b>
-              Люди в твоём городе <span className="hmt p">рядом</span>
-            </b>
-            <Link href={city ? `/people?city=${encodeURIComponent(city)}` : "/people"}>Листать →</Link>
-          </div>
-          {!meHasLoc && (
-            <button className="nearb gl" onClick={allowGeo} disabled={geoBusy} style={{ width: "100%", marginTop: 0, marginBottom: 10, textAlign: "left", font: "inherit", color: "inherit", border: 0 }}>
-              <span className="rb k" style={{ width: 42, height: 42, flex: "none", color: "#fff" }}>
-                <Ic n="pin" c="s" />
+      <div className="k-sec">
+        <div>
+          <h3>
+            Люди <em>в твоём городе</em>
+          </h3>
+          <p>С общими интересами</p>
+        </div>
+        <Link className="k-all k-g k-pr" href={city ? `/people?city=${encodeURIComponent(city)}` : "/people"}>
+          Листать
+        </Link>
+      </div>
+      {!meHasLoc && (
+        <button className="k-mos k-g k-pr" onClick={allowGeo} disabled={geoBusy}>
+          <span className="k-rb k-rbd" style={{ marginLeft: 8 }}>
+            <KI n="pin" />
+          </span>
+          <span className="k-t">
+            <b>{geoBusy ? "Ищем, кто рядом…" : "Показать, кто рядом"}</b> — точный адрес никто не узнает
+          </span>
+        </button>
+      )}
+      {peopleLoaded && people.length === 0 && (
+        <p className="k-muted" style={{ margin: "12px 0 0", font: "400 14px/1.45 var(--disp)" }}>
+          Пока нет анкет в выбранном городе. Можно сменить город или создать встречу.
+        </p>
+      )}
+      {mosaic.length > 0 && (
+        <div className="k-mz" style={mosaic.length < 3 ? { height: mosaic.length === 1 ? 268 : 268 } : undefined}>
+          {mosaic.map((q, i) => (
+            <Link
+              key={q.id}
+              className="k-mt k-pr"
+              href={`/people?start=${q.id}${city ? `&city=${encodeURIComponent(city)}` : ""}`}
+              style={{ ...MZ[mosaic.length === 1 ? 0 : i], ...(mosaic.length === 1 ? { width: "100%" } : mosaic.length === 2 && i === 1 ? { height: 268 } : {}), ...bg(q.avatarUrl, 640, "center 30%") }}
+            >
+              {q.sharedCount > 0 && (
+                <span className="k-cm k-gw">
+                  {q.sharedInterests.slice(0, 2).map((n) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={n} src={interestIcon(n)} alt="" style={{ width: 18, height: 18 }} />
+                  ))}
+                  {q.sharedCount} общ.
+                </span>
+              )}
+              <span className="k-mb">
+                <b>
+                  {q.name}, {q.age}
+                </b>
+                <small>{q.distanceM != null ? personDistanceLabel(q.distanceM) : city}</small>
               </span>
-              <div>
-                <b>{geoBusy ? "Ищем, кто рядом…" : "Показать, кто рядом"}</b>
-                <span>Увидишь, сколько до людей и встреч — точный адрес никто не узнает</span>
-              </div>
-              <Ic n="chev" c="s" />
-            </button>
-          )}
-          <p className="hms">С общими интересами</p>
-          {peopleLoaded && people.length === 0 && <p className="sub" style={{ margin: "8px 20px 16px" }}>Пока нет анкет в выбранном городе. Можно сменить город или создать встречу.</p>}
-          <div className="rail hm">
-            {people.map((q) => (
-              <Link key={q.id} className="pcard" href={`/people?start=${q.id}${city ? `&city=${encodeURIComponent(city)}` : ""}`}>
-                {q.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoThumb(q.avatarUrl, 320)} alt="" />
-                ) : (
-                  <span className="tgava">{q.name.charAt(0).toUpperCase()}</span>
-                )}
-                {q.sharedCount > 0 && (
-                  <span className="mt">
-                    {q.sharedInterests.slice(0, 2).map((i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={interestIcon(i)} alt="" />
-                    ))}
-                    {q.sharedCount} {plural(q.sharedCount, "общий", "общих", "общих")}
-                  </span>
-                )}
-                <div>
-                  <b>
-                    {q.name}, {q.age}
-                  </b>
-                  <span>
-                    {[q.distanceM != null ? personDistanceLabel(q.distanceM) : null, ...q.sharedInterests.slice(0, 2)].filter(Boolean).join(" · ") || city}
-                  </span>
-                  <span className="hmc">Профиль</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </>
+            </Link>
+          ))}
+        </div>
       )}
 
-      <div className="afisha">
-        <div className="af-h">
+      <div className="k-biz k-g">
+        <div className="k-sec">
           <div>
-            <small>Для бизнеса</small>
-            <b>Афиша заведений</b>
-            <p className="hms">События кафе, баров и площадок</p>
+            <h3>
+              Афиша <em>заведений</em>
+            </h3>
+            <p>События кафе, баров и площадок</p>
           </div>
-          <Link href="/business">
-            Все <Ic n="chev" c="xs" />
+          <Link className="k-all k-g k-pr" href="/business">
+            Все
           </Link>
         </div>
-        <div className="rail hm">
-          {bizSorted.map((e) => {
-            const left = Math.max(0, e.seatsTotal - e.seatsTaken);
-            return (
-              <Link key={e.id} className="acard v" href={`/events/${e.id}`}>
-                <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} thumb={480} />
-                {e.isLive ? (
-                  <span className="ast lv">
-                    <span className="live">
-                      <i />
-                      Идёт сейчас
-                    </span>
-                  </span>
-                ) : e.isPromoted || e.isBoosted ? (
-                  <span className="ast">
-                    <Ic n="up" c="xs" />В топе
-                  </span>
-                ) : null}
-                <span className="vb">
-                  <b>{e.title}</b>
-                  <span className="vm">
-                    <span>
-                      <Ic n="cal" c="xs" />
-                      {whenShort(e.eventDate, e.eventTime).replace(" · ", ", ")}
-                    </span>
-                    <i />
-                    <span>
-                      <Ic n="people" c="xs" />
-                      {left > 0 ? `${left} ${plural(left, "место", "места", "мест")}` : "мест нет"}
-                    </span>
-                  </span>
-                  <span className="vr">
-                    <span className="vp">{e.businessPricingType === "free" ? "Бесплатно" : e.businessPricingDetails?.trim() || "Бесплатно"}</span>
-                    {e.organizer?.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img className="aava" src={photoThumb(e.organizer.avatarUrl, 80)} alt="" />
-                    ) : (
-                      <span className="aava">{(e.organizer?.name ?? "Б").charAt(0).toUpperCase()}</span>
-                    )}
-                  </span>
-                </span>
-              </Link>
-            );
-          })}
+        <div className="k-hs">
+          {bizSorted.map((e) => (
+            <KHc key={e.id} e={e} />
+          ))}
           {/* «Что ещё в городе»: события из открытых источников (после одобрения). */}
           {cityEv.map((c) => (
-            <Link key={c.id} className="acard city" href={`/city/${c.id}`}>
-              <Cover photoUrl={c.photoUrl} icon={cityEventIcon(c.kind)} thumb={480} />
-              <span className="pill glass">
-                {KIND_LABEL[c.kind ?? ""] ?? "В городе"}
+            <Link key={c.id} className="k-hc k-pr" href={`/city/${c.id}`} style={bg(c.photoUrl, 600)}>
+              <span className="k-chip k-gw k-tg">{KIND_LABEL[c.kind ?? ""] ?? "В городе"}</span>
+              <span className="k-bt">
+                <span className="k-tt">
+                  <TwoLine text={c.title} />
+                </span>
+                <span className="k-mm" style={{ display: "block" }}>
+                  {[cityWhen(c), c.placeName].filter(Boolean).join(" · ")}
+                </span>
+                <span className="k-cta">{c.priceText || "Подробнее"}</span>
               </span>
-              <div className="acb">
-                <b>{c.title}</b>
-                <p>
-                  <span className="ach">
-                    <Ic n="cal" c="xs" />
-                    {cityWhen(c)}
-                  </span>
-                </p>
-                <p>
-                  {c.placeName && <span className="ach">{c.placeName}</span>}
-                  {c.priceText && <span className="ach pr">{c.priceText}</span>}
-                </p>
-              </div>
             </Link>
           ))}
           {/* Пока событий мало — приглашаем заведения разместить своё. */}
           {biz.length < 4 && (
-            <Link className="acard invite" href="/business">
-              <div>
-                <span className="hmplus">
-                  <Ic n="plus" />
-                </span>
-                <b>Здесь может быть ваше бизнес‑событие</b>
-              </div>
+            <Link className="k-inv k-g k-pr" href="/business">
+              <i>+</i>Здесь может быть ваше бизнес‑событие
             </Link>
           )}
         </div>
       </div>
-
-      <Link className="nearb gl" href="/map">
-        <div className="nb-m">
-          <MiniMap />
-          <span>{nearN}</span>
-        </div>
-        <div>
-          <b>
-            {nearN > 0 ? `Ещё ${nearN} ${plural(nearN, "встреча", "встречи", "встреч")} рядом` : "Встречи на карте"}
-          </b>
-          <span>Смотри на карте или списком</span>
-        </div>
-        <Ic n="chev" c="s" />
-      </Link>
 
       {/* шторки */}
       <Sheet open={trainOpen} onClose={() => setTrainOpen(false)}>

@@ -10,7 +10,7 @@ import { MatchOnOpen } from "@/components/people/MatchOnOpen";
  */
 export default function AppSectionLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="P">
+    <div className="P K">
       {children}
       <Suspense>
         <BottomNav />

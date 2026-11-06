@@ -116,7 +116,7 @@ export function guessBizCategory(e: BizCategorizable): string {
 }
 
 export function bizCategoryIcon(c: BizCategory) {
-  return `/brand/cat3d/${c.icon}.webp`;
+  return `/brand/cat3d/${c.icon}.svg`;
 }
 
 export interface BizCategorizable {

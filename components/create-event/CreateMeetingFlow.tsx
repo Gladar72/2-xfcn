@@ -345,7 +345,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const bizSection = business ? BIZ_SECTIONS.find((c) => c.key === bizCategory) ?? null : null;
   const iconSrc = bizSection
     ? bizCategoryIcon(bizSection)
-    : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/cat3d/i_games.webp" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
+    : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/cat3d/i_games.svg" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
   const catLabel = bizSection
     ? bizSection.label
     : categorySlug === "training"

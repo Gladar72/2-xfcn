@@ -54,7 +54,7 @@ export function Faces({ people, ring, me }: { people: Person[]; ring?: string; m
 export function eventIcon(e: { isBusiness?: boolean; category?: { slug: string } | null; trainingType?: { slug: string } | null }) {
   if (e.isBusiness) return CATEGORY_ICON.business ?? "";
   if (e.category?.slug === "training") return trainingIcon(e.trainingType?.slug);
-  if (e.category?.slug === "custom") return "/brand/cat3d/i_games.webp";
+  if (e.category?.slug === "custom") return "/brand/cat3d/i_games.svg";
   return (e.category && CATEGORY_ICON[e.category.slug]) || CATEGORY_ICON.custom || "";
 }
 

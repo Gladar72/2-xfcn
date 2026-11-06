@@ -82,7 +82,7 @@ const KIND_ICON: Record<string, string> = {
   karaoke: "i_karaoke",
 };
 export function cityEventIcon(kind: string | null | undefined): string {
-  return `/brand/cat3d/${KIND_ICON[kind ?? ""] ?? "i_world"}.webp`;
+  return `/brand/cat3d/${KIND_ICON[kind ?? ""] ?? "i_world"}.svg`;
 }
 
 /** Подписи типов для карточки. */

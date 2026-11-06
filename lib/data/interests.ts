@@ -4,7 +4,7 @@
  * какую группу их положить и какую иконку показать. Неизвестный интерес
  * попадает в «Ещё» с иконкой-глобусом.
  */
-const I = (n: string) => `/brand/cat3d/i_${n}.webp`;
+const I = (n: string) => `/brand/cat3d/i_${n}.svg`;
 
 export const INTEREST_GROUPS: { title: string; items: [name: string, icon: string][] }[] = [
   {
