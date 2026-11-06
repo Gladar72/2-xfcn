@@ -247,3 +247,5 @@
 .K .k-hs:has(>.k-hc){scroll-snap-type:x mandatory;scroll-padding-left:20px}
 .K .k-biz .k-hs{scroll-padding-left:14px}
 .K .k-biz .k-hs>.k-hc,.K .k-biz .k-hs>.k-inv{width:calc((100vw - 52px) / 2)}
+/* «О себе» у человека: без пустого места — блок по высоте содержимого, прижат к кнопкам снизу. */
+.P .pr.pr2 .sheet2{min-height:0!important}
