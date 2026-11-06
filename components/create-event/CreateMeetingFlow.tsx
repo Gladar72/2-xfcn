@@ -8,7 +8,7 @@ import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { businessProblem, descriptionProblem, titleProblem } from "@/lib/events/quality";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
-import { COVER_LIBRARY, coverFor, coverForText, coverLibrary, coverLibraryKey, coverSetFor, isPresetCover } from "@/lib/photos/preset-cover";
+import { coverFor, coverForText, coverSetFor, isPresetCover } from "@/lib/photos/preset-cover";
 import { confetti } from "@/lib/mosya/confetti";
 import { Ic, Toast } from "@/components/proto/ui";
 import { KI, TwoLine } from "@/components/proto/k";
@@ -157,8 +157,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [ownPhoto, setOwnPhoto] = useState<string | undefined>();
   const [covers, setCovers] = useState<string[]>([]);
   const [coverShift, setCoverShift] = useState(0);
-  // Вкладка библиотеки фирменных обложек (как в прототипе: «Бег / Кино / Hyrox / … / Своё фото»).
-  const [lib, setLib] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | undefined>();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -338,7 +336,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   // Обложки от Моси — готовое фото категории; рисованные — только запасной вариант.
   useEffect(() => {
     if (step !== 2) return;
-    if (isOwn && !presetCover) {
+    // Событие для бизнеса — только своё фото (афиша, зал, сцена), без наших обложек.
+    if (business || (isOwn && !presetCover)) {
       setCovers([]);
       if (photo !== ownPhoto) setPhoto(ownPhoto);
       return;
@@ -448,6 +447,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         if (b) return b;
       }
     }
+    if (step === 2 && business && (!ownPhoto || photo !== ownPhoto))
+      return "Загрузи фото события — афишу, зал или сцену. Так гости поймут, куда идут.";
     if (step === 2 && isOwn && !presetCover && !isPresetCover(photo) && (!ownPhoto || photo !== ownPhoto))
       return "Мося не нашёл обложку под твою встречу — загрузи своё фото, чтобы люди поняли, куда зовёшь.";
     if (step === 3) {
@@ -633,8 +634,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
 
   const cats = categories.filter((c) => c.slug !== "custom");
   const hasCustom = categories.some((c) => c.slug === "custom");
-  const libKey = lib ?? coverLibraryKey(categorySlug, trainingTypeSlug);
-  const gridCovers = lib ? coverLibrary(lib) : !isOwn || presetCover ? covers : [];
+  // Наши обложки — только для своего раздела встречи; у бизнеса — только своё фото.
+  const gridCovers = business ? [] : !isOwn || presetCover ? covers : [];
   const planName = plan === "medium" ? "Медиум" : plan === "premium" ? "Премиум" : "Старт";
   const srcLabel = (src?: string) => (src === "yandex" ? "Яндекс" : src === "osm" ? "Карты" : "");
   const costLabel = business
@@ -781,27 +782,17 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 <textarea rows={3} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Что будем делать, как узнать друг друга" />
               </label>
               <span className="k-lbl">Обложка</span>
-              <div className="k-hs k-cvcats">
-                {COVER_LIBRARY.map((l) => (
-                  <button key={l.key} className={`k-chip k-g k-pr ${libKey === l.key ? "k-on" : ""}`} onClick={() => setLib(l.key)}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={l.icon} alt="" style={{ width: 20, height: 20, filter: libKey === l.key ? "invert(1) brightness(2)" : undefined }} />
-                    {l.label}
-                  </button>
-                ))}
-                <button className="k-chip k-g k-pr" onClick={() => fileRef.current?.click()}>
-                  Своё фото
-                </button>
-              </div>
               <p className="k-cvn">
-                {isOwn && !presetCover && !lib
-                  ? `Под «${own.trim() || title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото`
-                  : gridCovers.length > 1
-                    ? `${gridCovers.length} фирменных обложек · выбери одну`
-                    : "Обложку подобрал Мося · или загрузи своё фото"}
+                {business
+                  ? "Загрузи своё фото — афишу, зал или сцену. Вертикально, 3:4"
+                  : isOwn && !presetCover
+                    ? `Под «${own.trim() || title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото`
+                    : gridCovers.length > 1
+                      ? `Обложки для «${catLabel}» · выбери одну или загрузи своё фото`
+                      : "Обложку подобрал Мося · или загрузи своё фото"}
               </p>
               <div className="k-cvg">
-                {gridCovers.length === 0 && (!isOwn || presetCover) && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "3 / 4", borderRadius: 16 }} />)}
+                {gridCovers.length === 0 && !business && (!isOwn || presetCover) && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "3 / 4", borderRadius: 16 }} />)}
                 {gridCovers.map((c, i) => (
                   <button key={c.slice(-40) + i} className={`k-pr ${photo === c ? "k-on" : ""}`} style={bgCover(c)} onClick={() => setPhoto(c)} aria-label={`Обложка ${i + 1}`} />
                 ))}
@@ -810,7 +801,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   +<small>Своё фото</small>
                 </button>
               </div>
-              {!isOwn && !presetCover && !lib && (
+              {!business && !isOwn && !presetCover && (
                 <button className="k-btn k-l k-pr k-cropb" onClick={() => setCoverShift((n) => n + 1)}>
                   Ещё варианты
                 </button>

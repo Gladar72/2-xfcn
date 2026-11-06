@@ -87,6 +87,16 @@ for (const [name, url] of [["mk", "/create"], ["mkbiz", "/create?business=true"]
       if (await opt.count()) await opt.click({ timeout: 2000 }).catch(() => {});
       const title = page.locator("section.scr:not(.ghost) input[maxlength='100']").first();
       if (await title.count()) await title.fill("Тестовая встреча").catch(() => {});
+      // Событие для бизнеса — своё фото обязательно: загружаем и подтверждаем кадр.
+      const file = page.locator("section.scr:not(.ghost) input[type=file]").first();
+      if (name === "mkbiz" && (await file.count()) && !(await page.locator(".k-cvg button.k-on").count())) {
+        await file.setInputFiles("public/brand/covers/business.webp").catch(() => {});
+        const done = page.getByRole("button", { name: "Готово", exact: true });
+        await done.waitFor({ timeout: 4000 }).catch(() => {});
+        await page.waitForTimeout(600);
+        await done.click({ timeout: 3000 }).catch(() => {});
+        await page.waitForTimeout(600);
+      }
       const place = page.locator("section.scr:not(.ghost) button.k-rp").first();
       if (await place.count()) await place.click({ timeout: 2000 }).catch(() => {});
       const about = page.locator("section.scr:not(.ghost) textarea").first();
