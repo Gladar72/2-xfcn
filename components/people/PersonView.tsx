@@ -366,7 +366,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         </div>
         {error && (
           <div className="body" style={{ pointerEvents: "auto" }}>
-            <div className="sheet2" style={{ marginTop: 440 }}>
+            <div className="sheet2" style={{ marginTop: "min(72vh, 600px)" }}>
               <div className="empty">
                 <b>{error}</b>
                 <button className="btn o" style={{ width: "100%" }} onClick={() => goBack(router, "/feed")}>
@@ -538,7 +538,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
         >
           <Ic n="up" />
         </button>
-        <div className="sheet2" style={{ marginTop: 440 }}>
+        <div className="sheet2" style={{ marginTop: "min(72vh, 600px)" }}>
           <div className="blk">
             <div className="blk-h">
               <b>О себе</b>

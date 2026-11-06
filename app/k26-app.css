@@ -249,3 +249,6 @@
 .K .k-biz .k-hs>.k-hc,.K .k-biz .k-hs>.k-inv{width:calc((100vw - 52px) / 2)}
 /* «О себе» у человека: без пустого места — блок по высоте содержимого, прижат к кнопкам снизу. */
 .P .pr.pr2 .sheet2{min-height:0!important}
+/* Профиль человека: фото крупнее, плашка «О себе» начинается ниже; иконки интересов на тёмном — светлые. */
+.P .pr.pr2:not(.deck) .gal{height:min(82vh,700px)!important}
+.P .pr.pr2 .sheet2 .itag img{filter:invert(1) brightness(2);opacity:.9}
