@@ -41,7 +41,10 @@ async function fixture(page: Page) {
       : /^\/api\/events\/test-\d+$/.test(path) ? events[0]
       : path === "/api/people" ? { items: [person, { ...person, id: "p2", name: "Марина", age: 27 }].map((p) => ({ ...p, interests: ["Кофе", "Бег"], sharedInterests: ["Кофе"], sharedCount: 1 })) }
       : path === "/api/conversations" ? { items: [{ conversationId: "c1", eventTitle: null, eventStatus: null, unreadCount: 1, otherUser: { id: "other", name: "Алексей", avatarUrl: photo }, lastMessage: { content: "Давай встретимся вечером", createdAt: "2026-11-06T12:00:00Z" } }] }
-      : path === "/api/categories" ? { categories: [{ slug: "coffee", name: "Кофе", emoji: null }], trainingTypes: [] }
+      : path === "/api/categories" ? {
+          categories: [["coffee", "Попить кофе"], ["breakfast", "Совместный завтрак"], ["dinner", "Поужинать"], ["cinema", "Кино"], ["walk", "Прогулка"], ["party", "Вечеринка"], ["training", "Совместная тренировка"], ["active", "Активный отдых"], ["custom", "Своё предложение"]].map(([slug, name], i) => ({ id: `c${i}`, slug, name, emoji: null })),
+          trainingTypes: [["running", "Бег"], ["padel", "Падел"], ["gym", "Зал"], ["hyrox", "HYROX"], ["football", "Футбол"], ["cycling", "Велосипед"], ["yoga", "Йога"]].map(([slug, name], i) => ({ id: `t${i}`, slug, name, emoji: null })),
+        }
       : path === "/api/subscriptions" ? { active: true, plan: "start", events: { used: 1, limit: 3 }, boosts: { used: 0, limit: 1 } }
       : { items: [], events: [], people: [], count: 0 };
     await route.fulfill({ json });
