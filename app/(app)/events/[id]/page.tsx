@@ -76,6 +76,20 @@ interface EventDetailsPageProps {
 }
 
 
+/** «Точка на карте» — служебное имя метки, людям его не показываем. */
+function realPlace(n: string | null | undefined): string | null {
+  const t = (n ?? "").trim();
+  return t && t !== "Точка на карте" ? t : null;
+}
+/** Название + адрес без повторов («Максимилианс, …, Максимилианс» → один раз). */
+function placeLine(name: string | null | undefined, address: string | null | undefined): string {
+  const n = realPlace(name);
+  const a = (address ?? "").trim();
+  if (!n) return a;
+  if (!a) return n;
+  return a.toLowerCase().includes(n.toLowerCase()) ? a : `${n}, ${a}`;
+}
+
 export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const { id: eventId } = params;
   const router = useRouter();
@@ -657,83 +671,6 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </Link>
             ))}
 
-          {event.description && (
-            <div className="k-blk k-gd">
-              <b className="k-bh">{event.isBusiness ? "О событии" : "О встрече"}</b>
-              <p style={{ whiteSpace: "pre-line" }}>{event.description}</p>
-            </div>
-          )}
-
-          <div className="k-blk k-gd" style={{ padding: 0, overflow: "hidden" }}>
-            {hid ? (
-              <div style={{ padding: "14px 16px" }}>
-                <b className="k-bh">Место откроется после одобрения</b>
-                <p style={{ margin: "2px 0 0" }}>Организатор и точный адрес видны только принятым участникам</p>
-              </div>
-            ) : (
-              <>
-                <div style={{ padding: "14px 16px 10px" }}>
-                  <b className="k-bh">Место</b>
-                  <p style={{ margin: "2px 0 0" }}>
-                    {[event.placeName, event.address].filter(Boolean).join(", ") || "Место уточняется"}
-                  </p>
-                </div>
-                <div className="k-mapbox" style={{ display: "block", width: "100%", margin: 0, borderRadius: 0, height: 170, position: "relative" }}>
-                  {event.latitude != null && event.longitude != null ? (
-                    <EventPlaceMap
-                      fill
-                      latitude={event.latitude}
-                      longitude={event.longitude}
-                      markerSrc={markerIconFor({ isBusiness: event.isBusiness, category: event.category })}
-                      placeName={event.placeName}
-                      fallbackSrc={icon}
-                      markerEvent={{
-                        id: event.id,
-                        title: event.title,
-                        eventDate: event.eventDate,
-                        eventTime: event.eventTime,
-                        latitude: event.latitude,
-                        longitude: event.longitude,
-                        placeName: event.placeName,
-                        address: event.address,
-                        seatsLeft: event.seatsTotal - event.seatsTaken,
-                        category: event.category,
-                        isBusiness: event.isBusiness,
-                        markerPhoto: event.isBusiness
-                          ? event.photoUrl ?? event.organizer?.avatarUrl ?? "/brand/covers/business.webp"
-                          : event.organizer?.avatarUrl ?? null,
-                      }}
-                      onOpen={() => router.push(`/map?${event.isBusiness ? "business=only&" : ""}focus=${event.id}`)}
-                    />
-                  ) : (
-                    <MiniMap />
-                  )}
-                </div>
-                <span className="k-mapact">
-                    {event.latitude != null && event.longitude != null && (
-                      <button className="k-chip k-gw k-pr" onClick={() => openRoute(event.latitude!, event.longitude!)}>
-                        <KI n="map" />
-                        Маршрут
-                      </button>
-                    )}
-                    {event.address && (
-                      <button
-                        className="k-chip k-gw k-pr"
-                        onClick={() =>
-                          navigator.clipboard?.writeText(`${event.placeName ? event.placeName + ", " : ""}${event.address}`).then(
-                            () => flash("Адрес скопирован"),
-                            () => {}
-                          )
-                        }
-                      >
-                        Скопировать адрес
-                      </button>
-                    )}
-                </span>
-              </>
-            )}
-          </div>
-
           <div className="k-blk k-gd">
             <div className="k-bh2">
               <b className="k-bh">
@@ -777,6 +714,83 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 </button>
               )}
             </div>
+          </div>
+
+          {event.description && (
+            <div className="k-blk k-gd">
+              <b className="k-bh">{event.isBusiness ? "О событии" : "О встрече"}</b>
+              <p style={{ whiteSpace: "pre-line" }}>{event.description}</p>
+            </div>
+          )}
+
+          <div className="k-blk k-gd" style={{ padding: 0, overflow: "hidden" }}>
+            {hid ? (
+              <div style={{ padding: "14px 16px" }}>
+                <b className="k-bh">Место откроется после одобрения</b>
+                <p style={{ margin: "2px 0 0" }}>Организатор и точный адрес видны только принятым участникам</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ padding: "14px 16px 10px" }}>
+                  <b className="k-bh">Место</b>
+                  <p style={{ margin: "2px 0 0" }}>
+                    {placeLine(event.placeName, event.address) || "Место уточняется"}
+                  </p>
+                </div>
+                <span className="k-mapact">
+                    {event.latitude != null && event.longitude != null && (
+                      <button className="k-chip k-gw k-pr" onClick={() => openRoute(event.latitude!, event.longitude!)}>
+                        <KI n="map" />
+                        Маршрут
+                      </button>
+                    )}
+                    {event.address && (
+                      <button
+                        className="k-chip k-gw k-pr"
+                        onClick={() =>
+                          navigator.clipboard?.writeText(placeLine(event.placeName, event.address)).then(
+                            () => flash("Адрес скопирован"),
+                            () => {}
+                          )
+                        }
+                      >
+                        Скопировать адрес
+                      </button>
+                    )}
+                </span>
+                <div className="k-mapbox" style={{ display: "block", width: "100%", margin: 0, borderRadius: 0, height: 240, position: "relative" }}>
+                  {event.latitude != null && event.longitude != null ? (
+                    <EventPlaceMap
+                      fill
+                      latitude={event.latitude}
+                      longitude={event.longitude}
+                      markerSrc={markerIconFor({ isBusiness: event.isBusiness, category: event.category })}
+                      placeName={event.placeName}
+                      fallbackSrc={icon}
+                      markerEvent={{
+                        id: event.id,
+                        title: event.title,
+                        eventDate: event.eventDate,
+                        eventTime: event.eventTime,
+                        latitude: event.latitude,
+                        longitude: event.longitude,
+                        placeName: event.placeName,
+                        address: event.address,
+                        seatsLeft: event.seatsTotal - event.seatsTaken,
+                        category: event.category,
+                        isBusiness: event.isBusiness,
+                        markerPhoto: event.isBusiness
+                          ? event.photoUrl ?? event.organizer?.avatarUrl ?? "/brand/covers/business.webp"
+                          : event.organizer?.avatarUrl ?? null,
+                      }}
+                      onOpen={() => router.push(`/map?${event.isBusiness ? "business=only&" : ""}focus=${event.id}`)}
+                    />
+                  ) : (
+                    <MiniMap />
+                  )}
+                </div>
+              </>
+            )}
           </div>
 
           {invitePending && (
@@ -1045,7 +1059,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           }}
         />
       )}
-      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} when={shareWhen} version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`} photo={event.photoUrl} chip={`${catName} · ${shareWhen}`} meta={[event.isAnonymous ? null : event.placeName, `${event.seatsTaken} из ${event.seatsTotal}`].filter(Boolean).join(" · ")} />
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} when={shareWhen} version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`} photo={event.photoUrl} chip={`${catName} · ${shareWhen}`} meta={[event.isAnonymous ? null : realPlace(event.placeName), `${event.seatsTaken} из ${event.seatsTotal}`].filter(Boolean).join(" · ")} />
 
       <Sheet open={anonOpen} onClose={() => setAnonOpen(false)}>
         <div className="anonbox">
