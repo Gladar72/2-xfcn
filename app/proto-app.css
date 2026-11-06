@@ -175,13 +175,13 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .bizmap-note img{width:30px;height:30px;flex:none}
 .P .mapfab{position:absolute;left:50%;bottom:calc(var(--bot) + 18px);transform:translateX(-50%);z-index:8;display:flex;align-items:center;gap:8px;height:50px;padding:0 22px;border-radius:25px;background:rgba(22,18,31,.86);color:#fff;font-weight:500;font-size:15px;box-shadow:0 10px 30px rgba(40,10,90,.3);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
 .P .mapfab .ic{width:18px;height:18px}
-.P .sec a{height:30px;padding:0 12px;border-radius:999px;background:rgba(108,59,255,.1);color:var(--violet);font-size:13px;font-weight:500;display:inline-flex;align-items:center;white-space:nowrap}
+.P .sec a{height:30px;padding:0 12px;border-radius:999px;background:rgba(23,20,31,.06);color:var(--violet);font-size:13px;font-weight:500;display:inline-flex;align-items:center;white-space:nowrap}
 .P .deck-under{position:absolute;inset:0;background:#222;overflow:hidden}
 .P .deck-under img{width:100%;height:100%;object-fit:cover;filter:brightness(.8);transform:scale(.96);border-radius:28px}
-.P .pr.deck .gal .nm .dist{background:rgba(108,59,255,.55)}
+.P .pr.deck .gal .nm .dist{background:rgba(23,20,31,.3)}
 .P .geo-ask{position:absolute;left:20px;right:20px;top:calc(var(--top) + 64px);z-index:7;display:flex;align-items:center;gap:10px;padding:10px 12px 10px 14px;border-radius:18px;font-size:13px;line-height:1.35;color:#16121F}
 .P .geo-ask button{flex:none;height:32px;padding:0 12px;border-radius:16px;background:var(--violet);color:#fff;font-size:13px;font-weight:500}
-.P .opt.idea{position:relative;border:1.5px solid rgba(108,59,255,.28)}
+.P .opt.idea{position:relative;border:1.5px solid rgba(23,20,31,.15)}
 .P .opt.idea .idea-ic{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#efe8ff,#ffe6f1);display:grid;place-items:center;flex:none}
 .P .opt.idea .idea-ic img{width:38px;height:38px;object-fit:contain}
 .P .opt.idea .mosya-tag{position:absolute;top:-9px;right:12px;height:18px;padding:0 8px;border-radius:9px;background:linear-gradient(120deg,#6c3bff,#ff6fa0);color:#fff;font-size:10.5px;font-weight:500;display:flex;align-items:center}
@@ -207,7 +207,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .cityrow .cr-i small{font-size:11.5px;color:var(--violet);font-weight:500}
 .P .cityrow .cr-i b{font-weight:500;font-size:15px;line-height:1.25;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .P .cityrow .cr-i span{font-size:12.5px;color:var(--grey);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.P .cityrow .cr-p{flex:none;font-size:13px;font-weight:500;padding:5px 10px;border-radius:12px;background:rgba(108,59,255,.1);color:var(--violet)}
+.P .cityrow .cr-p{flex:none;font-size:13px;font-weight:500;padding:5px 10px;border-radius:12px;background:rgba(23,20,31,.06);color:var(--violet)}
 
 /* Главная 2026-10: вытянутые карточки афиши, «В популярном» — стекло. */
 .P .afisha{margin:26px 0 0;border-radius:30px;padding:18px 16px 16px;overflow:hidden}
@@ -260,7 +260,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* Миниатюры событий в списках и на карте — 16. */
 .P .mcard>img,.P .ci img{border-radius:16px}
 /* Обводка выбранного варианта — 2px везде. */
-.P .opt.on{box-shadow:inset 0 0 0 2px #9B5CFF,0 10px 24px -16px rgba(130,60,255,.7)}
+.P .opt.on{box-shadow:inset 0 0 0 2px #9B5CFF,0 10px 24px -16px rgba(23,20,31,.28)}
 
 /* ── Плашки с текстом на карточках «Личные встречи» и «Афиша» — один размер (29.10) ── */
 .P .hero .bar.hb2,.P .acard.v .vb{left:10px;right:10px;bottom:10px;padding:10px;border-radius:22px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);background:rgba(22,12,48,.46);-webkit-backdrop-filter:blur(16px) saturate(150%);backdrop-filter:blur(16px) saturate(150%)}
@@ -322,25 +322,25 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 @keyframes cntPop{0%,100%{transform:scale(1)}12%{transform:scale(1.28)}26%{transform:scale(1)}}
 /* Чат как в Telegram: реакции Моси, ответы, меню сообщения, стикеры, повтор отправки */
 .P .mwrap{display:flex;flex-direction:column;gap:8px;border-radius:14px;transition:background .4s}
-.P .m .bb.hl{box-shadow:0 0 0 3px rgba(108,59,255,.35)}
+.P .m .bb.hl{box-shadow:0 0 0 3px rgba(23,20,31,.19)}
 .P .m .bb.stk{background:none;box-shadow:none;padding:0;width:184px;max-width:100%}
 .P .m.me .bb.stk{background:none;color:var(--ink)}
 .P .m .bb.stk .mt{color:var(--grey);opacity:1}
 .P .sticker-art{position:relative;display:block;flex:none;width:184px;max-width:100%;aspect-ratio:23/18;overflow:hidden;contain:paint;pointer-events:none}
 .P .sticker-art img{display:block;object-fit:contain;-webkit-user-select:none;user-select:none}
 .P .m .bb.stk small{overflow-wrap:anywhere}
-.P .m.me .bb.stk .mq{border-left-color:var(--violet);background:rgba(108,59,255,.08)}
+.P .m.me .bb.stk .mq{border-left-color:var(--violet);background:rgba(23,20,31,.04)}
 .P .m.me .bb.stk .mq b{color:var(--violet)}
-.P .m.me .bb.stk .mrc{background:rgba(108,59,255,.1);color:var(--violet)}
+.P .m.me .bb.stk .mrc{background:rgba(23,20,31,.06);color:var(--violet)}
 .P .m.me .bb.stk .mrc.on{background:var(--violet);color:#fff}
 .P .m .bb{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-.P .mq{display:block;width:100%;text-align:left;margin:0 0 6px;padding:5px 9px;border-radius:10px;border-left:3px solid var(--violet);background:rgba(108,59,255,.08);font-size:13px;line-height:1.3;color:inherit}
+.P .mq{display:block;width:100%;text-align:left;margin:0 0 6px;padding:5px 9px;border-radius:10px;border-left:3px solid var(--violet);background:rgba(23,20,31,.04);font-size:13px;line-height:1.3;color:inherit}
 .P .m.me .mq{border-left-color:#fff;background:rgba(255,255,255,.18)}
 .P .mq b{display:block;font-weight:600;font-size:12.5px;color:var(--violet)}
 .P .m.me .mq b{color:#fff}
 .P .mq span{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
 .P .mrx{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
-.P .mrc{display:inline-flex;align-items:center;gap:2px;height:30px;padding:0 6px 0 3px;border-radius:999px;background:rgba(108,59,255,.1);font-size:12.5px;font-weight:600;color:var(--violet)}
+.P .mrc{display:inline-flex;align-items:center;gap:2px;height:30px;padding:0 6px 0 3px;border-radius:999px;background:rgba(23,20,31,.06);font-size:12.5px;font-weight:600;color:var(--violet)}
 .P .m.me .mrc{background:rgba(255,255,255,.22);color:#fff}
 .P .mrc.on{background:var(--violet);color:#fff}
 .P .m.me .mrc.on{background:#fff;color:var(--violet)}
@@ -523,13 +523,13 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .sec.hm{margin:26px 0 4px;align-items:center}
 .P .sec.hm b{display:flex;align-items:center;gap:8px}
 .P .hmt{height:18px;padding:0 7px;border-radius:6px;font-size:10px!important;font-weight:600;letter-spacing:.05em;line-height:18px;text-transform:uppercase}
-.P .hmt.v{background:rgba(108,59,255,.12);color:var(--violet)!important}
+.P .hmt.v{background:rgba(23,20,31,.07);color:var(--violet)!important}
 .P .hmt.p{background:rgba(255,111,160,.15);color:#D63F78!important}
 .P .hms{margin:0 0 10px;font-size:13px;line-height:18px;color:var(--grey)}
 .P .afisha .hms{margin:4px 0 0;color:rgba(255,255,255,.6)}
 .P .rail.hm .hero .bar.hb2 .i span::before{content:"· ";color:rgba(255,255,255,.6)}
 .P .rail.hm .acard.invite div{gap:12px}
-.P .rail.hm .acard.invite .hmplus{width:44px;height:44px;border-radius:50%;background:var(--g);color:#fff;display:grid;place-items:center;box-shadow:0 8px 18px -8px rgba(162,77,255,.8)}
+.P .rail.hm .acard.invite .hmplus{width:44px;height:44px;border-radius:50%;background:var(--g);color:#fff;display:grid;place-items:center;box-shadow:0 8px 18px -8px rgba(23,20,31,.32)}
 .P .rail.hm .acard.invite .hmplus .ic{width:22px;height:22px;stroke-width:2.4}
 /* Верх главной: заголовок и один ряд «лупа · категории · Фильтры». */
 .P .hmh{font-size:30px;margin:16px 0 0}
@@ -595,7 +595,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P h1.t.hmh{margin-top:22px}
 /* «Это взаимно!» — праздничный экран на весь экран (размеры от высоты экрана, чтобы влезало на маленьких). */
 .P .mcel{--u:min(1px,calc(100dvh / 844));position:absolute;inset:0;z-index:80;overflow:hidden;color:#fff;font-family:var(--f)}
-.P .mcel .mc-bg{position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 35%,rgba(162,77,255,.96),rgba(76,30,160,.97) 55%,rgba(30,12,60,.98));opacity:0;animation:mcFade .45s ease-out .05s forwards}
+.P .mcel .mc-bg{position:absolute;inset:0;background:radial-gradient(120% 80% at 50% 35%,rgba(23,20,31,.38),rgba(76,30,160,.97) 55%,rgba(30,12,60,.98));opacity:0;animation:mcFade .45s ease-out .05s forwards}
 .P .mcel .mc-glow{position:absolute;left:50%;top:calc(var(--top) + 220 * var(--u));width:420px;height:420px;margin:-210px 0 0 -210px;border-radius:50%;background:radial-gradient(circle,rgba(255,111,160,.55),transparent 65%);opacity:0;animation:mcGlow 2.4s ease-in-out .6s infinite;pointer-events:none}
 .P .mcel .mc-x{position:absolute;top:var(--top);right:18px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.16);border:0;opacity:0;animation:mcUp .4s ease-out 1.5s forwards;z-index:5}
 .P .mcel .mc-x::before,.P .mcel .mc-x::after{content:"";position:absolute;left:12px;top:18px;width:14px;height:2px;border-radius:1px;background:#fff;transform:rotate(45deg)}
@@ -720,6 +720,29 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* нижняя панель — тёмное стекло */
 .P .pr.pr2 .cta{left:12px;right:12px;bottom:calc(var(--bot) + 8px);padding:0;gap:8px;background:none}
 .P .pr.pr2 .cta .rb{background:rgba(25,14,48,.72);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:#fff}
-.P .pr.pr2 .cta .fbell.on{background:linear-gradient(135deg,#FF8FB5,#A24DFF);box-shadow:0 10px 24px -10px rgba(162,77,255,.9)}
+.P .pr.pr2 .cta .fbell.on{background:linear-gradient(135deg,#FF8FB5,#A24DFF);box-shadow:0 10px 24px -10px rgba(23,20,31,.36)}
 .P .pr.pr2 .cta .btn{min-width:0;padding:0 14px}
 .P .pr.pr2 .cta .btn>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* ───── Брендбук 2026 · блок 1: меню с каплей Мосей ─────
+   Светлая стеклянная плашка с вырезом (форма — clip-path из BottomNav),
+   капля утоплена в вырез, «+» движется вместе с ней. */
+.P .nav26{position:absolute;left:16px;right:16px;bottom:calc(var(--bot) + 6px);height:58px;z-index:300;display:flex;justify-content:space-around;align-items:center;padding:0 4px;filter:drop-shadow(0 14px 22px rgba(60,40,120,.14));transition:transform .5s var(--ease),opacity .3s}
+.P .nav26.hide{transform:translateY(150px);opacity:0;pointer-events:none}
+.P .nav26 .bgp{position:absolute;inset:0;background:rgba(246,244,250,.94);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6);pointer-events:none}
+.P .nav26 .edge{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
+.P .nav26 .it{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2px;width:62px;font:500 10px/1.2 var(--f);color:rgba(23,20,31,.55);transition:color .25s}
+.P .nav26 .it svg{width:21px;height:21px;display:block;transition:transform .5s var(--spring)}
+.P .nav26 .it.on{color:var(--ink)}
+.P .nav26 .it.on svg{transform:translateY(-1px) scale(1.08)}
+.P .nav26 .it:active svg{transform:scale(.9)}
+.P .nav26 .ni{position:relative;display:inline-flex;line-height:0}
+.P .nav26 .nbadge{position:absolute;right:-9px;top:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;font:600 11px/1 var(--f);font-variant-numeric:tabular-nums;letter-spacing:0;color:var(--ink);background:#fff;box-shadow:0 0 0 1.5px rgba(246,244,250,.95),0 2px 6px rgba(60,40,120,.18);pointer-events:none}
+.P .nav26 .sp{width:98px;flex:none}
+.P .nav26 .bl{position:absolute;left:50%;top:-42px;width:104px;height:104px;margin-left:-52px;z-index:2;border-radius:50%;display:block;-webkit-tap-highlight-color:transparent}
+.P .nav26 .bl canvas{display:block;width:104px;height:104px;filter:drop-shadow(0 8px 14px rgba(110,80,255,.35));transition:transform .5s var(--spring)}
+.P .nav26 .bl .pl{position:absolute;left:50%;top:50%;width:20px;height:20px;margin:-10px 0 0 -10px;pointer-events:none;opacity:.9;border-radius:2px;background:linear-gradient(#fff,#fff) center/20px 2.4px no-repeat,linear-gradient(#fff,#fff) center/2.4px 20px no-repeat;filter:drop-shadow(0 1px 2px rgba(60,30,140,.35))}
+.P .nav26 .bl:active canvas,.P .nav26 .bl:active .pl{transform:scale(.92)}
+.P .nav26 .bl.jelly canvas,.P .nav26 .bl.jelly .pl{animation:nav26jelly .7s var(--spring)}
+@keyframes nav26jelly{0%{transform:scale(1)}25%{transform:scale(1.22,.8)}50%{transform:scale(.88,1.14)}75%{transform:scale(1.06,.96)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion: reduce){.P .nav26 .bl.jelly canvas,.P .nav26 .bl.jelly .pl{animation:none}}

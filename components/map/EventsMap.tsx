@@ -125,7 +125,7 @@ function createClusterButton(count: number, onClick: () => void): HTMLButtonElem
     box-sizing:border-box;width:${size + 4}px;height:${size + 4}px;border:3px solid #fff;
     border-radius:50%;
     background:linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0);
-    color:#fff;font:600 ${isThreeChars ? 16 : 17}px/1 var(--font-golos),var(--font-onest),Arial,sans-serif;
+    color:#fff;font:600 ${isThreeChars ? 16 : 17}px/1 var(--font-inter),var(--font-onest),Arial,sans-serif;
     display:flex;align-items:center;justify-content:center;
     box-shadow:0 10px 22px -8px rgba(108,59,255,0.75);cursor:pointer;padding:0;
     
@@ -238,7 +238,7 @@ export function buildEventMarkerElement(event: MapEventItem, onClick: () => void
   el.style.cssText = `display:flex;flex-direction:column;align-items:center;cursor:pointer;${isFull ? "opacity:0.6;filter:grayscale(0.7);" : ""}`;
   el.innerHTML = `
     <div style="margin-bottom:4px;padding:3px 8px;border-radius:999px;background:${pillBg};color:${pillColor};
-      font:600 11px/1.2 var(--font-golos),var(--font-onest),Arial,sans-serif;white-space:nowrap;
+      font:600 11px/1.2 var(--font-inter),var(--font-onest),Arial,sans-serif;white-space:nowrap;
       box-shadow:0 6px 14px -6px rgba(60,30,140,0.5);">${label.live && !isFull ? '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#fff;margin-right:4px;vertical-align:1px"></span>' : ""}${escapeHtml(pillText)}</div>
     <div style="position:relative;width:${PIN}px;height:${PIN}px;">
       <div style="position:absolute;inset:0;box-sizing:border-box;${ring}border-radius:50% 50% 50% 0;transform:rotate(-45deg);

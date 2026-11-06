@@ -17,17 +17,19 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["var(--font-golos)", "var(--font-onest)", "system-ui", "sans-serif"],
+        sans: ["var(--font-inter)", "Inter", "system-ui", "-apple-system", "sans-serif"],
+        accent: ["var(--font-lora)", "Lora", "Georgia", "serif"],
       },
       colors: {
         // Основной фирменный цвет — purple (был оранжевый accent).
+        // Брендбук 2026: основной цвет действий — графит (ink), подложки — жемчуг.
         accent: {
-          DEFAULT: "#6C3BFF",
-          50: "#F3EEFF",
-          100: "#EDE5FF",
-          500: "#6C3BFF",
-          600: "#5C2FE0",
-          700: "#4B25B8",
+          DEFAULT: "#17141F",
+          50: "#F4F2F8",
+          100: "#ECE8F2",
+          500: "#17141F",
+          600: "#2A2536",
+          700: "#000000",
         },
         // Второй фирменный цвет — orange, используется в градиенте и как тёплый акцент.
         // Редизайн 2026: тёплый акцент — розовый (ротик Моси, конец градиента).
@@ -44,23 +46,23 @@ const config: Config = {
         tg: { DEFAULT: "#2AABEE" },
         // Lavender — светлые "фирменные" подложки (selected state, карточки).
         lavender: {
-          50: "#F3EEFF",
-          100: "#EDE5FF",
-          200: "#E5D9FF",
+          50: "#F4F2F8",
+          100: "#ECE8F2",
+          200: "#E2DDEA",
         },
         surface: "#FFFFFF",
         // Основной фон — белый; background используется там, где нужен лёгкий lavender-оттенок.
-        background: "#F6F2FF",
+        background: "#F4F2F8",
         ink: {
-          900: "#16121F",
-          700: "#3D3752",
-          600: "#6E6982",
-          400: "#8A84A0",
+          900: "#17141F",
+          700: "#3A3646",
+          600: "#6B6875",
+          400: "#8E8B96",
         },
       },
       backgroundImage: {
         // Основной фирменный градиент МЕСТО — для CTA, selected states, "Своё предложение".
-        "brand-gradient": "linear-gradient(120deg, #6C3BFF 0%, #A24DFF 48%, #FF6FA0 100%)",
+        "brand-gradient": "linear-gradient(120deg, #17141F 0%, #2A2536 100%)",
       },
       borderRadius: {
         card: "24px",
@@ -81,9 +83,9 @@ const config: Config = {
       },
       // Стеклянные карточки редизайна: тонкий белый контур + мягкая фиолетовая тень.
       boxShadow: {
-        card: "inset 0 0 0 1px rgba(255,255,255,.9), 0 10px 26px -20px rgba(80,40,170,.45)",
-        "card-lg": "inset 0 0 0 1px rgba(255,255,255,.9), 0 22px 40px -24px rgba(90,40,180,.55)",
-        cta: "0 14px 30px -14px rgba(130,60,255,.9)",
+        card: "inset 0 0 0 1px rgba(255,255,255,.95), 0 10px 26px -20px rgba(60,40,120,.28)",
+        "card-lg": "inset 0 0 0 1px rgba(255,255,255,.95), 0 22px 40px -24px rgba(60,40,120,.32)",
+        cta: "0 14px 30px -16px rgba(23,20,31,.45)",
       },
       transitionTimingFunction: {
         mesto: "cubic-bezier(.32,.72,0,1)",

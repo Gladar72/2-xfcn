@@ -159,7 +159,7 @@ export function LoadingScenes({ message, loading = true }: { message?: string; l
 }
 
 const CSS = `
-.ls{position:fixed;inset:0;background:#FBFAFF;overflow:hidden;z-index:50;color:#16121F;font-family:var(--font-onest),var(--font-golos),system-ui,sans-serif}
+.ls{position:fixed;inset:0;background:#FBFAFF;overflow:hidden;z-index:50;color:#16121F;font-family:var(--font-onest),var(--font-inter),system-ui,sans-serif}
 .ls-wm{position:absolute;top:calc(env(safe-area-inset-top) + 7%);left:50%;transform:translateX(-50%);z-index:3;display:block;line-height:0}
 .ls-dots{position:absolute;top:calc(env(safe-area-inset-top) + 7% + 36px);left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:3}
 .ls-dots i{width:6px;height:6px;border-radius:9px;background:#D9D2F2;transition:all .4s}

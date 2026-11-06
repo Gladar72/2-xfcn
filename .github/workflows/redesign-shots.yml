@@ -1,0 +1,49 @@
+name: Redesign shots
+
+# Снимки экранов для согласования редизайна: ветка и main рядом.
+# Ничего не выкладывает на сервер; кладёт PNG в ветку shots/<ветка>.
+on:
+  push:
+    branches: ["feat/redesign-**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: redesign-shots-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shots:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Shots of this branch
+        run: SHOTS_DIR=$PWD/out/after npx playwright test tests/browser/redesign-shots.spec.ts --reporter=line || true
+      - name: Shots of main
+        run: |
+          cp tests/browser/redesign-shots.spec.ts /tmp/spec.ts
+          git checkout origin/main -- app components lib public tailwind.config.ts
+          cp /tmp/spec.ts tests/browser/redesign-shots.spec.ts
+          rm -rf .next
+          SHOTS_DIR=$PWD/out/before npx playwright test tests/browser/redesign-shots.spec.ts --reporter=line || true
+      - name: Publish to shots branch
+        run: |
+          B="shots/${GITHUB_REF_NAME}"
+          cd out
+          git init -q -b "$B"
+          git config user.name "shots-bot"
+          git config user.email "shots-bot@users.noreply.github.com"
+          git add -A
+          git commit -q -m "shots ${GITHUB_SHA::7}"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${GITHUB_REPOSITORY}.git" "$B"

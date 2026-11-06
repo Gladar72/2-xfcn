@@ -5,20 +5,20 @@
  * Все классы с префиксом m-, чтобы не пересекаться с Tailwind.
  */
 :root {
-  --m-violet: #6c3bff;
+  --m-violet: #17141f;
   --m-pink: #ff6fa0;
   --m-peach: #ffb27a;
   --m-sky: #5aa9ff;
   --m-tg: #2aabee;
-  --m-g: linear-gradient(120deg, #6c3bff 0%, #a24dff 48%, #ff6fa0 100%);
-  --m-ink: #16121f;
-  --m-ink-2: #3d3752;
-  --m-grey: #8a84a0;
-  --m-milk: #f6f2ff;
-  --m-glass: rgba(255, 255, 255, 0.56);
+  --m-g: linear-gradient(120deg, #17141f 0%, #2a2536 100%);
+  --m-ink: #17141f;
+  --m-ink-2: #3a3646;
+  --m-grey: rgba(23, 20, 31, 0.58);
+  --m-milk: #f4f2f8;
+  --m-glass: rgba(255, 255, 255, 0.58);
   --m-glass-2: rgba(255, 255, 255, 0.76);
-  --m-stroke: rgba(255, 255, 255, 0.9);
-  --m-lav: rgba(108, 59, 255, 0.1);
+  --m-stroke: rgba(255, 255, 255, 0.95);
+  --m-lav: rgba(23, 20, 31, 0.06);
   --m-ease: cubic-bezier(0.32, 0.72, 0, 1);
   --m-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
@@ -31,11 +31,10 @@ body {
 /* ---------- фон ---------- */
 .m-aurora {
   background:
-    radial-gradient(70% 38% at 0% 0%, rgba(150, 115, 255, 0.55), transparent 70%),
-    radial-gradient(70% 34% at 100% 12%, rgba(255, 150, 205, 0.5), transparent 70%),
-    radial-gradient(80% 36% at 30% 62%, rgba(170, 200, 255, 0.35), transparent 70%),
-    radial-gradient(90% 40% at 90% 100%, rgba(255, 196, 150, 0.5), transparent 70%),
-    var(--m-milk);
+    radial-gradient(60% 40% at 80% 6%, rgba(170, 160, 255, 0.5), transparent 70%),
+    radial-gradient(56% 40% at 15% 55%, rgba(255, 190, 160, 0.42), transparent 70%),
+    radial-gradient(70% 44% at 70% 100%, rgba(140, 170, 255, 0.38), transparent 70%),
+    linear-gradient(180deg, #f5f3f8, #ece8f2);
 }
 
 /* ---------- стекло ---------- */

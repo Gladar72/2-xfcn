@@ -6,7 +6,7 @@
  --m-safe-left:max(env(safe-area-inset-left,0px),var(--tg-safe-area-inset-left,0px),var(--tg-content-safe-area-inset-left,0px));
  --m-safe-right:max(env(safe-area-inset-right,0px),var(--tg-safe-area-inset-right,0px),var(--tg-content-safe-area-inset-right,0px));
  --m-nav-height:72px;
- font:400 14px/1.45 var(--font-golos),var(--font-onest),system-ui,sans-serif;font-optical-sizing:auto;color:var(--m-ink);color-scheme:light;
+ font:400 14px/1.45 var(--font-inter),var(--font-onest),system-ui,sans-serif;font-optical-sizing:auto;color:var(--m-ink);color-scheme:light;
  overscroll-behavior:none;
  /* Тот же проверенный приём, что и на странице "Заявки": растягиваем на
     весь экран, а дублирующий отступ общего layout (pb-24) компенсируем

@@ -25,7 +25,7 @@ export default function PayReturnPage() {
         padding: "32px 20px",
         textAlign: "center",
         background: "radial-gradient(120% 80% at 50% 0%, #EDE5FF 0%, #F6F2FF 60%)",
-        fontFamily: "var(--font-golos), system-ui, sans-serif",
+        fontFamily: "var(--font-inter), system-ui, sans-serif",
         color: "#16121F",
       }}
     >

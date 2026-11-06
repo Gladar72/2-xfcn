@@ -10,13 +10,26 @@ import "./proto-app.css";
 import { TelegramInit } from "@/components/telegram/TelegramInit";
 import { ScreenTransitions } from "@/components/proto/ScreenTransitions";
 
-// Golos Text — шрифт интерфейса редизайна 2026 (локальный вариативный файл,
-// без Google Fonts CDN, с кириллицей). Onest оставлен запасным.
-const golos = localFont({
-  src: "../public/brand/fonts/GolosText-Variable.ttf",
-  variable: "--font-golos",
+// Inter — шрифт интерфейса (брендбук 2026), Lora Italic — акцентные слова
+// в заголовках (<em>). Локальные файлы с кириллицей, без Google Fonts CDN.
+const inter = localFont({
+  src: [
+    { path: "../public/brand/fonts/Inter-Light.woff", weight: "300", style: "normal" },
+    { path: "../public/brand/fonts/Inter-Regular.woff", weight: "400", style: "normal" },
+    { path: "../public/brand/fonts/Inter-Medium.woff", weight: "500", style: "normal" },
+    { path: "../public/brand/fonts/Inter-SemiBold.woff", weight: "600", style: "normal" },
+    { path: "../public/brand/fonts/Inter-Bold.woff", weight: "700", style: "normal" },
+  ],
+  variable: "--font-inter",
   display: "swap",
-  weight: "400 900",
+});
+const lora = localFont({
+  src: "../public/brand/fonts/Lora-Italic-Variable.woff",
+  variable: "--font-lora",
+  display: "swap",
+  style: "italic",
+  weight: "400 700",
+  preload: false,
 });
 const onest = localFont({
   src: "../public/brand/fonts/Onest-Variable.ttf",
@@ -52,11 +65,11 @@ export const metadata: Metadata = {
 };
 
 // maximumScale: 1 — iPhone не приближает экран при нажатии на поле ввода (из-за этого экран «ехал» вбок).
-export const viewport = { themeColor: "#F6F2FF", width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false, viewportFit: "cover" as const };
+export const viewport = { themeColor: "#F4F2F8", width: "device-width", initialScale: 1, maximumScale: 1, userScalable: false, viewportFit: "cover" as const };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ru" className={`${golos.variable} ${onest.variable}`}>
+    <html lang="ru" className={`${inter.variable} ${lora.variable} ${onest.variable}`}>
       <head>
         {/* Официальный скрипт Telegram Mini Apps — инжектит window.Telegram.WebApp.
             Копия лежит в проекте (public/tg/telegram-web-app.js): telegram.org не открывается
