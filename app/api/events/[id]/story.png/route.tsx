@@ -258,7 +258,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
           // eslint-disable-next-line @next/next/no-img-element
           <img src={blur} alt="" width={1080} height={1920} style={{ position: "absolute", left: -60, top: -60, width: 1200, height: 2040, objectFit: "cover" }} />
         ) : (
-          <div style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1920, display: "flex", background: "linear-gradient(160deg,#4B1FB8,#6C3BFF 45%,#A24DFF 75%,#FF6FA0)" }} />
+          <div style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1920, display: "flex", background: "linear-gradient(160deg,#2A2536,#17141F)" }} />
         )}
         <div style={{ position: "absolute", left: 0, top: 0, width: 1080, height: 1920, display: "flex", background: "rgba(0,0,0,0.32)" }} />
 
@@ -287,7 +287,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         >
           <div style={{ fontSize: weekday.length > 8 ? 29 : 36, fontWeight: 500, color: "#6B6585", display: "flex" }}>{weekday}</div>
           <div style={{ fontSize: 108, fontWeight: 700, lineHeight: 1, display: "flex" }}>{String(dayNum)}</div>
-          <div style={{ fontSize: 42, fontWeight: 700, color: "#6C3BFF", display: "flex" }}>{time}</div>
+          <div style={{ fontSize: 42, fontWeight: 700, color: "#17141F", display: "flex" }}>{time}</div>
         </div>
 
         {cover && blur && (glow === "3" || glow === "4") ? <Shade src={shadowRect} x={(1080 - pw) / 2} y={photoTop + 40} w={pw} h={ph} /> : null}

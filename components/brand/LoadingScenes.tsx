@@ -58,7 +58,7 @@ export function LoadingScenes({ message, loading = true }: { message?: string; l
     <div className="ls" role="status" aria-label="Загрузка">
       <style>{CSS}</style>
       <span className="ls-wm">
-        <Wordmark height={24} color="#6C3BFF" />
+        <Wordmark height={24} color="#17141F" />
       </span>
       <div className="ls-dots">
         {SCENES.map((_, k) => (
@@ -73,10 +73,10 @@ export function LoadingScenes({ message, loading = true }: { message?: string; l
                 <defs>
                   <radialGradient id="lsPin" cx=".35" cy=".3" r=".8">
                     <stop offset="0" stopColor="#B9A2FF" />
-                    <stop offset="1" stopColor="#6C3BFF" />
+                    <stop offset="1" stopColor="#17141F" />
                   </radialGradient>
                 </defs>
-                <ellipse cx="32" cy="80" rx="14" ry="4" fill="rgba(108,59,255,.15)" />
+                <ellipse cx="32" cy="80" rx="14" ry="4" fill="rgba(23,20,31,.15)" />
                 <path d="M32 2C16 2 4 14 4 30c0 20 28 48 28 48s28-28 28-48C60 14 48 2 32 2z" fill="url(#lsPin)" />
                 <circle cx="32" cy="30" r="11" fill="#fff" />
               </svg>
@@ -159,11 +159,11 @@ export function LoadingScenes({ message, loading = true }: { message?: string; l
 }
 
 const CSS = `
-.ls{position:fixed;inset:0;background:#FBFAFF;overflow:hidden;z-index:50;color:#16121F;font-family:var(--font-onest),var(--font-inter),system-ui,sans-serif}
+.ls{position:fixed;inset:0;background:#F4F2F8;overflow:hidden;z-index:50;color:#16121F;font-family:var(--font-onest),var(--font-inter),system-ui,sans-serif}
 .ls-wm{position:absolute;top:calc(env(safe-area-inset-top) + 7%);left:50%;transform:translateX(-50%);z-index:3;display:block;line-height:0}
 .ls-dots{position:absolute;top:calc(env(safe-area-inset-top) + 7% + 36px);left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:3}
 .ls-dots i{width:6px;height:6px;border-radius:9px;background:#D9D2F2;transition:all .4s}
-.ls-dots i.on{width:18px;background:#6C3BFF}
+.ls-dots i.on{width:18px;background:#17141F}
 .ls-stage{position:absolute;left:0;right:0;top:15%;height:44%;max-width:460px;margin:0 auto}
 .ls-scene{position:absolute;inset:0;opacity:0;transition:opacity .35s}
 .ls-scene.on{opacity:1}
@@ -176,7 +176,7 @@ const CSS = `
 @keyframes ls-fromR{0%{opacity:0;transform:translateX(160px) rotate(12deg)}100%{opacity:1;transform:none}}
 @keyframes ls-drop{0%{opacity:0;transform:translateY(-220px)}70%{opacity:1;transform:translateY(8px)}100%{opacity:1;transform:none}}
 @keyframes ls-hop{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-.ls-shadow{position:absolute;left:var(--x);top:calc(var(--y) + var(--s)/2 - 4px);width:calc(var(--s)*.6);height:8px;margin-left:calc(var(--s)*-.3);border-radius:50%;background:rgba(108,59,255,.10);opacity:0}
+.ls-shadow{position:absolute;left:var(--x);top:calc(var(--y) + var(--s)/2 - 4px);width:calc(var(--s)*.6);height:8px;margin-left:calc(var(--s)*-.3);border-radius:50%;background:rgba(23,20,31,.10);opacity:0}
 .on .ls-shadow{animation:ls-fade .6s both;animation-delay:var(--d,0s)}
 @keyframes ls-fade{to{opacity:1}}
 .ls-prop{position:absolute;left:var(--x);top:var(--y);opacity:0}
@@ -194,10 +194,10 @@ const CSS = `
 .ls-t{position:absolute;left:28px;right:28px;top:6%;max-width:400px;margin:0 auto;opacity:0;transform:translateY(10px);transition:opacity .45s,transform .45s}
 .ls-t.on{opacity:1;transform:none}
 .ls-t h1{font-weight:800;font-size:32px;line-height:1.04;letter-spacing:-.02em;margin:0 0 12px;color:#16121F}
-.ls-t h1 em{font-style:normal;color:#6C3BFF}
+.ls-t h1 em{font-style:normal;color:#17141F}
 .ls-t p{margin:0;color:#3D3752;font-size:15px;line-height:1.45}
 .ls-load{position:absolute;left:50%;bottom:calc(env(safe-area-inset-bottom) + 6%);transform:translateX(-50%);width:120px;height:4px;border-radius:9px;background:#DCD5F3;overflow:hidden;z-index:3}
-.ls-load b{position:absolute;inset:0;width:40%;border-radius:9px;background:linear-gradient(90deg,#6C3BFF,#FF6FA0);animation:ls-ld 1.4s ease-in-out infinite}
+.ls-load b{position:absolute;inset:0;width:40%;border-radius:9px;background:linear-gradient(90deg,#17141F,#2A2536);animation:ls-ld 1.4s ease-in-out infinite}
 @keyframes ls-ld{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
 @media (prefers-reduced-motion: reduce){.ls *{animation:none!important}.ls-wrap,.ls-prop,.ls-shadow{opacity:1!important}}
 `;

@@ -1279,9 +1279,9 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
 type Bg = { kind: "pastel" } | { kind: "grad"; stops: [string, string, string] };
 const BGS: Bg[] = [
   { kind: "pastel" },
-  { kind: "grad", stops: ["#6C3BFF", "#A24DFF", "#FF6FA0"] },
-  { kind: "grad", stops: ["#3A2F8F", "#6C3BFF", "#5AA9FF"] },
-  { kind: "grad", stops: ["#A24DFF", "#FF6FA0", "#FFB27A"] },
+  { kind: "grad", stops: ["#17141F", "#2A2536", "#FF6FA0"] },
+  { kind: "grad", stops: ["#3A2F8F", "#17141F", "#5AA9FF"] },
+  { kind: "grad", stops: ["#2A2536", "#FF6FA0", "#FFB27A"] },
   { kind: "grad", stops: ["#1A1230", "#5B3AA8", "#C871B6"] },
 ];
 

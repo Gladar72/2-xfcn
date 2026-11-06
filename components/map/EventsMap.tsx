@@ -124,10 +124,10 @@ function createClusterButton(count: number, onClick: () => void): HTMLButtonElem
   button.style.cssText = `
     box-sizing:border-box;width:${size + 4}px;height:${size + 4}px;border:3px solid #fff;
     border-radius:50%;
-    background:linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0);
+    background:#17141F;
     color:#fff;font:600 ${isThreeChars ? 16 : 17}px/1 var(--font-inter),var(--font-onest),Arial,sans-serif;
     display:flex;align-items:center;justify-content:center;
-    box-shadow:0 10px 22px -8px rgba(108,59,255,0.75);cursor:pointer;padding:0;
+    box-shadow:0 10px 22px -10px rgba(23,20,31,0.55);cursor:pointer;padding:0;
     
   `.replace(/\s+/g, " ");
   button.classList.add("mkpop");
@@ -218,10 +218,10 @@ export function buildEventMarkerElement(event: MapEventItem, onClick: () => void
   const avatar = event.markerPhoto !== undefined ? event.markerPhoto : event.organizer?.avatarUrl;
 
   const ring = event.isBusiness
-    ? "background:linear-gradient(#fff,#fff) padding-box,linear-gradient(120deg,#6c3bff,#a24dff 48%,#ff6fa0) border-box;border:3px solid transparent;"
+    ? "background:linear-gradient(#fff,#fff) padding-box,linear-gradient(#17141F,#17141F) border-box;border:3px solid transparent;"
     : "background:#fff;border:0;";
   const photoInner = avatar
-    ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.replaceWith(Object.assign(document.createElement('img'),{src:'${categoryIcon3d(event)}',style:'width:100%;height:100%;object-fit:contain;padding:5px;box-sizing:border-box;background:#f3efff'}))" />`
+    ? `<img src="${escapeHtml(avatar)}" alt="" referrerpolicy="no-referrer" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.replaceWith(Object.assign(document.createElement('img'),{src:'${categoryIcon3d(event)}',style:'width:100%;height:100%;object-fit:contain;padding:5px;box-sizing:border-box;background:#F4F2F8'}))" />`
     : `<img src="${categoryIcon3d(event)}" alt="" style="width:100%;height:100%;object-fit:contain;padding:5px;box-sizing:border-box;display:block;" />`;
   // У метки с фото организатора — значок категории в уголке.
   const badge = avatar && !event.isBusiness
@@ -243,7 +243,7 @@ export function buildEventMarkerElement(event: MapEventItem, onClick: () => void
     <div style="position:relative;width:${PIN}px;height:${PIN}px;">
       <div style="position:absolute;inset:0;box-sizing:border-box;${ring}border-radius:50% 50% 50% 0;transform:rotate(-45deg);
         box-shadow:0 10px 18px -8px rgba(60,30,140,0.55);"></div>
-      <div style="position:absolute;left:${(PIN - PHOTO) / 2}px;top:${(PIN - PHOTO) / 2}px;width:${PHOTO}px;height:${PHOTO}px;border-radius:50%;overflow:hidden;background:#f3efff;">
+      <div style="position:absolute;left:${(PIN - PHOTO) / 2}px;top:${(PIN - PHOTO) / 2}px;width:${PHOTO}px;height:${PHOTO}px;border-radius:50%;overflow:hidden;background:#F4F2F8;">
         ${photoInner}
       </div>
       ${badge}

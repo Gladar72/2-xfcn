@@ -328,8 +328,8 @@ export function MiniMap() {
         <path d="M-10 75 L360 62" />
         <path d="M180 -10 L188 100" />
       </g>
-      <circle cx="185" cy="58" r="20" fill="rgba(108,59,255,.15)" />
-      <circle cx="185" cy="58" r="8" fill="#6C3BFF" stroke="#fff" strokeWidth="3" />
+      <circle cx="185" cy="58" r="20" fill="rgba(23,20,31,.15)" />
+      <circle cx="185" cy="58" r="8" fill="#17141F" stroke="#fff" strokeWidth="3" />
     </svg>
   );
 }

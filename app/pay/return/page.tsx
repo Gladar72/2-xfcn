@@ -24,7 +24,7 @@ export default function PayReturnPage() {
         gap: 14,
         padding: "32px 20px",
         textAlign: "center",
-        background: "radial-gradient(120% 80% at 50% 0%, #EDE5FF 0%, #F6F2FF 60%)",
+        background: "radial-gradient(120% 80% at 50% 0%, #ECE8F2 0%, #F4F2F8 60%)",
         fontFamily: "var(--font-inter), system-ui, sans-serif",
         color: "#16121F",
       }}
@@ -43,7 +43,7 @@ export default function PayReturnPage() {
           maxWidth: 340,
           padding: "15px 20px",
           borderRadius: 18,
-          background: "linear-gradient(120deg, #6C3BFF, #A24DFF 55%, #FF6FA0)",
+          background: "linear-gradient(120deg,#17141F,#2A2536)",
           color: "#fff",
           fontWeight: 600,
           fontSize: 16,

@@ -184,7 +184,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .opt.idea{position:relative;border:1.5px solid rgba(23,20,31,.15)}
 .P .opt.idea .idea-ic{width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#efe8ff,#ffe6f1);display:grid;place-items:center;flex:none}
 .P .opt.idea .idea-ic img{width:38px;height:38px;object-fit:contain}
-.P .opt.idea .mosya-tag{position:absolute;top:-9px;right:12px;height:18px;padding:0 8px;border-radius:9px;background:linear-gradient(120deg,#6c3bff,#ff6fa0);color:#fff;font-size:10.5px;font-weight:500;display:flex;align-items:center}
+.P .opt.idea .mosya-tag{position:absolute;top:-9px;right:12px;height:18px;padding:0 8px;border-radius:9px;background:linear-gradient(120deg,#17141F,#2A2536);color:#fff;font-size:10.5px;font-weight:500;display:flex;align-items:center}
 .P .pr.deck{will-change:transform;backface-visibility:hidden}
 .P .pr .body{touch-action:pan-y pinch-zoom}
 .P .pr.deck .gal>img{transition:opacity .2s ease;transform:none!important}
@@ -453,7 +453,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .people-age-range{position:relative;height:44px;margin:0 12px 10px}
 .P .people-age-track{position:absolute;left:0;right:0;top:20px;height:4px;border-radius:4px;background:linear-gradient(to right,#DED4EF var(--age-low),var(--violet) var(--age-low),var(--violet) var(--age-high),#DED4EF var(--age-high))}
 .P .people-age-range input{position:absolute;inset:0;width:100%;height:44px;margin:0;-webkit-appearance:none;appearance:none;background:transparent;pointer-events:none;z-index:2}
-.P .people-age-range input::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--violet);background:#fff;box-shadow:0 2px 8px #6C3BFF22;pointer-events:auto;cursor:ew-resize}
+.P .people-age-range input::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;border:1.5px solid var(--violet);background:#fff;box-shadow:0 2px 8px #17141F22;pointer-events:auto;cursor:ew-resize}
 .P .people-age-range input::-moz-range-thumb{width:24px;height:24px;border-radius:50%;border:1.5px solid var(--violet);background:#fff;pointer-events:auto;cursor:ew-resize}
 .P .people-filter-hint{font-size:12px;line-height:1.45;color:var(--grey);margin:-3px 0 10px}
 .P .people-filter-error{font-size:12px;line-height:1.4;color:#BF3156;margin:0 0 12px}
@@ -511,7 +511,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .rail.hm .acard.v .vm .ic{display:none}
 /* плашка внизу: одна высота и форма */
 .P .rail.hm .hero .bar.hb2 .price,.P .rail.hm .hmc,.P .rail.hm .acard.v .vp{flex:none;height:26px;margin-top:8px;padding:0 11px;border-radius:13px;font-size:12px;font-weight:600;line-height:26px;display:inline-block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.P .rail.hm .hero .bar.hb2 .price{background:linear-gradient(90deg,#6C3BFF,#A24DFF);color:#fff}
+.P .rail.hm .hero .bar.hb2 .price{background:linear-gradient(90deg,#17141F,#2A2536);color:#fff}
 .P .rail.hm .hmc,.P .rail.hm .acard.v .vp{background:#fff;color:var(--ink)}
 .P .rail.hm .acard.v .vr{width:100%;margin:8px 0 0;display:flex;align-items:center;justify-content:space-between}
 .P .rail.hm .acard.v .vr .vp{margin-top:0}
@@ -543,7 +543,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 .P .afisha:has(.rail.hm) .rail.hm{margin:0 -14px;padding-left:14px;padding-right:14px;scroll-padding-left:14px}
 /* Цифра на «Встречи»: ровный фирменный кружок 17px у значка, цифра точно по центру
    (размеры подобраны так, чтобы цифра не сдвигалась при округлении до пикселей). */
-.P .tab .tbadge{position:absolute;top:5px;left:calc(50% + 10px);box-sizing:border-box;display:block;width:17px;height:17px;padding:0 0 0 1px;border-radius:50%;background:linear-gradient(135deg,#FF6FA0,#A24DFF);color:#fff;font-size:10px;font-weight:700;line-height:17px;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:0;text-align:center;box-shadow:0 2px 8px rgba(255,111,160,.55);pointer-events:none}
+.P .tab .tbadge{position:absolute;top:5px;left:calc(50% + 10px);box-sizing:border-box;display:block;width:17px;height:17px;padding:0 0 0 1px;border-radius:50%;background:linear-gradient(135deg,#17141F,#2A2536);color:#fff;font-size:10px;font-weight:700;line-height:17px;font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;letter-spacing:0;text-align:center;box-shadow:0 2px 8px rgba(255,111,160,.55);pointer-events:none}
 .P .tab .tbadge.w{width:auto;min-width:23px;padding:0 5px 0 6px;border-radius:9px}
 /* ===== Экран события (ev2): вертикальное фото на весь верх, фон — то же фото размытое,
    содержимое на стеклянных плашках, текст белый. Механика и блоки — прежние. ===== */
@@ -720,7 +720,7 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* нижняя панель — тёмное стекло */
 .P .pr.pr2 .cta{left:12px;right:12px;bottom:calc(var(--bot) + 8px);padding:0;gap:8px;background:none}
 .P .pr.pr2 .cta .rb{background:rgba(25,14,48,.72);-webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:#fff}
-.P .pr.pr2 .cta .fbell.on{background:linear-gradient(135deg,#FF8FB5,#A24DFF);box-shadow:0 10px 24px -10px rgba(23,20,31,.36)}
+.P .pr.pr2 .cta .fbell.on{background:linear-gradient(135deg,#17141F,#2A2536);box-shadow:0 10px 24px -10px rgba(23,20,31,.36)}
 .P .pr.pr2 .cta .btn{min-width:0;padding:0 14px}
 .P .pr.pr2 .cta .btn>span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 

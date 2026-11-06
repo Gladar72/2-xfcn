@@ -13,7 +13,7 @@ export interface MatchPerson {
 }
 
 const HEART = "M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z";
-const COLORS = ["#FF8FB5", "#FF4F8B", "#FFFFFF", "#C9A8FF", "#FFD1E4", "#A24DFF"];
+const COLORS = ["#FF8FB5", "#FF4F8B", "#FFFFFF", "#C9A8FF", "#FFD1E4", "#2A2536"];
 
 /** Лёгкая вибрация «успех» в Telegram (или в обычном браузере, если умеет). */
 function buzz() {

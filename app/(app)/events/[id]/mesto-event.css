@@ -1,6 +1,6 @@
 .mesto{
- --m-ink:#16121F;--m-purple:#6C3BFF;--m-purple-dark:#4B25B8;--m-muted:#6E6982;
- --m-lilac:rgba(108,59,255,.1);--m-white:#FFFFFF;--m-radius:22px;--m-gap:12px;--m-pad:20px;
+ --m-ink:#16121F;--m-purple:#17141F;--m-purple-dark:#000000;--m-muted:#6E6982;
+ --m-lilac:rgba(23,20,31,.1);--m-white:#FFFFFF;--m-radius:22px;--m-gap:12px;--m-pad:20px;
  --m-safe-bottom:max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px),var(--tg-content-safe-area-inset-bottom,0px));
  --m-safe-top:max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px),var(--tg-content-safe-area-inset-top,0px));
  --m-safe-left:max(env(safe-area-inset-left,0px),var(--tg-safe-area-inset-left,0px),var(--tg-content-safe-area-inset-left,0px));
@@ -26,7 +26,7 @@
 .m-badge img{width:24px;height:24px;object-fit:contain;flex:none}
 .me-title{font-size:30px;line-height:1.08;font-weight:500;letter-spacing:-.03em;margin:9px 0 14px;overflow-wrap:anywhere;text-wrap:balance}
 .me-hero{margin:0}
-.m-photo{width:100%;height:auto;aspect-ratio:1.4;object-fit:cover;object-position:50% 43%;border-radius:30px;background:linear-gradient(120deg,#6C3BFF,#A24DFF 48%,#FF6FA0);box-shadow:0 22px 40px -24px rgba(90,40,180,.7)}
+.m-photo{width:100%;height:auto;aspect-ratio:1.4;object-fit:cover;object-position:50% 43%;border-radius:30px;background:linear-gradient(120deg,#17141F,#2A2536);box-shadow:0 22px 40px -24px rgba(90,40,180,.7)}
 .m-organizer{position:relative;margin-top:-36px;width:calc(100% - 8px);margin-inline:auto;display:flex;align-items:center;gap:12px;padding:10px 14px;min-height:64px;background:rgba(255,255,255,.76);-webkit-backdrop-filter:blur(18px) saturate(160%);backdrop-filter:blur(18px) saturate(160%);border-radius:24px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.9),0 16px 30px -18px rgba(60,30,140,.45);text-align:left}
 .m-avatar{width:42px;height:42px;flex:none;object-fit:cover;border-radius:50%;background:#F1EAFF}
 .m-organizer-copy{display:flex;flex-direction:column;min-width:0;gap:2px}
@@ -49,7 +49,7 @@
 .mesto .m-action:active:not(:disabled){transform:scale(.96)}
 .m-action img{width:52px;height:52px;flex:none;object-fit:contain}
 .m-action-label{overflow-wrap:anywhere;font-size:16px;line-height:1.25;font-weight:600;min-width:0}
-.mesto .m-requests{color:#fff;background:linear-gradient(120deg,#6C3BFF 0%,#A24DFF 48%,#FF6FA0 100%);box-shadow:0 14px 30px -14px rgba(130,60,255,.9)}
+.mesto .m-requests{color:#fff;background:linear-gradient(120deg,#17141F,#2A2536);box-shadow:0 14px 30px -14px rgba(23,20,31,0.45)}
 .mesto .m-boost{color:var(--m-purple);background:rgba(255,255,255,.6);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px)}
 .m-cancel{margin-top:14px;min-height:58px;background:rgba(255,255,255,.6);text-align:center;gap:10px;padding:7px 16px;box-shadow:0 10px 30px #3714730C}
 .m-cancel img{width:44px;height:44px}

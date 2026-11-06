@@ -17,7 +17,7 @@ export interface PosterStoryData {
   logo: string;
 }
 
-const violet = "#6C3BFF";
+const violet = "#17141F";
 const W = 1080;
 const H = 1920;
 
@@ -88,7 +88,7 @@ export function PosterStory(d: PosterStoryData) {
         // eslint-disable-next-line @next/next/no-img-element
         <img src={d.coverUrl} alt="" width={fit.w} height={fit.h} style={{ position: "absolute", left: fit.x, top: fit.y, width: fit.w, height: fit.h }} />
       ) : (
-        <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", backgroundImage: "linear-gradient(160deg,#4B1FB8,#6C3BFF 50%,#A24DFF 80%,#FF6FA0)" }} />
+        <div style={{ position: "absolute", left: 0, top: 0, width: W, height: H, display: "flex", backgroundImage: "linear-gradient(160deg,#2A2536,#17141F)" }} />
       )}
       <div
         style={{

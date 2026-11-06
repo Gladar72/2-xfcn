@@ -30,7 +30,7 @@ export interface InviteStoryData {
 }
 
 const ink = "#16121F";
-const violet = "#6C3BFF";
+const violet = "#17141F";
 const W = 920;
 const X = 80;
 
@@ -108,7 +108,7 @@ export function InviteStory(d: InviteStoryData) {
           // eslint-disable-next-line @next/next/no-img-element
           <img src={d.coverUrl} alt="" width={fit.w} height={fit.h} style={{ position: "absolute", left: fit.x, top: fit.y, width: fit.w, height: fit.h }} />
         ) : (
-          <div style={{ position: "absolute", left: 0, top: 0, width: W, height: photoH, display: "flex", backgroundImage: "linear-gradient(160deg,#4B1FB8,#6C3BFF 55%,#A24DFF)" }} />
+          <div style={{ position: "absolute", left: 0, top: 0, width: W, height: photoH, display: "flex", backgroundImage: "linear-gradient(160deg,#2A2536,#17141F)" }} />
         )}
         <div style={{ position: "absolute", left: 0, top: Math.round(photoH * 0.45), width: W, height: Math.round(photoH * 0.55), display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.32) 100%)" }} />
 
@@ -139,7 +139,7 @@ export function InviteStory(d: InviteStoryData) {
 
       <div style={{ position: "absolute", left: X, top: yTitle, width: W, display: "flex", justifyContent: "center", textAlign: "center", fontSize: titleSize, fontWeight: 700, lineHeight: 1.04, letterSpacing: -2.5 }}>{t}</div>
 
-      <div style={{ position: "absolute", left: 260, top: yStick, width: 560, height: STICK, borderRadius: 48, border: "2.5px dashed rgba(108,59,255,0.35)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#8A84A0" }}>
+      <div style={{ position: "absolute", left: 260, top: yStick, width: 560, height: STICK, borderRadius: 48, border: "2.5px dashed rgba(23,20,31,0.35)", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: "#8A84A0" }}>
         {d.ig ? "сюда — стикер «Ссылка»" : "сюда — ссылка «Я иду»"}
       </div>
       {/* eslint-disable-next-line @next/next/no-img-element */}
