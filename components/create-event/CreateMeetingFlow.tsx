@@ -326,7 +326,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const catLabel = bizSection
     ? bizSection.label
     : categorySlug === "training"
-      ? trainingTypes.find((t) => t.slug === trainingTypeSlug)?.name ?? "Тренировка"
+      ? trainingTypeSlug === "hyrox" ? "Хайрокс" : trainingTypes.find((t) => t.slug === trainingTypeSlug)?.name ?? "Тренировка"
       : isOwn
         ? own || "Своё"
         : (categorySlug && SHORT[categorySlug]) || "встречи";
@@ -734,7 +734,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                       <button key={t.id} className={`k-cat k-g k-pr ${trainingTypeSlug === t.slug ? "k-on" : ""}`} onClick={() => setTrainingTypeSlug(t.slug)}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={trainingIcon(t.slug)} alt="" />
-                        {t.name}
+                        {t.slug === "hyrox" ? "Хайрокс" : t.name}
                       </button>
                     ))}
                   </div>
