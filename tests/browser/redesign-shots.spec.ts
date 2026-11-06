@@ -36,6 +36,9 @@ async function fixture(page: Page) {
       : path.startsWith("/api/users/") ? person
       : path === "/api/me/pending-applications" ? { count: 2 }
       : path === "/api/events" || path === "/api/city-events" || path === "/api/me/events" ? { items: events, events }
+      : /^\/api\/events\/test-\d+$/.test(path) ? events[0]
+      : path === "/api/people" ? { items: [person, { ...person, id: "p2", name: "Марина", age: 27 }] }
+      : path === "/api/conversations" ? { items: [{ conversationId: "c1", eventTitle: null, eventStatus: null, unreadCount: 1, otherUser: { id: "other", name: "Алексей", avatarUrl: photo }, lastMessage: { content: "Давай встретимся вечером", createdAt: "2026-11-06T12:00:00Z" } }] }
       : path === "/api/categories" ? { categories: [{ slug: "coffee", name: "Кофе", emoji: null }], trainingTypes: [] }
       : path === "/api/subscriptions" ? { active: false }
       : { items: [], events: [], people: [], count: 0 };
@@ -43,7 +46,15 @@ async function fixture(page: Page) {
   });
 }
 
-for (const [name, url] of [["feed", "/feed"], ["map", "/map"], ["meet", "/my-events"], ["me", "/profile"]] as const) {
+const ROUTES = [
+  ["feed", "/feed"], ["map", "/map"], ["meet", "/my-events"], ["me", "/profile"],
+  ["people", "/people"], ["chats", "/chats"], ["notif", "/notifications"], ["search", "/search"],
+  ["event", "/events/test-0"], ["create", "/create"], ["settings", "/settings"], ["plans", "/subscriptions"],
+  ["biz", "/business"], ["ticket", "/events/test-0/ticket"], ["tickets", "/events/test-0/tickets"],
+  ["requests", "/events/test-0/applications"], ["edit", "/profile/edit"], ["login", "/login"],
+  ["onboarding", "/onboarding"], ["offer", "/legal/offer"],
+] as const;
+for (const [name, url] of ROUTES) {
   test(`shot ${name}`, async ({ page }, info) => {
     await fixture(page);
     await page.goto(url);
