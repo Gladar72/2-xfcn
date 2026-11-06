@@ -27,8 +27,7 @@ export function Ic({ n, c }: { n: IconName; c?: "s" | "xs" | string }) {
  * Персонаж в интерфейсе — теперь везде наш Мося (живая капля брендбука 2026),
  * без цветных фигурок. «hidden» (аноним) — капля без глаз.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function Chr({ shape, pal, face = "smile", seed }: { shape: Shape; pal: Palette; face?: Face; seed?: number }) {
+export function Chr({ face = "smile" }: { shape: Shape; pal: Palette; face?: Face; seed?: number }) {
   return <Creature variant={face === "hidden" ? "p" : "e"} />;
 }
 
@@ -434,8 +433,8 @@ export function Toast({ text }: { text: string | null }) {
 
 /** Иллюстрация пустого состояния: три персонажа-эмоции (emptyIll прототипа). */
 /** Иллюстрация пустого экрана — Мося (раньше — три цветные фигурки). */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function EmptyIll(_props: { a?: [Shape, Palette, Face]; b?: [Shape, Palette, Face]; c?: [Shape, Palette, Face] }) {
+export function EmptyIll(props: { a?: [Shape, Palette, Face]; b?: [Shape, Palette, Face]; c?: [Shape, Palette, Face] }) {
+  void props;
   return (
     <div className="ill" style={{ display: "grid", placeItems: "center", height: 120 }}>
       <Creature size={110} variant="e" />
