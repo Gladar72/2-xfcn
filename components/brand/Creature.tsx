@@ -82,7 +82,8 @@ type Entry = { c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; v: Variant }
 const entries = new Set<Entry>();
 let gl: WebGLRenderingContext | null = null;
 let glCanvas: HTMLCanvasElement | null = null;
-let U: Record<string, WebGLUniformLocation | null> = {};
+type Uniforms = { t: WebGLUniformLocation | null; r: WebGLUniformLocation | null; V: WebGLUniformLocation | null; blink: WebGLUniformLocation | null; pk: WebGLUniformLocation | null };
+let U: Uniforms = { t: null, r: null, V: null, blink: null, pk: null };
 let state: "idle" | "running" | "paused" | "static" = "idle";
 let size = 0;
 let raf = 0;
@@ -137,7 +138,8 @@ function initGL(): boolean {
     const l = gl.getAttribLocation(pr, "p");
     gl.enableVertexAttribArray(l);
     gl.vertexAttribPointer(l, 2, gl.FLOAT, false, 0, 0);
-    U = Object.fromEntries(["t", "r", "V", "blink", "pk"].map((k) => [k, gl!.getUniformLocation(pr, k)]));
+    const loc = (k: string) => gl!.getUniformLocation(pr, k);
+    U = { t: loc("t"), r: loc("r"), V: loc("V"), blink: loc("blink"), pk: loc("pk") };
     gl.uniform3f(U.pk, 0.62, 0.58, 1);
     return true;
   } catch {
