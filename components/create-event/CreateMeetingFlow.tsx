@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LocationPicker } from "@/components/map/LocationPicker";
-import { EventPlaceMap } from "@/components/events/EventPlaceMap";
 import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
@@ -174,7 +173,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [hh, setHh] = useState(() => Math.min(23, new Date().getHours() + 1));
   const [mi, setMi] = useState(0);
   const [calOpen, setCalOpen] = useState(false);
-  const [mapOpen, setMapOpen] = useState(false);
   const [duration, setDuration] = useState(120);
   const [placeName, setPlaceName] = useState("");
   const [placeQuery, setPlaceQuery] = useState("");
@@ -1000,7 +998,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 <>
                   <div className="k-recp">
                     {recs.slice(0, 3).map((p) => (
-                      <button key={p.name} className={`k-rp k-rpt k-g k-pr ${placeName === p.name ? "k-on" : ""}`} onClick={() => pickPlace(p)}>
+                      <button key={p.name} className={`k-rp k-g k-pr ${placeName === p.name ? "k-on" : ""}`} onClick={() => pickPlace(p)}>
+                        <i aria-hidden />
                         <span>
                           <b>{p.name}</b>
                           <small>{p.address || "отметим на карте"}</small>
@@ -1042,42 +1041,18 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   )}
                 </div>
               )}
-              {/* Карта: маленькое превью, по нажатию — на весь экран, там ставишь метку. */}
-              <button className="k-mapbox k-g k-pr k-mapprev" style={{ height: 170, width: "100%", display: "block", padding: 0 }} onClick={() => setMapOpen(true)} aria-label="Отметить место на карте">
-                {latitude !== undefined && longitude !== undefined ? (
-                  <EventPlaceMap fill latitude={latitude} longitude={longitude} markerSrc="/brand/markers/pin-ink.svg" placeName={placeName} fallbackSrc="/brand/markers/pin-ink.svg" onOpen={() => setMapOpen(true)} />
-                ) : (
-                  <span className="k-mapcta">
-                    <span className="k-op">
-                      <KI n="pin" />
-                    </span>
-                    Нажми, чтобы отметить на карте
-                  </span>
-                )}
-              </button>
-              {mapOpen && (
-                <div className="k-mapfull">
-                  <div className="k-mapfull-top">
-                    <b>Отметь место</b>
-                    <small>{address || "Нажми на карту — адрес определится сам"}</small>
-                  </div>
-                  <LocationPicker
-                    onPick={({ latitude: la, longitude: lo }) => {
-                      setLatitude(la);
-                      setLongitude(lo);
-                      if (!placeName || placeName === "Точка на карте") setPlaceName("Точка на карте");
-                    }}
-                    onAddressResolved={(resolved) => setAddress(resolved)}
-                    externalCoords={externalCoords ?? (latitude !== undefined && longitude !== undefined ? { latitude, longitude } : null)}
-                    heightPx={typeof window !== "undefined" ? window.innerHeight : 600}
-                  />
-                  <div className="k-mapfull-foot">
-                    <button className="k-btn k-d k-pr" onClick={() => setMapOpen(false)}>
-                      {latitude !== undefined ? "Готово" : "Закрыть"}
-                    </button>
-                  </div>
-                </div>
-              )}
+              <div className="k-mapbox k-g" style={{ height: 200 }}>
+                <LocationPicker
+                  onPick={({ latitude: la, longitude: lo }) => {
+                    setLatitude(la);
+                    setLongitude(lo);
+                    if (!placeName) setPlaceName("Точка на карте");
+                  }}
+                  onAddressResolved={(resolved) => setAddress(resolved)}
+                  externalCoords={externalCoords}
+                  heightPx={200}
+                />
+              </div>
               <div className="k-addr k-g">
                 <span>
                   <b>{placeName || "Отметь точку на карте"}</b>

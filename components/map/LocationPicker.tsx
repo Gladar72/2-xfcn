@@ -32,7 +32,7 @@ interface LocationPickerProps {
 }
 
 const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень
-const DEFAULT_MARKER_ICON = "/brand/markers/pin-ink.svg";
+const DEFAULT_MARKER_ICON = "/brand/markers/v2/pin-custom.png";
 
 export function LocationPicker({
   initialCenter,
@@ -80,9 +80,9 @@ export function LocationPicker({
         // Пропорции разные у разных иконок — свой пин почти квадратный
         // (≈944×1229), у бизнес-пина 1:1. Кончик пина — у нижнего края.
         const width = 36;
-        const height = markerIconSrc.includes("/v2/") || markerIconSrc.endsWith(".svg") ? Math.round(width * 1.25) : markerIconSrc.includes("marker-business") ? width : Math.round(width * (1229 / 944));
+        const height = markerIconSrc.includes("/v2/") ? Math.round(width * 1.25) : markerIconSrc.includes("marker-business") ? width : Math.round(width * (1229 / 944));
         const el = document.createElement("div");
-        el.style.cssText = `width:${width}px;height:${height}px;filter:drop-shadow(0 6px 10px rgba(23,20,31,0.3));`;
+        el.style.cssText = `width:${width}px;height:${height}px;filter:drop-shadow(0 6px 10px rgba(90,65,150,0.3));`;
         el.innerHTML = `<img src="${markerIconSrc}" alt="" width="${width}" height="${height}" style="display:block;width:100%;height:100%;" />`;
         marker = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat(coordinates).addTo(activeMap);
       }

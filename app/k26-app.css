@@ -172,7 +172,7 @@
 .P .gl{background:rgba(255,255,255,.72)}
 .P .nav26 .gl,.P .nav26 .k-g,.P .sheet .gl,.K .k-sheet .k-g{-webkit-backdrop-filter:blur(18px) saturate(1.4)!important;backdrop-filter:blur(18px) saturate(1.4)!important}
 /* Мося — картинка с лёгким «дыханием» только через transform (видеокарта). */
-.k-crf{transform-origin:50% 60%}
+.k-crf{animation:k-breathe 3s ease-in-out infinite;will-change:transform;transform-origin:50% 60%}
 @keyframes k-breathe{0%,100%{transform:translate(0,0) rotate(0) scale(1)}35%{transform:translate(1px,-2px) rotate(-2.5deg) scale(1.02)}70%{transform:translate(-1px,1px) rotate(2deg) scale(.99)}}
 @media (prefers-reduced-motion: reduce){.k-crf{animation:none}}
 /* Короткая плашка-подсказка внизу (вместо выглядывающего Моси). */
@@ -224,31 +224,3 @@
 .P .people-deck .sk{background:rgba(255,255,255,.06)!important}
 .P .pr.pr2 .sheet2{padding-bottom:calc(var(--bot) + 84px)!important}
 .P .pr.pr2 .sheet2 .report{justify-self:stretch;height:46px;border-radius:23px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:rgba(255,255,255,.85)!important;font:500 14px var(--disp);margin-top:4px}
-/* Места в создании — текстом, без пустых квадратиков. */
-.K .k-rp.k-rpt{padding:10px 14px}
-.K .k-rp.k-on .k-rt,.K .k-rp.k-on small{color:rgba(255,255,255,.75)}
-/* Карта в создании: превью, по нажатию — на весь экран. */
-.K .k-mapprev{position:relative;overflow:hidden;border-radius:24px}
-.K .k-mapcta{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;font:500 14px var(--disp);color:var(--ink2);background:linear-gradient(135deg,#ECEAF0,#F6F4F9)}
-.K .k-mapcta .k-op{width:48px;height:48px;border-radius:24px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center}
-.K .k-mapcta .k-op svg{width:22px;height:22px}
-.k-mapfull{position:fixed;inset:0;z-index:2147482000;background:#ECEAF0}
-.k-mapfull-top{position:absolute;left:12px;right:12px;top:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px) + 8px);z-index:5;padding:12px 16px;border-radius:20px;background:rgba(255,255,255,.92);box-shadow:0 8px 24px rgba(23,20,31,.12);display:grid;gap:2px;font-family:var(--font-inter),Inter,sans-serif}
-.k-mapfull-top b{font-weight:600;font-size:15px;color:#17141F}
-.k-mapfull-top small{font-size:12.5px;color:rgba(23,20,31,.6)}
-.k-mapfull-foot{position:absolute;left:16px;right:16px;bottom:calc(max(env(safe-area-inset-bottom,0px),var(--tg-safe-area-inset-bottom,0px)) + 16px);z-index:5}
-.k-mapfull-foot .k-btn{width:100%;height:56px;border-radius:28px;background:#17141F;color:#fff;font:600 16px var(--font-inter),Inter,sans-serif;border:0}
-/* Светлые экраны: при прокрутке текст не залезает под кнопки Telegram сверху — мягкая подложка. */
-.P .scr.aurora::after{content:"";position:absolute;left:0;right:0;top:0;height:calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px) + 6px);background:linear-gradient(180deg,#F1EFF6 70%,rgba(241,239,246,0));z-index:30;pointer-events:none}
-.P .people-deck .scr.aurora::after,.P .pr.pr2::after{display:none}
-/* Главная: в лентах «Личные встречи» и «Афиша заведений» — ровно две карточки на экран,
-   одинаковые отступы по бокам; остальное листается вбок, всё — по «Все». */
-.K .k-hs>.k-hc,.K .k-hs>.k-inv,.K .k-hs>.k-sk.k-hc{width:calc((100vw - 52px) / 2);max-width:220px;height:auto;aspect-ratio:3/4.2;scroll-snap-align:start}
-.K .k-hs:has(>.k-hc){scroll-snap-type:x mandatory;scroll-padding-left:20px}
-.K .k-biz .k-hs{scroll-padding-left:14px}
-.K .k-biz .k-hs>.k-hc,.K .k-biz .k-hs>.k-inv{width:calc((100vw - 52px) / 2)}
-/* «О себе» у человека: без пустого места — блок по высоте содержимого, прижат к кнопкам снизу. */
-.P .pr.pr2 .sheet2{min-height:0!important}
-/* Профиль человека: фото крупнее, плашка «О себе» начинается ниже; иконки интересов на тёмном — светлые. */
-.P .pr.pr2:not(.deck) .gal{height:min(82vh,700px)!important}
-.P .pr.pr2 .sheet2 .itag img{filter:invert(1) brightness(2);opacity:.9}

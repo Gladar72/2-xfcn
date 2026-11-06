@@ -18,23 +18,11 @@ export function Motion26() {
 
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    // Нажатие показываем с задержкой и отменяем, если палец поехал (листание) —
-    // при прокрутке карточки не «проседают».
-    let pend: { el: HTMLElement; x: number; y: number; t: number } | null = null;
-    const move = (e: PointerEvent) => {
-      if (!pend) return;
-      if (Math.abs(e.clientX - pend.x) > 6 || Math.abs(e.clientY - pend.y) > 6) {
-        window.clearTimeout(pend.t);
-        pend.el.classList.remove("k-down");
-        pend = null;
-      }
-    };
     const down = (e: PointerEvent) => {
       const t = e.target as Element | null;
       const el = t?.closest?.(PRESS) as HTMLElement | null;
       if (!el || (el as HTMLButtonElement).disabled) return;
-      if (pend) window.clearTimeout(pend.t);
-      pend = { el, x: e.clientX, y: e.clientY, t: window.setTimeout(() => el.classList.add("k-down"), 90) };
+      el.classList.add("k-down");
       // 06.11: круглое свечение под пальцем убрано — на телефоне выглядело как «кругляшок».
       if (reduce || !GLOW_ON || !el.matches(GLOW)) return;
       const r = el.getBoundingClientRect();
@@ -45,21 +33,15 @@ export function Motion26() {
       el.appendChild(g);
       window.setTimeout(() => g.remove(), 650);
     };
-    const up = () => {
-      if (pend) window.clearTimeout(pend.t);
-      pend = null;
-      document.querySelectorAll(".k-down").forEach((x) => x.classList.remove("k-down"));
-    };
+    const up = () => document.querySelectorAll(".k-down").forEach((x) => x.classList.remove("k-down"));
     const pop = () => setHeart((n) => n + 1);
     document.addEventListener("pointerdown", down, { passive: true });
-    document.addEventListener("pointermove", move, { passive: true });
     document.addEventListener("pointerup", up, { passive: true });
     document.addEventListener("pointercancel", up, { passive: true });
     window.addEventListener("scroll", up, { passive: true, capture: true });
     window.addEventListener("mesto:heartpop", pop);
     return () => {
       document.removeEventListener("pointerdown", down);
-      document.removeEventListener("pointermove", move);
       document.removeEventListener("pointerup", up);
       document.removeEventListener("pointercancel", up);
       window.removeEventListener("scroll", up, { capture: true });

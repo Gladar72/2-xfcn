@@ -75,9 +75,6 @@ void main(){
  gl_FragColor=vec4(pow(s.rgb,vec3(.95))*s.a,s.a);}`;
 const VS = `attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
 
-/** Живой Мося: тот же шейдер, заранее отрисованный в анимацию (6 с по кругу) — переливается
- *  и меняет форму, как вода, а телефон только показывает картинку (без нагрузки). */
-const LIVE: Record<Variant, string> = { p: "/brand/creature/live-p.webp", e: "/brand/creature/live-e.webp" };
 const FALLBACK: Record<Variant, string> = { p: "/brand/creature/blobw.webp", e: "/brand/creature/blobe.webp" };
 
 type Entry = { c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; v: Variant };
@@ -236,6 +233,6 @@ export function Creature({ size: cssSize, variant = "p", className }: { size?: n
   const st = cssSize ? { width: cssSize, height: cssSize } : { width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%" };
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={variant === "e" && (cssSize ?? 0) >= 150 ? "/brand/creature/live-e-l.webp" : LIVE[variant]} alt="" aria-hidden draggable={false} decoding="async" className={`k-crf ${className ?? ""}`} style={{ display: "block", objectFit: "contain", ...st }} />
+    <img src={FALLBACK[variant]} alt="" aria-hidden draggable={false} decoding="async" className={`k-crf ${className ?? ""}`} style={{ display: "block", objectFit: "contain", ...st }} />
   );
 }
