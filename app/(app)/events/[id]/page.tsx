@@ -14,8 +14,9 @@ import { useGuide } from "@/lib/mosya/guide";
 import { say } from "@/lib/mosya/peek";
 import { openRoute } from "@/lib/maps/route";
 import { JoinFlow } from "@/components/events/JoinFlow";
-import { Chr, Cover, Ic, MiniMap, Sheet, Toast, costShort, dayLong, eventIcon } from "@/components/proto/ui";
+import { Chr, Ic, MiniMap, Sheet, Toast, costShort, dayLong, eventIcon } from "@/components/proto/ui";
 import { ShareSheet } from "@/components/proto/ShareSheet";
+import { KI, bg } from "@/components/proto/k";
 import { goBack } from "@/lib/nav/back";
 import { shareNudgeDue } from "@/lib/events/share-nudge";
 import { PromoDone, PromoteSheet, loadPromoInfo, type PromoStatus } from "@/components/promotions/Promote";
@@ -418,13 +419,6 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   // В плитке — коротко: «сб, 8 ноября» вместо «суббота, 8 ноября», чтобы влезало в одну строку.
   const dayTile = dayLabel.replace(/^(понедельник|вторник|среда|четверг|пятница|суббота|воскресенье)/, (w) => ({ понедельник: "пн", вторник: "вт", среда: "ср", четверг: "чт", пятница: "пт", суббота: "сб", воскресенье: "вс" })[w] ?? w);
   const ticket = event.isBusiness && event.businessPricingType === "ticket" ? event.businessPricingDetails : null;
-  const costLabel = event.isBusiness
-    ? ticket
-      ? `Билет ${ticket}`
-      : event.businessPricingType === "custom"
-        ? event.businessPricingDetails ?? "Свои условия"
-        : "Бесплатно"
-    : COST_FULL[event.costType ?? ""] ?? "Каждый за себя";
   const shareWhen = `${dayLong(event.eventDate)}, ${event.eventTime.slice(0, 5)}`;
   const organizer = event.organizer;
   // «Пока никто не откликнулся» — организатору, за 10 ч до начала (или через 2 ч после создания).
@@ -509,131 +503,152 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     );
   }
 
+  const titleParts = (() => {
+    const t = event.title.trim();
+    const i = t.lastIndexOf(" ");
+    return i > 2 && t.length <= 40 ? [t.slice(0, i), t.slice(i + 1)] : [t, ""];
+  })();
+  const evPhoto = event.photoUrl ? photoThumb(event.photoUrl, 1100) : null;
+
   return (
-    <section className="scr ev ev2 aurora in" data-id="event">
-      {/* Фон всего экрана — то же фото, размытое и затемнённое: у каждого события свой цвет. */}
-      <div className="evbg" aria-hidden style={event.photoUrl ? { backgroundImage: `url(${photoThumb(event.photoUrl, 240)})` } : undefined} />
-      <Cover photoUrl={event.photoUrl} icon={icon} thumb={900} />
-      <div className="ph-sh" />
-      <div className="hb">
-        <button className="rb glass" onClick={() => goBack(router, "/feed")} aria-label="Назад">
-          <Ic n="back" />
+    <section className="scr k-ev in" data-id="event">
+      {/* Фон экрана — то же фото, сильно размытое: у каждого события свой цвет. */}
+      <div className="k-evbg" aria-hidden style={event.photoUrl ? { backgroundImage: `url(${photoThumb(event.photoUrl, 240)})` } : { background: "linear-gradient(160deg,#3A3646,#17141F)" }} />
+      <div className="k-evph" aria-hidden style={evPhoto ? { backgroundImage: `url(${evPhoto})` } : undefined} />
+      <div className="k-tbar">
+        <button className="k-rb k-gw k-pr" onClick={() => goBack(router, "/feed")} aria-label="Назад">
+          <KI n="back" />
         </button>
-        <div className="r">
-          <button className="rb glass" onClick={() => setShareOpen(true)} aria-label="Поделиться">
-            <Ic n="share" />
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="k-rb k-gw k-pr" onClick={() => setShareOpen(true)} aria-label="Поделиться">
+            <KI n="share" />
           </button>
           {canManage && (
-            <Link className="rb glass" href={`/events/${event.id}/edit`} aria-label="Редактировать">
-              <Ic n="edit" />
+            <Link className="k-rb k-gw k-pr" href={`/events/${event.id}/edit`} aria-label="Редактировать">
+              <KI n="edit" />
             </Link>
           )}
         </div>
       </div>
 
-      <div className="body">
-        <div className="sheet2">
+      <div className="scroll">
+        <div className="k-spacer" />
+        <div className="k-card">
+          <span className="k-chip k-gw" style={{ height: 32 }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={icon} alt="" style={{ width: 20, height: 20, marginLeft: -4, filter: "invert(1) brightness(2)" }} />
+            {catName}
+            {!event.isBusiness && event.isAnonymous ? ` · ${anonymousTag(event.organizer?.gender).toLowerCase()}` : ""}
+            {isLive ? " · идёт сейчас" : ""}
+            {isFull ? " · заполнено" : ""}
+          </span>
+          <h1 className="k-title">
+            {titleParts[0]}
+            {titleParts[1] && (
+              <>
+                <br />
+                <em>{titleParts[1]}</em>
+              </>
+            )}
+          </h1>
           {canManage && (
-            <div className="orgbar">
-              <Ic n="shield" c="s" />
-              <div>
-                <b>Ты организатор этого события</b>
-                <span>Информацию можно изменить в любой момент</span>
-              </div>
+            <div className="k-blk k-gd" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <KI n="check" style={{ width: 18, height: 18, flex: "none" }} />
+              <span style={{ font: "400 13px/1.4 var(--disp)" }}>
+                <b style={{ fontWeight: 500 }}>Ты организатор.</b> Информацию можно изменить в любой момент
+              </span>
             </div>
           )}
-          <div className="chips">
-            <span className="pill lav">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={icon} alt="" style={{ width: 26, height: 26, marginLeft: -8 }} />
-              {catName}
-            </span>
-            {!event.isBusiness && <span className="pill gl">{event.isAnonymous ? anonymousTag(event.organizer?.gender) : "Открытая встреча"}</span>}
-            {isLive && (
-              <span className="pill gl">
-                <span className="live">
-                  <i />
-                  Идёт сейчас
-                </span>
-              </span>
-            )}
-            {isFull && <span className="pill fullp">Заполнено</span>}
-          </div>
-          <h1 className="t" style={{ fontSize: 28 }}>
-            {event.title}
-          </h1>
-          <div className="tiles3">
-            <div className="gl">
-              <Ic n="clock" c="s" />
+          <div className={`k-tiles ${chatId ? "k-t4" : ""}`}>
+            <div className="k-tile k-gd">
+              <small>
+                <KI n="cal" />
+                {dayTile}
+              </small>
               <b>
                 {event.eventTime.slice(0, 5)}
                 {event.eventEndTime && <small>{` –${event.eventEndTime.slice(0, 5)}`}</small>}
               </b>
-              <span>{dayTile}</span>
             </div>
-            <div className="gl">
-              <Ic n="people" c="s" />
+            <div className="k-tile k-gd">
+              <small>
+                <KI n="people" />
+                {isFull ? "заполнено" : `ещё ${free}`}
+              </small>
               <b>{isFull ? "Мест нет" : `${going} из ${max}`}</b>
-              <span>{isFull ? "заполнено" : `нужно ещё ${free}`}</span>
             </div>
-            <div className="gl">
-              <Ic n="wallet" c="s" />
+            <div className="k-tile k-gd">
+              <small>{ticket ? "на месте" : "расходы"}</small>
               <b>{ticket ?? costShort(event)}</b>
-              <span>{ticket ? "на месте" : "расходы"}</span>
             </div>
+            {chatId && (
+              <Link className="k-tile k-gd k-pr k-tchat" href={`/chats/${chatId}`} aria-label="Чат встречи">
+                <KI n="chat" />
+                <small>Чат</small>
+              </Link>
+            )}
           </div>
 
           {organizer &&
             (hid ? (
-              <button className="host gl" onClick={() => setAnonOpen(true)}>
-                <span className="hv">
+              <button className="k-orgc k-gd k-pr" onClick={() => setAnonOpen(true)}>
+                <span className="k-a" style={{ display: "grid", placeItems: "center", background: "rgba(255,255,255,.18)" }}>
                   <Chr shape="ball" pal={anonPal} face="hidden" />
                 </span>
-                <div>
-                  <b>{anonWho ? `${anonWho} · анонимно` : "Организатор скрыт · анонимно"}</b>
-                  <span>
-                    {organizer.ratingAvg > 0 ? `★ ${organizer.ratingAvg.toFixed(1).replace(".", ",")} · ` : ""}откроется после одобрения заявки
-                  </span>
-                </div>
-                <span className="sm">Почему?</span>
+                <span className="k-x">
+                  <b>{anonWho ? `${anonWho} · анонимно` : "Организатор скрыт"}</b>
+                  <small>
+                    {organizer.ratingAvg > 0 ? `${organizer.ratingAvg.toFixed(1).replace(".", ",")} ★ · ` : ""}откроется после одобрения заявки
+                  </small>
+                </span>
+                <span className="k-chip k-gw k-why">Почему?</span>
               </button>
             ) : (
-              <Link className="host gl" href={mine ? "/profile" : `/people/${organizer.id}`}>
-                {organizer.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={photoThumb(organizer.avatarUrl, 100)} alt="" />
-                ) : (
-                  <span className="hv" style={{ background: "var(--g)", color: "#fff", display: "grid", placeItems: "center", borderRadius: "50%", fontWeight: 500 }}>
-                    {organizer.name.charAt(0).toUpperCase()}
-                  </span>
-                )}
-                <div>
+              <Link className="k-orgc k-gd k-pr" href={mine ? "/profile" : `/people/${organizer.id}`}>
+                <span className="k-a" style={{ ...bg(organizer.avatarUrl, 160), display: "grid", placeItems: "center", fontWeight: 500 }}>
+                  {!organizer.avatarUrl && organizer.name.charAt(0).toUpperCase()}
+                </span>
+                <span className="k-x">
                   <b>
                     {organizer.name}
-                    {mine ? " · это ты" : organizer.age ? `, ${organizer.age}` : ""}
+                    {mine ? " · это ты" : organizer.age ? `, ${organizer.age}` : ""} · организатор
                   </b>
-                  <span>
-                    {event.isBusiness ? "Бизнес событие · организатор" : "Организатор"}
-                    {organizer.ratingAvg > 0 ? ` · ★ ${organizer.ratingAvg.toFixed(1).replace(".", ",")}` : ""} · {organizer.completedMeetingsCount}{" "}
-                    {plural(organizer.completedMeetingsCount, "встреча", "встречи", "встреч")}
-                  </span>
-                </div>
-                <Ic n="chev" c="s" />
+                  <small>
+                    {[
+                      organizer.ratingAvg > 0 ? `${organizer.ratingAvg.toFixed(1).replace(".", ",")} ★` : null,
+                      `${organizer.completedMeetingsCount} ${plural(organizer.completedMeetingsCount, "встреча", "встречи", "встреч")}`,
+                      event.isBusiness ? "заведение" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </small>
+                </span>
+                <KI n="chev" />
               </Link>
             ))}
 
-          <div className="addr gl">
+          {event.description && (
+            <div className="k-blk k-gd">
+              <b className="k-bh">{event.isBusiness ? "О событии" : "О встрече"}</b>
+              <p style={{ whiteSpace: "pre-line" }}>{event.description}</p>
+            </div>
+          )}
+
+          <div className="k-blk k-gd" style={{ padding: 0, overflow: "hidden" }}>
             {hid ? (
-              <div className="lockrow">
-                <Ic n="lock" c="s" />
-                <div>
-                  <b>Место откроется после одобрения</b>
-                  <span>Организатор и точный адрес видны только принятым участникам</span>
-                </div>
+              <div style={{ padding: "14px 16px" }}>
+                <b className="k-bh">Место откроется после одобрения</b>
+                <p style={{ margin: "2px 0 0" }}>Организатор и точный адрес видны только принятым участникам</p>
               </div>
             ) : (
               <>
-                <div className="mini" style={{ height: 130 }}>
+                <div style={{ padding: "14px 16px 10px" }}>
+                  <b className="k-bh">Место</b>
+                  <p style={{ margin: "2px 0 0" }}>
+                    {[event.placeName, event.address].filter(Boolean).join(", ") || "Место уточняется"}
+                  </p>
+                </div>
+                <div className="k-mapbox" style={{ display: "block", width: "100%", margin: 0, borderRadius: 0, height: 170, position: "relative" }}>
                   {event.latitude != null && event.longitude != null ? (
                     <EventPlaceMap
                       latitude={event.latitude}
@@ -653,72 +668,58 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                         seatsLeft: event.seatsTotal - event.seatsTaken,
                         category: event.category,
                         isBusiness: event.isBusiness,
-                        // Как на общей карте: у заведений — обложка события, у людей — аватар.
                         markerPhoto: event.isBusiness
                           ? event.photoUrl ?? event.organizer?.avatarUrl ?? "/brand/covers/business.webp"
                           : event.organizer?.avatarUrl ?? null,
                       }}
-                      onOpen={() =>
-                        router.push(`/map?${event.isBusiness ? "business=only&" : ""}focus=${event.id}`)
-                      }
+                      onOpen={() => router.push(`/map?${event.isBusiness ? "business=only&" : ""}focus=${event.id}`)}
                     />
                   ) : (
                     <MiniMap />
                   )}
-                </div>
-                <div className="arow">
-                  <div>
-                    <b>{event.placeName ?? "Место встречи"}</b>
-                    <span>{event.address ?? ""}</span>
-                  </div>
-                </div>
-                <div className="abtns">
-                  {event.address && (
-                    <button
-                      className="sm"
-                      onClick={() =>
-                        navigator.clipboard?.writeText(`${event.placeName ? event.placeName + ", " : ""}${event.address}`).then(
-                          () => flash("Адрес скопирован"),
-                          () => {}
-                        )
-                      }
-                    >
-                      <Ic n="copy" c="xs" /> Скопировать адрес
-                    </button>
-                  )}
-                  {event.latitude != null && event.longitude != null && (
-                    <button className="sm" onClick={() => openRoute(event.latitude!, event.longitude!)}>
-                      <Ic n="route" c="xs" /> Маршрут
-                    </button>
-                  )}
+                  <span className="k-mapact">
+                    {event.latitude != null && event.longitude != null && (
+                      <button className="k-chip k-gw k-pr" onClick={() => openRoute(event.latitude!, event.longitude!)}>
+                        <KI n="map" />
+                        Маршрут
+                      </button>
+                    )}
+                    {event.address && (
+                      <button
+                        className="k-chip k-gw k-pr"
+                        onClick={() =>
+                          navigator.clipboard?.writeText(`${event.placeName ? event.placeName + ", " : ""}${event.address}`).then(
+                            () => flash("Адрес скопирован"),
+                            () => {}
+                          )
+                        }
+                      >
+                        Скопировать адрес
+                      </button>
+                    )}
+                  </span>
                 </div>
               </>
             )}
           </div>
 
-          <div className="blk">
-            <div className="blk-h">
-              <b>{isLive ? "Уже на месте" : "Кто идёт"}</b>
+          <div className="k-blk k-gd">
+            <div className="k-bh2">
+              <b className="k-bh">{isLive ? "Уже на месте" : "Кто идёт"}</b>
               <span>
                 {going} из {max}
-                {isFull ? " · заполнено" : ` · нужно ещё ${free}`}
               </span>
             </div>
-            <div className="ppl">
+            <div className="k-who" style={{ flexWrap: "wrap" }}>
               {organizer && !hid && (
-                <Link href={mine ? "/profile" : `/people/${organizer.id}`}>
-                  {organizer.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={photoThumb(organizer.avatarUrl, 120)} alt="" />
-                  ) : (
-                    <span className="av">{organizer.name.charAt(0).toUpperCase()}</span>
-                  )}
+                <Link className="k-wp k-pr" href={mine ? "/profile" : `/people/${organizer.id}`}>
+                  <span style={bg(organizer.avatarUrl, 160)}>{!organizer.avatarUrl && organizer.name.charAt(0).toUpperCase()}</span>
                   {mine ? "Ты" : organizer.name}
                 </Link>
               )}
               {organizer && hid && (
-                <button onClick={() => setAnonOpen(true)}>
-                  <span className="anon">
+                <button className="k-wp k-pr" onClick={() => setAnonOpen(true)}>
+                  <span className="k-free">
                     <Chr shape="ball" pal={anonPal} face="hidden" />
                   </span>
                   {anonWho ?? "Скрыт"}
@@ -726,31 +727,23 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               )}
               {event.participants.map((p, i) =>
                 p.anonymous ? (
-                  // Анонимная встреча: других участников видно только условно — без фото и профиля.
-                  <button key={`anon-${i}`} onClick={() => setAnonOpen(true)}>
-                    <span className="anon">
+                  <button key={`anon-${i}`} className="k-wp k-pr" onClick={() => setAnonOpen(true)}>
+                    <span className="k-free">
                       <Chr shape="ball" pal={anonPal} face="hidden" />
                     </span>
                     {p.name}
                   </button>
                 ) : (
-                  <Link key={p.id} href={`/people/${p.id}`}>
-                    {p.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={photoThumb(p.avatarUrl, 120)} alt="" />
-                    ) : (
-                      <span className="av">{p.name.charAt(0).toUpperCase()}</span>
-                    )}
+                  <Link key={p.id} className="k-wp k-pr" href={`/people/${p.id}`}>
+                    <span style={bg(p.avatarUrl, 160)}>{!p.avatarUrl && p.name.charAt(0).toUpperCase()}</span>
                     {p.name}
                   </Link>
                 )
               )}
               {!isFull && st === "none" && active && (
-                <button onClick={() => setJoinPhase("confirm")}>
-                  <span className="av free">
-                    <Ic n="plus" c="s" />
-                  </span>
-                  Свободно
+                <button className="k-wp k-pr" onClick={() => setJoinPhase("confirm")}>
+                  <span className="k-free">+{free}</span>
+                  свободно
                 </button>
               )}
             </div>
@@ -944,25 +937,23 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             </div>
           )}
 
-          {(chatId || st === "pending" || st === "none") && !event.isBusiness && (
-            <Link className="chatprev gl" href={chatId ? `/chats/${chatId}` : "#"} onClick={(e) => !chatId && e.preventDefault()}>
-              <Ic n="chat" />
-              <div>
-                <b>Чат встречи</b>
-                <span>{chatId ? "ты в чате" : "откроется, когда организатор примет заявку"}</span>
-              </div>
-              <Ic n={chatId ? "chev" : "lock"} c="s" />
-            </Link>
+          {(st === "pending" || st === "none") && !event.isBusiness && !chatId && (
+            <div className="k-blk k-gd" style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <KI n="chat" style={{ width: 20, height: 20, flex: "none" }} />
+              <span style={{ font: "400 13px/1.4 var(--disp)", opacity: 0.9 }}>
+                <b style={{ fontWeight: 500 }}>Чат встречи</b> откроется, когда организатор примет заявку
+              </span>
+            </div>
           )}
+          <div style={{ height: 100 }} />
         </div>
       </div>
 
-      <div className="cta">
-        <div className="l">
-          <b>{costLabel}</b>
-          <span>{ticket ? "оплата организатору лично" : event.isBusiness ? "вход свободный" : "по заявке организатору"}</span>
-        </div>
-        {ctaBtn}
+      <div className="k-cta k-gd">
+        <button className="k-rb k-gw k-pr" onClick={() => setShareOpen(true)} aria-label="Поделиться">
+          <KI n="share" />
+        </button>
+        <div className="k-ctab">{ctaBtn}</div>
       </div>
 
       {showNudge && !shareOpen && (
@@ -1099,12 +1090,6 @@ const CAT_SHORT: Record<string, string> = {
   custom: "Своё предложение",
 };
 
-const COST_FULL: Record<string, string> = {
-  each_pays: "Каждый за себя",
-  organizer_treats: "Автор угощает",
-  free: "Без расходов",
-  negotiable: "По договорённости",
-};
 
 function plural(n: number, a: string, b: string, c: string) {
   const m = n % 10;

@@ -19,3 +19,39 @@
 .K .k-row svg{width:18px;height:18px;color:var(--ink3);flex:none}
 .K .k-ph3>a,.K .k-ph3>button{display:block;min-width:0}
 .K .k-ph3 i{width:100%}
+/* Старые Android WebView без clip-path:path(): плашка меню — обычная скруглённая, без выреза. */
+@supports not (clip-path: path("M0 0H1V1Z")) {
+  .P .nav26 .bgp{border-radius:29px}
+  .P .nav26 .edge{display:none}
+}
+/* Без backdrop-filter (часть Android): стекло делаем плотнее, чтобы текст читался. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .K .k-g{background:rgba(255,255,255,.86)}
+  .K .k-gw{background:rgba(30,24,44,.38)}
+  .K .k-gd{background:rgba(20,16,30,.62)}
+  .P .nav26 .bgp{background:rgba(246,244,250,.98)}
+}
+/* Событие: тёмное стекло поверх размытого фото, старые блоки организатора — в том же стиле. */
+.K .k-ev{background:#17141F;color:#fff}
+.K .k-ev .k-evph{background-color:#2A2536}
+.K .k-ev>.scroll{padding-top:0}
+.K .k-ev .k-card .blk,.K .k-ev .k-card .evnote,.K .k-ev .k-card .chatprev,.K .k-ev .k-card .apl,.K .k-ev .k-card .tiles2>*{background:rgba(20,16,30,.42)!important;border:1px solid rgba(255,255,255,.18);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);color:#fff!important;box-shadow:none!important}
+.K .k-ev .k-card .blk{margin-top:10px;padding:14px 16px;border-radius:24px}
+.K .k-ev .k-card .blk .apl{background:rgba(255,255,255,.08)!important;border:0}
+.K .k-ev .k-card .blk-h b,.K .k-ev .k-card .apl b,.K .k-ev .k-card .tiles2 b,.K .k-ev .k-card .chatprev b{color:#fff!important}
+.K .k-ev .k-card .blk-h span,.K .k-ev .k-card .apl span,.K .k-ev .k-card .tiles2 span,.K .k-ev .k-card .chatprev span,.K .k-ev .k-card .muted,.K .k-ev .k-card .hint2{color:rgba(255,255,255,.72)!important}
+.K .k-ev .k-card .tiles2 svg,.K .k-ev .k-card .chatprev svg{color:#fff}
+.K .k-ev .k-card .sm.yes{background:#fff;color:var(--ink)}
+.K .k-ev .k-card .sm.no{background:rgba(255,255,255,.14);color:#fff}
+.K .k-ev .k-card .report{color:rgba(255,255,255,.7)}
+.K .k-ev .k-card .btn.v{background:#fff;color:var(--ink);box-shadow:none;animation:none}
+/* Нижняя панель: «поделиться» + главная кнопка — белая, как в прототипе. */
+.K .k-ev .k-cta{bottom:calc(var(--bot) + 14px)}
+.K .k-ev .k-ctab{flex:1;display:flex;gap:8px;min-width:0}
+.K .k-ev .k-ctab>.btn{flex:1;height:56px;min-height:56px;border-radius:28px;font:500 16px var(--disp);margin:0}
+.K .k-ev .k-ctab>.btn.v,.K .k-ev .k-ctab>.btn.ok{background:#fff;color:var(--ink);box-shadow:none;animation:none}
+.K .k-ev .k-ctab>.btn.o{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.K .k-ev .k-who .k-wp span{background-color:rgba(255,255,255,.14);font:500 16px var(--disp)}
+.K .k-ev .k-mapbox .mini,.K .k-ev .k-mapbox>div:first-child{position:absolute;inset:0}
+.K .k-ev .k-mapact{pointer-events:none}
+.K .k-ev .k-mapact>*{pointer-events:auto}
