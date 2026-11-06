@@ -1,0 +1,62 @@
+<!doctype html><html><head><meta charset='utf-8'><style>
+@font-face{font-family:ID;src:url(file:///usr/share/fonts/opentype/inter/InterDisplay-Light.otf);font-weight:300}
+@font-face{font-family:ID;src:url(file:///usr/share/fonts/opentype/inter/InterDisplay-Regular.otf);font-weight:400}
+@font-face{font-family:ID;src:url(file:///usr/share/fonts/opentype/inter/InterDisplay-Medium.otf);font-weight:500}
+@font-face{font-family:ID;src:url(file:///usr/share/fonts/opentype/inter/InterDisplay-SemiBold.otf);font-weight:600}
+@font-face{font-family:SR;src:url(img/Lora-Italic-Variable.ttf);font-style:italic}
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--fg:#17141F;--fg2:rgba(23,20,31,.56);--ink:#17141F}
+body{width:390px;height:844px;overflow:hidden;position:relative;font-family:ID;color:var(--fg);background:radial-gradient(55% 35% at 80% 18%,rgba(170,160,255,.45),rgba(170,160,255,0) 70%),radial-gradient(50% 30% at 15% 70%,rgba(255,190,160,.40),rgba(255,190,160,0) 70%),radial-gradient(60% 30% at 70% 100%,rgba(140,170,255,.35),rgba(140,170,255,0) 70%),linear-gradient(180deg,#F5F3F8 0%,#EEEBF3 60%,#E7E3EF 100%)}
+em{font-family:SR,serif;font-style:italic;font-weight:400}
+svg{width:16px;height:16px;flex:none}
+.island{position:absolute;top:11px;left:50%;width:124px;height:36px;margin-left:-62px;background:#000;border-radius:20px;z-index:40}
+.sb{position:absolute;top:0;left:0;right:0;height:50px;display:flex;justify-content:space-between;align-items:center;padding:6px 30px 0 34px;font:600 16px ID;z-index:39}
+.hb{position:absolute;bottom:8px;left:50%;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:var(--fg);z-index:50}
+.g{background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.95);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+.gw{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);color:#fff}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:18px;font:500 14px ID;white-space:nowrap}
+.chip .ii svg{width:20px;height:20px}.chip .ii{display:flex;margin-left:-4px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rb{width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center}.rb svg{width:20px;height:20px}
+.h1{font:300 38px/1.04 ID;letter-spacing:-1.2px}.h1 em{font-size:42px}
+.sub{font:400 14px/1.45 ID;color:var(--fg2)}
+.sec{display:flex;justify-content:space-between;align-items:baseline;padding:0 20px;margin-top:18px}
+.sec h3{font:400 19px ID;letter-spacing:-.4px}.sec h3 em{font-size:21px}.sec span{font:500 13px ID;color:var(--fg2)}
+.row{display:flex;gap:10px;padding:12px 20px 0;overflow:hidden}
+.card{flex:none;position:relative;border-radius:26px;overflow:hidden;color:#fff;background-size:cover;background-position:center}
+.card::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(12,8,24,.7) 100%)}
+.card>*{position:absolute;z-index:2}
+.card .tg{top:10px;left:10px;height:28px;padding:0 10px;font-size:12px;border-radius:14px}
+.card .bt{left:14px;right:14px;bottom:13px}.card .tt{font:500 16px/1.15 ID;letter-spacing:-.3px}.card .tt em{font-size:18px}
+.card .mm{font:400 12px ID;opacity:.85;margin-top:4px}
+.avs{display:flex}.avs b{width:26px;height:26px;border-radius:13px;border:2px solid #fff;margin-left:-8px;background-size:cover;background-position:center}.avs b:first-child{margin-left:0}
+.nav{position:absolute;left:18px;width:354px;bottom:44px;height:70px;z-index:30;display:flex;justify-content:space-around;align-items:center;padding:0 6px;filter:drop-shadow(0 14px 22px rgba(60,40,120,.14))}
+.nav::before{content:"";position:absolute;inset:0;clip-path:path("M35 0H154Q157.6 0 158.6 1.2A30.5 30.5 0 1 0 195.4 1.2Q196.4 0 200 0H319A35 35 0 0 1 319 70H35A35 35 0 0 1 35 0Z");background:rgba(246,244,250,.94);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6)}
+.nav .edge{position:absolute;left:0;top:0;width:354px;height:70px;pointer-events:none;overflow:visible}
+.nav .it{display:flex;flex-direction:column;align-items:center;gap:3px;font:500 10px ID;color:rgba(23,20,31,.62);width:62px;position:relative;z-index:1}
+.nav .it svg{width:22px;height:22px;stroke-width:1.5}.nav .it.on{color:var(--ink)}
+.nav .sp{width:92px}
+.nav .bl{position:absolute;left:50%;top:-8px;width:66px;height:66px;margin-left:-33px;background:url(img/blobw.png) center/104% no-repeat;filter:drop-shadow(0 8px 14px rgba(110,80,255,.35));z-index:2}
+.nav .bl::after{content:"";position:absolute;inset:0;background:linear-gradient(var(--pl),var(--pl)) center/20px 2.6px no-repeat,linear-gradient(var(--pl),var(--pl)) center/2.6px 20px no-repeat;opacity:.82;filter:drop-shadow(0 1px 3px rgba(60,20,120,.35))}
+.badge{position:absolute;top:-6px;left:36px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;font:600 11px/17px ID;text-align:center;color:var(--ink);background:rgba(255,255,255,.75);border:1px solid #fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 8px rgba(80,60,160,.18)}
+.btn{height:54px;border-radius:27px;display:flex;align-items:center;justify-content:center;gap:8px;font:500 16px ID}
+.btn.d{background:var(--ink);color:#fff}.btn.l{background:rgba(255,255,255,.6);border:1px solid #fff}
+
+.hero{position:absolute;left:0;right:0;top:0;height:470px;background-size:cover}
+.fade{position:absolute;left:0;right:0;top:250px;height:240px;background:linear-gradient(180deg,rgba(243,240,247,0),#F2EFF6 92%)}
+.tbar{position:absolute;top:56px;left:16px;right:16px;display:flex;justify-content:space-between;z-index:5}
+.body{position:absolute;left:20px;right:20px;top:330px;z-index:5}
+.title{font:300 38px/1.02 ID;letter-spacing:-1.2px;margin-top:12px}.title em{font-size:42px}
+.ln{display:flex;align-items:center;gap:12px;height:62px;border-radius:31px;padding:0 16px 0 8px;margin-top:8px}
+.ln .ic{width:46px;height:46px;border-radius:23px;background:rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center}.ln .ic svg{width:20px;height:20px}
+.ln b{display:block;font:500 15px ID}.ln small{font:400 12px ID;color:var(--fg2)}
+.bot{position:absolute;left:20px;right:20px;bottom:30px;display:flex;gap:10px;z-index:6}
+.bot .btn{flex:1}.bot .rb{width:54px;height:54px;border-radius:27px}
+</style></head><body><div class="hero" style="background-image:url(img/running.webp);background-position:42% center"></div><div class="fade"></div><div class="island"></div><div class="sb" style="color:#fff"><span>9:41</span><i style="display:flex;gap:6px;align-items:center"><svg viewBox="0 0 18 12" style="width:18px;height:12px"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg viewBox="0 0 27 12" style="width:27px;height:12px"><rect x=".5" y=".5" width="23" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".45"/><rect x="2" y="2" width="20" height="8" rx="2.2" fill="currentColor"/></svg></i></div>
+<div class="tbar"><div class="rb gw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></div><div style="display:flex;gap:8px"><div class="rb gw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg></div><div class="rb gw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5.5" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="12" cy="18.5" r="1.3"/></svg></div></div></div>
+<div class="body"><span class="chip g"><span class="ii"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g7" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7A4DFF"/><stop offset="1" stop-color="#FF4F9A"/></linearGradient><linearGradient id="g8" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2FD3FF"/><stop offset="1" stop-color="#2F6BFF"/></linearGradient></defs><path d="M10 66c0-6 4-10 10-10h14l10-22c3-6 12-6 15 1l6 14c2 5 6 8 12 9l9 2c5 1 8 5 8 10v4H18a8 8 0 0 1-8-8z" fill="url(#g7)" opacity="1"/><rect x="10" y="74" width="80" height="10" rx="5" fill="url(#g8)" opacity="0.95"/><path d="M46 40l10 4M42 48l10 4" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none" opacity=".85"/></svg></span>Бег</span>
+<div class="title">Пробежка<br><em>на рассвете</em></div>
+<div class="ln g"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5.5" width="16" height="15" rx="3"/><path d="M4 10h16M8.5 3.5v4M15.5 3.5v4"/></svg></div><div><b>Суббота, 08:00 – 09:30</b><small>Через 2 дня</small></div></div>
+<div class="ln g"><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg></div><div><b>Набережная Туры</b><small>1,4 км · открыть карту</small></div></div>
+<div class="ln g"><div class="ic"><div class="avs"><b style="background-image:url(img/running.webp);background-position:52% 4%;background-size:auto 260%"></b></div></div><div style="flex:1"><b>3 из 10 мест</b><small>Олег, Даша и ещё 1 идут</small></div><div class="avs"><b style="background-image:url(img/running.webp);background-position:52% 4%;background-size:auto 260%"></b><b style="background-image:url(img/running.webp);background-position:12% 12%;background-size:auto 260%"></b><b style="background-image:url(img/walk.webp);background-position:70% 40%;background-size:auto 260%"></b></div></div></div>
+<div class="bot"><div class="rb g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="17" cy="5.5" r="2.5"/><circle cx="6.5" cy="12" r="2.5"/><circle cx="17" cy="18.5" r="2.5"/><path d="M8.7 10.8l6.1-3.9M8.7 13.2l6.1 3.9"/></svg></div><div class="rb g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17A2.5 2.5 0 0 1 4 14.5z"/></svg></div><div class="btn d">Я иду <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div></div><div class='hb'></div></body></html>

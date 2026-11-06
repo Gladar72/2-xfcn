@@ -1,0 +1,67 @@
+<!doctype html><html><head><meta charset='utf-8'><style>
+@font-face{font-family:ID;src:url(file:///usr/share/fonts/opentype/inter/InterDisplay-Light.otf);font-weight:300}
+@font-face{font-family:ID;src:url(file:///usr/share/fonts/opentype/inter/InterDisplay-Regular.otf);font-weight:400}
+@font-face{font-family:ID;src:url(file:///usr/share/fonts/opentype/inter/InterDisplay-Medium.otf);font-weight:500}
+@font-face{font-family:ID;src:url(file:///usr/share/fonts/opentype/inter/InterDisplay-SemiBold.otf);font-weight:600}
+@font-face{font-family:SR;src:url(img/Lora-Italic-Variable.ttf);font-style:italic}
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--fg:#17141F;--fg2:rgba(23,20,31,.56);--ink:#17141F}
+body{width:390px;height:844px;overflow:hidden;position:relative;font-family:ID;color:var(--fg);background:radial-gradient(55% 35% at 80% 18%,rgba(170,160,255,.45),rgba(170,160,255,0) 70%),radial-gradient(50% 30% at 15% 70%,rgba(255,190,160,.40),rgba(255,190,160,0) 70%),radial-gradient(60% 30% at 70% 100%,rgba(140,170,255,.35),rgba(140,170,255,0) 70%),linear-gradient(180deg,#F5F3F8 0%,#EEEBF3 60%,#E7E3EF 100%)}
+em{font-family:SR,serif;font-style:italic;font-weight:400}
+svg{width:16px;height:16px;flex:none}
+.island{position:absolute;top:11px;left:50%;width:124px;height:36px;margin-left:-62px;background:#000;border-radius:20px;z-index:40}
+.sb{position:absolute;top:0;left:0;right:0;height:50px;display:flex;justify-content:space-between;align-items:center;padding:6px 30px 0 34px;font:600 16px ID;z-index:39}
+.hb{position:absolute;bottom:8px;left:50%;width:134px;height:5px;margin-left:-67px;border-radius:3px;background:var(--fg);z-index:50}
+.g{background:rgba(255,255,255,.55);border:1px solid rgba(255,255,255,.95);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+.gw{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);color:#fff}
+.chip{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 14px;border-radius:18px;font:500 14px ID;white-space:nowrap}
+.chip .ii svg{width:20px;height:20px}.chip .ii{display:flex;margin-left:-4px}
+.chip.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.rb{width:44px;height:44px;border-radius:22px;display:flex;align-items:center;justify-content:center}.rb svg{width:20px;height:20px}
+.h1{font:300 38px/1.04 ID;letter-spacing:-1.2px}.h1 em{font-size:42px}
+.sub{font:400 14px/1.45 ID;color:var(--fg2)}
+.sec{display:flex;justify-content:space-between;align-items:baseline;padding:0 20px;margin-top:18px}
+.sec h3{font:400 19px ID;letter-spacing:-.4px}.sec h3 em{font-size:21px}.sec span{font:500 13px ID;color:var(--fg2)}
+.row{display:flex;gap:10px;padding:12px 20px 0;overflow:hidden}
+.card{flex:none;position:relative;border-radius:26px;overflow:hidden;color:#fff;background-size:cover;background-position:center}
+.card::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(12,8,24,.7) 100%)}
+.card>*{position:absolute;z-index:2}
+.card .tg{top:10px;left:10px;height:28px;padding:0 10px;font-size:12px;border-radius:14px}
+.card .bt{left:14px;right:14px;bottom:13px}.card .tt{font:500 16px/1.15 ID;letter-spacing:-.3px}.card .tt em{font-size:18px}
+.card .mm{font:400 12px ID;opacity:.85;margin-top:4px}
+.avs{display:flex}.avs b{width:26px;height:26px;border-radius:13px;border:2px solid #fff;margin-left:-8px;background-size:cover;background-position:center}.avs b:first-child{margin-left:0}
+.nav{position:absolute;left:18px;width:354px;bottom:44px;height:70px;z-index:30;display:flex;justify-content:space-around;align-items:center;padding:0 6px;filter:drop-shadow(0 14px 22px rgba(60,40,120,.14))}
+.nav::before{content:"";position:absolute;inset:0;clip-path:path("M35 0H154Q157.6 0 158.6 1.2A30.5 30.5 0 1 0 195.4 1.2Q196.4 0 200 0H319A35 35 0 0 1 319 70H35A35 35 0 0 1 35 0Z");background:rgba(246,244,250,.94);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6)}
+.nav .edge{position:absolute;left:0;top:0;width:354px;height:70px;pointer-events:none;overflow:visible}
+.nav .it{display:flex;flex-direction:column;align-items:center;gap:3px;font:500 10px ID;color:rgba(23,20,31,.62);width:62px;position:relative;z-index:1}
+.nav .it svg{width:22px;height:22px;stroke-width:1.5}.nav .it.on{color:var(--ink)}
+.nav .sp{width:92px}
+.nav .bl{position:absolute;left:50%;top:-8px;width:66px;height:66px;margin-left:-33px;background:url(img/blobw.png) center/104% no-repeat;filter:drop-shadow(0 8px 14px rgba(110,80,255,.35));z-index:2}
+.nav .bl::after{content:"";position:absolute;inset:0;background:linear-gradient(var(--pl),var(--pl)) center/20px 2.6px no-repeat,linear-gradient(var(--pl),var(--pl)) center/2.6px 20px no-repeat;opacity:.82;filter:drop-shadow(0 1px 3px rgba(60,20,120,.35))}
+.badge{position:absolute;top:-6px;left:36px;min-width:19px;height:19px;padding:0 5px;border-radius:10px;font:600 11px/17px ID;text-align:center;color:var(--ink);background:rgba(255,255,255,.75);border:1px solid #fff;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);box-shadow:0 2px 8px rgba(80,60,160,.18)}
+.btn{height:54px;border-radius:27px;display:flex;align-items:center;justify-content:center;gap:8px;font:500 16px ID}
+.btn.d{background:var(--ink);color:#fff}.btn.l{background:rgba(255,255,255,.6);border:1px solid #fff}
+
+.top{position:absolute;top:58px;left:20px;right:20px;display:flex;justify-content:space-between;align-items:center;z-index:5}
+.top h2{font:300 28px ID;letter-spacing:-.8px}.top h2 em{font-size:31px}
+.dk{position:absolute;left:16px;right:16px;top:112px;height:480px;border-radius:34px;overflow:hidden;background-size:auto 215%;box-shadow:0 24px 50px rgba(60,40,110,.22)}
+.dk::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(12,8,24,.78) 100%)}
+.dk>*{position:absolute;z-index:2}
+.dk .tg{top:14px;left:14px}.dk .ds{top:14px;right:14px}
+.dk .in{left:18px;right:18px;bottom:18px;color:#fff}
+.dk .nm{font:300 34px ID;letter-spacing:-1px}.dk .nm em{font-size:37px}
+.dk .mt{font:400 13px ID;opacity:.85;margin-top:2px}
+.dk .cs{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}.dk .cs .chip{height:32px;font-size:13px}
+.dots{position:absolute;top:126px;left:0;right:0;display:flex;justify-content:center;gap:5px;z-index:6}.dots i{width:26px;height:3px;border-radius:2px;background:rgba(255,255,255,.5)}.dots i.on{background:#fff}
+.act{position:absolute;left:0;right:0;bottom:162px;display:flex;justify-content:center;gap:16px;z-index:6}
+.act .rb{width:62px;height:62px;border-radius:31px}.act .rb svg{width:26px;height:26px}
+.act .main{width:auto;padding:0 26px;background:#17141F;color:#fff;font:500 16px ID;gap:8px;border-radius:31px;height:62px;display:flex;align-items:center}
+</style></head><body><div class="island"></div><div class="sb" style="color:#17141F"><span>9:41</span><i style="display:flex;gap:6px;align-items:center"><svg viewBox="0 0 18 12" style="width:18px;height:12px"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5.5" width="3" height="6.5" rx="1" fill="currentColor"/><rect x="10" y="3" width="3" height="9" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg><svg viewBox="0 0 27 12" style="width:27px;height:12px"><rect x=".5" y=".5" width="23" height="11" rx="3.5" fill="none" stroke="currentColor" opacity=".45"/><rect x="2" y="2" width="20" height="8" rx="2.2" fill="currentColor"/></svg></i></div>
+<div class="top"><h2>Люди <em>рядом</em></h2><div class="rb g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></div></div>
+<div class="dk" style="background-image:url(img/running.webp);background-position:56% 2%">
+<div class="dots" style="top:10px"><i class="on"></i><i></i><i></i></div>
+<span class="tg chip gw" style="top:24px">✦ 2 общих интереса</span>
+<div class="in"><div class="nm">Даша, <em>27</em></div><div class="mt">1,2 км · ищет компанию на выходные</div>
+<div class="cs"><span class="chip gw"><span class="ii"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g7" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7A4DFF"/><stop offset="1" stop-color="#FF4F9A"/></linearGradient><linearGradient id="g8" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2FD3FF"/><stop offset="1" stop-color="#2F6BFF"/></linearGradient></defs><path d="M10 66c0-6 4-10 10-10h14l10-22c3-6 12-6 15 1l6 14c2 5 6 8 12 9l9 2c5 1 8 5 8 10v4H18a8 8 0 0 1-8-8z" fill="url(#g7)" opacity="1"/><rect x="10" y="74" width="80" height="10" rx="5" fill="url(#g8)" opacity="0.95"/><path d="M46 40l10 4M42 48l10 4" stroke="#fff" stroke-width="5" stroke-linecap="round" fill="none" opacity=".85"/></svg></span>Бег</span><span class="chip gw"><span class="ii"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8A3D"/><stop offset="1" stop-color="#FF4F9A"/></linearGradient><linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2F6BFF"/><stop offset="1" stop-color="#2FD3FF"/></linearGradient><linearGradient id="g3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#B58CFF"/><stop offset="1" stop-color="#7A4DFF"/></linearGradient><linearGradient id="g4" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC93C"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient></defs><path d="M18 38h52v18a26 26 0 0 1-26 26a26 26 0 0 1-26-26z" fill="url(#g1)" opacity="1"/><path d="M62 44a16 16 0 1 1 0 26v-10a6 6 0 1 0 0-6z" fill="url(#g2)" opacity="0.9"/><rect x="30" y="12" width="9" height="20" rx="4.5" fill="url(#g3)" opacity="1"/><rect x="46" y="16" width="9" height="16" rx="4.5" fill="url(#g4)" opacity="1"/></svg></span>Кофе</span><span class="chip gw"><span class="ii"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><linearGradient id="g9" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FF4F9A"/><stop offset="1" stop-color="#B58CFF"/></linearGradient><linearGradient id="g10" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7A4DFF"/><stop offset="1" stop-color="#2F6BFF"/></linearGradient><linearGradient id="g11" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8A3D"/><stop offset="1" stop-color="#FFC93C"/></linearGradient><linearGradient id="g12" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2FD3FF"/><stop offset="1" stop-color="#2F6BFF"/></linearGradient></defs><ellipse cx="50" cy="44" rx="14" ry="30" fill="url(#g9)" opacity="1"/><ellipse cx="50" cy="44" rx="14" ry="30" transform="rotate(-50 50 70)" fill="url(#g10)" opacity="0.85"/><ellipse cx="50" cy="44" rx="14" ry="30" transform="rotate(50 50 70)" fill="url(#g11)" opacity="0.85"/><rect x="16" y="76" width="68" height="9" rx="4.5" fill="url(#g12)" opacity="1"/></svg></span>Йога</span></div></div></div>
+<div class="act"><div class="rb g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18"/></svg></div><div class="main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/></svg>Сердечко</div><div class="rb g"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17A2.5 2.5 0 0 1 4 14.5z"/></svg></div></div>
+<div class="nav" style="--pl:rgba(255,255,255,.95)"><svg class="edge" viewBox="0 0 354 70"><path d="M35 0H154Q157.6 0 158.6 1.2A30.5 30.5 0 1 0 195.4 1.2Q196.4 0 200 0H319A35 35 0 0 1 319 70H35A35 35 0 0 1 35 0Z" fill="none" stroke="#fff" stroke-width="1.2" opacity=".9"/></svg><div class="bl"></div><div class="it "><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v8.5a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H5.5A1.5 1.5 0 0 1 4 19.5z"/></svg><span>Главная</span></div><div class="it "><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4L3.5 6v14L9 18l6 2 5.5-2V4L15 6zM9 4v14M15 6v14"/></svg><span>Карта</span></div><div class="sp"></div><div class="it "><span class="badge">2</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v8a2.5 2.5 0 0 1-2.5 2.5H10l-4.5 3.5V17A2.5 2.5 0 0 1 4 14.5z"/></svg><span>Встречи</span></div><div class="it "><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20.5c.8-4 3.8-6 7.5-6s6.7 2 7.5 6"/></svg><span>Профиль</span></div></div><div class='hb'></div></body></html>

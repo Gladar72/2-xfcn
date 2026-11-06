@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><filter id="gls_cool8" x="-15%" y="-15%" width="130%" height="130%">
+<feGaussianBlur in="SourceAlpha" stdDeviation="3.2" result="b"/>
+<feSpecularLighting in="b" surfaceScale="5" specularConstant="1.1" specularExponent="30" lighting-color="#fff" result="s"><fePointLight x="28" y="6" z="70"/></feSpecularLighting>
+<feComposite in="s" in2="SourceAlpha" operator="in" result="s2"/>
+<feMorphology in="SourceAlpha" operator="erode" radius="1.6" result="er"/><feComposite in="SourceAlpha" in2="er" operator="out" result="rim"/>
+<feFlood flood-color="#fff" flood-opacity="0.6"/><feComposite in2="rim" operator="in" result="rimc"/>
+<feOffset in="SourceAlpha" dx="1.4" dy="1.8" result="o"/><feComposite in="SourceAlpha" in2="o" operator="out" result="edge"/>
+<feFlood flood-color="#BFF0FF" flood-opacity="0.6"/><feComposite in2="edge" operator="in" result="cy"/>
+<feOffset in="SourceAlpha" dx="-1.4" dy="-1" result="o2"/><feComposite in="SourceAlpha" in2="o2" operator="out" result="edge2"/>
+<feFlood flood-color="#E7C9F0" flood-opacity="0.48"/><feComposite in2="edge2" operator="in" result="pk"/>
+<feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="cy"/><feMergeNode in="pk"/><feMergeNode in="rimc"/><feMergeNode in="s2"/></feMerge></filter>
+<filter id="dsh_cool8" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#2A2850" flood-opacity=".25"/></filter><linearGradient id="g21_cool8" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8378C8"/><stop offset="1" stop-color="#6F80C8"/></linearGradient><linearGradient id="g22_cool8" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#A897C8"/><stop offset="1" stop-color="#B9A6B8"/></linearGradient></defs><g filter="url(#dsh_cool8)"><g filter="url(#gls_cool8)"><ellipse cx="34" cy="58" rx="14" ry="22" transform="rotate(-12 34 58)" fill="url(#g21_cool8)" opacity="1"/><ellipse cx="66" cy="40" rx="14" ry="22" transform="rotate(12 66 40)" fill="url(#g22_cool8)" opacity="0.92"/><circle cx="30" cy="86" r="7" fill="#7FB1C8" opacity="1"/><circle cx="70" cy="70" r="7" fill="#CFC6CF" opacity="1"/></g></g></svg>
