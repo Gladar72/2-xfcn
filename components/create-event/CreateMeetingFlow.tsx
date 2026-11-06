@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LocationPicker } from "@/components/map/LocationPicker";
-import { EventPlaceMap } from "@/components/events/EventPlaceMap";
 import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
@@ -421,6 +421,25 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     }, 300);
     return () => clearTimeout(t);
   }, [placeQuery, categorySlug]);
+
+  // Метка на карте: точка ставится сразу, адрес приходит следом и сам встаёт в строку адреса.
+  function onMapPick({ latitude: la, longitude: lo }: { latitude: number; longitude: number }) {
+    setLatitude(la);
+    setLongitude(lo);
+    setPlaceName("Точка на карте");
+    setAddress("");
+  }
+  function onMapAddress(resolved: string) {
+    setAddress(resolved);
+    const short = resolved.split(",").map((x) => x.trim()).filter((x) => x && !/^(Россия|Тюмень|Тюменская область)$/i.test(x)).slice(0, 2).join(", ");
+    setPlaceName((n) => (!n || n === "Точка на карте" ? short || "Точка на карте" : n));
+  }
+  // Карта (встроенная и на весь экран) открывается с уже поставленной меткой.
+  const pinAtOpen = useMemo(
+    () => externalCoords ?? (latitude !== undefined && longitude !== undefined ? { latitude, longitude } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mapOpen, externalCoords, step]
+  );
 
   function pickPlace(p: { name: string; address: string; latitude: number; longitude: number }) {
     setPlaceName(p.name);
@@ -1136,42 +1155,30 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   )}
                 </div>
               )}
-              {/* Карта: маленькое превью, по нажатию — на весь экран, там ставишь метку. */}
-              <button className="k-mapbox k-g k-pr k-mapprev" style={{ height: 170, width: "100%", display: "block", padding: 0 }} onClick={() => setMapOpen(true)} aria-label="Отметить место на карте">
-                {latitude !== undefined && longitude !== undefined ? (
-                  <EventPlaceMap fill latitude={latitude} longitude={longitude} markerSrc="/brand/markers/pin-ink.svg" placeName={placeName} fallbackSrc="/brand/markers/pin-ink.svg" onOpen={() => setMapOpen(true)} />
-                ) : (
-                  <span className="k-mapcta">
-                    <span className="k-op">
-                      <KI n="pin" />
-                    </span>
-                    Нажми, чтобы отметить на карте
-                  </span>
+              {/* Карта видна сразу: нажал — метка встала, адрес подставился сам. ⤢ — на весь экран. */}
+              <div className="k-mapbox k-g k-mapprev" style={{ height: 230 }}>
+                {!mapOpen && <LocationPicker key="inline" onPick={onMapPick} onAddressResolved={onMapAddress} externalCoords={pinAtOpen} heightPx={230} />}
+                <button className="k-mapexp k-pr" onClick={() => setMapOpen(true)} aria-label="Карта на весь экран">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+                </button>
+              </div>
+              {mapOpen &&
+                typeof document !== "undefined" &&
+                createPortal(
+                  <div className="k-mapfull">
+                    <div className="k-mapfull-top">
+                      <b>{placeName && placeName !== "Точка на карте" ? placeName : "Отметь место"}</b>
+                      <small>{address || "Нажми на карту — адрес определится сам"}</small>
+                    </div>
+                    <LocationPicker key="full" onPick={onMapPick} onAddressResolved={onMapAddress} externalCoords={pinAtOpen} heightPx={typeof window !== "undefined" ? window.innerHeight : 600} controlsTop="calc(max(env(safe-area-inset-top,0px),var(--tg-safe-area-inset-top,0px)) + var(--tg-content-safe-area-inset-top,0px) + 96px)" />
+                    <div className="k-mapfull-foot">
+                      <button className="k-btn k-d k-pr" onClick={() => setMapOpen(false)}>
+                        {latitude !== undefined ? "Готово" : "Закрыть"}
+                      </button>
+                    </div>
+                  </div>,
+                  document.body
                 )}
-              </button>
-              {mapOpen && (
-                <div className="k-mapfull">
-                  <div className="k-mapfull-top">
-                    <b>Отметь место</b>
-                    <small>{address || "Нажми на карту — адрес определится сам"}</small>
-                  </div>
-                  <LocationPicker
-                    onPick={({ latitude: la, longitude: lo }) => {
-                      setLatitude(la);
-                      setLongitude(lo);
-                      if (!placeName || placeName === "Точка на карте") setPlaceName("Точка на карте");
-                    }}
-                    onAddressResolved={(resolved) => setAddress(resolved)}
-                    externalCoords={externalCoords ?? (latitude !== undefined && longitude !== undefined ? { latitude, longitude } : null)}
-                    heightPx={typeof window !== "undefined" ? window.innerHeight : 600}
-                  />
-                  <div className="k-mapfull-foot">
-                    <button className="k-btn k-d k-pr" onClick={() => setMapOpen(false)}>
-                      {latitude !== undefined ? "Готово" : "Закрыть"}
-                    </button>
-                  </div>
-                </div>
-              )}
               <div className="k-addr k-g">
                 <span>
                   <b>{placeName || "Отметь точку на карте"}</b>

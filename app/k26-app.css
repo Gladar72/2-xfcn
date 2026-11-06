@@ -252,3 +252,22 @@
 /* Профиль человека: фото крупнее, плашка «О себе» начинается ниже; иконки интересов на тёмном — светлые. */
 .P .pr.pr2:not(.deck) .gal{height:min(82vh,700px)!important}
 .P .pr.pr2 .sheet2 .itag img{filter:invert(1) brightness(2);opacity:.9}
+/* 06.11: карта в создании видна сразу; ⤢ — на весь экран (поверх всего, через body) */
+.K .k-mapprev{position:relative;overflow:hidden;border-radius:24px;padding:0}
+.K .k-mapprev .rounded-card{border-radius:24px}
+.K .k-mapexp{position:absolute;right:10px;bottom:10px;z-index:6;width:40px;height:40px;border-radius:14px;border:0;background:rgba(255,255,255,.94);box-shadow:0 6px 16px rgba(23,20,31,.16);display:flex;align-items:center;justify-content:center;color:#17141F}
+.k-mapfull{overflow:hidden}
+.k-mapfull>.flex{height:100%;border-radius:0!important;box-shadow:none!important}
+/* 06.11: длинное название — мельче, чтобы не закрывало обложку; под кнопкой «Я иду» — плотная подложка */
+.K .k-ev .k-title.k-tl2{font-size:32px}
+.K .k-ev .k-title.k-tl3{font-size:25px;letter-spacing:-.02em}
+.K .k-ev .k-title{text-shadow:0 2px 18px rgba(0,0,0,.45)}
+.K .k-ev .k-evfade{position:absolute;left:0;right:0;bottom:0;height:150px;z-index:29;pointer-events:none;background:linear-gradient(180deg,rgba(23,20,31,0) 0%,rgba(23,20,31,.9) 50%,#17141F 80%)}
+/* 06.11: живой Мося без рывков — кадры перетекают через opacity (видеокарта) */
+.k-crl{overflow:visible}
+.k-crl>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;display:block;opacity:0;will-change:opacity;animation:k-mf 6s linear infinite;pointer-events:none}
+.k-crl>img.k-crl0{opacity:1;animation:none}
+.k-crl>img.k-crlz{animation-name:k-mfz}
+@keyframes k-mf{0%{opacity:0}8.333%{opacity:1}16.66%{opacity:1}16.67%{opacity:0}100%{opacity:0}}
+@keyframes k-mfz{0%{opacity:0}8.333%{opacity:1}16.66%{opacity:0}100%{opacity:0}}
+@media (prefers-reduced-motion: reduce){.k-crl>img{animation:none}}

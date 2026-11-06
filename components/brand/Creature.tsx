@@ -77,7 +77,6 @@ const VS = `attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
 
 /** Живой Мося: тот же шейдер, заранее отрисованный в анимацию (6 с по кругу) — переливается
  *  и меняет форму, как вода, а телефон только показывает картинку (без нагрузки). */
-const LIVE: Record<Variant, string> = { p: "/brand/creature/live-p.webp", e: "/brand/creature/live-e.webp" };
 const FALLBACK: Record<Variant, string> = { p: "/brand/creature/blobw.webp", e: "/brand/creature/blobe.webp" };
 
 type Entry = { c: HTMLCanvasElement; ctx: CanvasRenderingContext2D; v: Variant };
@@ -232,10 +231,27 @@ function unregister(e: Entry) {
  * Живой WebGL-рендер (выше) на телефонах тормозил: каждый кадр копировался
  * во все холсты на экране. Оставлен в файле на будущее, сейчас не используется.
  */
+const FRAMES = 12;
+const STEP = 0.5; // с на кадр — полный круг 6 с, как в шейдере
+
 export function Creature({ size: cssSize, variant = "p", className }: { size?: number; variant?: Variant; className?: string }) {
   const st = cssSize ? { width: cssSize, height: cssSize } : { width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%" };
+  // Живой Мося: 12 кадров шейдера плавно перетекают друг в друга (только opacity —
+  // это делает видеокарта на 60 кадрах, без покадровой анимации и без рывков).
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={variant === "e" && (cssSize ?? 0) >= 150 ? "/brand/creature/live-e-l.webp" : LIVE[variant]} alt="" aria-hidden draggable={false} decoding="async" className={`k-crf ${className ?? ""}`} style={{ display: "block", objectFit: "contain", ...st }} />
+    <span aria-hidden className={`k-crf k-crl ${className ?? ""}`} style={{ display: "block", position: "relative", ...st }}>
+      {Array.from({ length: FRAMES }, (_, k) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={k}
+          src={`/brand/creature/m${variant}${String(k).padStart(2, "0")}.webp`}
+          alt=""
+          draggable={false}
+          decoding="async"
+          className={k === 0 ? "k-crl0" : k === FRAMES - 1 ? "k-crlz" : undefined}
+          style={k > 0 ? { animationDelay: `${(k - 1) * STEP}s` } : undefined}
+        />
+      ))}
+    </span>
   );
 }

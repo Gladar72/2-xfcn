@@ -29,6 +29,8 @@ interface LocationPickerProps {
    * пользователя: значок выбора места должен меняться вместе с типом
    * события), по умолчанию — обычный пин "Своё предложение". */
   markerIconSrc?: string;
+  /** Отступ кнопок «+ − где я» сверху (на весь экран — ниже кнопок Telegram). */
+  controlsTop?: number | string;
 }
 
 const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень
@@ -41,6 +43,7 @@ export function LocationPicker({
   externalCoords,
   heightPx,
   markerIconSrc = DEFAULT_MARKER_ICON,
+  controlsTop = 10,
 }: LocationPickerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const onPickRef = useRef(onPick);
@@ -160,7 +163,7 @@ export function LocationPicker({
         // touch-action: none — жесты (щипок, перетаскивание) достаются карте, а не прокрутке страницы/Telegram.
         style={{ ...(heightPx ? { height: heightPx, minHeight: heightPx } : { minHeight: 280 }), touchAction: "none" }}
       />
-      <div style={{ position: "absolute", right: 10, top: 10, display: "flex", flexDirection: "column", gap: 8, zIndex: 5 }}>
+      <div style={{ position: "absolute", right: 10, top: controlsTop, display: "flex", flexDirection: "column", gap: 8, zIndex: 5 }}>
         <button type="button" style={btn} onClick={() => zoomBy(1)} aria-label="Приблизить">+</button>
         <button type="button" style={btn} onClick={() => zoomBy(-1)} aria-label="Отдалить">−</button>
         <button type="button" style={btn} onClick={locateMe} aria-label="Где я">

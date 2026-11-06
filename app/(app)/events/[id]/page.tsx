@@ -556,7 +556,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             )}
             {isFull ? " · заполнено" : ""}
           </span>
-          <h1 className="k-title">
+          <h1 className={`k-title ${(event.title?.length ?? 0) > 60 ? "k-tl3" : (event.title?.length ?? 0) > 30 ? "k-tl2" : ""}`}>
             {titleParts[0]}
             {titleParts[1] && (
               <>
@@ -965,10 +965,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             </div>
           )}
 
-          <div style={{ height: 92 }} />
+          <div style={{ height: 150 }} />
         </div>
       </div>
 
+      <div className="k-evfade" aria-hidden />
       <div className="k-cta k-gd">
         <button className="k-rb k-gw k-pr" onClick={() => setShareOpen(true)} aria-label="Поделиться">
           <KI n="share" />
