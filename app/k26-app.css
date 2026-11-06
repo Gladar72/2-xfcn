@@ -212,3 +212,6 @@
 .K .k-ev .k-mapact .k-chip{height:34px;font-size:12.5px}
 .K .k-wp .k-free{display:flex;align-items:center;justify-content:center;line-height:1;padding:0;text-align:center}
 .K .k-ev::before{content:"";position:absolute;left:0;right:0;top:0;height:calc(var(--top) + 64px);background:linear-gradient(180deg,#17141F 55%,rgba(23,20,31,0));z-index:15;pointer-events:none}
+/* Профиль: фото выше и больше, имя и белая плашка тарифа ниже — не режут лицо. */
+.K .k-pp .k-hero2{height:min(600px,78vh)}
+.K .k-pp .k-spacer{height:min(440px,56vh)}
