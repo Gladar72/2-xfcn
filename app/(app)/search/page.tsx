@@ -212,6 +212,12 @@ function SearchPageContent() {
     ? byKind.filter((e) => [e.title, e.placeName, e.description, e.category?.name, e.trainingType?.name].filter(Boolean).some((t) => (t as string).toLowerCase().includes(q)))
     : byKind;
 
+  function quick(k: "today" | "tomorrow" | "weekend" | "free") {
+    if (k === "free") setCostFilter((c) => (c === "free" ? "any" : "free"));
+    else setDateFilter((d) => (d === k ? "any" : k));
+    setReloadKey((n) => n + 1);
+  }
+
   const row = (label: string, opts: [string, string][], value: string, set: (v: string) => void) => (
     <>
       <span className="lbl" style={{ margin: 0 }}>
@@ -256,6 +262,20 @@ function SearchPageContent() {
           ] as const
         ).map(([k, l]) => (
           <button key={k} className={`k-pr ${kindTab === k ? "k-on" : ""}`} onClick={() => setKindTab(k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <div className="k-qd">
+        {(
+          [
+            ["today", "Сегодня"],
+            ["tomorrow", "Завтра"],
+            ["weekend", "Выходные"],
+            ["free", "Бесплатно"],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} className={`k-chip k-g k-pr ${(k === "free" ? costFilter === "free" : dateFilter === k) ? "k-on" : ""}`} onClick={() => quick(k)}>
             {l}
           </button>
         ))}
