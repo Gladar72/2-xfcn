@@ -24,7 +24,7 @@ test("legacy account is prompted for a profile photo when choosing an open event
   await page.getByRole("button", { name: "Назад", exact: true }).click();
   await page.getByRole("button", { name: /Анонимная встреча/ }).click();
   await expect(page.getByTestId("organizer-photo-gate")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Далее", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Что планируем/ })).toBeVisible();
 });
 
 test("server photo rejection preserves the filled draft through an inline photo upload", async ({ page }) => {
@@ -66,7 +66,7 @@ test("a current profile photo permits the usual creation flow", async ({ page })
   await fixture(page, "/brand/mosya/mosya_think.webp");
   await page.goto("/create");
   await page.getByRole("button", { name: /Открытая встреча/ }).click();
-  await expect(page.getByRole("button", { name: "Далее", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Что планируем/ })).toBeVisible();
   await expect(page.getByTestId("organizer-photo-gate")).toHaveCount(0);
 });
 
@@ -81,7 +81,7 @@ test("profile load failure is retryable instead of demanding a new photo", async
   await expect(page.getByRole("heading", { name: "Не удалось загрузить профиль" })).toBeVisible();
   failed = false;
   await page.getByRole("button", { name: "Попробовать снова", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Далее", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Что планируем/ })).toBeVisible();
 });
 
 test("failed avatar upload stays blocked; successful retry continues the chosen flow", async ({ page }) => {
@@ -97,5 +97,5 @@ test("failed avatar upload stays blocked; successful retry continues the chosen 
   await expect(page.getByRole("button", { name: "Далее", exact: true })).toHaveCount(0);
   failed = false;
   await page.getByLabel("Фото профиля", { exact: true }).setInputFiles("public/brand/mosya/mosya_think.webp");
-  await expect(page.getByRole("button", { name: "Далее", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Что планируем/ })).toBeVisible();
 });

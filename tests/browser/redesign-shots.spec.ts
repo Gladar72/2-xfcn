@@ -102,7 +102,10 @@ for (const [name, url] of [["mk", "/create"], ["mkbiz", "/create?business=true"]
       const about = page.locator("section.scr:not(.ghost) textarea").first();
       if (await about.count()) await about.fill("Пьём кофе и знакомимся, всех ждём").catch(() => {});
       const next = page.getByRole("button", { name: /Далее|Дальше|Продолжить/ }).last();
-      if (!(await next.count())) break;
+      if (!(await next.count())) {
+        await page.waitForTimeout(900);
+        continue;
+      }
       await next.click({ timeout: 2000 }).catch(() => {});
       await page.waitForTimeout(1200);
     }

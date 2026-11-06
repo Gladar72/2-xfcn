@@ -499,6 +499,13 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       setStep(step + 1);
     } else publish();
   }
+  // Шаг 1 личной встречи — без «Далее»: выбор плитки сразу ведёт на следующий шаг.
+  function goStep2() {
+    setTimeout(() => {
+      setDir(1);
+      setStep(2);
+    }, 180);
+  }
   function back() {
     if (step > (business ? 2 : 1)) {
       setDir(-1);
@@ -663,6 +670,9 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const hasCustom = categories.some((c) => c.slug === "custom");
   // Наши обложки — только для своего раздела встречи; у бизнеса — только своё фото.
   const gridCovers = business ? [] : !isOwn || presetCover ? covers : [];
+  // Фирменных обложек нет (или одна) — большая кнопка «Загрузить фото», как у бизнеса.
+  const bigUpload = !business && gridCovers.length < 2;
+  const bigBg = ownPhoto ?? (bigUpload ? gridCovers[0] : undefined);
   const planName = plan === "medium" ? "Медиум" : plan === "premium" ? "Премиум" : "Старт";
   const srcLabel = (src?: string) => (src === "yandex" ? "Яндекс" : src === "osm" ? "Карты" : "");
   const costLabel = business
@@ -764,7 +774,11 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                       className={`k-cat k-g k-pr ${categorySlug === c.slug ? "k-on" : ""}`}
                       onClick={() => {
                         setCategorySlug(c.slug);
-                        if (c.slug !== "training") setTrainingTypeSlug(null);
+                        if (c.slug !== "training") {
+                          // Выбрал раздел — сразу дальше, без кнопки «Далее».
+                          setTrainingTypeSlug(null);
+                          goStep2();
+                        }
                       }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -787,6 +801,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                           onClick={() => {
                             setTrainingTypeSlug(t.slug);
                             setOwn("");
+                            goStep2();
                           }}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -807,7 +822,10 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                       <span className="k-lbl">Выбери из всех — как при регистрации</span>
                       <div className="k-cats" style={{ marginTop: 0 }}>
                         {OTHER_SPORTS.filter(([n]) => !trainingTypes.some((t) => t.name.toLowerCase() === n.toLowerCase())).map(([n, ic]) => (
-                          <button key={n} className={`k-cat k-g k-pr ${own === n ? "k-on" : ""}`} onClick={() => setOwn(n)}>
+                          <button key={n} className={`k-cat k-g k-pr ${own === n ? "k-on" : ""}`} onClick={() => {
+                              setOwn(n);
+                              goStep2();
+                            }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={ic} alt="" />
                             {n}
@@ -894,25 +912,25 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                       ? `Обложки для «${catLabel}» · выбери одну или загрузи своё фото`
                       : "Обложку подобрал Мося · или загрузи своё фото"}
               </p>
-              {business && (
-                // Событие для бизнеса: фото загружают сами — большая карточка, как «Так увидят другие».
-                <button className={`k-bizph k-pr ${ownPhoto ? "on" : "k-g"}`} style={ownPhoto ? bgCover(ownPhoto) : undefined} onClick={() => fileRef.current?.click()}>
-                  {ownPhoto ? (
+              {(business || bigUpload) && (
+                // Фото загружают сами — большая карточка, как «Так увидят другие».
+                <button className={`k-bizph k-pr ${bigBg ? "on" : "k-g"}`} style={bigBg ? bgCover(bigBg) : undefined} onClick={() => fileRef.current?.click()}>
+                  {bigBg ? (
                     <span className="k-chip k-gw">
-                      <Ic n="camera" c="xs" /> Заменить фото
+                      <Ic n="camera" c="xs" /> {ownPhoto ? "Заменить фото" : "Загрузить своё фото"}
                     </span>
                   ) : (
                     <span className="k-bizph-in">
                       <span className="k-op">
                         <Ic n="camera" />
                       </span>
-                      <b>Загрузить фото события</b>
-                      <small>Афиша, зал или сцена · вертикально, 3:4</small>
+                      <b>{business ? "Загрузить фото события" : "Загрузить фото"}</b>
+                      <small>{business ? "Афиша, зал или сцена · вертикально, 3:4" : "Вертикально, 3:4 — так встречу заметят"}</small>
                     </span>
                   )}
                 </button>
               )}
-              {!business && (
+              {!business && !bigUpload && (
               <div className="k-cvg">
                 {gridCovers.length === 0 && !business && (!isOwn || presetCover) && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "3 / 4", borderRadius: 16 }} />)}
                 {gridCovers.map((c, i) => (
@@ -1194,7 +1212,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           )}
         </div>
       </div>
-      {chosen && (
+      {chosen && !(step === 1 && !business && !categorySlug) && (
         <div className="foot">
           <button className="k-btn k-d k-pr" onClick={next} disabled={submitting}>
             {step === 4 ? (submitting ? (editId ? "Сохраняем…" : "Публикуем…") : editId ? "Сохранить изменения" : "Опубликовать") : "Далее"}
