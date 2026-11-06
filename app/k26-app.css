@@ -157,3 +157,21 @@
 .K .k-bizph-in b{font:500 17px var(--disp)}
 .K .k-bizph-in small{font:400 13px var(--disp);color:var(--ink2)}
 .K .k-bizph .k-chip{position:absolute;left:14px;bottom:14px;height:36px;gap:6px}
+
+/* ===== Скорость и вёрстка на телефоне (06.11, после выкладки) ===== */
+/* Всплывашка: спрятанная выглядывала сверху чёрной плашкой с галочкой (на весь экран). */
+.P .toast{opacity:0;visibility:hidden;transition:transform .55s var(--spring),opacity .3s,visibility 0s .55s}
+.P .toast.on{opacity:1;visibility:visible;transition:transform .55s var(--spring),opacity .2s,visibility 0s}
+/* Фото профиля: лицо не высветляем — затемнение снизу начинается ниже. */
+.K .k-pp .k-hero2{-webkit-mask:linear-gradient(180deg,#000 78%,transparent);mask:linear-gradient(180deg,#000 78%,transparent)}
+/* Стекло: размытие фона (backdrop-filter) на десятках карточек при прокрутке тормозит
+   телефоны (особенно Android). В списках и карточках — плотная молочная подложка без размытия;
+   размытие остаётся только у нижнего меню, шторок и подписей поверх фото. */
+.K .k-g,.P .gl{-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
+.K .k-g{background:rgba(255,255,255,.72)}
+.P .gl{background:rgba(255,255,255,.72)}
+.P .nav26 .gl,.P .nav26 .k-g,.P .sheet .gl,.K .k-sheet .k-g{-webkit-backdrop-filter:blur(18px) saturate(1.4)!important;backdrop-filter:blur(18px) saturate(1.4)!important}
+/* Мося — картинка с лёгким «дыханием» только через transform (видеокарта). */
+.k-crf{animation:k-breathe 4.8s ease-in-out infinite;will-change:transform;transform-origin:50% 60%}
+@keyframes k-breathe{0%,100%{transform:translate(0,0) rotate(0) scale(1)}35%{transform:translate(1px,-2px) rotate(-2.5deg) scale(1.02)}70%{transform:translate(-1px,1px) rotate(2deg) scale(.99)}}
+@media (prefers-reduced-motion: reduce){.k-crf{animation:none}}

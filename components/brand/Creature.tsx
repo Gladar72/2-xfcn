@@ -223,23 +223,16 @@ function unregister(e: Entry) {
  * size — размер в CSS-пикселях; без него капля заполняет родителя
  * (по меньшей стороне), например кружок аватарки анонима.
  */
+/**
+ * Мося на экране — готовая картинка капли (640px, без пикселей) с лёгким
+ * «дыханием» на CSS (только transform — видеокарта, без нагрузки на процессор).
+ * Живой WebGL-рендер (выше) на телефонах тормозил: каждый кадр копировался
+ * во все холсты на экране. Оставлен в файле на будущее, сейчас не используется.
+ */
 export function Creature({ size: cssSize, variant = "p", className }: { size?: number; variant?: Variant; className?: string }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const parent = c.parentElement;
-    const px = cssSize ?? Math.max(24, Math.min(parent?.clientWidth || 48, parent?.clientHeight || parent?.clientWidth || 48));
-    const dpr = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
-    c.width = c.height = Math.round(px * dpr);
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = "high";
-    const e: Entry = { c, ctx, v: variant };
-    register(e);
-    return () => unregister(e);
-  }, [cssSize, variant]);
-  const st = cssSize ? { width: cssSize, height: cssSize } : { width: "100%", height: "100%", objectFit: "contain" as const, maxWidth: "100%", maxHeight: "100%" };
-  return <canvas ref={ref} className={className} style={{ display: "block", ...st }} aria-hidden />;
+  const st = cssSize ? { width: cssSize, height: cssSize } : { width: "100%", height: "100%", maxWidth: "100%", maxHeight: "100%" };
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={FALLBACK[variant]} alt="" aria-hidden draggable={false} decoding="async" className={`k-crf ${className ?? ""}`} style={{ display: "block", objectFit: "contain", ...st }} />
+  );
 }

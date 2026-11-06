@@ -96,34 +96,7 @@ export function BottomNav() {
   }, []);
   const path = navPath(w);
 
-  // Как в прототипе: капля в вырезе чуть «плавает» сама по себе, «+» движется вместе с ней.
   const blRef = useRef<HTMLAnchorElement>(null);
-  useEffect(() => {
-    const bl = blRef.current;
-    if (!bl || window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const cv = bl.querySelector("canvas");
-    const pl = bl.querySelector<HTMLElement>(".pl");
-    const t0 = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      raf = requestAnimationFrame(tick);
-      if (document.hidden) return;
-      const t = (now - t0) / 1000;
-      const x = Math.sin(t * 1.3) * 1.6 + Math.sin(t * 2.9) * 0.9;
-      const y = Math.cos(t * 1.1) * 1.4 + Math.sin(t * 3.7) * 0.7;
-      const r = Math.sin(t * 0.8) * 5;
-      if (cv) {
-        cv.style.translate = `${x}px ${y}px`;
-        cv.style.rotate = `${r}deg`;
-      }
-      if (pl) {
-        pl.style.translate = `${x * 1.15}px ${y * 1.15}px`;
-        pl.style.rotate = `${r * 0.6}deg`;
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
 
   const tab = (t: (typeof TABS)[number]) => (
     <Link
