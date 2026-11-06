@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
  */
 const PRESS = ".k-pr, .P .btn, .P .rb, .P .chip, .P .cat, .P .row, .P .ci, .P .mcard, .P .nav26 .ntab";
 const GLOW = ".k-pr, .P .btn";
+const GLOW_ON = false;
 
 export function Motion26() {
   const [heart, setHeart] = useState(0);
@@ -22,7 +23,8 @@ export function Motion26() {
       const el = t?.closest?.(PRESS) as HTMLElement | null;
       if (!el || (el as HTMLButtonElement).disabled) return;
       el.classList.add("k-down");
-      if (reduce || !el.matches(GLOW)) return;
+      // 06.11: круглое свечение под пальцем убрано — на телефоне выглядело как «кругляшок».
+      if (reduce || !GLOW_ON || !el.matches(GLOW)) return;
       const r = el.getBoundingClientRect();
       const g = document.createElement("span");
       g.className = "k-glow";

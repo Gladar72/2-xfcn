@@ -567,7 +567,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </span>
             </div>
           )}
-          <div className={`k-tiles ${chatId ? "k-t4" : ""}`} style={chatId ? undefined : { gridTemplateColumns: "minmax(0,1.35fr) minmax(0,1fr) minmax(0,1.15fr)" }}>
+          <div className={`k-tiles ${chatId || !event.isBusiness ? "k-t4" : ""}`} style={chatId || !event.isBusiness ? undefined : { gridTemplateColumns: "minmax(0,1.35fr) minmax(0,1fr) minmax(0,1.15fr)" }}>
             <div className="k-tile k-gd">
               <small>
                 <KI n="cal" />
@@ -595,11 +595,19 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </small>
               <b>{ticket ?? costShort(event)}</b>
             </div>
-            {chatId && (
+            {/* Как в прототипе: значок чата всегда наверху, и у анонимной встречи тоже. */}
+            {chatId ? (
               <Link className="k-tile k-gd k-pr k-tchat" href={`/chats/${chatId}`} aria-label="Чат встречи">
                 <KI n="chat" />
                 <small>Чат</small>
               </Link>
+            ) : (
+              !event.isBusiness && (
+                <button className="k-tile k-gd k-pr k-tchat" onClick={() => say("Чат откроется после одобрения заявки")} aria-label="Чат встречи">
+                  <KI n="chat" />
+                  <small>Чат</small>
+                </button>
+              )
             )}
           </div>
 

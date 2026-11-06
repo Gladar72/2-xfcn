@@ -8,7 +8,7 @@ import { Sheet, Toast } from "@/components/proto/ui";
 /**
  * «Быстрый доступ» (шторка прототипа): предлагаем добавить «Место»
  * на экран «Домой», чтобы открывать в одно касание. Показываем, только если
- * Telegram это умеет и ярлыка ещё нет; не раньше второго запуска,
+ * Telegram это умеет и ярлыка ещё нет; с первого запуска,
  * после «Позже» — снова через 14 дней.
  */
 const KEY = "mesto_home_ask";
@@ -56,11 +56,11 @@ export function HomeScreenAsk() {
     };
     w.onEvent("homeScreenAdded", added);
     const last = read(KEY);
-    const due = n >= 2 && last !== "added" && (!last || Date.now() - Number(last) > LATER_DAYS * 864e5);
+    const due = n >= 1 && last !== "added" && (!last || Date.now() - Number(last) > LATER_DAYS * 864e5);
     let t = 0;
     if (due) {
       w.checkHomeScreenStatus((status) => {
-        if (status === "missed") t = window.setTimeout(() => setOpen(true), 4000);
+        if (status === "missed") t = window.setTimeout(() => setOpen(true), 2500);
         if (status === "added") write(KEY, "added");
       });
     }
