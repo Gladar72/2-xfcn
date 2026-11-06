@@ -146,3 +146,5 @@
 .K .k-tg2 .k-tgt small{display:block;font:400 12px var(--disp);color:var(--ink2)}
 .K .k-done .k-h1 em{display:inline-block}
 .K .foot .k-btn svg{width:18px;height:18px}
+.K .k-bigst .k-seatsin{width:140px;min-width:0;text-align:center;border:0;background:none;outline:none;font:300 56px/1 var(--disp);letter-spacing:-.03em;color:var(--ink);-moz-appearance:textfield;appearance:textfield}
+.K .k-bigst .k-seatsin::-webkit-outer-spin-button,.K .k-bigst .k-seatsin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}

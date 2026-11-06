@@ -176,6 +176,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [addrDrop, setAddrDrop] = useState<AddressSuggestion[]>([]);
 
   const [seatsTotal, setSeatsTotal] = useState(3);
+  const [seatsDraft, setSeatsDraft] = useState<string | null>(null);
   // Тариф организатора — чтобы счётчик участников не давал вписать больше,
   // чем разрешает подписка (раньше можно было ввести до 500 на любом тарифе,
   // а отказ приходил только при публикации). Сервер проверяет то же самое.
@@ -966,9 +967,29 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 >
                   –
                 </button>
-                <b key={seatsTotal} className="bump">
-                  {seatsTotal}
-                </b>
+                {/* Число можно вписать вручную (300 гостей — не 300 нажатий на «+»). */}
+                <input
+                  className="k-seatsin"
+                  type="number"
+                  inputMode="numeric"
+                  min={minSeats}
+                  max={seatsCap}
+                  value={seatsDraft ?? String(seatsTotal)}
+                  onFocus={(e) => e.currentTarget.select()}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/[^\d]/g, "").slice(0, 3);
+                    setSeatsDraft(raw);
+                    const v = Number(raw);
+                    if (raw && v > seatsCap) flash(`На твоём тарифе — максимум ${seatsCap}`);
+                    if (raw && v >= minSeats) setSeatsTotal(Math.min(seatsCap, v));
+                  }}
+                  onBlur={() => {
+                    const v = Number(seatsDraft ?? seatsTotal);
+                    setSeatsTotal(Math.max(minSeats, Math.min(seatsCap, Number.isFinite(v) && v > 0 ? v : minSeats)));
+                    setSeatsDraft(null);
+                  }}
+                  aria-label="Количество человек"
+                />
                 <button
                   className="k-rb k-g k-pr"
                   onClick={() => {
