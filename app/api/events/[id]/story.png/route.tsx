@@ -77,7 +77,7 @@ interface Cover {
 /** Откуда брать обложку: заготовки — из jpg-копий в репозитории, свои фото — по https. */
 function coverSource(photoUrl: string | null): { preset: string | null; url: string } | null {
   if (!photoUrl) return null;
-  const preset = photoUrl.match(/\/brand\/covers\/([a-z]+)\.webp(?:\?.*)?$/);
+  const preset = photoUrl.match(/\/brand\/covers\/([a-z]+(?:\d{2})?)\.webp(?:\?.*)?$/);
   // Свой файл — относительным путём: оптимизатор картинок Next принимает так только локальные.
   if (preset) return { preset: preset[1]!, url: `/brand/covers-jpg/${preset[1]}.jpg` };
   if (!/^https:\/\//.test(photoUrl)) return null;

@@ -27,7 +27,7 @@ const TRAINING_COVER: Record<string, string> = {
 
 /**
  * Фирменные наборы обложек брендбука 2026 (вертикальные 3:4, лица размыты):
- * бег — 10, кино — 8, Hyrox — 10. Для остальных разделов — одна обложка
+ * бег — 10, кино — 8, Hyrox — 10, кофе — 15, ужин — 10, спортзал — 12. Для остальных разделов — одна обложка
  * категории или своё фото.
  */
 const n2 = (p: string, list: number[]) => list.map((i) => `/brand/covers/${p}${String(i).padStart(2, "0")}.webp`);
@@ -35,13 +35,16 @@ const COVER_SETS: Record<string, string[]> = {
   running: n2("run", [5, 1, 2, 3, 6, 7, 8, 9, 10, 11]),
   cinema: n2("cin", [1, 2, 3, 4, 5, 6, 7, 8]),
   hyrox: n2("hyr", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+  coffee: n2("cof", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]),
+  dinner: n2("din", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+  gym: n2("gym", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
 };
 
 /** Набор обложек на выбор для раздела (пусто — набора нет). */
 export function coverSetFor(categorySlug: string | null | undefined, trainingTypeSlug?: string | null, business?: boolean): string[] {
   if (business) return [];
-  if (categorySlug === "cinema") return COVER_SETS.cinema;
-  if (categorySlug === "training" && trainingTypeSlug && COVER_SETS[trainingTypeSlug]) return COVER_SETS[trainingTypeSlug];
+  if (categorySlug === "cinema" || categorySlug === "coffee" || categorySlug === "dinner") return COVER_SETS[categorySlug] ?? [];
+  if (categorySlug === "training" && trainingTypeSlug && COVER_SETS[trainingTypeSlug]) return COVER_SETS[trainingTypeSlug] ?? [];
   return [];
 }
 
