@@ -76,6 +76,9 @@ function EntryPageInner() {
         window.location.replace(`/login${goto ? `?goto=${encodeURIComponent(goto)}` : ""}`);
         return;
       }
+      // Ссылка «Поделиться» t.me/<bot>?startapp=event_<id> открывает приложение
+      // сразу, а id встречи приходит в start_param — обрабатываем как ?goto=.
+      const target = goto ?? startParamFrom(initData);
       requestTimer = setTimeout(() => {
         setErrorMessage("Сервер долго отвечает. Проверь интернет и попробуй ещё раз.");
         setStatus("error");
@@ -95,19 +98,19 @@ function EntryPageInner() {
             const allowedGotoPaths = new Set(["subscriptions", "admin", "create"]);
             // Кнопка «Открыть встречу» под напоминанием в боте: ?goto=event_<id>.
             // «📸 Сторис» под напоминанием «никто не откликнулся»: ?goto=eventshare_<id> — сразу окно «Поделиться».
-            const eventMatch = goto?.match(/^event(share)?_([0-9a-f-]{36})$/);
+            const eventMatch = target?.match(/^event(share)?_([0-9a-f-]{36})$/);
             // Кнопка «Открыть чат» под уведомлением о сообщении: ?goto=chat_<id>.
-            const chatMatch = goto?.match(/^chat_([0-9a-f-]{36})$/);
+            const chatMatch = target?.match(/^chat_([0-9a-f-]{36})$/);
             go(eventMatch
               ? `/events/${eventMatch[2]}${eventMatch[1] ? "?share=1" : ""}`
               : chatMatch
                 ? `/chats/${chatMatch[1]}`
-              : goto && allowedGotoPaths.has(goto)
-                ? `/${goto}`
+              : target && allowedGotoPaths.has(target)
+                ? `/${target}`
                 : "/feed");
           } else if (res.ok && data.status === "needs_registration") {
             // Пришёл по ссылке на встречу — после анкеты вернём его на эту встречу.
-            const pendingEvent = goto?.match(/^event_([0-9a-f-]{36})$/);
+            const pendingEvent = target?.match(/^event_([0-9a-f-]{36})$/);
             if (pendingEvent) {
               try {
                 sessionStorage.setItem("mesto_after_onboarding", `/events/${pendingEvent[1]}`);
@@ -156,4 +159,14 @@ function SplashScreen({ status, errorMessage, onRetry }: { status: "loading" | "
       <a href={TELEGRAM_BOT_URL} className="m-btn m-btn-o px-5 py-3">Открыть через бота</a>
     </div>}
   </>;
+}
+
+/** start_param из подписанных данных запуска (только [A-Za-z0-9_-], как в Telegram). */
+function startParamFrom(initData: string): string | null {
+  try {
+    const value = new URLSearchParams(initData).get("start_param");
+    return value && /^[A-Za-z0-9_-]{1,64}$/.test(value) ? value : null;
+  } catch {
+    return null;
+  }
 }

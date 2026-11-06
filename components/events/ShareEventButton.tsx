@@ -2,13 +2,13 @@
 
 /**
  * «Поделиться» встречей — как в Telegram: открывается стандартное окно
- * выбора чата, туда уходит ссылка t.me/<bot>?start=e_<id>. Получатель жмёт
- * ссылку — бот присылает карточку встречи с кнопкой «Открыть встречу».
+ * выбора чата, туда уходит ссылка t.me/<bot>?startapp=event_<id>. Получатель
+ * жмёт ссылку — Telegram сразу открывает приложение на этой встрече.
  */
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "Mesto_people_bot";
 
 export function eventShareUrl(eventId: string): string {
-  return `https://t.me/${BOT_USERNAME}?start=e_${eventId}`;
+  return `https://t.me/${BOT_USERNAME}?startapp=event_${eventId}`;
 }
 
 export function ShareEventButton({

@@ -11,8 +11,13 @@ type Admin = ReturnType<typeof createAdminClient>;
  */
 export const EVENT_START_PREFIX = "e_";
 
+/**
+ * Ссылка «Поделиться»: t.me/<bot>?startapp=event_<uuid> — Telegram сразу
+ * открывает приложение на этой встрече (без захода в чат с ботом).
+ * Старые ссылки ?start=e_<uuid> продолжают работать через бота.
+ */
 export function eventShareLink(botUsername: string, eventId: string): string {
-  return `https://t.me/${botUsername}?start=${EVENT_START_PREFIX}${eventId}`;
+  return `https://t.me/${botUsername}?startapp=event_${eventId}`;
 }
 
 function escapeHtml(s: string): string {
