@@ -219,7 +219,7 @@ function LoginInner() {
             )}
           </div>
         )}
-        <TelegramLoginWidget onAuth={handleTelegramAuth} />
+        <TelegramLoginWidget onAuth={handleTelegramAuth} brand />
         {error && <p style={{ color: "#C2413A", fontSize: 14, margin: "12px 0 0", textAlign: "center" }}>{error}</p>}
         <p className="k-alegal">
           Продолжая, вы принимаете <a href="/legal/offer">оферту</a> и <a href="/legal/privacy">политику конфиденциальности</a>

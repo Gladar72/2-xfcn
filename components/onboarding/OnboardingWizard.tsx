@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { AliveStage, type StageProp } from "@/components/brand/AliveStage";
-import { Wordmark } from "@/components/brand/Logo";
-import { Chr, Ic, Sheet } from "@/components/proto/ui";
+import { type StageProp } from "@/components/brand/AliveStage";
+import { Creature } from "@/components/brand/Creature";
+import { KI } from "@/components/proto/k";
+
+import { Ic, Sheet } from "@/components/proto/ui";
 import { peek, say } from "@/lib/mosya/peek";
 import { confetti } from "@/lib/mosya/confetti";
 import { groupInterests, interestIcon } from "@/lib/data/interests";
@@ -103,34 +105,37 @@ export function OnboardingWizard() {
   );
 }
 
-/** «Войти в Место» (SCR.auth): в мини-приложении Telegram уже узнал человека. */
+/** «Войти в Место» (auth прототипа): фото, логотип, одна кнопка Telegram. */
 function AuthScreen({ onContinue }: { onContinue: () => void }) {
-  const props: StageProp[] = [
-    ["Искра", 300, 140, 96, "star", "peach", "sly"],
-    ["Пузырь", 70, 262, 100, "ball", "lilac", "wow"],
-  ];
   return (
-    <section className="scr auth aurora fade" data-id="auth">
-      <AliveStage props={props} floor={318} height={330} style={{ top: 44 }} />
-      <div className="sheet">
-        <h1 className="t">
-          Войти в <em>Место</em>
-        </h1>
-        <p>Через Telegram быстрее всего: имя и фото подтянутся сами, а встречи из мини-приложения сохранятся.</p>
-        <div style={{ display: "grid", gap: 10, marginTop: 6 }}>
-          <button className="btn tg" onClick={onContinue}>
-            <Ic n="tg" />
-            Войти через Telegram
-          </button>
-        </div>
-        <p className="legal">
+    <section className="scr fade K" data-id="auth" style={{ background: "#17141F", color: "#fff" }}>
+      <div className="k-abg" aria-hidden style={{ backgroundImage: "url(/brand/auth/auth_bg.webp)" }} />
+      <div className="k-ashade" aria-hidden />
+      <div className="k-alogo" style={{ top: "34%" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/auth/wordmark-white.svg" alt="место" />
+        <p>
+          Найди <em>компанию</em>
+          <br />
+          на сегодня
+        </p>
+      </div>
+      <div className="k-abtns" style={{ bottom: "calc(var(--bot) + 24px)" }}>
+        <small>Через Telegram быстрее всего — имя и фото подтянутся сами</small>
+        <button className="k-btn k-aw k-pr" onClick={onContinue}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden>
+            <path d="M21.5 4.2 2.9 11.4c-1.3.5-1.2 1.3-.2 1.6l4.8 1.5 1.8 5.6c.2.7.4.9.9.9.4 0 .6-.2.9-.4l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.4-1.3zM9.6 14.2l-.4 4.1-1.5-4.8 10.6-6.7z" />
+          </svg>
+          Войти через Telegram
+        </button>
+        <p className="k-alegal">
           Продолжая, вы принимаете{" "}
           <a href="/legal/offer" target="_blank">
-            <u>публичную оферту</u>
+            оферту
           </a>{" "}
           и{" "}
           <a href="/legal/privacy" target="_blank">
-            <u>политику конфиденциальности</u>
+            политику конфиденциальности
           </a>
         </p>
       </div>
@@ -138,7 +143,7 @@ function AuthScreen({ onContinue }: { onContinue: () => void }) {
   );
 }
 
-/** Вводные слайды (SCR.onb): живой Мося среди персонажей, слайды листаются сами каждые 4,2 с. */
+/** Вводные слайды (intro прототипа): логотип, полоски, живой Мося, текст и «Далее». */
 function IntroSlides({ index, onNext, onSkip }: { index: number; onNext: () => void; onSkip: () => void }) {
   useEffect(() => {
     if (index >= INTRO.length - 1) return;
@@ -147,31 +152,37 @@ function IntroSlides({ index, onNext, onSkip }: { index: number; onNext: () => v
   }, [index, onNext]);
   const slide = INTRO[index]!;
   return (
-    <section className="scr onb aurora fade" data-id="onb">
-      <AliveStage key={index} props={slide.props} floor={372} height={390} style={{ top: 112 }} />
-      <div className="bars">
-        {INTRO.map((_, i) => (
-          <i key={i} className={i < index ? "dn" : i === index ? "run" : ""}>
-            <b key={index} />
-          </i>
-        ))}
+    <section className="scr fade K k-intro26" data-id="onb">
+      <div className="k-pbg" aria-hidden />
+      <div className="i26-top">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/auth/wordmark-dark.svg" alt="место" />
+        <span className="i26-bars" aria-hidden>
+          {INTRO.map((_, i) => (
+            <i key={`${i}-${index}`} className={i < index ? "dn" : i === index ? "run" : ""}>
+              <b />
+            </i>
+          ))}
+        </span>
       </div>
-      <div className="owm">
-        <Wordmark height={27} color="#16121F" />
+      <div className="i26-cr">
+        <Creature size={240} variant="e" />
       </div>
-      <div className="card">
-        <div className="txt" key={index}>
-          <h1 className="t">{slide.title}</h1>
-          <p>{slide.text}</p>
-        </div>
-        <div className="act">
-          <button className="skip" onClick={onSkip}>
-            Пропустить
-          </button>
-          <button className="btn k" style={{ flex: 1 }} onClick={onNext}>
-            {index < INTRO.length - 1 ? "Далее" : "Начать"}
-          </button>
-        </div>
+      <div className="i26-txt" key={index}>
+        <h1>{slide.title}</h1>
+        <p>{slide.text}</p>
+      </div>
+      <div className="i26-act">
+        <button className="k-rb k-g k-pr" style={{ width: 56, height: 56, borderRadius: 28 }} onClick={onSkip} aria-label="Пропустить">
+          <KI n="x" />
+        </button>
+        <button className="i26-slide k-g k-pr" onClick={onNext}>
+          <span className="i26-kn">
+            <KI n="chev" />
+          </span>
+          <span className="i26-lb">{index < INTRO.length - 1 ? "Далее" : "Начать"}</span>
+          <span className="i26-ar">›››</span>
+        </button>
       </div>
     </section>
   );
@@ -655,14 +666,7 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
         </div>
         <div className="geo">
           <div className="halo">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/brand/mosya/mosya_phone.webp" alt="" />
-            <span className="orb" style={{ left: -10, top: 30 }}>
-              <Chr shape="flower" pal="sky" face="smile" />
-            </span>
-            <span className="orb" style={{ right: -6, top: 150 }}>
-              <Chr shape="squ" pal="pink" face="calm" />
-            </span>
+            <Creature size={200} variant="e" />
           </div>
           <h1 className="t">
             Где ищем <em>компанию</em>?
@@ -673,10 +677,10 @@ function RegistrationSteps({ onBackToAuth }: { onBackToAuth: () => void }) {
       <div className="foot">
         <button className="btn v" onClick={detectCityAndFinish} disabled={locating || submitting}>
           <Ic n="nav" />
-          {locating ? "Определяем…" : submitting ? "Сохраняем…" : "Разрешить геолокацию"}
+          {locating ? "Определяем…" : submitting ? "Сохраняем…" : "Определить город"}
         </button>
         <button className="btn o" onClick={() => (city ? handleSubmit() : setCityOpen(true))} disabled={submitting}>
-          {city ? `Выбрать город: ${city}` : "Выбрать город"}
+          {city ? `Выбрать город: ${city}` : "Выбрать вручную"}
         </button>
       </div>
       <CitySheet

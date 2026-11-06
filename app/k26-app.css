@@ -58,3 +58,40 @@
 .K .k-ev .k-tiles .k-tile{height:auto;min-height:72px;gap:6px;padding:11px 10px}
 .K .k-ev .k-tiles .k-tile b{font-size:14px;white-space:normal;line-height:1.15}
 .K .k-ev .k-tiles .k-tile b small{display:block;margin-top:2px;font-size:11px;opacity:.7}
+/* Онбординг: вводные слайды как intro прототипа */
+.K.k-intro26{background:var(--pearl);color:var(--ink)}
+.K .i26-top{position:absolute;left:26px;right:24px;top:calc(var(--top) + 2px);display:flex;align-items:center;justify-content:space-between;z-index:2}
+.K .i26-top img{height:28px;width:auto}
+.K .i26-bars{display:flex;gap:5px}
+.K .i26-bars i{width:26px;height:4px;border-radius:2px;background:rgba(23,20,31,.12);overflow:hidden;display:block}
+.K .i26-bars i b{display:block;height:100%;width:0;background:var(--ink)}
+.K .i26-bars i.dn b{width:100%}
+.K .i26-bars i.run b{animation:k-i26run 4.2s linear forwards}
+@keyframes k-i26run{to{width:100%}}
+.K .i26-cr{position:absolute;left:50%;top:calc(var(--top) + 70px);transform:translateX(-50%)}
+.K .i26-txt{position:absolute;left:26px;right:26px;bottom:calc(var(--bot) + 120px);animation:k-txtIn .6s var(--ios) both}
+.K .i26-txt h1{font:300 38px/1.14 var(--disp);letter-spacing:-.035em;margin:0;text-wrap:balance}
+.K .i26-txt h1 em{font-size:1.08em;line-height:1}
+.K .i26-txt p{font:400 15px/1.5 var(--disp);color:var(--ink2);margin:12px 0 0}
+.K .i26-act{position:absolute;left:20px;right:20px;bottom:calc(var(--bot) + 30px);display:flex;gap:10px;align-items:center}
+.K .i26-act .k-rb svg{width:20px;height:20px}
+.K .i26-slide{flex:1;height:64px;border-radius:32px;position:relative;display:flex;align-items:center;padding:4px}
+.K .i26-kn{width:56px;height:56px;border-radius:28px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+.K .i26-kn svg{width:22px;height:22px}
+.K .i26-lb{flex:1;text-align:center;font:500 16px var(--disp);margin-right:40px}
+.K .i26-ar{position:absolute;right:22px;font:400 14px var(--disp);color:var(--ink3);letter-spacing:2px}
+@media (prefers-reduced-motion: reduce){.K .i26-bars i.run b{animation:none;width:100%}}
+/* Онбординг: шаги анкеты — полоски и плитки интересов как в прототипе */
+.P .prog{display:flex;gap:5px}
+.P .prog i{width:36px;height:4px;border-radius:2px;background:rgba(23,20,31,.12)}
+.P .prog i.on{background:var(--ink)}
+.P .phs{aspect-ratio:3/4;border-radius:20px}
+.P .igroup{background:rgba(255,255,255,.58);box-shadow:inset 0 0 0 1px rgba(255,255,255,.95);border-radius:26px;padding:14px 12px 12px;margin-top:12px}
+.P .igroup h3{font:500 16px var(--disp);margin:0 4px 10px}
+.P .igroup h3 span{min-width:22px;height:22px;border-radius:11px;background:var(--ink);color:#fff;font:600 11px/22px var(--disp);text-align:center;padding:0 6px;margin-left:8px}
+.P .igroup h3 span:empty{display:none}
+.P .igrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.P .igrid .it{background:rgba(255,255,255,.7);border-radius:20px;padding:14px 6px 12px;font:500 12.5px var(--disp);box-shadow:inset 0 0 0 1px rgba(255,255,255,.95)}
+.P .igrid .it img{width:40px;height:40px}
+.P .igrid .it.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+.P .igrid .it .ck{background:var(--ink)}
