@@ -91,3 +91,6 @@
 .P .plan-c{border-radius:26px;box-shadow:inset 0 0 0 1.5px transparent!important}
 .P .plan-c.on{box-shadow:inset 0 0 0 2px var(--ink)!important;background:rgba(255,255,255,.78)}
 .P .popb{background:var(--ink)}
+/* нажатие как в прототипе (Motion26 вешает .k-down) */
+.P .k-down:not(.k-pr){transform:scale(.96);transition:transform .12s ease}
+.P .ic{stroke-width:1.7}

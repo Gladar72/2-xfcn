@@ -13,6 +13,7 @@ import "./k26-app.css";
 import "./k26-legacy.css";
 import { TelegramInit } from "@/components/telegram/TelegramInit";
 import { ScreenTransitions } from "@/components/proto/ScreenTransitions";
+import { Motion26 } from "@/components/proto/Motion26";
 
 // Inter — шрифт интерфейса (брендбук 2026), Lora Italic — акцентные слова
 // в заголовках (<em>). Локальные файлы с кириллицей, без Google Fonts CDN.
@@ -89,6 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="m-aurora fixed inset-0 -z-10" aria-hidden />
         <TelegramInit />
         <ScreenTransitions />
+        <Motion26 />
         {children}
         <script dangerouslySetInnerHTML={{ __html: EARLY_READY }} />
       </body>

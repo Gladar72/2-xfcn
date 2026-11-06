@@ -178,8 +178,8 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           .catch(() => {});
         setMatchOpen(true);
       } else {
-        setToast(`Сердечко у ${person.name}. Ответит взаимностью — Мося сразу скажет`);
-        setTimeout(() => setToast(null), 2600);
+        // Как в прототипе: карточка «Сердечко отправлено» по центру экрана.
+        window.dispatchEvent(new Event("mesto:heartpop"));
       }
     } catch {
       setLiked(false);

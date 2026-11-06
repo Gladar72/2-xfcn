@@ -1,3 +1,5 @@
+import { K_ICONS } from "@/components/proto/k-icons";
+
 /** Линейные иконки редизайна 2026 (24×24, обводка). */
 const IC = {
   home: `<path d="M4 10.5 12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H5.5A1.5 1.5 0 0 1 4 19z"/>`,
@@ -48,10 +50,21 @@ const IC = {
 
 export type IconName = keyof typeof IC;
 
+/**
+ * Брендбук 2026: иконки, которые есть в прототипе, рисуем его контурами
+ * (components/proto/k-icons) — одинаково на всех экранах и в меню.
+ */
+const PROTO: Partial<Record<IconName, string>> = {
+  home: K_ICONS.home, map: K_ICONS.map, chat: K_ICONS.chat, user: K_ICONS.user, search: K_ICONS.search,
+  bell: K_ICONS.bell, back: K_ICONS.back, more: K_ICONS.more, share: K_ICONS.share, close: K_ICONS.x,
+  pin: K_ICONS.pin, people: K_ICONS.people, heart: K_ICONS.heart, cal: K_ICONS.cal, check: K_ICONS.check,
+  clock: K_ICONS.clock, filter: K_ICONS.filter,
+};
+
 export function Icon({
   name,
   size = 22,
-  strokeWidth = 1.75,
+  strokeWidth = 1.7,
   className,
   style,
 }: {
@@ -74,7 +87,7 @@ export function Icon({
       className={className}
       style={{ flex: "none", ...style }}
       aria-hidden
-      dangerouslySetInnerHTML={{ __html: IC[name] }}
+      dangerouslySetInnerHTML={{ __html: PROTO[name] ?? IC[name] }}
     />
   );
 }
