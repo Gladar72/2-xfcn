@@ -18,7 +18,7 @@ import { ShareSheet } from "@/components/proto/ShareSheet";
 import { PhotoCropModal } from "./PhotoCropModal";
 import { goBack } from "@/lib/nav/back";
 import { maxGroupSize, type Plan } from "@/lib/subscriptions/limits";
-import { BIZ_SECTIONS, BIZ_KEYS, bizCategoryIcon } from "@/lib/events/biz-categories";
+import { BIZ_SECTIONS, BIZ_KEYS, bizCategoryIcon, guessBizCategory } from "@/lib/events/biz-categories";
 import { hasOrganizerPhoto } from "@/lib/events/organizer-photo";
 import { getJson } from "@/lib/http/get-json";
 import { OrganizerPhotoGate } from "./OrganizerPhotoGate";
@@ -153,6 +153,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [trainingTypeSlug, setTrainingTypeSlug] = useState<string | null>(searchParams.get("type"));
   // Раздел бизнес-события (Бары, Вечеринки и клубы…) — обязателен, по нему фильтры «Для бизнеса».
   const [bizCategory, setBizCategory] = useState<string | null>(null);
+  // Раздел выбран руками — больше не подбираем его по названию.
+  const [bizPicked, setBizPicked] = useState(false);
   const [own, setOwn] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -278,7 +280,10 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         setBusiness(!!e.isBusiness);
         if (e.isBusiness) setStep(2);
         setCategorySlug(e.category?.slug ?? null);
-        if (e.bizCategory && BIZ_KEYS.has(e.bizCategory)) setBizCategory(e.bizCategory);
+        if (e.bizCategory && BIZ_KEYS.has(e.bizCategory)) {
+          setBizCategory(e.bizCategory);
+          setBizPicked(true);
+        }
         if (e.bizCategory === "other") setOwn(String(e.title ?? "").slice(0, 30));
         setTrainingTypeSlug(e.trainingType?.slug ?? null);
         setTitle(e.title ?? "");
@@ -321,6 +326,13 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       .catch(() => {});
   }, [editId]);
 
+
+  // Событие для бизнеса: раздел афиши подбираем по названию и описанию, пока человек пишет.
+  useEffect(() => {
+    if (!business || bizPicked) return;
+    const g = guessBizCategory({ title: `${title} ${description}` });
+    setBizCategory(g === "other" ? null : g);
+  }, [business, bizPicked, title, description]);
 
   const isOwn = !business && categorySlug === "custom";
   const bizSection = business ? BIZ_SECTIONS.find((c) => c.key === bizCategory) ?? null : null;
@@ -456,6 +468,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         if (b) return b;
       }
     }
+    if (step === 2 && business && !bizCategory) return "Выбери раздел в афише — так гости найдут событие в фильтрах.";
     if (step === 2 && business && (!ownPhoto || photo !== ownPhoto))
       return "Загрузи фото события — афишу, зал или сцену. Так гости поймут, куда идут.";
     if (step === 2 && isOwn && !presetCover && !isPresetCover(photo) && (!ownPhoto || photo !== ownPhoto))
@@ -811,6 +824,34 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               <label className="k-field k-g k-ta">
                 <textarea rows={3} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Что будем делать, как узнать друг друга" />
               </label>
+              {business && (
+                <>
+                  <span className="k-lbl">Раздел в афише</span>
+                  <div className="k-hs" style={{ gap: 6, marginTop: 0 }}>
+                    {[...(bizCategory ? BIZ_SECTIONS.filter((c) => c.key === bizCategory) : []), ...BIZ_SECTIONS.filter((c) => c.key !== bizCategory)].map((c) => (
+                      <button
+                        key={c.key}
+                        className={`k-chip k-g k-pr ${bizCategory === c.key ? "k-on" : ""}`}
+                        onClick={() => {
+                          setBizCategory(c.key);
+                          setBizPicked(true);
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={bizCategoryIcon(c)} alt="" style={{ width: 20, height: 20, filter: bizCategory === c.key ? "invert(1) brightness(2)" : undefined }} />
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="k-cvn">
+                    {bizCategory
+                      ? bizPicked
+                        ? "Так гости найдут событие в фильтрах афиши и в поиске"
+                        : "Подобрали по названию — если не то, выбери другой"
+                      : "Выбери раздел — так гости найдут событие в фильтрах афиши"}
+                  </p>
+                </>
+              )}
               <span className="k-lbl">Обложка</span>
               <p className="k-cvn">
                 {business
