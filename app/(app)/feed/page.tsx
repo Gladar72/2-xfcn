@@ -455,11 +455,12 @@ function HomeScreen() {
           </Link>
         </div>
         <div className="k-hs">
-          {bizSorted.map((e) => (
+          {/* Как в прототипе: на главной — два события афиши и приглашение для заведений; остальные — по «Все». */}
+          {bizSorted.slice(0, 2).map((e) => (
             <KHc key={e.id} e={e} />
           ))}
           {/* «Что ещё в городе»: события из открытых источников (после одобрения). */}
-          {cityEv.map((c) => (
+          {cityEv.slice(0, Math.max(0, 2 - bizSorted.length)).map((c) => (
             <Link key={c.id} className="k-hc k-pr" href={`/city/${c.id}`} style={bg(c.photoUrl, 600)}>
               <span className="k-chip k-gw k-tg">{KIND_LABEL[c.kind ?? ""] ?? "В городе"}</span>
               <span className="k-bt">
@@ -474,8 +475,8 @@ function HomeScreen() {
             </Link>
           ))}
           {/* Пока событий мало — приглашаем заведения разместить своё. */}
-          {biz.length < 4 && (
-            <Link className="k-inv k-g k-pr" href="/business">
+          {(
+            <Link className="k-inv k-g k-pr" href="/create?business=true">
               <i>+</i>Здесь может быть ваше бизнес‑событие
             </Link>
           )}
