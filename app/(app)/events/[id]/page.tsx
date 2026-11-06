@@ -538,7 +538,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={icon} alt="" style={{ width: 20, height: 20, marginLeft: -4, filter: "invert(1) brightness(2)" }} />
             {catName}
-            {!event.isBusiness && event.isAnonymous ? ` · ${anonymousTag(event.organizer?.gender).toLowerCase()}` : ""}
+            {event.isBusiness ? "" : event.isAnonymous ? ` · ${anonymousTag(event.organizer?.gender).toLowerCase()}` : " · личная встреча"}
             {isLive ? " · идёт сейчас" : ""}
             {isFull ? " · заполнено" : ""}
           </span>
@@ -559,26 +559,32 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </span>
             </div>
           )}
-          <div className={`k-tiles ${chatId ? "k-t4" : ""}`}>
+          <div className={`k-tiles ${chatId ? "k-t4" : ""}`} style={chatId ? undefined : { gridTemplateColumns: "minmax(0,1.35fr) minmax(0,1fr) minmax(0,1.15fr)" }}>
             <div className="k-tile k-gd">
               <small>
                 <KI n="cal" />
-                {dayTile}
+                Когда
               </small>
               <b>
-                {event.eventTime.slice(0, 5)}
-                {event.eventEndTime && <small>{` –${event.eventEndTime.slice(0, 5)}`}</small>}
+                {dayTile.replace(/^(\S+?),?\s.*$/, (_, d: string) => d.charAt(0).toUpperCase() + d.slice(1))}, {event.eventTime.slice(0, 5)}
+                <small>
+                  {dayTile.replace(/^\S+?,?\s/, "")}
+                  {event.eventEndTime ? ` · до ${event.eventEndTime.slice(0, 5)}` : ""}
+                </small>
               </b>
             </div>
             <div className="k-tile k-gd">
               <small>
                 <KI n="people" />
-                {isFull ? "заполнено" : `ещё ${free}`}
+                Мест
               </small>
               <b>{isFull ? "Мест нет" : `${going} из ${max}`}</b>
             </div>
             <div className="k-tile k-gd">
-              <small>{ticket ? "на месте" : "расходы"}</small>
+              <small>
+                <KI n="spark" />
+                {ticket ? "Билет" : "Расходы"}
+              </small>
               <b>{ticket ?? costShort(event)}</b>
             </div>
             {chatId && (

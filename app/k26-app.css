@@ -55,3 +55,6 @@
 .K .k-ev .k-mapbox .mini,.K .k-ev .k-mapbox>div:first-child{position:absolute;inset:0}
 .K .k-ev .k-mapact{pointer-events:none}
 .K .k-ev .k-mapact>*{pointer-events:auto}
+.K .k-ev .k-tiles .k-tile{height:auto;min-height:72px;gap:6px;padding:11px 10px}
+.K .k-ev .k-tiles .k-tile b{font-size:14px;white-space:normal;line-height:1.15}
+.K .k-ev .k-tiles .k-tile b small{display:block;margin-top:2px;font-size:11px;opacity:.7}

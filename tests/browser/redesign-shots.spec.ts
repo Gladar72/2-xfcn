@@ -7,6 +7,8 @@ import { test, type Page } from "@playwright/test";
  */
 const DIR = process.env.SHOTS_DIR;
 test.skip(!DIR, "только для workflow Redesign shots");
+// Как экран прототипа (iPhone 390×844), чтобы снимки можно было сравнивать один к одному.
+test.use({ viewport: { width: 390, height: 844 } });
 
 const photo = "/brand/covers/coffee.webp";
 const person = {

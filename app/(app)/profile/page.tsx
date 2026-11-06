@@ -5,12 +5,10 @@ import Link from "next/link";
 import { PLAN_LIMITS, type Plan } from "@/lib/subscriptions/limits";
 import { photoThumb } from "@/lib/photos/thumb";
 import { useGuide } from "@/lib/mosya/guide";
-import { mosyaSrc } from "@/components/brand/Mosya";
-import { Overlay, Screen, Toast } from "@/components/proto/ui";
+import { Screen, Toast } from "@/components/proto/ui";
 import { KI, bg } from "@/components/proto/k";
 import { interestIcon } from "@/lib/data/interests";
 import { useProfilePhoto } from "@/components/profile/useProfilePhoto";
-import { SupportSheet } from "@/components/proto/SupportSheet";
 import { HeartsSheet } from "@/components/people/HeartsSheet";
 import type { IconName } from "@/components/brand/Icon";
 
@@ -43,7 +41,6 @@ const PLAN_TITLES: Record<Plan, string> = { start: "Старт", medium: "Мед
 export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sub, setSub] = useState<SubscriptionStatus | null>(null);
-  const [supOpen, setSupOpen] = useState(false);
   const [counts, setCounts] = useState([0, 0, 0]);
   const [toast, setToast] = useState<string | null>(null);
   const [followers, setFollowers] = useState<number | null>(null);
@@ -268,14 +265,6 @@ export default function ProfilePage() {
       </div>
       <Toast text={toast} />
 
-      <Overlay>
-        <button className="supfab" onClick={() => setSupOpen(true)} aria-label="Задать вопрос">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={mosyaSrc("glasses")} alt="" />
-          <span>Задать вопрос</span>
-        </button>
-      </Overlay>
-      <SupportSheet open={supOpen} onClose={() => setSupOpen(false)} />
     </Screen>
   );
 }
