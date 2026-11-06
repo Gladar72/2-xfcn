@@ -42,7 +42,7 @@ async function fixture(page: Page) {
       : path === "/api/people" ? { items: [person, { ...person, id: "p2", name: "Марина", age: 27 }].map((p) => ({ ...p, interests: ["Кофе", "Бег"], sharedInterests: ["Кофе"], sharedCount: 1 })) }
       : path === "/api/conversations" ? { items: [{ conversationId: "c1", eventTitle: null, eventStatus: null, unreadCount: 1, otherUser: { id: "other", name: "Алексей", avatarUrl: photo }, lastMessage: { content: "Давай встретимся вечером", createdAt: "2026-11-06T12:00:00Z" } }] }
       : path === "/api/categories" ? { categories: [{ slug: "coffee", name: "Кофе", emoji: null }], trainingTypes: [] }
-      : path === "/api/subscriptions" ? { active: false }
+      : path === "/api/subscriptions" ? { active: true, plan: "start", events: { used: 1, limit: 3 }, boosts: { used: 0, limit: 1 } }
       : { items: [], events: [], people: [], count: 0 };
     await route.fulfill({ json });
   });
@@ -62,5 +62,25 @@ for (const [name, url] of ROUTES) {
     await page.goto(url);
     await page.waitForTimeout(3500);
     await page.screenshot({ path: `${DIR}/${info.project.name}-${name}.png` });
+  });
+}
+
+// Мастер создания (встреча и бизнес-событие): снимок каждого шага.
+for (const [name, url] of [["mk", "/create"], ["mkbiz", "/create?business=true"]] as const) {
+  test(`shot ${name} steps`, async ({ page }, info) => {
+    await fixture(page);
+    await page.goto(url);
+    await page.waitForTimeout(3000);
+    for (let i = 0; i < 6; i++) {
+      await page.screenshot({ path: `${DIR}/${info.project.name}-${name}${i}.png` });
+      const opt = page.locator("section.scr:not(.ghost) .grid4 button, section.scr:not(.ghost) .igrid button, section.scr:not(.ghost) .kinds button").first();
+      if (await opt.count()) await opt.click({ timeout: 2000 }).catch(() => {});
+      const title = page.locator("section.scr:not(.ghost) input[maxlength='100']").first();
+      if (await title.count()) await title.fill("Тестовая встреча").catch(() => {});
+      const next = page.getByRole("button", { name: /Далее|Дальше|Продолжить/ }).last();
+      if (!(await next.count())) break;
+      await next.click({ timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(1200);
+    }
   });
 }
