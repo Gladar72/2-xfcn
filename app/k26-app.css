@@ -148,3 +148,12 @@
 .K .foot .k-btn svg{width:18px;height:18px}
 .K .k-bigst .k-seatsin{width:140px;min-width:0;text-align:center;border:0;background:none;outline:none;font:300 56px/1 var(--disp);letter-spacing:-.03em;color:var(--ink);-moz-appearance:textfield;appearance:textfield}
 .K .k-bigst .k-seatsin::-webkit-outer-spin-button,.K .k-bigst .k-seatsin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+/* Событие для бизнеса: большая кнопка «Загрузить фото события» (размер как у превью). */
+.K .k-bizph{position:relative;display:block;width:100%;aspect-ratio:3/4;max-height:440px;margin-top:10px;border-radius:32px;overflow:hidden;background-size:cover;background-position:center;color:var(--ink)}
+.K .k-bizph:not(.on){box-shadow:inset 0 0 0 1.5px rgba(23,20,31,.14)}
+.K .k-bizph-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px}
+.K .k-bizph-in .k-op{width:64px;height:64px;border-radius:32px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center}
+.K .k-bizph-in .k-op .ic{width:28px;height:28px}
+.K .k-bizph-in b{font:500 17px var(--disp)}
+.K .k-bizph-in small{font:400 13px var(--disp);color:var(--ink2)}
+.K .k-bizph .k-chip{position:absolute;left:14px;bottom:14px;height:36px;gap:6px}

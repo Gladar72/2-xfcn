@@ -814,6 +814,25 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                       ? `Обложки для «${catLabel}» · выбери одну или загрузи своё фото`
                       : "Обложку подобрал Мося · или загрузи своё фото"}
               </p>
+              {business && (
+                // Событие для бизнеса: фото загружают сами — большая карточка, как «Так увидят другие».
+                <button className={`k-bizph k-pr ${ownPhoto ? "on" : "k-g"}`} style={ownPhoto ? bgCover(ownPhoto) : undefined} onClick={() => fileRef.current?.click()}>
+                  {ownPhoto ? (
+                    <span className="k-chip k-gw">
+                      <Ic n="camera" c="xs" /> Заменить фото
+                    </span>
+                  ) : (
+                    <span className="k-bizph-in">
+                      <span className="k-op">
+                        <Ic n="camera" />
+                      </span>
+                      <b>Загрузить фото события</b>
+                      <small>Афиша, зал или сцена · вертикально, 3:4</small>
+                    </span>
+                  )}
+                </button>
+              )}
+              {!business && (
               <div className="k-cvg">
                 {gridCovers.length === 0 && !business && (!isOwn || presetCover) && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "3 / 4", borderRadius: 16 }} />)}
                 {gridCovers.map((c, i) => (
@@ -824,6 +843,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   +<small>Своё фото</small>
                 </button>
               </div>
+              )}
               {!business && !isOwn && !presetCover && (
                 <button className="k-btn k-l k-pr k-cropb" onClick={() => setCoverShift((n) => n + 1)}>
                   Ещё варианты
