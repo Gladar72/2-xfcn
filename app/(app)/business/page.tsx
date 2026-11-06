@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useGuide } from "@/lib/mosya/guide";
-import { EmptyIll, Ic, Screen, costShort, dayShort, type HeroEvent } from "@/components/proto/ui";
+import { EmptyIll, Ic, Overlay, Screen, costShort, dayShort, type HeroEvent } from "@/components/proto/ui";
 import { KI, bg } from "@/components/proto/k";
 import { cityIn } from "@/components/promotions/Promote";
 import { CalendarSheet } from "@/components/proto/pickers";
@@ -270,11 +270,13 @@ export default function BusinessPage() {
         </div>
       )}
 
-      {/* Своё событие для заведения — внизу афиши. */}
-      <Link className="btn v" style={{ marginTop: 22 }} href="/create?business=true">
-        <Ic n="plus" />
-        Создать событие для заведения
-      </Link>
+      {/* Своё событие для заведения — кнопка всегда внизу по центру. */}
+      <Overlay>
+        <Link className="mapfab" href="/create?business=true">
+          <Ic n="plus" />
+          Создать событие
+        </Link>
+      </Overlay>
       <div style={{ height: 90 }} />
       <CalendarSheet
         open={calOpen}
