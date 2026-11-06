@@ -60,7 +60,7 @@ const ROUTES = [
   ["people", "/people"], ["chats", "/chats"], ["notif", "/notifications"], ["search", "/search"],
   ["event", "/events/test-0"], ["create", "/create"], ["settings", "/settings"], ["plans", "/subscriptions"],
   ["biz", "/business"], ["ticket", "/events/test-0/ticket"], ["tickets", "/events/test-0/tickets"],
-  ["requests", "/events/test-0/applications"], ["edit", "/profile/edit"], ["login", "/login"],
+  ["requests", "/events/test-0/applications"], ["editev", "/events/test-0/edit"], ["edit", "/profile/edit"], ["login", "/login"],
   ["onboarding", "/onboarding"], ["offer", "/legal/offer"],
 ] as const;
 for (const [name, url] of ROUTES) {
