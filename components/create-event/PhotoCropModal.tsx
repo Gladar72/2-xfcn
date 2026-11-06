@@ -206,7 +206,7 @@ export function PhotoCropModal({ src, aspectRatio, title = "Обложка вс�
         background: "#0C0716",
         color: "#fff",
         fontFamily: "var(--f, inherit)",
-        paddingTop: "max(env(safe-area-inset-top, 0px), var(--tg-content-safe-area-inset-top, 0px), 12px)",
+        paddingTop: "calc(max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 6px)",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "8px 16px" }}>

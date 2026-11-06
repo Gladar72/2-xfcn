@@ -489,7 +489,7 @@ body {
   position: fixed;
   left: 16px;
   right: 16px;
-  top: max(14px, env(safe-area-inset-top));
+  top: calc(max(env(safe-area-inset-top, 0px), var(--tg-safe-area-inset-top, 0px)) + var(--tg-content-safe-area-inset-top, 0px) + 10px);
   z-index: 90;
   max-width: 440px;
   margin: 0 auto;
