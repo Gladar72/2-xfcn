@@ -100,7 +100,7 @@ export function BottomNav() {
     <Link
       key={t.href}
       href={t.href}
-      className={`it ${pathname === t.href ? "on" : ""}`}
+      className={`ntab ${pathname === t.href ? "on" : ""}`}
       aria-current={pathname === t.href ? "page" : undefined}
     >
       <span className="ni">
@@ -117,7 +117,10 @@ export function BottomNav() {
 
   return (
     <nav ref={navRef} className={`nav26 ${isTab ? "" : "hide"}`} aria-label="Разделы">
-      <span className="bgp" style={{ clipPath: `path("${path}")`, WebkitClipPath: `path("${path}")` }} aria-hidden />
+      {/* Тень — на обёртке, а не на самом меню: в Safari фильтр на меню обрезал бы каплю по краю плашки. */}
+      <span className="shw" aria-hidden>
+        <span className="bgp" style={{ clipPath: `path("${path}")`, WebkitClipPath: `path("${path}")` }} />
+      </span>
       <svg className="edge" width={w} height={H} viewBox={`0 0 ${w} ${H}`} aria-hidden>
         <path d={path} fill="none" stroke="#fff" strokeWidth={1.2} />
       </svg>

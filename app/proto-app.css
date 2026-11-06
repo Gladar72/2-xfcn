@@ -727,15 +727,16 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* ───── Брендбук 2026 · блок 1: меню с каплей Мосей ─────
    Светлая стеклянная плашка с вырезом (форма — clip-path из BottomNav),
    капля утоплена в вырез, «+» движется вместе с ней. */
-.P .nav26{position:absolute;left:16px;right:16px;bottom:calc(var(--bot) + 6px);height:58px;z-index:300;display:flex;justify-content:space-around;align-items:center;padding:0 4px;filter:drop-shadow(0 14px 22px rgba(60,40,120,.14));transition:transform .5s var(--ease),opacity .3s}
+.P .nav26{position:absolute;left:16px;right:16px;bottom:calc(var(--bot) + 6px);height:58px;z-index:300;display:flex;justify-content:space-around;align-items:center;padding:0 4px;transition:transform .5s var(--ease),opacity .3s}
+.P .nav26 .shw{position:absolute;inset:0;filter:drop-shadow(0 14px 22px rgba(60,40,120,.14));pointer-events:none}
 .P .nav26.hide{transform:translateY(150px);opacity:0;pointer-events:none}
 .P .nav26 .bgp{position:absolute;inset:0;background:rgba(246,244,250,.94);-webkit-backdrop-filter:blur(30px) saturate(1.6);backdrop-filter:blur(30px) saturate(1.6);pointer-events:none}
 .P .nav26 .edge{position:absolute;left:0;top:0;pointer-events:none;overflow:visible}
-.P .nav26 .it{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2px;width:62px;font:500 10px/1.2 var(--f);color:rgba(23,20,31,.55);transition:color .25s}
-.P .nav26 .it svg{width:21px;height:21px;display:block;transition:transform .5s var(--spring)}
-.P .nav26 .it.on{color:var(--ink)}
-.P .nav26 .it.on svg{transform:translateY(-1px) scale(1.08)}
-.P .nav26 .it:active svg{transform:scale(.9)}
+.P .nav26 .ntab{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;gap:2px;width:62px;font:500 10px/1.2 var(--f);color:rgba(23,20,31,.55);transition:color .25s}
+.P .nav26 .ntab svg{width:21px;height:21px;display:block;transition:transform .5s var(--spring)}
+.P .nav26 .ntab.on{color:var(--ink)}
+.P .nav26 .ntab.on svg{transform:translateY(-1px) scale(1.08)}
+.P .nav26 .ntab:active svg{transform:scale(.9)}
 .P .nav26 .ni{position:relative;display:inline-flex;line-height:0}
 .P .nav26 .nbadge{position:absolute;right:-9px;top:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;font:600 11px/1 var(--f);font-variant-numeric:tabular-nums;letter-spacing:0;color:var(--ink);background:#fff;box-shadow:0 0 0 1.5px rgba(246,244,250,.95),0 2px 6px rgba(60,40,120,.18);pointer-events:none}
 .P .nav26 .sp{width:98px;flex:none}
