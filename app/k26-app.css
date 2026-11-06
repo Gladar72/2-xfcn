@@ -97,3 +97,11 @@
 .P .igrid .it .ck{background:var(--ink)}
 /* логотип на экране входа — по центру, как в прототипе */
 .K .k-alogo img{display:block;height:46px;width:auto;max-width:70%;margin:0 auto}
+/* Создание: плитки разделов как в прототипе — 4 в ряд, выбранная чёрная */
+.P .scr.cr .igrid,.P .scr.cr .grid4{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.P .scr.cr .it{aspect-ratio:1;border-radius:20px;padding:10px 4px 8px;font:500 11.5px/1.15 var(--disp);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
+.P .scr.cr .it img{width:30px;height:30px}
+.P .scr.cr .it.sel{background:var(--ink);color:#fff;box-shadow:none}
+.P .scr.cr .it.sel img{filter:invert(1) brightness(2)}
+.P .scr.cr .it .ck{display:none}
+.P .scr.cr .chs.nw{gap:8px;margin:0 -20px;padding:0 20px 2px}

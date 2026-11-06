@@ -8,7 +8,7 @@ import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { businessProblem, descriptionProblem, titleProblem } from "@/lib/events/quality";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
-import { coverFor, coverForText, coverSetFor, isPresetCover } from "@/lib/photos/preset-cover";
+import { COVER_LIBRARY, coverFor, coverForText, coverLibrary, coverLibraryKey, coverSetFor, isPresetCover } from "@/lib/photos/preset-cover";
 import { showGuide } from "@/lib/mosya/guide";
 import { confetti } from "@/lib/mosya/confetti";
 import { peek, say } from "@/lib/mosya/peek";
@@ -162,6 +162,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [ownPhoto, setOwnPhoto] = useState<string | undefined>();
   const [covers, setCovers] = useState<string[]>([]);
   const [coverShift, setCoverShift] = useState(0);
+  // Вкладка библиотеки фирменных обложек (как в прототипе: «Бег / Кино / Hyrox / … / Своё фото»).
+  const [lib, setLib] = useState<string | null>(null);
   const [cropSrc, setCropSrc] = useState<string | undefined>();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -471,7 +473,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         if (b) return b;
       }
     }
-    if (step === 2 && isOwn && !presetCover && (!ownPhoto || photo !== ownPhoto))
+    if (step === 2 && isOwn && !presetCover && !isPresetCover(photo) && (!ownPhoto || photo !== ownPhoto))
       return "Мося не нашёл обложку под твою встречу — загрузи своё фото, чтобы люди поняли, куда зовёшь.";
     if (step === 3) {
       if (duration < 60) return "Встреча должна длиться хотя бы час.";
@@ -859,7 +861,38 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   Под «{own.trim() || title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото. Мы проверим его автоматически: без пошлости и чужой рекламы.
                 </p>
               )}
-              {(!isOwn || presetCover) && (
+              <div className="chs nw" style={{ marginTop: 4 }}>
+                {COVER_LIBRARY.map((l) => {
+                  const on = (lib ?? coverLibraryKey(categorySlug, trainingTypeSlug)) === l.key;
+                  return (
+                    <button key={l.key} className={on ? "on" : "gl"} onClick={() => setLib(l.key)} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={l.icon} alt="" style={{ width: 20, height: 20, filter: on ? "invert(1) brightness(2)" : undefined }} />
+                      {l.label}
+                    </button>
+                  );
+                })}
+                <button className="gl" onClick={() => fileRef.current?.click()}>
+                  Своё фото
+                </button>
+              </div>
+              {lib && (
+                <>
+                  <p className="muted" style={{ fontSize: 12.5, margin: "8px 2px 0" }}>
+                    {coverLibrary(lib).length} фирменных обложек · выбери одну
+                  </p>
+                  <div className="covers" style={{ marginTop: 8 }}>
+                    {coverLibrary(lib).map((c) => (
+                      <button key={c} className={photo === c ? "on" : ""} style={{ aspectRatio: "3 / 4" }} onClick={() => setPhoto(c)}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={c} alt="" loading="lazy" />
+                        {photo === c && <span className="aib">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+              {!lib && (!isOwn || presetCover) && (
               <div className="covers">
                 {covers.length === 0
                   ? [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "1", borderRadius: 18 }} />)

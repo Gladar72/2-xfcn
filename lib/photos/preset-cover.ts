@@ -40,6 +40,25 @@ const COVER_SETS: Record<string, string[]> = {
   gym: n2("gym", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
 };
 
+/** Библиотека фирменных обложек для выбора при создании (вкладки «Бег / Кино / …»). */
+export const COVER_LIBRARY: { key: string; label: string; icon: string }[] = [
+  { key: "running", label: "Бег", icon: "/brand/cat3d/i_run.svg" },
+  { key: "cinema", label: "Кино", icon: "/brand/cat3d/i_kino.svg" },
+  { key: "hyrox", label: "Hyrox", icon: "/brand/cat3d/i_box.svg" },
+  { key: "coffee", label: "Кофе", icon: "/brand/cat3d/i_kofe.svg" },
+  { key: "dinner", label: "Ужин", icon: "/brand/cat3d/i_uzhin.svg" },
+  { key: "gym", label: "Спортзал", icon: "/brand/cat3d/i_gym.svg" },
+];
+export function coverLibrary(key: string): string[] {
+  return COVER_SETS[key] ?? [];
+}
+/** Ключ библиотеки, подходящий разделу встречи (для вкладки по умолчанию). */
+export function coverLibraryKey(categorySlug: string | null | undefined, trainingTypeSlug?: string | null): string | null {
+  if (categorySlug === "cinema" || categorySlug === "coffee" || categorySlug === "dinner") return categorySlug;
+  if (categorySlug === "training" && trainingTypeSlug && COVER_SETS[trainingTypeSlug]) return trainingTypeSlug;
+  return null;
+}
+
 /** Набор обложек на выбор для раздела (пусто — набора нет). */
 export function coverSetFor(categorySlug: string | null | undefined, trainingTypeSlug?: string | null, business?: boolean): string[] {
   if (business) return [];
