@@ -33,6 +33,14 @@ interface TelegramWebApp {
   /** Bot API 8.0+: скачать файл (картинку) на устройство через окно Telegram. */
   downloadFile?: (params: { url: string; file_name: string }, callback?: (accepted: boolean) => void) => void;
   close: () => void;
+  /** «ios» | «android» | «tdesktop» | «macos» | «weba» … */
+  platform?: string;
+  /** Bot API 8.0+: на весь экран, без шапки Telegram. */
+  requestFullscreen?: () => void;
+  isFullscreen?: boolean;
+  /** Bot API 8.0+: ярлык приложения на экране «Домой». */
+  addToHomeScreen?: () => void;
+  checkHomeScreenStatus?: (cb: (status: "unsupported" | "unknown" | "added" | "missed") => void) => void;
   // viewportHeight — реальная видимая высота окна Mini App, которую Telegram
   // сам пересчитывает при появлении/скрытии клавиатуры. Обычный CSS
   // 100vh/100dvh внутри WebView Telegram не всегда обновляется корректно при
@@ -42,8 +50,8 @@ interface TelegramWebApp {
   viewportHeight: number;
   viewportStableHeight: number;
   isActive?: boolean;
-  onEvent: (eventType: "viewportChanged" | "activated" | "deactivated", callback: () => void) => void;
-  offEvent: (eventType: "viewportChanged" | "activated" | "deactivated", callback: () => void) => void;
+  onEvent: (eventType: "viewportChanged" | "activated" | "deactivated" | "homeScreenAdded" | "fullscreenFailed", callback: () => void) => void;
+  offEvent: (eventType: "viewportChanged" | "activated" | "deactivated" | "homeScreenAdded" | "fullscreenFailed", callback: () => void) => void;
   MainButton: {
     show: () => void;
     hide: () => void;

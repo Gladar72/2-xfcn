@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Wordmark } from "@/components/brand/Logo";
 import { useGuide } from "@/lib/mosya/guide";
+import { addToHome } from "@/components/telegram/HomeScreenAsk";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 import { Ic, Screen, Sheet, Toast } from "@/components/proto/ui";
 import { SupportSheet } from "@/components/proto/SupportSheet";
@@ -81,6 +82,14 @@ export default function SettingsPage() {
     } else flash("Выбери город из списка");
   }
 
+  // Кнопка «На экран «Домой»» — только если Telegram это умеет и ярлыка ещё нет.
+  const [homeOk, setHomeOk] = useState(false);
+  useEffect(() => {
+    const w = getTelegramWebApp();
+    if (!w?.checkHomeScreenStatus || !w.isVersionAtLeast?.("8.0")) return;
+    w.checkHomeScreenStatus((st) => setHomeOk(st === "missed" || st === "unknown"));
+  }, []);
+
   const Row = ({ i, t, s, href, onClick, ext }: { i: IconName; t: string; s?: string; href?: string; onClick?: () => void; ext?: boolean }) => {
     const body = (
       <>
@@ -134,6 +143,7 @@ export default function SettingsPage() {
         </div>
         <Row i="pin" t="Город" s={p?.city} onClick={() => setCityOpen(true)} />
         <Row i="lock" t="Приватность и анонимность" href="/settings/privacy" />
+        {homeOk && <Row i="home" t="На экран «Домой»" s="Открывать «Место» в одно касание" onClick={() => addToHome()} />}
       </div>
 
       <span className="lbl">Помощь</span>
