@@ -6,7 +6,7 @@
  */
 /** Иконки прототипа 2026 (public/brand/pi). */
 const PI: Record<string, string> = { kofe: "kofe", zavtrak: "zavtraki", uzhin: "uzhiny", bar: "bars", pizza: "street", party: "parties", games: "games", cook: "cook", dogs: "dogs", biz: "network", banya: "banya", lang: "lang", run: "run", gym: "sportzal", yoga: "yoga", bike: "bike", hike: "hike", camp: "camp", ski: "ski", swim: "swim", football: "football", tennis: "tennis", box: "box", roller: "roller", travel: "travel", trip: "travel", world: "excursion", photo: "photo", kino: "kino", theatre: "theatre", music: "music", karaoke: "karaoke", guitar: "jam", art: "expo", books: "books", concert: "concert" };
-const I = (n: string) => (PI[n] ? `/brand/pi/${PI[n]}.svg` : `/brand/cat3d/i_${n}.svg`);
+const I = (n: string) => (PI[n] ? `/brand/pi/${PI[n]}.svg` : "/brand/pi/other.svg");
 
 export const INTEREST_GROUPS: { title: string; items: [name: string, icon: string][] }[] = [
   {
