@@ -93,6 +93,14 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   // «В популярное сегодня» (бывшее «Поднять встречу»).
   const [promoOpen, setPromoOpen] = useState(false);
   const [promoDone, setPromoDone] = useState(false);
+  // «В популярное» с экрана «Встреча опубликована» — сразу открываем шторку.
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get("promote") === "1") setPromoOpen(true);
+    } catch {
+      /* нет адреса */
+    }
+  }, []);
   const [promo, setPromo] = useState<{ status: PromoStatus | null; city: string | null; utcOffset: number } | null>(null);
   const [pendingApplicants, setPendingApplicants] = useState<ApplicantCardData[]>([]);
   const [processingApplicantId, setProcessingApplicantId] = useState<string | null>(null);

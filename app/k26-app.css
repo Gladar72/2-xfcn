@@ -121,3 +121,28 @@
 .P .scr.cr .calbtn{width:100%;height:46px;margin-top:10px;border-radius:23px;display:flex;align-items:center;justify-content:center;gap:8px;font:500 14px var(--disp);color:var(--ink)}
 .P .scr.cr .wheels.tw{justify-content:center;gap:6px;padding:0 24px}
 .P .scr.cr .wheels.tw>*:not(.colon){flex:0 0 96px}
+/* Создание по прототипу: иконки-картинки в плитках и чипах, колёса времени. */
+.K .k-cat img{width:38px;height:38px;object-fit:contain}
+.K .k-cat.k-on img{filter:invert(1) brightness(2)}
+.K .k-cat{text-align:center;line-height:1.15;padding:0 4px}
+.K .k-chip img{flex:none}
+.K .k-wheel .wh{height:100%;padding:45px 0}
+.K .k-wheel .wh div{font:400 17px var(--disp);color:var(--ink)}
+.K .k-wheel .wh div.cur{color:var(--ink);font-weight:500}
+.K .k-wheel::before{content:"";position:absolute;left:8px;right:8px;top:45px;height:40px;border-radius:14px;background:rgba(255,255,255,.75);pointer-events:none}
+.K .k-wheel.k-wide{width:100%}
+.K .k-rp.k-on{box-shadow:inset 0 0 0 2px var(--ink)}
+.K .k-rp i{background:linear-gradient(135deg,#E9E2F5,#F6EEF2)}
+.K .k-rp .k-rt{margin-left:auto;text-align:right;font:500 13px var(--disp);display:flex;flex-direction:column;align-items:flex-end}
+.K .k-rp .k-rt small{font:400 10.5px var(--disp);color:var(--ink3)}
+.K .k-rp>span:nth-child(2){flex:1;min-width:0}
+.K .k-rp small{display:block;font:400 12px var(--disp);color:var(--ink2)}
+.K .k-sugg span{font:400 12px var(--disp);color:var(--ink2)}
+.K .k-addr small{display:block;font:400 12px var(--disp);color:var(--ink2)}
+.K .k-mapbox>*{height:100%}
+.K .k-field.k-ta{height:auto;padding:14px 18px;align-items:flex-start}
+.K .k-field textarea{border:0;background:none;font:inherit;outline:none;width:100%;color:inherit;resize:none}
+.K .k-field>svg{width:18px;height:18px;flex:none;opacity:.55}
+.K .k-tg2 .k-tgt small{display:block;font:400 12px var(--disp);color:var(--ink2)}
+.K .k-done .k-h1 em{display:inline-block}
+.K .foot .k-btn svg{width:18px;height:18px}
