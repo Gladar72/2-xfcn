@@ -63,6 +63,8 @@ function write(s: GuideState) {
   }
 }
 
+const GUIDE_OFF = true;
+
 /** Вызывается при регистрации: включает тур по разделам заново. */
 export function startGuideTour() {
   write({ active: true, seen: [] });
@@ -70,6 +72,8 @@ export function startGuideTour() {
 
 /** Показать подсказку раздела, если человек здесь впервые после регистрации. */
 export function showGuide(id: string, opts?: { low?: boolean; delay?: number; force?: boolean }) {
+  // 06.11: подсказки Моси по разделам выключены (мешали и глючили на телефоне).
+  if (GUIDE_OFF) return false;
   const g = GUIDE[id];
   // force — новые разделы: подсказка один раз для всех, даже после тура.
   const st = read() ?? (opts?.force ? { active: false, seen: [] } : null);
