@@ -1,0 +1,159 @@
+/* Брендбук 2026 — то, что в прототипе делал скрипт, а в приложении нужно стилями:
+   нажатие кнопок, скелетоны загрузки, точка «есть новое». */
+.K .k-pr{-webkit-tap-highlight-color:transparent}
+.K .k-pr:active{transform:scale(.96);transition:transform .12s ease}
+.K .k-dotn{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--chromeB);box-shadow:0 0 0 2px #fff}
+.K .k-sk{background:linear-gradient(100deg,rgba(255,255,255,.45) 20%,rgba(255,255,255,.8) 40%,rgba(255,255,255,.45) 60%) 0 0/200% 100%;animation:k-shimmer 1.4s linear infinite}
+.K .k-sk::after{display:none}
+@keyframes k-shimmer{to{background-position:-200% 0}}
+.K .k-hc,.K .k-mt{-webkit-mask-image:-webkit-radial-gradient(white,black)}
+.K img{image-rendering:auto}
+@media (prefers-reduced-motion: reduce){.K .k-pr:active{transform:none}.K .k-sk{animation:none}}
+/* Верхние кнопки поверх фото — под системной полосой Telegram. */
+.K .k-pp .k-tbar,.K .k-ev .k-tbar{top:calc(var(--top) - 6px)}
+.K .k-pp>.scroll,.K .k-ev>.scroll{z-index:1}
+.K .k-pp .k-hero2,.K .k-ev .k-hero{z-index:0}
+.K .k-pp .k-tbar,.K .k-ev .k-tbar{z-index:20}
+/* Строка-ссылка (меню в профиле, настройки). */
+.K .k-row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:54px;padding:0 16px 0 18px;border-radius:22px;font:400 15px var(--disp);width:100%;text-align:left}
+.K .k-row svg{width:18px;height:18px;color:var(--ink3);flex:none}
+.K .k-ph3>a,.K .k-ph3>button{display:block;min-width:0}
+.K .k-ph3 i{width:100%}
+/* Старые Android WebView без clip-path:path(): плашка меню — обычная скруглённая, без выреза. */
+@supports not (clip-path: path("M0 0H1V1Z")) {
+  .P .nav26 .bgp{border-radius:29px}
+  .P .nav26 .edge{display:none}
+}
+/* Без backdrop-filter (часть Android): стекло делаем плотнее, чтобы текст читался. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .K .k-g{background:rgba(255,255,255,.86)}
+  .K .k-gw{background:rgba(30,24,44,.38)}
+  .K .k-gd{background:rgba(20,16,30,.62)}
+  .P .nav26 .bgp{background:rgba(246,244,250,.98)}
+}
+/* Событие: тёмное стекло поверх размытого фото, старые блоки организатора — в том же стиле. */
+.K .k-ev{background:#17141F;color:#fff}
+.K .k-ev .k-evph{background-color:#2A2536}
+.K .k-ev>.scroll{padding-top:0}
+.K .k-ev .k-card .blk,.K .k-ev .k-card .evnote,.K .k-ev .k-card .chatprev,.K .k-ev .k-card .apl,.K .k-ev .k-card .tiles2>*{background:rgba(20,16,30,.42)!important;border:1px solid rgba(255,255,255,.18);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);color:#fff!important;box-shadow:none!important}
+.K .k-ev .k-card .blk{margin-top:10px;padding:14px 16px;border-radius:24px}
+.K .k-ev .k-card .blk .apl{background:rgba(255,255,255,.08)!important;border:0}
+.K .k-ev .k-card .blk-h b,.K .k-ev .k-card .apl b,.K .k-ev .k-card .tiles2 b,.K .k-ev .k-card .chatprev b{color:#fff!important}
+.K .k-ev .k-card .blk-h span,.K .k-ev .k-card .apl span,.K .k-ev .k-card .tiles2 span,.K .k-ev .k-card .chatprev span,.K .k-ev .k-card .muted,.K .k-ev .k-card .hint2{color:rgba(255,255,255,.72)!important}
+.K .k-ev .k-card .tiles2 svg,.K .k-ev .k-card .chatprev svg{color:#fff}
+.K .k-ev .k-card .sm.yes{background:#fff;color:var(--ink)}
+.K .k-ev .k-card .sm.no{background:rgba(255,255,255,.14);color:#fff}
+.K .k-ev .k-card .report{color:rgba(255,255,255,.7)}
+.K .k-ev .k-card .btn.v{background:#fff;color:var(--ink);box-shadow:none;animation:none}
+/* Нижняя панель: «поделиться» + главная кнопка — белая, как в прототипе. */
+.K .k-ev .k-cta{bottom:calc(var(--bot) + 14px)}
+.K .k-ev .k-ctab{flex:1;display:flex;gap:8px;min-width:0}
+.K .k-ev .k-ctab>.btn{flex:1;height:56px;min-height:56px;border-radius:28px;font:500 16px var(--disp);margin:0}
+.K .k-ev .k-ctab>.btn.v,.K .k-ev .k-ctab>.btn.ok{background:#fff;color:var(--ink);box-shadow:none;animation:none}
+.K .k-ev .k-ctab>.btn.o{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3)}
+.K .k-ev .k-who .k-wp span{background-color:rgba(255,255,255,.14);font:500 16px var(--disp)}
+.K .k-ev .k-mapbox .mini,.K .k-ev .k-mapbox>div:first-child{position:absolute;inset:0}
+.K .k-ev .k-mapact{pointer-events:none}
+.K .k-ev .k-mapact>*{pointer-events:auto}
+.K .k-ev .k-tiles .k-tile{height:auto;min-height:72px;gap:6px;padding:11px 10px}
+.K .k-ev .k-tiles .k-tile b{font-size:14px;white-space:normal;line-height:1.15}
+.K .k-ev .k-tiles .k-tile b small{display:block;margin-top:2px;font-size:11px;opacity:.7}
+/* Онбординг: вводные слайды как intro прототипа */
+.K.k-intro26{background:var(--pearl);color:var(--ink)}
+.K .i26-top{position:absolute;left:26px;right:24px;top:calc(var(--top) + 2px);display:flex;align-items:center;justify-content:space-between;z-index:2}
+.K .i26-top img{height:28px;width:auto}
+.K .i26-bars{display:flex;gap:5px}
+.K .i26-bars i{width:26px;height:4px;border-radius:2px;background:rgba(23,20,31,.12);overflow:hidden;display:block}
+.K .i26-bars i b{display:block;height:100%;width:0;background:var(--ink)}
+.K .i26-bars i.dn b{width:100%}
+.K .i26-bars i.run b{animation:k-i26run 4.2s linear forwards}
+@keyframes k-i26run{to{width:100%}}
+.K .i26-cr{position:absolute;left:50%;top:calc(var(--top) + 70px);transform:translateX(-50%)}
+.K .i26-txt{position:absolute;left:26px;right:26px;bottom:calc(var(--bot) + 120px);animation:k-txtIn .6s var(--ios) both}
+.K .i26-txt h1{font:300 38px/1.14 var(--disp);letter-spacing:-.035em;margin:0;text-wrap:balance}
+.K .i26-txt h1 em{font-size:1.08em;line-height:1}
+.K .i26-txt p{font:400 15px/1.5 var(--disp);color:var(--ink2);margin:12px 0 0}
+.K .i26-act{position:absolute;left:20px;right:20px;bottom:calc(var(--bot) + 30px);display:flex;gap:10px;align-items:center}
+.K .i26-act .k-rb svg{width:20px;height:20px}
+.K .i26-slide{flex:1;height:64px;border-radius:32px;position:relative;display:flex;align-items:center;padding:4px}
+.K .i26-kn{width:56px;height:56px;border-radius:28px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+.K .i26-kn svg{width:22px;height:22px}
+.K .i26-lb{flex:1;text-align:center;font:500 16px var(--disp);margin-right:40px}
+.K .i26-ar{position:absolute;right:22px;font:400 14px var(--disp);color:var(--ink3);letter-spacing:2px}
+@media (prefers-reduced-motion: reduce){.K .i26-bars i.run b{animation:none;width:100%}}
+/* Онбординг: шаги анкеты — полоски и плитки интересов как в прототипе */
+.P .prog{display:flex;gap:5px}
+.P .prog i{width:36px;height:4px;border-radius:2px;background:rgba(23,20,31,.12)}
+.P .prog i.on{background:var(--ink)}
+.P .phs{aspect-ratio:3/4;border-radius:20px}
+.P .igroup{background:rgba(255,255,255,.58);box-shadow:inset 0 0 0 1px rgba(255,255,255,.95);border-radius:26px;padding:14px 12px 12px;margin-top:12px}
+.P .igroup h3{font:500 16px var(--disp);margin:0 4px 10px}
+.P .igroup h3 span{min-width:22px;height:22px;border-radius:11px;background:var(--ink);color:#fff;font:600 11px/22px var(--disp);text-align:center;padding:0 6px;margin-left:8px}
+.P .igroup h3 span:empty{display:none}
+.P .igrid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.P .igrid .it{background:rgba(255,255,255,.7);border-radius:20px;padding:14px 6px 12px;font:500 12.5px var(--disp);box-shadow:inset 0 0 0 1px rgba(255,255,255,.95)}
+.P .igrid .it img{width:40px;height:40px}
+.P .igrid .it.sel{box-shadow:inset 0 0 0 2px var(--ink)}
+.P .igrid .it .ck{background:var(--ink)}
+/* логотип на экране входа — по центру, как в прототипе */
+.K .k-alogo img{display:block;height:46px;width:auto;max-width:70%;margin:0 auto}
+/* Создание: плитки разделов как в прототипе — 4 в ряд, выбранная чёрная */
+.P .scr.cr .igrid,.P .scr.cr .grid4{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.P .scr.cr .it{aspect-ratio:1;border-radius:20px;padding:10px 4px 8px;font:500 11.5px/1.15 var(--disp);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;text-align:center}
+.P .scr.cr .it img{width:30px;height:30px}
+.P .scr.cr .it.sel{background:var(--ink);color:#fff;box-shadow:none}
+.P .scr.cr .it.sel img{filter:invert(1) brightness(2)}
+.P .scr.cr .it .ck{display:none}
+.P .scr.cr .chs.nw{gap:8px;margin:0 -20px;padding:0 20px 2px}
+/* Кнопки-ссылки в паре «карта / поиск» — как кнопки. */
+.K .k-pair>a{width:40px;height:40px;border-radius:20px;display:flex;align-items:center;justify-content:center;color:inherit}
+.K .k-pair>a svg{width:20px;height:20px}
+.P .mapfab{white-space:nowrap}
+/* Создание, «Когда и где?» — как в прототипе: плитки дней, календарь, колёса «Начало». */
+.P .scr.cr .dtiles{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin:14px -20px 0;padding:2px 20px}
+.P .scr.cr .dtiles::-webkit-scrollbar{display:none}
+.P .scr.cr .dtiles button{flex:none;width:58px;height:66px;border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;transition:background .25s,color .25s,transform .35s var(--spring)}
+.P .scr.cr .dtiles button small{font:400 11px var(--disp);opacity:.6}
+.P .scr.cr .dtiles button b{font:500 19px var(--disp);letter-spacing:-.02em}
+.P .scr.cr .dtiles button.on{background:var(--ink);color:#fff}
+.P .scr.cr .dtiles button.on small{opacity:.75}
+.P .scr.cr .dtiles button:active{transform:scale(.94)}
+.P .scr.cr .calbtn{width:100%;height:46px;margin-top:10px;border-radius:23px;display:flex;align-items:center;justify-content:center;gap:8px;font:500 14px var(--disp);color:var(--ink)}
+.P .scr.cr .wheels.tw{justify-content:center;gap:6px;padding:0 24px}
+.P .scr.cr .wheels.tw>*:not(.colon){flex:0 0 96px}
+/* Создание по прототипу: иконки-картинки в плитках и чипах, колёса времени. */
+.K .k-cat img{width:38px;height:38px;object-fit:contain}
+.K .k-cat.k-on img{filter:invert(1) brightness(2)}
+.K .k-cat{text-align:center;line-height:1.15;padding:0 4px}
+.K .k-chip img{flex:none}
+.K .k-wheel .wh{height:100%;padding:45px 0}
+.K .k-wheel .wh div{font:400 17px var(--disp);color:var(--ink)}
+.K .k-wheel .wh div.cur{color:var(--ink);font-weight:500}
+.K .k-wheel::before{content:"";position:absolute;left:8px;right:8px;top:45px;height:40px;border-radius:14px;background:rgba(255,255,255,.75);pointer-events:none}
+.K .k-wheel.k-wide{width:100%}
+.K .k-rp.k-on{box-shadow:inset 0 0 0 2px var(--ink)}
+.K .k-rp i{background:linear-gradient(135deg,#E9E2F5,#F6EEF2)}
+.K .k-rp .k-rt{margin-left:auto;text-align:right;font:500 13px var(--disp);display:flex;flex-direction:column;align-items:flex-end}
+.K .k-rp .k-rt small{font:400 10.5px var(--disp);color:var(--ink3)}
+.K .k-rp>span:nth-child(2){flex:1;min-width:0}
+.K .k-rp small{display:block;font:400 12px var(--disp);color:var(--ink2)}
+.K .k-sugg span{font:400 12px var(--disp);color:var(--ink2)}
+.K .k-addr small{display:block;font:400 12px var(--disp);color:var(--ink2)}
+.K .k-mapbox>*{height:100%}
+.K .k-field.k-ta{height:auto;padding:14px 18px;align-items:flex-start}
+.K .k-field textarea{border:0;background:none;font:inherit;outline:none;width:100%;color:inherit;resize:none}
+.K .k-field>svg{width:18px;height:18px;flex:none;opacity:.55}
+.K .k-tg2 .k-tgt small{display:block;font:400 12px var(--disp);color:var(--ink2)}
+.K .k-done .k-h1 em{display:inline-block}
+.K .foot .k-btn svg{width:18px;height:18px}
+.K .k-bigst .k-seatsin{width:140px;min-width:0;text-align:center;border:0;background:none;outline:none;font:300 56px/1 var(--disp);letter-spacing:-.03em;color:var(--ink);-moz-appearance:textfield;appearance:textfield}
+.K .k-bigst .k-seatsin::-webkit-outer-spin-button,.K .k-bigst .k-seatsin::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+/* Событие для бизнеса: большая кнопка «Загрузить фото события» (размер как у превью). */
+.K .k-bizph{position:relative;display:block;width:100%;aspect-ratio:3/4;max-height:440px;margin-top:10px;border-radius:32px;overflow:hidden;background-size:cover;background-position:center;color:var(--ink)}
+.K .k-bizph:not(.on){box-shadow:inset 0 0 0 1.5px rgba(23,20,31,.14)}
+.K .k-bizph-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;text-align:center;padding:24px}
+.K .k-bizph-in .k-op{width:64px;height:64px;border-radius:32px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center}
+.K .k-bizph-in .k-op .ic{width:28px;height:28px}
+.K .k-bizph-in b{font:500 17px var(--disp)}
+.K .k-bizph-in small{font:400 13px var(--disp);color:var(--ink2)}
+.K .k-bizph .k-chip{position:absolute;left:14px;bottom:14px;height:36px;gap:6px}

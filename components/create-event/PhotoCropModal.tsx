@@ -218,7 +218,7 @@ export function PhotoCropModal({ src, aspectRatio, title = "Обложка вс�
           type="button"
           onClick={confirm}
           disabled={!nat || rendering}
-          style={{ ...pill, background: "linear-gradient(120deg,#6C3BFF,#A24DFF 48%,#FF6FA0)", fontWeight: 600, opacity: !nat || rendering ? 0.6 : 1 }}
+          style={{ ...pill, background: "linear-gradient(120deg,#17141F,#2A2536)", fontWeight: 600, opacity: !nat || rendering ? 0.6 : 1 }}
         >
           {rendering ? "…" : "Готово"}
         </button>

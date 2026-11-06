@@ -29,7 +29,7 @@ export interface PhoneStoryData {
 }
 
 const ink = "#16121F";
-const violet = "#6C3BFF";
+const violet = "#17141F";
 const grey = "#6B6585";
 
 const svg = (body: string, size = 30, stroke = "#fff") =>
@@ -82,7 +82,7 @@ export function PhoneStory(d: PhoneStoryData) {
       style={{ position: "absolute", left: Math.round(x - w * 0.2), top: Math.round(y - h * 0.2 + 24), width: Math.round(w * 1.4), height: Math.round(h * 1.4), opacity: o }}
     />
   );
-  const card = { position: "absolute" as const, background: "#fff", borderRadius: 30, border: "1.5px solid rgba(108,59,255,0.10)", display: "flex", flexDirection: "column" as const };
+  const card = { position: "absolute" as const, background: "#fff", borderRadius: 30, border: "1.5px solid rgba(23,20,31,0.10)", display: "flex", flexDirection: "column" as const };
   const railBtn = { width: 68, height: 68, borderRadius: 68, background: "rgba(255,255,255,0.18)", border: "1.5px solid rgba(255,255,255,0.3)", display: "flex", alignItems: "center", justifyContent: "center" } as const;
 
   return (
@@ -105,7 +105,7 @@ export function PhoneStory(d: PhoneStoryData) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={d.coverUrl} alt="" width={SW} height={photoH} style={{ position: "absolute", left: 0, top: photoTop, width: SW, height: photoH, objectFit: "cover" }} />
           ) : (
-            <div style={{ position: "absolute", left: 0, top: photoTop, width: SW, height: photoH, display: "flex", backgroundImage: "linear-gradient(160deg,#4B1FB8,#6C3BFF 55%,#A24DFF)" }} />
+            <div style={{ position: "absolute", left: 0, top: photoTop, width: SW, height: photoH, display: "flex", backgroundImage: "linear-gradient(160deg,#2A2536,#17141F)" }} />
           )}
           <div style={{ position: "absolute", left: 0, top: photoTop + photoH - 160, width: SW, height: 162, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(12,8,22,0) 0%, rgba(12,8,22,0.95) 100%)" }} />
           <div style={{ position: "absolute", left: 0, top: 0, width: SW, height: 120, display: "flex", backgroundImage: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0) 100%)" }} />
@@ -147,7 +147,7 @@ export function PhoneStory(d: PhoneStoryData) {
                 <img src={src} alt="" width={30} height={30} />
               </div>
             ))}
-            <div style={{ width: 84, height: 84, borderRadius: 84, backgroundImage: "linear-gradient(120deg,#6C3BFF,#A24DFF)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700, lineHeight: 1.05 }}>
+            <div style={{ width: 84, height: 84, borderRadius: 84, backgroundImage: "linear-gradient(120deg,#17141F,#2A2536)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", fontSize: 19, fontWeight: 700, lineHeight: 1.05 }}>
               <div style={{ display: "flex" }}>Я</div>
               <div style={{ display: "flex" }}>иду</div>
             </div>
@@ -191,7 +191,7 @@ export function PhoneStory(d: PhoneStoryData) {
       </div>
 
       {d.ig ? (
-        <div style={{ position: "absolute", left: 290, top: PY + PH + 44, width: 500, height: 96, border: "3px dashed rgba(108,59,255,0.4)", borderRadius: 48, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, color: "#8A84A0" }}>
+        <div style={{ position: "absolute", left: 290, top: PY + PH + 44, width: 500, height: 96, border: "3px dashed rgba(23,20,31,0.4)", borderRadius: 48, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 26, color: "#8A84A0" }}>
           сюда — стикер «Ссылка»
         </div>
       ) : null}

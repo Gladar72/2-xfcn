@@ -20,11 +20,11 @@ test("legacy account is prompted for a profile photo when choosing an open event
   await expect(page.locator(".m-peek").filter({ hasText: "Добавь своё фото" })).toBeVisible();
   await expect(page.locator(".m-peek .bb").filter({ hasText: "Добавь своё фото" })).toHaveCSS("opacity", "1");
   await page.screenshot({ path: testInfo.outputPath("organizer-photo.png") });
-  await expect(page.getByRole("button", { name: "Дальше", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Далее", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Назад", exact: true }).click();
   await page.getByRole("button", { name: /Анонимная встреча/ }).click();
   await expect(page.getByTestId("organizer-photo-gate")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Дальше", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Далее", exact: true })).toBeVisible();
 });
 
 test("server photo rejection preserves the filled draft through an inline photo upload", async ({ page }) => {
@@ -41,11 +41,11 @@ test("server photo rejection preserves the filled draft through an inline photo 
     return route.fulfill({ json: { avatarUrl: "/brand/mosya/mosya_think.webp" } });
   });
   await page.goto("/create?fromCity=sample&category=coffee#tgWebAppData=browser-fixture");
-  await page.getByRole("button", { name: "Дальше", exact: true }).click();
+  await page.getByRole("button", { name: "Далее", exact: true }).click();
   await expect(page.getByPlaceholder("Например, кофе перед работой")).toHaveValue("Пойдём вместе: Кофе в парке");
   await page.getByPlaceholder("Что будем делать, как узнать друг друга").fill("Поболтаем за кофе и прогуляемся в парке");
-  await page.getByRole("button", { name: "Дальше", exact: true }).click();
-  await page.getByRole("button", { name: "Дальше", exact: true }).click();
+  await page.getByRole("button", { name: "Далее", exact: true }).click();
+  await page.getByRole("button", { name: "Далее", exact: true }).click();
   await page.getByRole("button", { name: "Опубликовать", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Добавь своё фото" })).toBeVisible();
   await page.getByLabel("Фото профиля", { exact: true }).setInputFiles("public/brand/mosya/mosya_think.webp");
@@ -66,7 +66,7 @@ test("a current profile photo permits the usual creation flow", async ({ page })
   await fixture(page, "/brand/mosya/mosya_think.webp");
   await page.goto("/create");
   await page.getByRole("button", { name: /Открытая встреча/ }).click();
-  await expect(page.getByRole("button", { name: "Дальше", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Далее", exact: true })).toBeVisible();
   await expect(page.getByTestId("organizer-photo-gate")).toHaveCount(0);
 });
 
@@ -81,7 +81,7 @@ test("profile load failure is retryable instead of demanding a new photo", async
   await expect(page.getByRole("heading", { name: "Не удалось загрузить профиль" })).toBeVisible();
   failed = false;
   await page.getByRole("button", { name: "Попробовать снова", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Дальше", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Далее", exact: true })).toBeVisible();
 });
 
 test("failed avatar upload stays blocked; successful retry continues the chosen flow", async ({ page }) => {
@@ -94,8 +94,8 @@ test("failed avatar upload stays blocked; successful retry continues the chosen 
   await page.getByRole("button", { name: /Открытая встреча/ }).click();
   await page.getByLabel("Фото профиля", { exact: true }).setInputFiles("public/brand/mosya/mosya_think.webp");
   await expect(page.getByTestId("organizer-photo-gate").getByRole("alert")).toContainText("не прошло проверку");
-  await expect(page.getByRole("button", { name: "Дальше", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Далее", exact: true })).toHaveCount(0);
   failed = false;
   await page.getByLabel("Фото профиля", { exact: true }).setInputFiles("public/brand/mosya/mosya_think.webp");
-  await expect(page.getByRole("button", { name: "Дальше", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Далее", exact: true })).toBeVisible();
 });

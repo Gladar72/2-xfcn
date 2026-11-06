@@ -22,7 +22,7 @@ const MOSYA_BOUNDS: Record<string, readonly [number, number, number, number]> = 
 };
 
 export function stickerSrc(slug: string): string {
-  return slug.startsWith("i_") ? `/brand/cat3d/${slug}.webp` : `/brand/stickers/${slug}.webp`;
+  return slug.startsWith("i_") ? `/brand/cat3d/${slug}.svg` : `/brand/stickers/${slug}.webp`;
 }
 
 export function StickerArt({ slug, alt = "", lazy = false }: { slug: string; alt?: string; lazy?: boolean }) {

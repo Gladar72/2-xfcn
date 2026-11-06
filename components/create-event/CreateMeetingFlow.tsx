@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LocationPicker } from "@/components/map/LocationPicker";
 import { searchAddress, type AddressSuggestion } from "@/lib/maps/forward-geocode";
@@ -8,18 +8,17 @@ import { getInitData } from "@/lib/telegram/webapp-client";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { businessProblem, descriptionProblem, titleProblem } from "@/lib/events/quality";
 import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
-import { coverFor, coverForText, isPresetCover } from "@/lib/photos/preset-cover";
-import { showGuide } from "@/lib/mosya/guide";
+import { coverFor, coverForText, coverSetFor, isPresetCover } from "@/lib/photos/preset-cover";
 import { confetti } from "@/lib/mosya/confetti";
-import { peek, say } from "@/lib/mosya/peek";
-import { Chr, Cover, HeroCard, Ic, Toast } from "@/components/proto/ui";
+import { Ic, Toast } from "@/components/proto/ui";
+import { KI, TwoLine } from "@/components/proto/k";
+import { Creature } from "@/components/brand/Creature";
 import { CalendarSheet, Wheel } from "@/components/proto/pickers";
 import { ShareSheet } from "@/components/proto/ShareSheet";
-import { mosyaSrc } from "@/components/brand/Mosya";
 import { PhotoCropModal } from "./PhotoCropModal";
 import { goBack } from "@/lib/nav/back";
 import { maxGroupSize, type Plan } from "@/lib/subscriptions/limits";
-import { BIZ_SECTIONS, BIZ_KEYS, bizCategoryIcon } from "@/lib/events/biz-categories";
+import { BIZ_SECTIONS, BIZ_KEYS, bizCategoryIcon, guessBizCategory } from "@/lib/events/biz-categories";
 import { hasOrganizerPhoto } from "@/lib/events/organizer-photo";
 import { getJson } from "@/lib/http/get-json";
 import { OrganizerPhotoGate } from "./OrganizerPhotoGate";
@@ -30,6 +29,8 @@ import { OrganizerPhotoGate } from "./OrganizerPhotoGate";
  *   2. Название и обложка — обложки рисует Мося, можно своё фото
  *   3. Когда и где — колёса дня и времени, календарь, длительность, место
  *   4. Кто и сколько — люди, расходы, открыто/анонимно, превью карточки
+ * Событие для бизнеса — три шага (2–4): раздел афиши сервер угадывает
+ * по названию (guessBizCategory), отдельного шага «Куда зовёшь?» нет.
  * Потом — «Встреча опубликована» и «Поделиться». На сервер уходят те же
  * поля, что и раньше (POST /api/events).
  */
@@ -43,13 +44,6 @@ interface TrainingType {
   id: string;
   slug: string;
   name: string;
-}
-/** «1 240 отзывов», «3 отзыва». */
-function reviewsWord(n: number): string {
-  const a = n % 10;
-  const b = n % 100;
-  const w = a === 1 && b !== 11 ? "отзыв" : a >= 2 && a <= 4 && (b < 12 || b > 14) ? "отзыва" : "отзывов";
-  return `${n.toLocaleString("ru-RU")} ${w}`;
 }
 
 interface PlaceSuggestion {
@@ -70,13 +64,18 @@ const COSTS: [CostType, string][] = [
   ["free", "Без расходов"],
   ["negotiable", "По договорённости"],
 ];
-const DURS: [number, string][] = [
-  [60, "1 ч"],
-  [90, "1,5 ч"],
-  [120, "2 ч"],
-  [180, "3 ч"],
-  [240, "4 ч"],
-];
+/** Колесо «Сколько продлится» (как в прототипе): от 1 до 12 часов, шаг 30 минут. */
+const DUR_WHEEL: [number, string][] = Array.from({ length: 23 }, (_, i) => {
+  const m = 60 + i * 30;
+  return [m, `${Math.floor(m / 60)}${m % 60 ? ",5" : ""} ч`];
+});
+const durIndex = (m: number) => {
+  let best = 0;
+  DUR_WHEEL.forEach(([v], i) => {
+    if (Math.abs(v - m) < Math.abs(DUR_WHEEL[best]![0] - m)) best = i;
+  });
+  return best;
+};
 /** Подписи плиток — как в прототипе. */
 const SHORT: Record<string, string> = {
   training: "Тренировка",
@@ -115,15 +114,13 @@ const DAYS = Array.from({ length: N_DAYS }, (_, i) => {
 const HOURS = Array.from({ length: 24 }, (_, h) => String(h));
 const MINS = Array.from({ length: 12 }, (_, m) => pad2(m * 5));
 
-/** Быстрые дни: сегодня, завтра и ближайшие пятница и суббота. */
-const QUICK_DAYS = (() => {
-  const out = [0, 1];
-  for (let i = 2; i < 9 && out.length < 4; i++) {
-    const wd = dayDate(i).getDay();
-    if (wd === 5 || wd === 6) out.push(i);
-  }
-  return out;
-})();
+/** Фон-обложка плитки: фото во весь блок (data:URL и наши файлы — как есть). */
+function bgCover(url?: string | null): React.CSSProperties {
+  return url ? { backgroundImage: `url(${url})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: "linear-gradient(160deg,#3A3646,#17141F)" };
+}
+
+/** Плитки дней (как в прототипе): неделя вперёд. */
+const TILE_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 export function CreateMeetingFlow({ business: businessProp = false, editId }: { business?: boolean; editId?: string } = {}) {
   const [business, setBusiness] = useState(businessProp);
@@ -133,7 +130,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
-  const [step, setStep] = useState(1);
+  // Событие для бизнеса — три шага (без «Куда зовёшь?»): сразу «Название и обложка».
+  const [step, setStep] = useState(businessProp ? 2 : 1);
   const [dir, setDir] = useState(1);
   const [toast, setToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -155,6 +153,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [trainingTypeSlug, setTrainingTypeSlug] = useState<string | null>(searchParams.get("type"));
   // Раздел бизнес-события (Бары, Вечеринки и клубы…) — обязателен, по нему фильтры «Для бизнеса».
   const [bizCategory, setBizCategory] = useState<string | null>(null);
+  // Раздел выбран руками — больше не подбираем его по названию.
+  const [bizPicked, setBizPicked] = useState(false);
   const [own, setOwn] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -170,7 +170,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [mi, setMi] = useState(0);
   const [calOpen, setCalOpen] = useState(false);
   const [duration, setDuration] = useState(120);
-  const [durOwn, setDurOwn] = useState(false);
   const [placeName, setPlaceName] = useState("");
   const [placeQuery, setPlaceQuery] = useState("");
   const [address, setAddress] = useState("");
@@ -182,6 +181,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [addrDrop, setAddrDrop] = useState<AddressSuggestion[]>([]);
 
   const [seatsTotal, setSeatsTotal] = useState(3);
+  const [seatsDraft, setSeatsDraft] = useState<string | null>(null);
   // Тариф организатора — чтобы счётчик участников не давал вписать больше,
   // чем разрешает подписка (раньше можно было ввести до 500 на любом тарифе,
   // а отказ приходил только при публикации). Сервер проверяет то же самое.
@@ -278,8 +278,13 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       .then((e) => {
         if (e.error) return;
         setBusiness(!!e.isBusiness);
+        if (e.isBusiness) setStep(2);
         setCategorySlug(e.category?.slug ?? null);
-        if (e.bizCategory && BIZ_KEYS.has(e.bizCategory)) setBizCategory(e.bizCategory);
+        if (e.bizCategory && BIZ_KEYS.has(e.bizCategory)) {
+          setBizCategory(e.bizCategory);
+          setBizPicked(true);
+        }
+        if (e.bizCategory === "other") setOwn(String(e.title ?? "").slice(0, 30));
         setTrainingTypeSlug(e.trainingType?.slug ?? null);
         setTitle(e.title ?? "");
         // Бизнес-события и «Своё» хранятся с категорией custom: без этого слова
@@ -301,7 +306,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           const [eh = 0, em = 0] = String(e.eventEndTime).split(":").map(Number);
           const dur = (eh * 60 + em - (h * 60 + m) + 1440) % 1440 || 120;
           setDuration(dur);
-          setDurOwn(![60, 90, 120, 180, 240].includes(dur));
         }
         setPlaceName(e.placeName ?? "");
         setAddress(e.address ?? "");
@@ -322,32 +326,23 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       .catch(() => {});
   }, [editId]);
 
-  useEffect(() => {
-    if (editId) return;
-    if (step === 1) showGuide("create", { low: true });
-    if (step === 2) showGuide("cover", { low: true });
-    if (step === 3) showGuide("when", { low: true });
-  }, [step]);
 
-  // Как в прототипе: когда сетка категорий «доехала», звёздочка «Своё» делает оборот.
+  // Событие для бизнеса: раздел афиши подбираем по названию и описанию, пока человек пишет.
   useEffect(() => {
-    if (step !== 1) return;
-    const t = setTimeout(() => {
-      document.querySelector(".scr.cr .spinstar")?.animate(
-        [{ transform: "rotate(0) scale(1)" }, { transform: "rotate(540deg) scale(1.25)" }, { transform: "rotate(720deg) scale(1)" }],
-        { duration: 1100, easing: "cubic-bezier(.34,1.3,.64,1)" }
-      );
-    }, 650);
-    return () => clearTimeout(t);
-  }, [step]);
+    if (!business || bizPicked) return;
+    const g = guessBizCategory({ title: `${title} ${description}` });
+    setBizCategory(g === "other" ? null : g);
+  }, [business, bizPicked, title, description]);
 
   const isOwn = !business && categorySlug === "custom";
   const bizSection = business ? BIZ_SECTIONS.find((c) => c.key === bizCategory) ?? null : null;
   const iconSrc = bizSection
     ? bizCategoryIcon(bizSection)
-    : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/cat3d/i_games.webp" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
-  const catLabel = bizSection
-    ? bizSection.label
+    : categorySlug === "training" ? trainingIcon(trainingTypeSlug) : isOwn ? "/brand/pi/other.svg" : (categorySlug && CATEGORY_ICON[categorySlug]) || CATEGORY_ICON.custom || "";
+  const catLabel = business && !bizSection
+    ? "событие"
+    : bizSection
+    ? bizSection.key === "other" && own.trim() ? own.trim() : bizSection.label
     : categorySlug === "training"
       ? trainingTypes.find((t) => t.slug === trainingTypeSlug)?.name ?? "Тренировка"
       : isOwn
@@ -361,14 +356,18 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   // Обложки от Моси — готовое фото категории; рисованные — только запасной вариант.
   useEffect(() => {
     if (step !== 2) return;
-    if (isOwn && !presetCover) {
+    // Событие для бизнеса — только своё фото (афиша, зал, сцена), без наших обложек.
+    if (business || (isOwn && !presetCover)) {
       setCovers([]);
       if (photo !== ownPhoto) setPhoto(ownPhoto);
       return;
     }
     if (presetCover) {
-      setCovers([presetCover]);
-      if (!ownPhoto || photo !== ownPhoto) setPhoto(presetCover);
+      // Бег, кино, Hyrox — фирменный набор на выбор; остальные — одна обложка раздела.
+      const set = isOwn ? [] : coverSetFor(categorySlug, trainingTypeSlug, business);
+      const list = set.length ? set : [presetCover];
+      setCovers(list);
+      if (!ownPhoto && (!photo || !list.includes(photo))) setPhoto(list[0]!);
       return;
     }
     if (!iconSrc) return;
@@ -451,6 +450,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   function problem(): string | null {
     if (step === 1 && business) {
       if (!bizCategory) return "Без раздела дальше не пущу 😉 Если не уверен — выбери самое близкое, поменять можно потом.";
+      if (bizCategory === "other" && own.trim().length < 2) return "Напиши одним-двумя словами, что за событие — например «дегустация». Так его найдут поиском";
     } else if (step === 1) {
       if (!categorySlug) return "Выбери, что планируешь.";
       if (categorySlug === "training" && !trainingTypeSlug) return "Выбери вид тренировки.";
@@ -459,7 +459,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     if (step === 2) {
       const t = titleProblem(title);
       if (t) return t;
-      const fullDesc = [isOwn && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". ");
+      const fullDesc = [(isOwn || (business && bizCategory === "other")) && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". ");
       const d = descriptionProblem(fullDesc);
       if (d) return d;
       // Мастер-классы и платные занятия — только через «Для бизнеса».
@@ -468,7 +468,10 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
         if (b) return b;
       }
     }
-    if (step === 2 && isOwn && !presetCover && (!ownPhoto || photo !== ownPhoto))
+    if (step === 2 && business && !bizCategory) return "Выбери раздел в афише — так гости найдут событие в фильтрах.";
+    if (step === 2 && business && (!ownPhoto || photo !== ownPhoto))
+      return "Загрузи фото события — афишу, зал или сцену. Так гости поймут, куда идут.";
+    if (step === 2 && isOwn && !presetCover && !isPresetCover(photo) && (!ownPhoto || photo !== ownPhoto))
       return "Мося не нашёл обложку под твою встречу — загрузи своё фото, чтобы люди поняли, куда зовёшь.";
     if (step === 3) {
       if (duration < 60) return "Встреча должна длиться хотя бы час.";
@@ -483,17 +486,17 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   function next() {
     const h = problem();
     if (h) {
-      say(h, "think");
+      flash(h);
       return;
     }
-    if (step === 1 && isOwn && !title) setTitle(own.trim());
+    if (step === 1 && (isOwn || (business && bizCategory === "other")) && !title) setTitle(own.trim());
     if (step < 4) {
       setDir(1);
       setStep(step + 1);
     } else publish();
   }
   function back() {
-    if (step > 1) {
+    if (step > (business ? 2 : 1)) {
       setDir(-1);
       setStep(step - 1);
     } else if (chosen && !skipKind) {
@@ -507,6 +510,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   function pickKind(k: Kind) {
     setBusiness(k === "business");
     setIsAnonymous(k === "anon");
+    setStep(k === "business" ? 2 : 1);
     setDir(1);
     setTimeout(() => setChosen(true), 220);
   }
@@ -539,7 +543,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           businessPricingType: business ? bizPricing : undefined,
           businessPricingDetails: business ? (bizPricing === "ticket" ? `${ticketPrice.trim()} ₽` : bizPricing === "custom" ? bizTerms.trim() : undefined) : undefined,
           title: title.trim(),
-          description: [isOwn && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description]
+          description: [(isOwn || (business && bizCategory === "other")) && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description]
             .filter(Boolean)
             .join(". "),
           isBusiness: business,
@@ -574,12 +578,11 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           setDir(-1);
           setStep(target);
         }
-        say(apiErrorText(data, "Не получилось опубликовать встречу. Попробуй ещё раз.", res.status), "think");
+        flash(apiErrorText(data, "Не получилось опубликовать встречу. Попробуй ещё раз.", res.status));
         setSubmitting(false);
         return;
       }
       if (editId) {
-        peek({ pose: "jump", text: "Сохранил! Участники увидят изменения", quick: true });
         router.push(`/events/${editId}`);
         return;
       }
@@ -594,46 +597,13 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           .then((r) => r.ok)
           .catch(() => false);
         setInvited(ok);
-        setTimeout(
-          () =>
-            peek({
-              pose: "jump",
-              text: ok ? `Готово! ${inviteName ?? "Человек"} получит приглашение в Telegram` : "Встреча готова, но приглашение не ушло — позови из профиля ещё раз",
-              quick: true,
-            }),
-          900
-        );
-      } else
-        setTimeout(() => peek({ pose: "jump", text: "Готово! Заявки придут в Telegram — ты сам решаешь, кого принять", quick: true }), 900);
+      }
     } catch {
       flash("Проблема с соединением.");
       setSubmitting(false);
     }
   }
 
-  const preview = useMemo(
-    () => ({
-      id: "preview",
-      title: title || own || "Моя встреча",
-      eventDate,
-      eventTime,
-      placeName: isAnonymous ? null : placeName || null,
-      organizerHidden: isAnonymous,
-      seatsTotal,
-      seatsTaken: 0,
-      photoUrl: photo ?? null,
-      isAnonymous: business ? false : isAnonymous,
-      costType,
-      isBusiness: business,
-      businessPricingType: business ? bizPricing : null,
-      businessPricingDetails: business ? (bizPricing === "ticket" ? (ticketPrice ? `${ticketPrice} ₽` : "Билет") : bizTerms || null) : null,
-      organizer: business ? { name: me?.name ?? "Твоё заведение" } : null,
-      category: categorySlug ? { slug: categorySlug } : null,
-      trainingType: trainingTypeSlug ? { slug: trainingTypeSlug } : null,
-      goingPreview: [],
-    }),
-    [title, own, eventDate, eventTime, isAnonymous, placeName, seatsTotal, photo, costType, categorySlug, trainingTypeSlug, business, bizPricing, ticketPrice, bizTerms, me]
-  );
 
   /* ---------- опубликовано ---------- */
   if (!editId && !publishedId && chosen && kind !== "anon" && (profileState !== "ready" || !hasOrganizerPhoto(me?.avatarUrl))) {
@@ -647,33 +617,38 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   }
 
   if (publishedId) {
+    // «Встреча опубликована» — как в прототипе: живой Мося, «Поделиться», «В популярное», «Мои встречи».
     return (
       <section className="scr aurora up" data-id="published">
-        <div className="scroll" style={{ paddingBottom: 180 }}>
-          <div className="done">
-            <div className="burst">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={mosyaSrc("wave")} alt="" />
-            </div>
-            <h1 className="t">
-              Встреча <em>опубликована</em>
+        <div className="scroll" style={{ paddingBottom: 200 }}>
+          <div className="k-done" style={{ display: "grid", justifyItems: "center", textAlign: "center", paddingTop: "12vh" }}>
+            <Creature size={220} variant="e" />
+            <h1 className="k-h1" style={{ marginTop: 26, textAlign: "center" }}>
+              Встреча
+              <br />
+              <em>опубликована</em>
             </h1>
-            <p>
+            <p className="k-sub2" style={{ maxWidth: 320, textAlign: "center" }}>
               {invited && inviteName ? `Приглашение для ${inviteName} уже отправлено. ` : ""}
               {isAnonymous
                 ? "Встреча анонимная: имя, фото и адрес увидят только те, кого ты примешь."
-                : `${photo !== ownPhoto ? "Обложку подобрал Мося — поменять можно в редактировании. " : ""}Её уже видят люди рядом. Заявки придут сюда и в Telegram — ты сам решаешь, кого принять.`}
+                : "Подписчики и люди рядом увидят её первыми. Заявки придут в «Мои встречи»."}
             </p>
           </div>
         </div>
-        <div className="foot">
-          <button className="btn v" onClick={() => setShareOpen(true)}>
-            <Ic n="share" />
-            Поделиться ссылкой
+        <div className="foot" style={{ display: "grid", gap: 10 }}>
+          <button className="k-btn k-d k-pr" onClick={() => setShareOpen(true)}>
+            <KI n="share" />
+            Поделиться
           </button>
-          <button className="btn o" onClick={() => router.push("/my-events")}>
-            Мои встречи
-          </button>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <button className="k-btn k-l k-pr" onClick={() => router.push(`/events/${publishedId}?promote=1`)}>
+              <KI n="spark" />В популярное
+            </button>
+            <button className="k-btn k-l k-pr" onClick={() => router.push("/my-events")}>
+              Мои встречи
+            </button>
+          </div>
         </div>
         <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={publishedId} title={title} when={sumTxt} version={photo ?? ""} />
       </section>
@@ -682,364 +657,341 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
 
   const cats = categories.filter((c) => c.slug !== "custom");
   const hasCustom = categories.some((c) => c.slug === "custom");
+  // Наши обложки — только для своего раздела встречи; у бизнеса — только своё фото.
+  const gridCovers = business ? [] : !isOwn || presetCover ? covers : [];
+  const planName = plan === "medium" ? "Медиум" : plan === "premium" ? "Премиум" : "Старт";
+  const srcLabel = (src?: string) => (src === "yandex" ? "Яндекс" : src === "osm" ? "Карты" : "");
+  const costLabel = business
+    ? bizPricing === "ticket"
+      ? ticketPrice
+        ? `${ticketPrice} ₽`
+        : "Билет"
+      : bizPricing === "free"
+        ? "Бесплатно"
+        : "Свои условия"
+    : COSTS.find(([v]) => v === costType)?.[1] ?? "";
 
   return (
     <section className="scr cr aurora up" data-id="create">
-      <div className="scroll" style={{ paddingBottom: 160 }}>
-        <div className="head">
-          <button className="rb gl" onClick={back} aria-label={step > 1 || (chosen && !skipKind) ? "Назад" : "Закрыть"}>
-            <Ic n={step > 1 || (chosen && !skipKind) ? "back" : "close"} />
+      <div className="scroll" style={{ paddingBottom: 150 }}>
+        <div className="k-top">
+          <button className="k-rb k-g k-pr" onClick={back} aria-label={step > 1 || (chosen && !skipKind) ? "Назад" : "Закрыть"}>
+            <KI n={step > 1 || (chosen && !skipKind) ? "back" : "x"} />
           </button>
-          <span className="prog">
-            {[1, 2, 3, 4].map((i) => (
-              <i key={i} className={chosen && i <= step ? "on" : ""} />
+          <div className="k-wprog">
+            {(business ? [2, 3, 4] : [1, 2, 3, 4]).map((i) => (
+              <i key={i} className={chosen && i <= step ? "k-on" : ""} />
             ))}
-          </span>
-          <span style={{ minWidth: 44, textAlign: "right", color: "var(--grey)", fontSize: 13 }}>
-            {chosen ? `${editId ? "Правка " : business ? "Бизнес " : ""}${step}/4` : ""}
-          </span>
+          </div>
         </div>
 
-        <div key={chosen ? step : 0} className="crstep" style={{ ["--dir" as string]: dir } as React.CSSProperties}>
+        <div key={chosen ? step : 0} className={`k-wst ${dir < 0 ? "k-back" : ""}`}>
           {!chosen && (
             <>
-              <h1 className="t">
+              <h1 className="k-h1">
                 Что <em>создаём</em>?
               </h1>
-              <p className="sub">Выбери формат — дальше всё подскажу по шагам.</p>
-              {(
-                [
-                  ["open", "mosya_wave", "Открытая встреча", "Кофе, спорт, кино, прогулка — все видят тебя и место встречи"],
-                  ["anon", "mosya_shy", "Анонимная встреча", "Имя, фото и точный адрес увидят только те, чью заявку ты примешь"],
-                  ["business", "mosya_glasses", "Событие для бизнеса", "Афиша для заведения или своего дела: концерт, квиз, мастер-класс. Гостей до 500, можно билеты"],
-                ] as [Kind, string, string, string][]
-              ).map(([k, sticker, name, text]) => (
-                <button key={k} className={`ownw gl ${kind === k ? "sel" : ""}`} onClick={() => pickKind(k)}>
-                  <span className="ck">
-                    <Ic n="check" />
-                  </span>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={`/brand/stickers/${sticker}.webp`} alt="" width={70} height={70} style={{ flex: "none", objectFit: "contain" }} />
-                  <div>
-                    <b>{name}</b>
-                    <span>{text}</span>
-                  </div>
-                </button>
-              ))}
+              <p className="k-sub2">Выбери формат — дальше всё подскажу по шагам.</p>
+              <div className="k-opts">
+                {(
+                  [
+                    ["open", "", "Открытая встреча", "Кофе, спорт, кино, прогулка — все видят тебя и место встречи"],
+                    ["anon", "k-t2", "Анонимная встреча", "Имя, фото и точный адрес увидят только те, чью заявку ты примешь"],
+                    ["business", "k-t3", "Событие для бизнеса", "Афиша для заведения или своего дела: концерт, квиз, мастер‑класс. Гостей до 500, можно билеты"],
+                  ] as [Kind, string, string, string][]
+                ).map(([k, tint, name, text]) => (
+                  <button key={k} className={`k-own k-opt3 k-g k-pr ${kind === k ? "k-on" : ""}`} onClick={() => pickKind(k)}>
+                    <span className={`k-crw ${tint}`}>
+                      <Creature size={86} variant={k === "anon" ? "p" : "e"} />
+                    </span>
+                    <span>
+                      <b>{name}</b>
+                      <small>{text}</small>
+                    </span>
+                  </button>
+                ))}
+              </div>
             </>
           )}
+
           {chosen && step === 1 && (
             <>
+              <h1 className="k-h1">{business ? <>Куда <em>зовёшь</em>?</> : <>Что <em>планируем</em>?</>}</h1>
+              <p className="k-sub2">
+                {business
+                  ? "Выбери раздел — в нём гости найдут событие в «Для бизнеса». Название напишешь на следующем шаге."
+                  : "Выбери, во что будет встреча. Так её найдут люди с похожими интересами."}
+              </p>
               {business ? (
-                <>
-                  <h1 className="t">
-                    Куда <em>зовёшь</em>?
-                  </h1>
-                  <p className="sub">Выбери раздел — в нём гости найдут событие в «Для бизнеса». Название напишешь на следующем шаге.</p>
-                </>
-              ) : (
-                <>
-                  <h1 className="t">
-                    Что <em>планируем</em>?
-                  </h1>
-                  <p className="sub">Выбери, во что будет встреча. Так её найдут люди с похожими интересами.</p>
-                </>
-              )}
-              {business ? (
-                <div className="grid4">
-                  {BIZ_SECTIONS.map((c) => (
-                    <button key={c.key} className={`it gl ${bizCategory === c.key ? "sel" : ""}`} onClick={() => setBizCategory(c.key)}>
-                      <span className="ck">
-                        <Ic n="check" />
-                      </span>
+                <div className="k-cats">
+                  {BIZ_SECTIONS.filter((c) => c.key !== "other").map((c) => (
+                    <button key={c.key} className={`k-cat k-g k-pr ${bizCategory === c.key ? "k-on" : ""}`} onClick={() => setBizCategory(c.key)}>
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={bizCategoryIcon(c)} alt="" />
                       {c.label}
                     </button>
                   ))}
                 </div>
-              ) : (
-              <div className="grid4">
-                {cats.map((c) => (
-                  <button
-                    key={c.id}
-                    className={`it gl ${categorySlug === c.slug ? "sel" : ""}`}
-                    onClick={() => {
-                      setCategorySlug(c.slug);
-                      if (c.slug !== "training") setTrainingTypeSlug(null);
-                    }}
-                  >
-                    <span className="ck">
-                      <Ic n="check" />
+              ) : null}
+              {business && (
+                <>
+                  <button className={`k-own k-g k-pr ${bizCategory === "other" ? "k-on" : ""}`} onClick={() => setBizCategory("other")}>
+                    <span className="k-op">
+                      <KI n="plusp" />
                     </span>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" />
-                    {SHORT[c.slug] ?? c.name}
+                    <span>
+                      <b>Свой раздел</b>
+                      <small>Нет подходящего? Напиши сам — дегустация, фестиваль, ярмарка</small>
+                    </span>
                   </button>
-                ))}
-              </div>
+                  {bizCategory === "other" && (
+                    <label className="k-field k-g" style={{ marginTop: 8 }}>
+                      <input autoFocus value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Например: дегустация, фестиваль" maxLength={30} />
+                      <span className="k-cnt2">{own.length}/30</span>
+                    </label>
+                  )}
+                </>
               )}
-              {!business && hasCustom && (
-                <button
-                  className={`ownw gl ${isOwn ? "sel" : ""}`}
-                  onClick={(e) => {
-                    setCategorySlug("custom");
-                    setTrainingTypeSlug(null);
-                    e.currentTarget.querySelector(".spinstar")?.animate(
-                      [{ transform: "rotate(0)" }, { transform: "rotate(360deg) scale(1.2)" }, { transform: "rotate(360deg)" }],
-                      { duration: 900, easing: "cubic-bezier(.34,1.3,.64,1)" }
-                    );
-                  }}
-                >
-                  <span className="ck">
-                    <Ic n="check" />
-                  </span>
-                  <span className="spinstar">
-                    <Chr shape="star" pal="peach" face="sly" />
-                  </span>
-                  <div>
-                    <b>Своё предложение</b>
-                    <span>Не нашёл подходящего? Придумай сам — от сапов до вязания</span>
-                  </div>
-                </button>
+              {!business && (
+                <div className="k-cats">
+                  {cats.map((c) => (
+                    <button
+                      key={c.id}
+                      className={`k-cat k-g k-pr ${categorySlug === c.slug ? "k-on" : ""}`}
+                      onClick={() => {
+                        setCategorySlug(c.slug);
+                        if (c.slug !== "training") setTrainingTypeSlug(null);
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" />
+                      {SHORT[c.slug] ?? c.name}
+                    </button>
+                  ))}
+                </div>
               )}
               {!business && categorySlug === "training" && (
-                <div className="rv">
-                  <span className="lbl">Какая тренировка?</span>
-                  <div className="cats" style={{ flexWrap: "wrap", margin: 0, padding: 0 }}>
+                <>
+                  <span className="k-lbl">Какая тренировка?</span>
+                  <div className="k-cats" style={{ marginTop: 0 }}>
                     {trainingTypes.map((t) => (
-                      <button key={t.id} className={`cat ${trainingTypeSlug === t.slug ? "on" : "gl"}`} onClick={() => setTrainingTypeSlug(t.slug)}>
+                      <button key={t.id} className={`k-cat k-g k-pr ${trainingTypeSlug === t.slug ? "k-on" : ""}`} onClick={() => setTrainingTypeSlug(t.slug)}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={trainingIcon(t.slug)} alt="" />
                         {t.name}
                       </button>
                     ))}
                   </div>
-                </div>
+                </>
+              )}
+              {!business && hasCustom && (
+                <button
+                  className={`k-own k-g k-pr ${isOwn ? "k-on" : ""}`}
+                  onClick={() => {
+                    setCategorySlug("custom");
+                    setTrainingTypeSlug(null);
+                  }}
+                >
+                  <span className="k-op">
+                    <KI n="plusp" />
+                  </span>
+                  <span>
+                    <b>Своё предложение</b>
+                    <small>Не нашёл подходящего? Придумай сам — от сапов до вязания</small>
+                  </span>
+                </button>
               )}
               {isOwn && (
-                <div className="ownbox rv">
-                  <span className="lbl">Чем займёмся?</span>
-                  <label className="field gl">
-                    <input value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Например: сапы, вязание, бадминтон" maxLength={30} />
-                  </label>
-                  <p className="muted" style={{ fontSize: 13, margin: "8px 2px 0", lineHeight: 1.45 }}>
-                    Встреча попадёт в раздел «Другое», а люди найдут её поиском по этому слову.
-                  </p>
-                </div>
+                <label className="k-field k-g" style={{ marginTop: 8 }}>
+                  <input autoFocus value={own} onChange={(e) => setOwn(e.target.value)} placeholder="Например: сапы, вязание, бадминтон" maxLength={30} />
+                  <span className="k-cnt2">{own.length}/30</span>
+                </label>
               )}
             </>
           )}
 
           {chosen && step === 2 && (
             <>
-              <h1 className="t">
+              <h1 className="k-h1">
                 Название <em>и обложка</em>
               </h1>
-              <p className="sub">Короткое название и картинка решают, придут ли люди.</p>
-              <span className="lbl">Название</span>
-              <label className="field gl">
+              <p className="k-sub2">Короткое название и картинка решают, придут ли люди.</p>
+              <span className="k-lbl">Название</span>
+              <label className="k-field k-g">
                 <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder={business ? "Например, дегустация вин от сомелье" : "Например, кофе перед работой"} maxLength={100} />
               </label>
-              <div className="aihead">
-                <span className="lbl" style={{ margin: 0 }}>
-                  Обложка
-                </span>
-                {(!isOwn || presetCover) && (
-                  <span className={`aitag ${covers.length ? "" : "run"}`}>
-                    {covers.length ? (presetCover ? `✦ Мося подобрал для «${catLabel}»` : title.trim() ? `✦ Нарисовано под «${title.trim()}»` : "✦ Мося нарисовал") : "✦ Мося рисует…"}
-                  </span>
-                )}
-              </div>
-              {isOwn && !presetCover && (
-                <p className="muted" style={{ fontSize: 13.5, margin: "2px 2px 8px", lineHeight: 1.45 }}>
-                  Под «{own.trim() || title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото. Мы проверим его автоматически: без пошлости и чужой рекламы.
-                </p>
-              )}
-              {(!isOwn || presetCover) && (
-              <div className="covers">
-                {covers.length === 0
-                  ? [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "1", borderRadius: 18 }} />)
-                  : covers.map((c, i) => (
-                      <button
-                        key={c.slice(-40) + i}
-                        className={`aic ${photo === c ? "on" : ""}`}
-                        style={{ animationDelay: `${i * 0.08}s`, ...(isPresetCover(c) ? { gridColumn: "1 / -1", aspectRatio: "1.5" } : {}) }}
-                        onClick={() => setPhoto(c)}
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img className="cv" src={c} alt={`Обложка ${i + 1}`} />
-                        <span className="aib">✦ Мося</span>
-                      </button>
-                    ))}
-              </div>
-              )}
-              <div className="covers" style={{ marginTop: 8 }}>
-                <button className="up gl" onClick={() => fileRef.current?.click()}>
-                  <Ic n="camera" />
-                  Своё фото
-                </button>
-                {ownPhoto && (
-                  <button className={photo === ownPhoto ? "on" : ""} onClick={() => setPhoto(ownPhoto)}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={ownPhoto} alt="" />
-                  </button>
-                )}
-                {!isOwn && !presetCover && (
-                  <button className="up gl" onClick={() => setCoverShift((s) => s + 1)}>
-                    ↻<br />
-                    Ещё варианты
-                  </button>
-                )}
-              </div>
-              <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
-              <p className="muted" style={{ fontSize: 13, margin: "10px 2px 0", lineHeight: 1.45 }}>
-                {isOwn && !presetCover
-                  ? "Фото обязательно: без него встречу не опубликовать."
-                  : "Своё фото можно загрузить к любой встрече. Не загрузишь — будет обложка, которую подобрал Мося."}
-              </p>
-              <span className="lbl">
-                Описание <small className="muted">пара слов: что будете делать и для кого</small>
-              </span>
-              <label className="field gl ta">
+              <span className="k-lbl">Описание</span>
+              <label className="k-field k-g k-ta">
                 <textarea rows={3} maxLength={500} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Что будем делать, как узнать друг друга" />
               </label>
+              {business && (
+                <>
+                  <span className="k-lbl">Раздел в афише</span>
+                  <div className="k-hs" style={{ gap: 6, marginTop: 0 }}>
+                    {[...(bizCategory ? BIZ_SECTIONS.filter((c) => c.key === bizCategory) : []), ...BIZ_SECTIONS.filter((c) => c.key !== bizCategory)].map((c) => (
+                      <button
+                        key={c.key}
+                        className={`k-chip k-g k-pr ${bizCategory === c.key ? "k-on" : ""}`}
+                        onClick={() => {
+                          setBizCategory(c.key);
+                          setBizPicked(true);
+                        }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={bizCategoryIcon(c)} alt="" style={{ width: 20, height: 20, filter: bizCategory === c.key ? "invert(1) brightness(2)" : undefined }} />
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="k-cvn">
+                    {bizCategory
+                      ? bizPicked
+                        ? "Так гости найдут событие в фильтрах афиши и в поиске"
+                        : "Подобрали по названию — если не то, выбери другой"
+                      : "Выбери раздел — так гости найдут событие в фильтрах афиши"}
+                  </p>
+                </>
+              )}
+              <span className="k-lbl">Обложка</span>
+              <p className="k-cvn">
+                {business
+                  ? "Загрузи своё фото — афишу, зал или сцену. Вертикально, 3:4"
+                  : isOwn && !presetCover
+                    ? `Под «${own.trim() || title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото`
+                    : gridCovers.length > 1
+                      ? `Обложки для «${catLabel}» · выбери одну или загрузи своё фото`
+                      : "Обложку подобрал Мося · или загрузи своё фото"}
+              </p>
+              {business && (
+                // Событие для бизнеса: фото загружают сами — большая карточка, как «Так увидят другие».
+                <button className={`k-bizph k-pr ${ownPhoto ? "on" : "k-g"}`} style={ownPhoto ? bgCover(ownPhoto) : undefined} onClick={() => fileRef.current?.click()}>
+                  {ownPhoto ? (
+                    <span className="k-chip k-gw">
+                      <Ic n="camera" c="xs" /> Заменить фото
+                    </span>
+                  ) : (
+                    <span className="k-bizph-in">
+                      <span className="k-op">
+                        <Ic n="camera" />
+                      </span>
+                      <b>Загрузить фото события</b>
+                      <small>Афиша, зал или сцена · вертикально, 3:4</small>
+                    </span>
+                  )}
+                </button>
+              )}
+              {!business && (
+              <div className="k-cvg">
+                {gridCovers.length === 0 && !business && (!isOwn || presetCover) && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "3 / 4", borderRadius: 16 }} />)}
+                {gridCovers.map((c, i) => (
+                  <button key={c.slice(-40) + i} className={`k-pr ${photo === c ? "k-on" : ""}`} style={bgCover(c)} onClick={() => setPhoto(c)} aria-label={`Обложка ${i + 1}`} />
+                ))}
+                {ownPhoto && <button className={`k-pr ${photo === ownPhoto ? "k-on" : ""}`} style={bgCover(ownPhoto)} onClick={() => setPhoto(ownPhoto)} aria-label="Своё фото" />}
+                <button className="k-pr k-cvown" onClick={() => fileRef.current?.click()}>
+                  +<small>Своё фото</small>
+                </button>
+              </div>
+              )}
+              {!business && !isOwn && !presetCover && (
+                <button className="k-btn k-l k-pr k-cropb" onClick={() => setCoverShift((n) => n + 1)}>
+                  Ещё варианты
+                </button>
+              )}
+              <input ref={fileRef} type="file" accept="image/*" hidden onChange={handlePhoto} />
             </>
           )}
 
           {chosen && step === 3 && (
             <>
-              <h1 className="t">
+              <h1 className="k-h1">
                 Когда <em>и где</em>?
               </h1>
-              <p className="sub">Покрути день и время, как будильник на айфоне, или открой календарь.</p>
-              <div className="whsum gl">
+              <p className="k-sub2">Выбери день и время — дальше место.</p>
+              <div className="k-dates">
+                {[...TILE_DAYS, ...(TILE_DAYS.includes(di) ? [] : [di])].map((i) => {
+                  const d = dayDate(i);
+                  return (
+                    <button key={i} className={`k-dp k-g k-pr ${di === i ? "k-on" : ""}`} onClick={() => setDi(i)}>
+                      <small>{i === 0 ? "Сегодня" : WD[d.getDay()]}</small>
+                      <b>{d.getDate()}</b>
+                    </button>
+                  );
+                })}
+              </div>
+              <button className="k-calb k-g k-pr" onClick={() => setCalOpen(true)}>
+                <KI n="cal" />
+                Выбрать в календаре
+              </button>
+              <div className="k-whrow">
                 <div>
-                  <small>Встреча</small>
-                  <b>{sumTxt}</b>
-                </div>
-                <button className="sm" onClick={() => setCalOpen(true)}>
-                  <Ic n="cal" c="xs" /> Календарь
-                </button>
-              </div>
-              <div className="chs nw" style={{ marginTop: 10 }}>
-                {QUICK_DAYS.map((i) => (
-                  <button key={i} className={di === i ? "on" : "gl"} onClick={() => setDi(i)}>
-                    {DAYS[i]?.chip}
-                  </button>
-                ))}
-              </div>
-              <div className="wheels gl">
-                <Wheel cls="d" items={DAYS.map((d) => d.s)} index={di} onChange={setDi} />
-                <Wheel items={HOURS} index={hh} onChange={setHh} />
-                <span className="colon">:</span>
-                <Wheel items={MINS} index={mi} onChange={setMi} />
-              </div>
-              <span className="lbl">Сколько продлится</span>
-              <div className="chs nw">
-                {DURS.map(([v, t]) => (
-                  <button
-                    key={v}
-                    className={duration === v && !durOwn ? "on" : "gl"}
-                    onClick={() => {
-                      setDuration(v);
-                      setDurOwn(false);
-                    }}
-                  >
-                    {t}
-                  </button>
-                ))}
-                <button className={durOwn ? "on" : "gl"} onClick={() => setDurOwn(true)}>
-                  Своё
-                </button>
-              </div>
-              {durOwn && (
-                <div className="rv">
-                  <div className="durrow">
-                    <label className="field gl">
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={23}
-                        value={Math.floor(duration / 60)}
-                        onChange={(e) => setDuration(Math.max(0, Math.min(23, Number(e.target.value || 0))) * 60 + (duration % 60))}
-                      />
-                      <span>ч</span>
-                    </label>
-                    <label className="field gl">
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min={0}
-                        max={55}
-                        step={5}
-                        value={duration % 60}
-                        onChange={(e) => setDuration(Math.floor(duration / 60) * 60 + Math.max(0, Math.min(55, Number(e.target.value || 0))))}
-                      />
-                      <span>мин</span>
-                    </label>
+                  <span className="k-lbl">Начало</span>
+                  <div className="k-wheels2">
+                    <div className="k-wheel k-g">
+                      <Wheel items={HOURS} index={hh} onChange={setHh} />
+                    </div>
+                    <b className="k-colon">:</b>
+                    <div className="k-wheel k-g">
+                      <Wheel items={MINS} index={mi} onChange={setMi} />
+                    </div>
                   </div>
-                  <p className="hint2">Минимум 1 час. Окончание может быть на следующий день.</p>
                 </div>
-              )}
+                <div>
+                  <span className="k-lbl">Сколько продлится</span>
+                  <div className="k-wheel k-g k-wide">
+                    <Wheel items={DUR_WHEEL.map(([, t]) => t)} index={durIndex(duration)} onChange={(i) => setDuration(DUR_WHEEL[i]![0])} />
+                  </div>
+                </div>
+              </div>
 
-              <span className="lbl">Место</span>
-              <label className="sfield gl plin" style={{ cursor: "text", height: 48 }}>
-                <Ic n="search" c="s" />
-                <input
-                  value={placeQuery}
-                  onChange={(e) => setPlaceQuery(e.target.value)}
-                  placeholder="Название места или адрес"
-                  style={{ flex: 1, border: 0, background: "none", font: "inherit", fontSize: 15, outline: "none", color: "var(--ink)", minWidth: 0 }}
-                />
-              </label>
-              {placeQuery.trim().length >= 2 && (
-                <div className="pldrop gl">
-                  {drop.map((p) => (
-                    <button key={"p" + p.name + p.address} onClick={() => pickPlace(p)}>
-                      <Ic n="pin" c="s" />
-                      <div>
-                        <b>{p.name}</b>
-                        <span>{p.address}</span>
-                      </div>
-                    </button>
-                  ))}
-                  {addrDrop.map((a) => (
-                    <button key={"a" + a.address} onClick={() => pickPlace({ name: placeQuery.trim(), address: a.address, latitude: a.latitude, longitude: a.longitude })}>
-                      <Ic n="nav" c="s" />
-                      <div>
-                        <b>{a.address.split(",")[0]}</b>
-                        <span>{a.address}</span>
-                      </div>
-                    </button>
-                  ))}
-                  {drop.length === 0 && addrDrop.length === 0 && <div className="pln">Ищем… или нажми на карту — адрес определится сам</div>}
-                </div>
-              )}
+              <span className="k-lbl">Место</span>
               {recs.length > 0 && (
                 <>
-                  <div className="aihead" style={{ margin: "10px 0 6px" }}>
-                    <span className="aitag">✦ Мося рекомендует для «{catLabel}»</span>
-                  </div>
-                  <div className="plrec">
-                    {recs.map((p) => (
-                      <button key={p.name} className={`plr gl ${placeName === p.name ? "on" : ""}`} onClick={() => pickPlace(p)}>
-                        <b>{p.name}</b>
+                  <div className="k-recp">
+                    {recs.slice(0, 3).map((p) => (
+                      <button key={p.name} className={`k-rp k-g k-pr ${placeName === p.name ? "k-on" : ""}`} onClick={() => pickPlace(p)}>
+                        <i aria-hidden />
+                        <span>
+                          <b>{p.name}</b>
+                          <small>{p.address || "отметим на карте"}</small>
+                        </span>
                         {p.rating ? (
-                          <span className="plrate">
+                          <span className="k-rt">
                             ★ {p.rating.toFixed(1).replace(".", ",")}
-                            {p.reviews ? ` · ${reviewsWord(p.reviews)}` : ""}
+                            {srcLabel(p.source) && <small>{srcLabel(p.source)}</small>}
                           </span>
                         ) : null}
-                        {p.note ? <span className="plnote">{p.note}</span> : null}
-                        <span>{p.address || "отметим на карте"}</span>
                       </button>
                     ))}
                   </div>
+                  <small className="k-rpn">Лучшие по рейтингу для «{catLabel}» · или найди своё</small>
                 </>
               )}
-              <div className="pmap">
+              <label className="k-field k-g" style={{ marginTop: 8 }}>
+                <KI n="search" />
+                <input value={placeQuery} onChange={(e) => setPlaceQuery(e.target.value)} placeholder="Название места или адрес" autoComplete="off" />
+              </label>
+              {placeQuery.trim().length >= 2 && (
+                <div className="k-sugg k-g">
+                  {drop.map((p) => (
+                    <button key={"p" + p.name + p.address} className="k-pr" onClick={() => pickPlace(p)}>
+                      <b>{p.name}</b>
+                      <span>{p.address}</span>
+                    </button>
+                  ))}
+                  {addrDrop.map((a) => (
+                    <button key={"a" + a.address} className="k-pr" onClick={() => pickPlace({ name: placeQuery.trim(), address: a.address, latitude: a.latitude, longitude: a.longitude })}>
+                      <b>{a.address.split(",")[0]}</b>
+                      <span>{a.address}</span>
+                    </button>
+                  ))}
+                  {drop.length === 0 && addrDrop.length === 0 && (
+                    <button className="k-pr" disabled>
+                      <span>Ищем… или нажми на карту — адрес определится сам</span>
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="k-mapbox k-g" style={{ height: 200 }}>
                 <LocationPicker
                   onPick={({ latitude: la, longitude: lo }) => {
                     setLatitude(la);
@@ -1048,20 +1000,18 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                   }}
                   onAddressResolved={(resolved) => setAddress(resolved)}
                   externalCoords={externalCoords}
-                  heightPx={360}
+                  heightPx={200}
                 />
-                {latitude === undefined && <span className="phint">Нажми на карту — адрес определится сам</span>}
-                {placeName && (
-                  <div className="lab gl">
-                    <div>
-                      <b style={{ fontWeight: 500 }}>{placeName}</b>
-                      <br />
-                      <span className="muted">{address}</span>
-                    </div>
-                    <button className="sm" onClick={() => navigator.clipboard?.writeText(address).then(() => flash("Адрес скопирован"), () => {})} aria-label="Скопировать адрес">
-                      <Ic n="copy" c="xs" />
-                    </button>
-                  </div>
+              </div>
+              <div className="k-addr k-g">
+                <span>
+                  <b>{placeName || "Отметь точку на карте"}</b>
+                  <small>{address || "или выбери из подсказок"}</small>
+                </span>
+                {address && (
+                  <button className="k-rb k-g k-pr" onClick={() => navigator.clipboard?.writeText(address).then(() => flash("Адрес скопирован"), () => {})} aria-label="Скопировать адрес">
+                    <Ic n="copy" c="xs" />
+                  </button>
                 )}
               </div>
             </>
@@ -1069,59 +1019,78 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
 
           {chosen && step === 4 && (
             <>
-              <h1 className="t">
+              <h1 className="k-h1">
                 Кто <em>и сколько</em>?
               </h1>
-              <p className="sub">Все приходят по заявке — ты сам решаешь, кого принять.</p>
-              <span className="lbl">Сколько человек ищешь</span>
-              <div className="stepper">
-                <button className="gl" onClick={() => {
-                    if (seatsTotal <= minSeats && editId) say(`Меньше ${minSeats} нельзя — уже подтверждены`, "think");
+              <p className="k-sub2">Все приходят по заявке — ты сам решаешь, кого принять.</p>
+              <span className="k-lbl">Сколько человек ищешь</span>
+              <div className="k-bigst k-g">
+                <button
+                  className="k-rb k-g k-pr"
+                  onClick={() => {
+                    if (seatsTotal <= minSeats && editId) flash(`Меньше ${minSeats} нельзя — уже подтверждены`);
                     setSeatsTotal((n) => Math.max(minSeats, n - 1));
-                  }} aria-label="Меньше">
-                  −
+                  }}
+                  aria-label="Меньше"
+                >
+                  –
                 </button>
+                {/* Число можно вписать вручную (300 гостей — не 300 нажатий на «+»). */}
                 <input
-                  key={seatsTotal}
-                  className="numin gl bump"
+                  className="k-seatsin"
                   type="number"
                   inputMode="numeric"
-                  min={1}
+                  min={minSeats}
                   max={seatsCap}
-                  value={seatsTotal}
+                  value={seatsDraft ?? String(seatsTotal)}
+                  onFocus={(e) => e.currentTarget.select()}
                   onChange={(e) => {
-                    const v = Math.floor(Number(e.target.value || 1));
-                    if (v > seatsCap) say(`На твоём тарифе — максимум ${seatsCap}`, "think");
-                    setSeatsTotal(Math.max(minSeats, Math.min(seatsCap, Number.isFinite(v) ? v : 1)));
+                    const raw = e.target.value.replace(/[^\d]/g, "").slice(0, 3);
+                    setSeatsDraft(raw);
+                    const v = Number(raw);
+                    if (raw && v > seatsCap) flash(`На твоём тарифе — максимум ${seatsCap}`);
+                    if (raw && v >= minSeats) setSeatsTotal(Math.min(seatsCap, v));
+                  }}
+                  onBlur={() => {
+                    const v = Number(seatsDraft ?? seatsTotal);
+                    setSeatsTotal(Math.max(minSeats, Math.min(seatsCap, Number.isFinite(v) && v > 0 ? v : minSeats)));
+                    setSeatsDraft(null);
                   }}
                   aria-label="Количество человек"
                 />
-                <button className="gl" onClick={() => {
-                    if (seatsTotal >= seatsCap) say(`На твоём тарифе — максимум ${seatsCap}`, "think");
+                <button
+                  className="k-rb k-g k-pr"
+                  onClick={() => {
+                    if (seatsTotal >= seatsCap) flash(`На твоём тарифе — максимум ${seatsCap}`);
                     setSeatsTotal((n) => Math.min(seatsCap, n + 1));
-                  }} aria-label="Больше">
+                  }}
+                  aria-label="Больше"
+                >
                   +
                 </button>
               </div>
-              {business ? (
-                <p className="hint2">
-                  {seatsTotal > 20 ? "Больше 20 человек — общий чат не создаётся, только заявки." : "Для бизнес-событий: до 40 на «Старт», до 100 на «Медиум»."}
-                </p>
-              ) : (
-              <p className="hint2">
-                Не считая тебя. На встрече будет: ты + {seatsTotal} = {seatsTotal + 1} чел.
-                {seatsTotal > 4 && (
-                  <>
-                    {" "}
-                    <a onClick={() => router.push("/subscriptions")}>На «Старт» — до 4, больше на «Медиум»</a>
-                  </>
-                )}
+              <p className="k-sub2" style={{ marginTop: 6, textAlign: "center" }}>
+                {business
+                  ? seatsTotal > 20
+                    ? "Больше 20 гостей — общий чат не создаётся, только заявки"
+                    : `Гостей на событии: ${seatsTotal}`
+                  : `Не считая тебя · на встрече будет ${seatsTotal + 1} чел.`}
               </p>
-              )}
-              <span className="lbl">{business ? "Стоимость" : "Как насчёт расходов?"}</span>
+              <button className="k-plan k-g k-pr" onClick={() => router.push("/subscriptions")}>
+                <span>
+                  <b>
+                    Подписка {planName} · {business ? "гостей" : "группа"} до {planMax ?? hardMax}
+                  </b>
+                  <small>{business ? "Медиум — до 100, Премиум — без ограничений" : "Медиум — до 10, Премиум — до 30 человек"}</small>
+                </span>
+                <span className="k-chip k-g" style={{ height: 30, fontSize: 12 }}>
+                  Тарифы
+                </span>
+              </button>
+              <span className="k-lbl">{business ? "Стоимость" : "Как насчёт расходов?"}</span>
               {business ? (
                 <>
-                  <div className="costs">
+                  <div className="k-hs" style={{ gap: 6, marginTop: 0 }}>
                     {(
                       [
                         ["ticket", "Билет"],
@@ -1129,118 +1098,74 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                         ["custom", "Другие условия"],
                       ] as const
                     ).map(([v, t]) => (
-                      <button key={v} className={`opt gl ${bizPricing === v ? "on" : ""}`} onClick={() => setBizPricing(v)}>
-                        <span className="radio" />
-                        <b>{t}</b>
+                      <button key={v} className={`k-chip k-g k-pr ${bizPricing === v ? "k-on" : ""}`} onClick={() => setBizPricing(v)}>
+                        {t}
                       </button>
                     ))}
                   </div>
                   {bizPricing === "ticket" && (
-                    <div className="rv">
-                      <label className="field gl" style={{ marginTop: 8 }}>
+                    <>
+                      <label className="k-field k-g" style={{ marginTop: 8 }}>
                         <input value={ticketPrice} onChange={(e) => setTicketPrice(e.target.value.replace(/[^\d]/g, "").slice(0, 6))} placeholder="Цена билета, например 800" inputMode="numeric" />
-                        <span>₽</span>
+                        <span className="k-cnt2">₽</span>
                       </label>
-                      <div className="note gl" style={{ marginTop: 8 }}>
-                        <Ic n="wallet" c="s" />
-                        <span>Гости платят тебе лично — на месте или переводом. После одобрения заявки гость получит номер билета и назовёт его на входе.</span>
-                      </div>
-                    </div>
+                      <p className="k-sub2" style={{ marginTop: 6 }}>
+                        Гости платят тебе лично — на месте или переводом. После одобрения заявки гость получит номер билета.
+                      </p>
+                    </>
                   )}
                   {bizPricing === "custom" && (
-                    <label className="field gl ta rv" style={{ marginTop: 8 }}>
+                    <label className="k-field k-g k-ta" style={{ marginTop: 8 }}>
                       <textarea rows={2} maxLength={300} value={bizTerms} onChange={(e) => setBizTerms(e.target.value)} placeholder="Например: депозит 1000 ₽ на баре" />
                     </label>
                   )}
                 </>
               ) : (
-              <div className="costs">
-                {COSTS.map(([v, t]) => (
-                  <button key={v} className={`opt gl ${costType === v ? "on" : ""}`} onClick={() => setCostType(v)}>
-                    <span className="radio" />
-                    <b>{t}</b>
+                <div className="k-hs" style={{ gap: 6, marginTop: 0 }}>
+                  {COSTS.map(([v, t]) => (
+                    <button key={v} className={`k-chip k-g k-pr ${costType === v ? "k-on" : ""}`} onClick={() => setCostType(v)}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {!business && skipKind && (
+                <>
+                  <span className="k-lbl">Настройки встречи</span>
+                  <button className="k-tg2 k-g k-pr" onClick={() => setIsAnonymous(!isAnonymous)}>
+                    <span className="k-tgt">
+                      <b>Анонимная встреча</b>
+                      <small>Имя, фото и адрес — только тем, кого примешь</small>
+                    </span>
+                    <span className={`k-sw2 ${isAnonymous ? "k-on" : ""}`} />
                   </button>
-                ))}
-              </div>
+                </>
               )}
-              {!business && <span className="lbl">Как публикуем?</span>}
-              {!business && (
-              <div style={{ display: "grid", gap: 8 }}>
-                <button className={`opt gl ${!isAnonymous ? "on" : ""}`} onClick={() => setIsAnonymous(false)}>
-                  <span className="radio" />
-                  <div className="d">
-                    <b>Открыто</b>
-                    <span>Все видят твой профиль и место встречи</span>
-                  </div>
-                </button>
-                <button className={`opt gl ${isAnonymous ? "on" : ""}`} onClick={() => setIsAnonymous(true)}>
-                  <span className="radio" />
-                  <div className="d">
-                    <b>Анонимно</b>
-                    <span>Имя, фото и точный адрес увидят только те, чью заявку ты одобришь</span>
-                  </div>
-                </button>
+              <span className="k-lbl">Так увидят другие</span>
+              <div className="k-prev" style={bgCover(photo)}>
+                <span className="k-chip k-gw" style={{ top: 14, left: 14, height: 30, fontSize: 12 }}>
+                  0 из {seatsTotal} · {catLabel.toLowerCase()}
+                </span>
+                <span style={{ left: 18, right: 18, bottom: 18 }}>
+                  <span style={{ display: "block", font: "300 30px/1.05 var(--disp)", letterSpacing: "-.03em" }}>
+                    <TwoLine text={title || own || "Моя встреча"} />
+                  </span>
+                  <span style={{ display: "block", font: "400 13px var(--disp)", opacity: 0.85, marginTop: 6 }}>
+                    {DAYS[di]?.s}, {hh}:{pad2(mi * 5)} · {isAnonymous ? "место после одобрения" : placeName || "место"} · {costLabel}
+                  </span>
+                </span>
               </div>
-              )}
-              <span className="lbl">Так увидят другие</span>
-              <div className="pvbox gl">
-                <div className="pvr">
-                  <Cover photoUrl={photo} icon={iconSrc} cls="th" />
-                  <div>
-                    <b>{title || own || "Моя встреча"}</b>
-                    <span>
-                      {DAYS[di]?.s.toLowerCase()}, {hh}:{pad2(mi * 5)} · {isAnonymous ? "анонимно · место после одобрения" : placeName}
-                    </span>
-                    <span className="pvorg">
-                      {isAnonymous ? (
-                        <span className="pvav">
-                          <Chr shape="ball" pal="lilac" face="hidden" />
-                        </span>
-                      ) : (
-                        <span className="pvav me">
-                          {me?.avatarUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={me.avatarUrl} alt="" />
-                          ) : (
-                            (me?.name ?? "Я").charAt(0)
-                          )}
-                        </span>
-                      )}
-                      {isAnonymous ? "Организатор скрыт" : `${me?.name ?? "Ты"} · организатор`}
-                    </span>
-                  </div>
-                </div>
-                <div className="pvmap">
-                  <div className="pvpin">
-                    <span className="pw">
-                      {isAnonymous ? (
-                        <Chr shape="ball" pal="lilac" face="hidden" />
-                      ) : (
-                        <span className="pvme">
-                          {me?.avatarUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={me.avatarUrl} alt="" />
-                          ) : (
-                            (me?.name ?? "Я").charAt(0)
-                          )}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  <span>На карте {isAnonymous ? "вместо фото — персонаж, точный адрес скрыт" : "— твоё фото на метке"}</span>
-                </div>
-              </div>
-              <div style={{ pointerEvents: "none" }}>
-                <HeroCard e={preview} full />
-              </div>
+              <p className="k-sub2" style={{ marginTop: 8 }}>
+                {isAnonymous ? "На карте — Мося вместо фото, точный адрес скрыт" : "На карте — твоё фото на метке"}
+              </p>
             </>
           )}
         </div>
       </div>
       {chosen && (
         <div className="foot">
-          <button className={`btn ${step === 4 ? "v" : "k"}`} onClick={next} disabled={submitting}>
-            {step === 4 ? (submitting ? (editId ? "Сохраняем…" : "Публикуем…") : editId ? "Сохранить изменения" : "Опубликовать") : "Дальше"}
+          <button className="k-btn k-d k-pr" onClick={next} disabled={submitting}>
+            {step === 4 ? (submitting ? (editId ? "Сохраняем…" : "Публикуем…") : editId ? "Сохранить изменения" : "Опубликовать") : "Далее"}
           </button>
         </div>
       )}
@@ -1250,7 +1175,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       {cropSrc && (
         <PhotoCropModal
           src={cropSrc}
-          aspectRatio={2 / 3}
+          aspectRatio={3 / 4}
           title="Обложка встречи"
           hint="Двигай фото пальцем, двумя пальцами — приблизить. Так обложка будет выглядеть на карточке"
           preview={{ title }}
@@ -1276,9 +1201,9 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
 type Bg = { kind: "pastel" } | { kind: "grad"; stops: [string, string, string] };
 const BGS: Bg[] = [
   { kind: "pastel" },
-  { kind: "grad", stops: ["#6C3BFF", "#A24DFF", "#FF6FA0"] },
-  { kind: "grad", stops: ["#3A2F8F", "#6C3BFF", "#5AA9FF"] },
-  { kind: "grad", stops: ["#A24DFF", "#FF6FA0", "#FFB27A"] },
+  { kind: "grad", stops: ["#17141F", "#2A2536", "#FF6FA0"] },
+  { kind: "grad", stops: ["#3A2F8F", "#17141F", "#5AA9FF"] },
+  { kind: "grad", stops: ["#2A2536", "#FF6FA0", "#FFB27A"] },
   { kind: "grad", stops: ["#1A1230", "#5B3AA8", "#C871B6"] },
 ];
 

@@ -20,7 +20,7 @@ const BURST = [
   { x: 92, y: -84, s: 0.9, r: 20, d: 0.1, c: "#FF4F8B" },
   { x: -120, y: 18, s: 0.8, r: -12, d: 0.12, c: "#C9A8FF" },
   { x: 118, y: 26, s: 1, r: 16, d: 0.09, c: "#FF8FB5" },
-  { x: -54, y: -128, s: 0.7, r: -8, d: 0.14, c: "#A24DFF" },
+  { x: -54, y: -128, s: 0.7, r: -8, d: 0.14, c: "#2A2536" },
   { x: 48, y: -134, s: 1.2, r: 10, d: 0.07, c: "#FF4F8B" },
   { x: -70, y: 96, s: 0.7, r: -30, d: 0.13, c: "#FFD1E4" },
   { x: 74, y: 104, s: 0.8, r: 28, d: 0.11, c: "#C9A8FF" },
@@ -178,8 +178,8 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           .catch(() => {});
         setMatchOpen(true);
       } else {
-        setToast(`Сердечко у ${person.name}. Ответит взаимностью — Мося сразу скажет`);
-        setTimeout(() => setToast(null), 2600);
+        // Как в прототипе: карточка «Сердечко отправлено» по центру экрана.
+        window.dispatchEvent(new Event("mesto:heartpop"));
       }
     } catch {
       setLiked(false);
@@ -381,7 +381,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
 
   const photos = person.photos?.length ? person.photos : person.avatarUrl ? [person.avatarUrl] : [];
   const common = person.commonInterests ?? [];
-  const others = person.interests.filter((i) => !common.includes(i));
+  const others = (person.interests ?? []).filter((i) => !common.includes(i));
   const meets = person.completedMeetingsCount;
 
   return (

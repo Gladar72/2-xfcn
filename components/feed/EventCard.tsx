@@ -197,14 +197,14 @@ function Faces({ preview, count }: { preview: { id: string; name: string; avatar
 export function coverGradient(slug?: string | null, business?: boolean) {
   if (business) return "linear-gradient(150deg,#2A1F4E 0%,#5B3AA8 55%,#C871B6 100%)";
   const g: Record<string, string> = {
-    training: "linear-gradient(150deg,#6C3BFF 0%,#5AA9FF 100%)",
-    cinema: "linear-gradient(150deg,#3A2F8F 0%,#A24DFF 60%,#FF6FA0 100%)",
-    coffee: "linear-gradient(150deg,#A24DFF 0%,#FFB27A 100%)",
+    training: "linear-gradient(150deg,#17141F,#2A2536)",
+    cinema: "linear-gradient(150deg,#2A2536,#17141F)",
+    coffee: "linear-gradient(150deg,#3A3646,#17141F)",
     breakfast: "linear-gradient(150deg,#FF9DBF 0%,#FFB27A 100%)",
-    dinner: "linear-gradient(150deg,#5B3AA8 0%,#FF6FA0 100%)",
-    walk: "linear-gradient(150deg,#5AA9FF 0%,#A24DFF 100%)",
+    dinner: "linear-gradient(150deg,#3A3646,#17141F)",
+    walk: "linear-gradient(150deg,#3A3646,#17141F)",
   };
-  return (slug && g[slug]) || "linear-gradient(120deg,#6C3BFF 0%,#A24DFF 48%,#FF6FA0 100%)";
+  return (slug && g[slug]) || "linear-gradient(120deg,#17141F,#2A2536)";
 }
 
 function shortDay(dateIso: string): string {

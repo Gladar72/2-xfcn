@@ -8,7 +8,10 @@ export const TELEGRAM_BOT_URL = `https://t.me/${BOT_USERNAME}`;
 type AuthData = Record<string, string | number>;
 
 /** Telegram errors (e.g. an unlinked domain) are plain iframe documents, not a ready widget. */
-export function TelegramLoginWidget({ onAuth }: { onAuth: (user: AuthData) => void }) {
+export function TelegramLoginWidget({ onAuth, brand = false }: { onAuth: (user: AuthData) => void; brand?: boolean }) {
+  // brand: как в прототипе — одна белая кнопка «Войти через Telegram»; родная
+  // синяя кнопка Telegram для входа в браузере — по ссылке «Войти в браузере».
+  const [showWidget, setShowWidget] = useState(!brand);
   const box = useRef<HTMLDivElement>(null);
   const callback = useRef(onAuth);
   callback.current = onAuth;
@@ -49,9 +52,17 @@ export function TelegramLoginWidget({ onAuth }: { onAuth: (user: AuthData) => vo
 
   return (
     <div style={{ textAlign: "center", width: "100%" }}>
-      <div ref={box} aria-hidden={state !== "ready"} style={{ display: "flex", justifyContent: "center", visibility: state === "ready" ? "visible" : "hidden", height: state === "ready" ? "auto" : 0, overflow: "hidden" }} />
+      <div ref={box} aria-hidden={state !== "ready" || !showWidget} style={{ display: "flex", justifyContent: "center", visibility: state === "ready" && showWidget ? "visible" : "hidden", height: state === "ready" && showWidget ? "auto" : 0, overflow: "hidden", marginBottom: state === "ready" && showWidget ? 10 : 0 }} />
       {state === "unavailable" && <p role="status" style={{ fontSize: 13, lineHeight: 1.4, color: "#8A84A0", margin: "0 0 12px" }}>Вход через Telegram в этом браузере сейчас недоступен. Можно открыть «Место» прямо в Telegram.</p>}
-      <a href={TELEGRAM_BOT_URL} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 48, borderRadius: 999, padding: "0 18px", marginTop: state === "ready" ? 12 : 0, background: "rgba(108,59,255,.10)", color: "#6C3BFF", fontWeight: 600, textDecoration: "none" }}>Открыть «Место» в Telegram</a>
+      <a href={TELEGRAM_BOT_URL} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 27, padding: "0 18px", marginTop: 0, background: "rgba(255,255,255,.94)", color: "#17141F", fontWeight: 500, fontSize: 16, minHeight: 54, textDecoration: "none" }}>
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="#2AABEE" aria-hidden><path d="M21.5 4.2 2.9 11.4c-1.3.5-1.2 1.3-.2 1.6l4.8 1.5 1.8 5.6c.2.7.4.9.9.9.4 0 .6-.2.9-.4l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.4-1.3zM9.6 14.2l-.4 4.1-1.5-4.8 10.6-6.7z" /></svg>
+        {state === "ready" && !brand ? "Открыть «Место» в Telegram" : "Войти через Telegram"}
+      </a>
+      {brand && state === "ready" && !showWidget && (
+        <button type="button" onClick={() => setShowWidget(true)} style={{ marginTop: 10, background: "none", border: 0, color: "rgba(255,255,255,.85)", font: "400 13px var(--font-inter), sans-serif", textDecoration: "underline", textUnderlineOffset: 2, cursor: "pointer" }}>
+          Войти здесь, в браузере
+        </button>
+      )}
     </div>
   );
 }

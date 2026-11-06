@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import type { EventCardData } from "@/components/feed/EventCard";
 import { EmptyIll, Ic, RowCard, Screen, Sheet, Toast } from "@/components/proto/ui";
+import { KI } from "@/components/proto/k";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { CATEGORY_ICON } from "@/lib/data/category-icons";
 import { goBack } from "@/lib/nav/back";
@@ -69,6 +70,8 @@ function SearchPageContent() {
   const sp = useSearchParams();
   const openFilters = sp.get("filters") === "1";
   const [query, setQuery] = useState("");
+  // Как в прототипе: «Все / Встречи / Афиша» (личные встречи или события заведений).
+  const [kindTab, setKindTab] = useState<"all" | "meet" | "biz">("all");
   const [reloadKey, setReloadKey] = useState(0);
   useEffect(() => {
     if (openFilters) setSheetOpen(true);
@@ -204,9 +207,10 @@ function SearchPageContent() {
   }
 
   const q = query.trim().toLowerCase();
+  const byKind = kindTab === "all" ? events : events.filter((e) => (kindTab === "biz") === !!e.isBusiness);
   const list = q
-    ? events.filter((e) => [e.title, e.placeName, e.description, e.category?.name, e.trainingType?.name].filter(Boolean).some((t) => (t as string).toLowerCase().includes(q)))
-    : events;
+    ? byKind.filter((e) => [e.title, e.placeName, e.description, e.category?.name, e.trainingType?.name].filter(Boolean).some((t) => (t as string).toLowerCase().includes(q)))
+    : byKind;
 
   function quick(k: "today" | "tomorrow" | "weekend" | "free") {
     if (k === "free") setCostFilter((c) => (c === "free" ? "any" : "free"));
@@ -231,69 +235,74 @@ function SearchPageContent() {
 
   return (
     <Screen id="search" anim="in">
-      <div className="search" style={{ marginTop: 0 }}>
-        <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад">
-          <Ic n="back" />
+      <div className="k-top">
+        <button className="k-rb k-g k-pr" onClick={() => goBack(router, "/feed")} aria-label="Назад">
+          <KI n="back" />
         </button>
-        <label className="sfield gl" style={{ cursor: "text" }}>
-          <Ic n="search" c="s" />
-          <input
-            autoFocus={!openFilters}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Что ищем?"
-            style={{ flex: 1, border: 0, background: "none", font: "inherit", fontSize: 15, outline: "none", color: "var(--ink)", minWidth: 0 }}
-          />
+        <label className="k-sfield k-g" style={{ cursor: "text" }}>
+          <KI n="search" />
+          <input autoFocus={!openFilters} value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Встречи, места, интересы" enterKeyHint="search" />
+          {query && (
+            <button type="button" className="k-pr" onClick={() => setQuery("")} aria-label="Очистить" style={{ width: 32, height: 32, display: "grid", placeItems: "center" }}>
+              <Ic n="close" c="xs" />
+            </button>
+          )}
         </label>
-        <button className="rb k" onClick={() => setSheetOpen(true)} aria-label="Фильтры" style={{ width: 50, height: 50 }}>
-          <Ic n="filter" />
+        <button className="k-rb k-pr" onClick={() => setSheetOpen(true)} aria-label="Фильтры" style={{ marginLeft: 8, background: "var(--ink)", color: "#fff", position: "relative" }}>
+          <KI n="filter" />
           {activeFilterCount > 0 && <span className="cnt">{activeFilterCount}</span>}
         </button>
       </div>
-      <div className="chipsrow" style={{ marginTop: 14 }}>
+      <div className="k-seg3 k-g" style={{ marginTop: 16 }}>
+        {(
+          [
+            ["all", "Все"],
+            ["meet", "Встречи"],
+            ["biz", "Афиша"],
+          ] as const
+        ).map(([k, l]) => (
+          <button key={k} className={`k-pr ${kindTab === k ? "k-on" : ""}`} onClick={() => setKindTab(k)}>
+            {l}
+          </button>
+        ))}
+      </div>
+      <div className="k-qd">
         {(
           [
             ["today", "Сегодня"],
             ["tomorrow", "Завтра"],
-            ["weekend", "На выходных"],
+            ["weekend", "Выходные"],
             ["free", "Бесплатно"],
           ] as const
         ).map(([k, l]) => (
-          <button key={k} className={`chip ${(k === "free" ? costFilter === "free" : dateFilter === k) ? "on" : "gl"}`} onClick={() => quick(k)}>
+          <button key={k} className={`k-chip k-g k-pr ${(k === "free" ? costFilter === "free" : dateFilter === k) ? "k-on" : ""}`} onClick={() => quick(k)}>
             {l}
           </button>
         ))}
-        <Link className="chip gl" href={`/map?${buildFilterParams().toString()}`} style={{ display: "inline-grid", placeItems: "center" }}>
-          На карте
-        </Link>
       </div>
-      <div className="sec">
-        <b>Категории</b>
-        <span>{city}</span>
-      </div>
-      <div className="igrid">
+      <span className="k-lbl">Часто ищут</span>
+      <div className="k-ints" style={{ marginTop: 0 }}>
         {categories
           .filter((c) => c.slug !== "custom")
           .map((c) => (
             <button
               key={c.id}
-              className={`it ${selectedCategorySlugs.includes(c.slug) ? "sel" : "gl"}`}
+              className={`k-chip k-pr k-g ${selectedCategorySlugs.includes(c.slug) ? "k-on" : ""}`}
               onClick={() => {
                 toggleCategory(c.slug);
                 setReloadKey((n) => n + 1);
               }}
             >
-              <span className="ck">
-                <Ic n="check" />
-              </span>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" />
+              <img src={CATEGORY_ICON[c.slug] ?? CATEGORY_ICON.custom} alt="" style={{ width: 22, height: 22 }} />
               {SHORT[c.slug] ?? c.name}
             </button>
           ))}
       </div>
       <div className="sec">
-        <b>{q ? `Нашлось: ${list.length}` : "Все встречи"}</b>
+        <b style={{ fontSize: 13, fontWeight: 500, color: "var(--ink2, rgba(23,20,31,.58))" }}>
+          {q || kindTab !== "all" || activeFilterCount > 0 ? `Нашлось: ${list.length}` : "Все встречи и события"}
+        </b>
         {activeFilterCount > 0 && (
           <button
             onClick={() => {

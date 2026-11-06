@@ -25,6 +25,15 @@ export function TelegramInit() {
     if (!webApp) return;
     webApp.ready();
     webApp.expand();
+    // Как в прототипе: на телефоне сразу на весь экран, без шапки Telegram
+    // (Bot API 8.0+). Отступы сверху берутся из --tg-content-safe-area-inset-top,
+    // поэтому кнопки «закрыть / меню» Telegram ничего не перекрывают.
+    try {
+      const mobile = webApp.platform === "ios" || webApp.platform === "android";
+      if (mobile && webApp.isVersionAtLeast?.("8.0") && !webApp.isFullscreen) webApp.requestFullscreen?.();
+    } catch {
+      /* старый клиент — остаёмся в обычном раскрытом окне */
+    }
     // Экраны редизайна прокручиваются внутри себя (.scroll), а не всей
     // страницей. Без этого Telegram принимает свайп вниз/вверх за жест
     // «свернуть приложение», и прокрутка на телефоне не работает.

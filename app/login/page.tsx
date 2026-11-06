@@ -2,7 +2,6 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Wordmark } from "@/components/brand/Logo";
 
 import { TelegramLoginWidget } from "@/components/telegram/TelegramLoginWidget";
 import { readLaunchData } from "@/lib/telegram/launch-data";
@@ -21,7 +20,6 @@ export default function LoginPage() {
   );
 }
 
-const VIOLET = "#6C3BFF";
 
 function LoginInner() {
   const params = useSearchParams();
@@ -165,120 +163,85 @@ function LoginInner() {
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
   return (
-    <main
-      style={{
-        minHeight: "100dvh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "32px 20px",
-        background: "linear-gradient(180deg,#EADBFC 0%,#F6F2FF 45%,#FFE6D8 100%)",
-        color: "#16121F",
-      }}
-    >
-      <div style={{ width: "100%", maxWidth: 380 }}>
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: 28 }}>
-          <Wordmark height={40} color="#16121F" />
-        </div>
-        <h1 style={{ fontSize: 28, lineHeight: 1.1, fontWeight: 600, letterSpacing: -0.8, textAlign: "center", margin: 0 }}>
-          Есть куда пойти.
+    <main className="K" style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#17141F", color: "#fff", fontFamily: "var(--disp)" }}>
+      <div className="k-abg" aria-hidden style={{ backgroundImage: "url(/brand/auth/auth_bg.webp)" }} />
+      <div className="k-ashade" aria-hidden />
+      <div className="k-alogo" style={{ top: "34%" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/auth/wordmark-white.svg" alt="место" />
+        <p>
+          Найди <em>компанию</em>
           <br />
-          Найдём, <span style={{ color: VIOLET }}>с кем</span>
-        </h1>
-        <p style={{ textAlign: "center", color: "#3D3752", fontSize: 15, margin: "10px 0 28px" }}>
-          {step === "email" ? "Войди по почте — пришлём код из 4 цифр" : `Код отправили на ${email}`}
+          на сегодня
         </p>
-
-        <div style={{ background: "rgba(255,255,255,.8)", borderRadius: 28, padding: 20, boxShadow: "0 10px 30px rgba(108,59,255,.10)" }}>
-          {step === "email" ? (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (emailOk && !busy) sendCode();
-              }}
-            >
-              <input
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder="Твоя почта"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                style={inputStyle}
-              />
-              <button type="submit" disabled={!emailOk || busy} style={{ ...btnStyle, opacity: !emailOk || busy ? 0.55 : 1 }}>
-                {busy ? "Отправляем…" : "Получить код"}
-              </button>
-            </form>
-          ) : (
-            <div>
-              <input
-                ref={codeRef}
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="• • • •"
-                maxLength={4}
-                value={code}
-                onChange={(e) => {
-                  const v = e.target.value.replace(/\D/g, "").slice(0, 4);
-                  setCode(v);
-                  if (v.length === 4 && !busy) verify(v);
+      </div>
+      <div className="k-abtns" style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)", maxWidth: 440, margin: "0 auto" }}>
+        <small>Через Telegram быстрее всего — имя и фото подтянутся сами</small>
+        {EMAIL_LOGIN && (
+          <div style={{ marginBottom: 14 }}>
+            {step === "email" ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (emailOk && !busy) sendCode();
                 }}
-                style={{ ...inputStyle, textAlign: "center", fontSize: 28, letterSpacing: 12 }}
-              />
-              <button type="button" disabled={code.length !== 4 || busy} onClick={() => verify(code)} style={{ ...btnStyle, opacity: code.length !== 4 || busy ? 0.55 : 1 }}>
-                {busy ? "Проверяем…" : "Войти"}
-              </button>
-              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 14, fontSize: 14 }}>
-                <button type="button" onClick={() => setStep("email")} style={linkStyle}>
-                  Другая почта
+              >
+                <input type="email" inputMode="email" autoComplete="email" placeholder="Твоя почта" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+                <button type="submit" className="k-btn k-d" disabled={!emailOk || busy} style={{ marginTop: 10, opacity: !emailOk || busy ? 0.55 : 1 }}>
+                  {busy ? "Отправляем…" : "Получить код"}
                 </button>
-                <button type="button" disabled={resendIn > 0 || busy} onClick={sendCode} style={{ ...linkStyle, opacity: resendIn > 0 ? 0.5 : 1 }}>
-                  {resendIn > 0 ? `Отправить снова через ${resendIn} с` : "Отправить снова"}
-                </button>
+              </form>
+            ) : (
+              <div>
+                <input
+                  ref={codeRef}
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="• • • •"
+                  maxLength={4}
+                  value={code}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                    setCode(v);
+                    if (v.length === 4 && !busy) verify(v);
+                  }}
+                  style={{ ...inputStyle, textAlign: "center", fontSize: 28, letterSpacing: 12 }}
+                />
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 12, fontSize: 14 }}>
+                  <button type="button" onClick={() => setStep("email")} style={linkStyle}>
+                    Другая почта
+                  </button>
+                  <button type="button" disabled={resendIn > 0 || busy} onClick={sendCode} style={{ ...linkStyle, opacity: resendIn > 0 ? 0.5 : 1 }}>
+                    {resendIn > 0 ? `Снова через ${resendIn} с` : "Отправить снова"}
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
-          {error && <p style={{ color: "#E5484D", fontSize: 14, margin: "12px 0 0", textAlign: "center" }}>{error}</p>}
-        </div>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "22px 0 14px", color: "#8A84A0", fontSize: 13 }}>
-          <span style={{ flex: 1, height: 1, background: "rgba(108,59,255,.15)" }} />
-          или
-          <span style={{ flex: 1, height: 1, background: "rgba(108,59,255,.15)" }} />
-        </div>
-        <TelegramLoginWidget onAuth={handleTelegramAuth} />
-        <p style={{ textAlign: "center", fontSize: 13, color: "#8A84A0", marginTop: 12, lineHeight: 1.4 }}>
-          Уже пользуешься «Местом» в Telegram? Входи через Telegram — профиль, встречи и чаты сохранятся.
+            )}
+          </div>
+        )}
+        <TelegramLoginWidget onAuth={handleTelegramAuth} brand />
+        {error && <p style={{ color: "#C2413A", fontSize: 14, margin: "12px 0 0", textAlign: "center" }}>{error}</p>}
+        <p className="k-alegal">
+          Продолжая, вы принимаете <a href="/legal/offer">оферту</a> и <a href="/legal/privacy">политику конфиденциальности</a>
         </p>
       </div>
     </main>
   );
 }
 
+// Вход по почте (и Google/Apple) включим вместе с выходом в App Store и RuStore.
+const EMAIL_LOGIN = false;
+
 const inputStyle: React.CSSProperties = {
   width: "100%",
   height: 54,
   borderRadius: 18,
-  border: "1px solid rgba(108,59,255,.18)",
-  background: "#fff",
+  border: "1px solid rgba(23,20,31,.1)",
+  background: "rgba(255,255,255,.8)",
   padding: "0 16px",
   fontSize: 17,
   outline: "none",
   color: "#16121F",
   boxSizing: "border-box",
 };
-const btnStyle: React.CSSProperties = {
-  width: "100%",
-  height: 54,
-  marginTop: 12,
-  border: 0,
-  borderRadius: 999,
-  background: "linear-gradient(100deg,#6C3BFF,#A24DFF 60%,#FF6FA0)",
-  color: "#fff",
-  fontSize: 17,
-  fontWeight: 600,
-  cursor: "pointer",
-};
-const linkStyle: React.CSSProperties = { background: "none", border: 0, color: VIOLET, padding: 0, cursor: "pointer", fontSize: 14 };
+const linkStyle: React.CSSProperties = { background: "none", border: 0, color: "#17141F", padding: 0, cursor: "pointer", fontSize: 14 };

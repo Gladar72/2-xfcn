@@ -43,14 +43,17 @@ const FEATURES: Record<Plan, string[]> = {
 
 interface PaywallProps {
   onActivated: () => void;
+  /** Действующая подписка: отмечаем «Текущий», кнопка внизу — «Продлить». */
+  current?: { plan: Plan; periodEnd?: string } | null;
 }
 
 const PLAN_NAME: Record<Plan, string> = { start: "Старт", medium: "Медиум", premium: "Премьер" };
 
 /** Выбор тарифа (SCR.paywall прототипа). Оплата — ЮKassa (карта/СБП), как и раньше. */
-export function Paywall({ onActivated }: PaywallProps) {
+export function Paywall({ onActivated, current }: PaywallProps) {
   const router = useRouter();
-  const [picked, setPicked] = useState<Plan>("medium");
+  const [picked, setPicked] = useState<Plan>(current?.plan ?? "medium");
+  const until = current?.periodEnd ? new Date(current.periodEnd).toLocaleDateString("ru-RU", { day: "numeric", month: "long" }) : "";
   const [loadingCardPlan, setLoadingCardPlan] = useState<Plan | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [receiptContact, setReceiptContact] = useState<string | null | undefined>(undefined); // undefined = ещё загружаем
@@ -143,7 +146,9 @@ export function Paywall({ onActivated }: PaywallProps) {
           Выбери <em>тариф</em>
         </h1>
         <p className="muted" style={{ margin: "8px 0 0", fontSize: 14.5, lineHeight: 1.5 }}>
-          Чтобы создавать встречи, нужна подписка. Без неё можно откликаться — до {FREE_APPLICATIONS_LIMIT} раз за период.
+          {current
+            ? `Сейчас — ${PLAN_NAME[current.plan]}${until ? ` до ${until}` : ""}. Сменить можно в любой момент.`
+            : `Чтобы создавать встречи, нужна подписка. Без неё можно откликаться — до ${FREE_APPLICATIONS_LIMIT} раз за период.`}
         </p>
         {error && !contactPromptPlan && (
           <p className="note gl" style={{ marginTop: 12, color: "#E0569B" }}>
@@ -151,12 +156,29 @@ export function Paywall({ onActivated }: PaywallProps) {
           </p>
         )}
         <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+          <div className="plan-c gl" style={{ cursor: "default" }}>
+            <div className="h">
+              <b>
+                Бесплатно
+                {!current && <span className="popb">Текущий</span>}
+              </b>
+              <span>0 ₽</span>
+            </div>
+            <ul>
+              {[`${FREE_APPLICATIONS_LIMIT} откликов на чужие встречи`, "Свои встречи — нет", "Без поднятий в топ"].map((x) => (
+                <li key={x}>
+                  <Ic n="check" c="xs" />
+                  {x}
+                </li>
+              ))}
+            </ul>
+          </div>
           {(["start", "medium", "premium"] as Plan[]).map((pl) => (
             <button key={pl} className={`plan-c gl ${picked === pl ? "on" : ""}`} onClick={() => setPicked(pl)}>
               <div className="h">
                 <b>
                   {PLAN_NAME[pl]}
-                  {pl === "medium" && <span className="popb">Популярный</span>}
+                  {current?.plan === pl ? <span className="popb">Текущий</span> : !current && pl === "medium" && <span className="popb">Популярный</span>}
                 </b>
                 <span>{PLAN_LIMITS[pl].priceRub} ₽ / мес</span>
               </div>
@@ -174,7 +196,11 @@ export function Paywall({ onActivated }: PaywallProps) {
       </Screen>
       <div className="foot" style={{ zIndex: 6 }}>
         <button className="btn v" onClick={() => handleSelectCard(picked)} disabled={loadingCardPlan !== null || receiptContact === undefined}>
-          {loadingCardPlan ? "Открываем оплату…" : `Оплатить ${PLAN_LIMITS[picked].priceRub} ₽`}
+          {loadingCardPlan
+            ? "Открываем оплату…"
+            : current?.plan === picked
+              ? `Продлить ${PLAN_NAME[picked]} · ${PLAN_LIMITS[picked].priceRub} ₽`
+              : `${current ? "Перейти" : "Оплатить"} · ${PLAN_LIMITS[picked].priceRub} ₽`}
         </button>
         <small>30 дней · чек придёт на почту или телефон</small>
       </div>

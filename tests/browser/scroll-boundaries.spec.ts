@@ -69,13 +69,14 @@ for (const kind of ["photo", "business", "placeholder"] as const) {
       ...meeting, isBusiness: kind === "business", photoUrl: kind === "placeholder" ? null : photo,
     } }));
     await page.goto("/events/test");
-    const body = page.locator(".ev .body");
-    await expect(page.getByText(meeting.title, { exact: true })).toBeVisible();
+    // Брендбук 2026: фото под всем экраном, карточка встречи прокручивается поверх.
+    const body = page.locator(".k-ev > .scroll");
+    await expect(page.locator(".k-ev .k-title")).toContainText(meeting.title.split(" ")[0]!);
     await exerciseEnds(page, body);
-    const gap = await page.locator(".ev").evaluate((screen) => {
-      const cover = screen.querySelector(".ph")!.getBoundingClientRect();
-      const sheet = screen.querySelector(".sheet2")!.getBoundingClientRect();
-      return sheet.top - cover.bottom;
+    const gap = await page.locator(".k-ev").evaluate((screen) => {
+      const photo = screen.querySelector(".k-evph")!.getBoundingClientRect();
+      const card = screen.querySelector(".k-card")!.getBoundingClientRect();
+      return card.top - photo.bottom;
     });
     expect(gap).toBeLessThanOrEqual(0);
     await page.screenshot({ path: testInfo.outputPath(`event-${kind}.png`), animations: "disabled" });
@@ -129,9 +130,9 @@ test("horizontal event rails still scroll and vertical gestures over cards move 
   test.skip(browserName === "webkit", "Native wheel injection is unavailable in mobile WebKit");
   await fixture(page);
   await page.goto("/feed");
-  const rail = page.locator(".rail").first();
+  const rail = page.locator(".k-hs").nth(1);
   const scroller = page.locator("section.scr:not(.ghost) > .scroll").first();
-  await expect.poll(() => rail.locator(".hero").count()).toBeGreaterThan(1);
+  await expect.poll(() => rail.locator(".k-hc").count()).toBeGreaterThan(1);
   await rail.scrollIntoViewIfNeeded();
   const box = (await rail.boundingBox())!;
   await page.mouse.move(box.x + 160, Math.max(100, box.y + 160));
@@ -146,8 +147,8 @@ test("touch dragging the event at either end stays bounded and reverse gestures 
   test.skip(browserName !== "chromium", "CDP touch injection is only available in Chromium");
   await fixture(page);
   await page.goto("/events/test");
-  const body = page.locator(".ev .body");
-  await expect(page.getByText(meeting.title, { exact: true })).toBeVisible();
+  const body = page.locator(".k-ev > .scroll");
+  await expect(page.locator(".k-ev .k-title")).toContainText(meeting.title.split(" ")[0]!);
   const client = await page.context().newCDPSession(page);
   const swipe = async (from: number, to: number) => {
     const points = (y: number) => [{ x: 150, y, id: 0 }];

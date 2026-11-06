@@ -106,10 +106,11 @@ test("app re-entry and repeated apply create a new deck; a clicked photo is pinn
 test("home remixes after browser and Telegram resume while ordinary GPS keeps its seed", async ({ page }) => {
   const f = await setup(page);
   await page.goto("/feed");
-  await expect(page.locator(".pcard")).toHaveCount(people.length);
+  // Главная брендбука 2026: мозаика из трёх человек (дальше — «Листать»).
+  await expect(page.locator(".k-mt")).toHaveCount(3);
   const first = latestSeed(f.requests);
   await page.evaluate(() => window.dispatchEvent(new Event("mesto:location-updated")));
-  await expect(page.locator(".pcard")).toHaveCount(people.length);
+  await expect(page.locator(".k-mt")).toHaveCount(3);
   expect(latestSeed(f.requests)).toBe(first);
   await resume(page);
   await expect.poll(() => latestSeed(f.requests)).not.toBe(first);

@@ -17,7 +17,7 @@ type Target = "tg" | "tgs" | "ig" | "wa" | "vk";
 
 const TARGETS: { k: Target; label: string; bg: string }[] = [
   { k: "tg", label: "В чат\nTelegram", bg: "#2AABEE" },
-  { k: "tgs", label: "Сторис\nTelegram", bg: "linear-gradient(135deg,#2AABEE,#6C3BFF)" },
+  { k: "tgs", label: "Сторис\nTelegram", bg: "#17141F" },
   { k: "ig", label: "Сторис\nInstagram", bg: "linear-gradient(45deg,#F9A13A,#E1306C 50%,#8A3AB9)" },
   { k: "wa", label: "WhatsApp", bg: "#25D366" },
   { k: "vk", label: "ВКонтакте", bg: "#0077FF" },
@@ -177,7 +177,7 @@ export function ShareSheet({
           <div className="gl" style={{ display: "flex", gap: 14, alignItems: "center", borderRadius: 20, padding: 12 }}>
             {origin && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={storyUrl} alt="Картинка для сторис" width={92} height={164} style={{ flex: "none", width: 92, height: 164, borderRadius: 12, objectFit: "cover", background: "#1B1230" }} />
+              <img src={storyUrl} alt="Картинка для сторис" width={92} height={164} style={{ flex: "none", width: 92, height: 164, borderRadius: 12, objectFit: "cover", background: "#17141F" }} />
             )}
             <div style={{ display: "grid", gap: 6 }}>
               <b style={{ fontSize: 15.5, lineHeight: 1.3 }}>Мося собрал картинку для сторис</b>
@@ -205,7 +205,7 @@ export function ShareSheet({
         <>
           <div style={{ display: "flex", gap: 14, alignItems: "flex-end" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={igUrl} alt="Сторис для Instagram" width={110} height={196} style={{ flex: "none", width: 110, height: 196, borderRadius: 14, objectFit: "cover", background: "#1B1230" }} />
+            <img src={igUrl} alt="Сторис для Instagram" width={110} height={196} style={{ flex: "none", width: 110, height: 196, borderRadius: 14, objectFit: "cover", background: "#17141F" }} />
             <div style={{ display: "grid", gap: 8, paddingBottom: 6 }}>
               <span style={{ fontSize: 13, fontWeight: 600, color: "#1E8A4C", background: "#E3F7EA", padding: "5px 10px", borderRadius: 99, width: "fit-content" }}>✓ Ссылка скопирована</span>
               <h2 className="t" style={{ margin: 0 }}>
