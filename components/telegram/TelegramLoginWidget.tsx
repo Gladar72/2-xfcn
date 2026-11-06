@@ -51,7 +51,7 @@ export function TelegramLoginWidget({ onAuth }: { onAuth: (user: AuthData) => vo
     <div style={{ textAlign: "center", width: "100%" }}>
       <div ref={box} aria-hidden={state !== "ready"} style={{ display: "flex", justifyContent: "center", visibility: state === "ready" ? "visible" : "hidden", height: state === "ready" ? "auto" : 0, overflow: "hidden" }} />
       {state === "unavailable" && <p role="status" style={{ fontSize: 13, lineHeight: 1.4, color: "#8A84A0", margin: "0 0 12px" }}>Вход через Telegram в этом браузере сейчас недоступен. Можно открыть «Место» прямо в Telegram.</p>}
-      <a href={TELEGRAM_BOT_URL} style={{ display: "flex", alignItems: "center", justifyContent: "center", minHeight: 48, borderRadius: 999, padding: "0 18px", marginTop: state === "ready" ? 12 : 0, background: "rgba(108,59,255,.10)", color: "#6C3BFF", fontWeight: 600, textDecoration: "none" }}>Открыть «Место» в Telegram</a>
+      <a href={TELEGRAM_BOT_URL} style={{ display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 999, padding: "0 18px", marginTop: state === "ready" ? 12 : 0, background: "#2AABEE", color: "#fff", fontWeight: 500, fontSize: 16, minHeight: 54, textDecoration: "none" }}>Войти через Telegram</a>
     </div>
   );
 }

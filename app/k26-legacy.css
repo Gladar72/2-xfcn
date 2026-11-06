@@ -1,0 +1,48 @@
+/* Брендбук 2026 поверх общих элементов старых экранов: те же размеры, шрифты,
+   стекло и кнопки, что в согласованном прототипе (значения из app/k26.css).
+   Подключается последним — экраны, ещё не переписанные на k-*, выглядят как прототип. */
+.P{--disp:var(--font-inter),"Inter",system-ui,-apple-system,sans-serif;--acc:var(--font-lora),"Lora",Georgia,serif;font-family:var(--disp)}
+/* стекло */
+.P .gl{background:rgba(255,255,255,.58);border:1px solid rgba(255,255,255,.95);box-shadow:none;-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+/* заголовки: тонкий Inter + курсив Lora */
+.P h1.t{font:300 36px/1.08 var(--disp);letter-spacing:-.035em}
+.P h2.t{font:300 28px/1.1 var(--disp);letter-spacing:-.03em}
+.P h1.t em,.P h2.t em{font-family:var(--acc);font-style:italic;font-weight:400;font-size:1.08em;letter-spacing:-.01em;line-height:1}
+.P .muted{color:rgba(23,20,31,.58)}
+/* кнопки */
+.P .btn{height:54px;border-radius:27px;font:500 16px var(--disp);gap:8px;box-shadow:none}
+.P .btn.v,.P .btn.k{background:var(--ink);color:#fff;animation:none;box-shadow:none}
+.P .btn.v::after{display:none}
+.P .btn.o{background:rgba(255,255,255,.65);border:1px solid #fff;box-shadow:none;color:var(--ink)}
+.P .btn.tg{background:#2AABEE;box-shadow:none}
+.P .btn.ok{background:#2FA86A}
+.P .rb{width:44px;height:44px;border-radius:22px}
+.P .rb.gl{background:rgba(255,255,255,.58);border:1px solid rgba(255,255,255,.95)}
+.P .rb.glass{background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.45);box-shadow:none}
+/* поля и подписи */
+.P .lbl{font:500 13px var(--disp);color:rgba(23,20,31,.58);margin:16px 4px 8px}
+.P .field{min-height:54px;border-radius:27px;padding:0 18px;font:400 16px var(--disp)}
+.P .field.ta{border-radius:24px}
+.P .foot{background:linear-gradient(rgba(244,242,248,0),rgba(244,242,248,.97) 42%)}
+/* чипсы, сегменты, пилюли */
+.P .chs button{height:36px;padding:0 14px;border-radius:18px;font:500 14px var(--disp)}
+.P .chs button.on,.P .cat.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.P .cat{height:36px;padding:0 14px 0 10px;border-radius:18px;font:500 14px var(--disp);gap:7px}
+.P .cat img{width:22px;height:22px}
+.P .cat:hover img{transform:none}
+.P .seg{padding:4px;border-radius:24px}
+.P .seg button{height:40px;border-radius:20px;font:500 14px var(--disp)}
+.P .pill{height:28px;padding:0 10px;border-radius:14px;font:500 12px var(--disp)}
+.P .pill.lav{background:rgba(23,20,31,.06);color:var(--ink)}
+/* строки списков */
+.P .row{padding:10px;border-radius:26px;gap:12px}
+.P .row .th,.P .row .th.gfx,.P .thw .th{width:74px;height:74px;border-radius:20px}
+.P .row .i b{font:500 15px var(--disp)}
+.P .row .i span{font:400 12.5px var(--disp);color:rgba(23,20,31,.58)}
+/* шторки */
+.P .grab{background:rgba(23,20,31,.16)}
+.P .toast{background:rgba(23,20,31,.92);border-radius:20px}
+.P .toast .ic{color:#fff}
+.P .sk{background:rgba(255,255,255,.55)}
+/* старые фиолетовые акценты → графит */
+.P .cnt,.P .redn{background:var(--ink);color:#fff}
