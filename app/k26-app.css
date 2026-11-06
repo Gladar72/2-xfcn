@@ -197,3 +197,6 @@
 .P .scr.in .scroll>*,.P .scr.fade .scroll>*,.P .scr.up .scroll>*{animation:none!important}
 .P .scr.in,.P .scr.under,.P .scr.out,.P .scr.back-in,.P .scr.up,.P .scr.down{will-change:transform;backface-visibility:hidden}
 .P .scr.in{animation-duration:.36s}.P .scr.under{animation-duration:.36s}.P .scr.out{animation-duration:.32s}.P .scr.back-in{animation-duration:.32s}
+/* «Идёт сейчас» — зелёная точка, мягко мигает (как раньше). */
+.k-livedot{display:inline-block;width:8px;height:8px;border-radius:4px;background:#2FD07A;margin-right:6px;box-shadow:0 0 0 0 rgba(47,208,122,.7);animation:k-live 1.6s ease-out infinite;vertical-align:middle}
+@keyframes k-live{0%{box-shadow:0 0 0 0 rgba(47,208,122,.7)}70%{box-shadow:0 0 0 7px rgba(47,208,122,0)}100%{box-shadow:0 0 0 0 rgba(47,208,122,0)}}

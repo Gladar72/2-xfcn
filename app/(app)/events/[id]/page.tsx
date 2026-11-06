@@ -547,7 +547,13 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             <img src={icon} alt="" style={{ width: 20, height: 20, marginLeft: -4, filter: "invert(1) brightness(2)" }} />
             {catName}
             {event.isBusiness ? "" : event.isAnonymous ? ` · ${anonymousTag(event.organizer?.gender).toLowerCase()}` : " · личная встреча"}
-            {isLive ? " · идёт сейчас" : ""}
+            {isLive && (
+              <>
+                {" · "}
+                <i className="k-livedot" />
+                идёт сейчас
+              </>
+            )}
             {isFull ? " · заполнено" : ""}
           </span>
           <h1 className="k-title">
@@ -567,7 +573,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </span>
             </div>
           )}
-          <div className={`k-tiles ${chatId || !event.isBusiness ? "k-t4" : ""}`} style={chatId || !event.isBusiness ? undefined : { gridTemplateColumns: "minmax(0,1.35fr) minmax(0,1fr) minmax(0,1.15fr)" }}>
+          <div className="k-tiles k-t4">
             <div className="k-tile k-gd">
               <small>
                 <KI n="cal" />
@@ -602,12 +608,14 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
                 <small>Чат</small>
               </Link>
             ) : (
-              !event.isBusiness && (
-                <button className="k-tile k-gd k-pr k-tchat" onClick={() => say("Чат откроется после одобрения заявки")} aria-label="Чат встречи">
-                  <KI n="chat" />
-                  <small>Чат</small>
-                </button>
-              )
+              <button
+                className="k-tile k-gd k-pr k-tchat"
+                onClick={() => say(event.isBusiness && event.seatsTotal > 20 ? "У больших событий общего чата нет — вопросы организатору в Telegram" : "Чат откроется после одобрения заявки")}
+                aria-label="Чат встречи"
+              >
+                <KI n="chat" />
+                <small>Чат</small>
+              </button>
             )}
           </div>
 

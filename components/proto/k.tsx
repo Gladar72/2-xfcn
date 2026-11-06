@@ -41,10 +41,16 @@ export function KI({ n, sw = 1.7, className, style }: { n: string; sw?: number; 
   );
 }
 
+/** Наша фирменная обложка (/brand/covers/…) — путь для сжатия на сервере, иначе null. */
+function coverPath(url: string): string | null {
+  return url.match(/^(?:https?:\/\/[^/]+)?(\/brand\/covers\/[a-z0-9_-]+\.webp)$/)?.[1] ?? null;
+}
+
 /** Фоновое фото карточки: сжатая версия, при отсутствии — мягкий жемчужный фон. */
 export function bg(url: string | null | undefined, w = 480, pos = "center"): CSSProperties {
   return url
-    ? { backgroundImage: `url(${photoThumb(url, w)})`, backgroundSize: "cover", backgroundPosition: pos }
+    ? // Сжатая копия под размер карточки (раньше шёл оригинал в несколько МБ — всё грузилось долго).
+      { backgroundImage: `url(${coverPath(url) ? `/_next/image?url=${encodeURIComponent(coverPath(url)!)}&w=${w >= 500 ? 640 : 384}&q=80` : photoThumb(url, Math.ceil(w / 2), true)})`, backgroundSize: "cover", backgroundPosition: pos }
     : { backgroundImage: "linear-gradient(160deg,#3A3646,#17141F)", backgroundSize: "cover" };
 }
 
@@ -83,7 +89,12 @@ export function KHc({ e, cta, tag }: { e: HeroEvent & { myApplicationStatus?: st
       : e.organizer.name;
   const kind = e.trainingType?.name ?? e.category?.name;
   const defTag = e.isLive
-    ? "● Идёт сейчас"
+    ? (
+        <>
+          <i className="k-livedot" />
+          Идёт сейчас
+        </>
+      )
     : e.isBusiness
       ? e.isPromoted || e.isBoosted
         ? "↑ В топе"
