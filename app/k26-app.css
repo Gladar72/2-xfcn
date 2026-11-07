@@ -283,9 +283,9 @@
 .P .pr.pr2 .presence{display:block;margin-top:6px;font:400 13px/1.3 var(--disp);color:rgba(255,255,255,.88)}
 .P .pr.pr2 .presence i{display:inline-block;width:6px;height:6px;background:#69D9A0;border-radius:50%;margin-right:6px;vertical-align:middle}
 .P .pr.pr2 .body,.P .pr.pr2 .gal{-webkit-tap-highlight-color:transparent}
-/* Keep the photo as a background; show its top below Telegram's controls. */
+/* Keep details lower over the original background cover. */
 .K .k-ev .k-spacer{height:clamp(400px,62dvh,540px)}
-.K .k-ev .k-evph{top:calc(var(--top) + 44px);height:clamp(560px,78dvh,680px);background-size:100% auto;background-position:center top;background-repeat:no-repeat;-webkit-mask:linear-gradient(180deg,#000 72%,transparent);mask:linear-gradient(180deg,#000 72%,transparent)}
+.K .k-ev .k-evph{height:clamp(560px,78dvh,680px)}
 .K .k-ev .k-title{overflow-wrap:anywhere}
 .K .k-ev .k-card>.k-chip{height:auto!important;min-height:32px;max-width:100%;white-space:normal;line-height:1.35;padding-top:6px;padding-bottom:6px}
 .K .k-hc .k-tg{max-width:calc(100% - 20px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;line-height:28px}
@@ -363,7 +363,7 @@
 .K .k-ev .tiles2{gap:12px}
 .K .k-ev .orgb .blk,.K .k-ev .k-cancel-event{margin-top:0}
 .K .k-ev .k-evbg{background-image:none!important;background:#17141F!important;filter:none;transform:none;inset:0}
-.K .k-ev .k-evph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 38%,rgba(23,20,31,.32) 58%,rgba(23,20,31,.84) 78%,#17141F)}
+.K .k-ev .k-evph::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 28%,rgba(23,20,31,.32) 48%,rgba(23,20,31,.84) 68%,#17141F)}
 .K .k-ev .k-card .blk,.K .k-ev .k-card .evnote,.K .k-ev .k-card .chatprev,.K .k-ev .k-card .apl,.K .k-ev .k-card .tiles2>*{background:#2B2833!important;-webkit-backdrop-filter:none;backdrop-filter:none}
 .K .k-ev .k-blk,.K .k-ev .k-host{background:#2B2833;-webkit-backdrop-filter:none;backdrop-filter:none}
 .K .k-event-loading{background:#17141F}
