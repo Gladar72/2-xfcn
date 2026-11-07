@@ -7,7 +7,8 @@ import { photoThumb } from "@/lib/photos/thumb";
 
 type Participant = { id: string; name: string; avatarUrl: string | null; anonymous?: boolean; mine?: boolean };
 
-export function EventParticipants({ people, onAnonymous, onRemove, removingId }: {
+export function EventParticipants({ heading, people, onAnonymous, onRemove, removingId }: {
+  heading: string;
   people: Participant[];
   onAnonymous: () => void;
   onRemove?: (id: string) => void;
@@ -32,15 +33,18 @@ export function EventParticipants({ people, onAnonymous, onRemove, removingId }:
     ) : <Link key={p.id} className={className} aria-label={full ? undefined : firstName(p)} href={p.mine ? "/profile" : `/people/${p.id}`} onClick={() => setOpen(false)}>{content}</Link>;
   }
   return <>
+    <div className="k-bh2 participant-summary">
+      <b className="k-bh">{heading}</b>
+      {people.length > 0 && <button className="participant-expand" onClick={show} aria-label={`${onRemove ? "Управлять участниками" : "Показать всех"} · ${people.length}`} aria-haspopup="dialog" aria-expanded={open}>
+        <Ic n="chev" />
+      </button>}
+    </div>
     <div className="k-who participant-preview">
       {people.slice(0, 5).map((p, i) => item(p, i))}
       {hidden > 0 && <button className="k-wp participant-more" aria-label={`Показать всех участников: ${people.length}`} aria-haspopup="dialog" aria-expanded={open} onClick={show}>
         <span className="participant-avatar k-free">+{hidden}</span>
       </button>}
     </div>
-    {people.length > 0 && <button className="participant-expand" onClick={show} aria-haspopup="dialog" aria-expanded={open}>
-      {onRemove ? "Управлять участниками" : "Показать всех"} · {people.length}<Ic n="chev" />
-    </button>}
     <Sheet open={open} onClose={() => setOpen(false)} label="Кто идёт">
       <div className="participant-heading"><h2>Кто идёт · {people.length}</h2><button className="rb gl" aria-label="Закрыть список участников" onClick={() => setOpen(false)}><Ic n="close" /></button></div>
       <div className="participant-list">{people.slice(0, visibleCount).map((p, i) => <div className="participant-entry" key={p.id || `anonymous-${i}`}>

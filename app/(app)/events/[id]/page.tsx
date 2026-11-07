@@ -669,12 +669,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             ))}
 
           <div className="k-blk k-gd">
-            <div className="k-bh2">
-              <b className="k-bh">
-                {isLive ? "Уже на месте" : "Идут"} · {going}
-              </b>
-            </div>
             <EventParticipants
+              heading={`${isLive ? "Уже на месте" : "Идут"} · ${going}`}
               people={[
                 ...(organizer ? [{ ...organizer, name: hid ? anonWho ?? "Организатор скрыт" : organizer.name, anonymous: hid, mine }] : []),
                 ...event.participants,
