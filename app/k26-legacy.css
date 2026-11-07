@@ -39,6 +39,7 @@
 .P .row .th,.P .row .th.gfx,.P .thw .th{width:74px;height:74px;border-radius:20px}
 .P .row .i b{font:500 15px var(--disp)}
 .P .row .i span{font:400 12.5px var(--disp);color:rgba(23,20,31,.58)}
+.P .row .i .bztag{font:600 10.5px/1.2 var(--disp);color:#fff;flex:none;white-space:nowrap}
 /* шторки */
 .P .grab{background:rgba(23,20,31,.16)}
 .P .toast{background:rgba(23,20,31,.92);border-radius:20px}
