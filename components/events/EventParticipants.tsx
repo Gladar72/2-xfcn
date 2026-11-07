@@ -25,20 +25,20 @@ export function EventParticipants({ people, onAnonymous, onRemove, removingId }:
     ) : p.name.charAt(0).toUpperCase()}
   </span>;
   function item(p: Participant, index: number, full = false) {
-    const content = <>{avatar(p)}<span className="participant-name">{firstName(p)}</span>{full && !p.anonymous && <Ic n="chev" />}</>;
+    const content = <>{avatar(p)}{full && <span className="participant-name">{firstName(p)}</span>}{full && !p.anonymous && <Ic n="chev" />}</>;
     const className = full ? "participant-row" : "k-wp";
     return p.anonymous ? (
-      <button key={`anonymous-${index}`} className={className} onClick={() => { setOpen(false); onAnonymous(); }}>{content}</button>
-    ) : <Link key={p.id} className={className} href={p.mine ? "/profile" : `/people/${p.id}`} onClick={() => setOpen(false)}>{content}</Link>;
+      <button key={`anonymous-${index}`} className={className} aria-label={full ? undefined : firstName(p)} onClick={() => { setOpen(false); onAnonymous(); }}>{content}</button>
+    ) : <Link key={p.id} className={className} aria-label={full ? undefined : firstName(p)} href={p.mine ? "/profile" : `/people/${p.id}`} onClick={() => setOpen(false)}>{content}</Link>;
   }
   return <>
     <div className="k-who participant-preview">
       {people.slice(0, 5).map((p, i) => item(p, i))}
       {hidden > 0 && <button className="k-wp participant-more" aria-label={`Показать всех участников: ${people.length}`} aria-haspopup="dialog" aria-expanded={open} onClick={show}>
-        <span className="participant-avatar k-free">+{hidden}</span><span className="participant-name">все</span>
+        <span className="participant-avatar k-free">+{hidden}</span>
       </button>}
     </div>
-    {(hidden > 0 || onRemove) && <button className="participant-expand" onClick={show} aria-haspopup="dialog" aria-expanded={open}>
+    {people.length > 0 && <button className="participant-expand" onClick={show} aria-haspopup="dialog" aria-expanded={open}>
       {onRemove ? "Управлять участниками" : "Показать всех"} · {people.length}<Ic n="chev" />
     </button>}
     <Sheet open={open} onClose={() => setOpen(false)} label="Кто идёт">
