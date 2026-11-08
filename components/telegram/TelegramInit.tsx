@@ -24,13 +24,22 @@ export function TelegramInit() {
     const webApp = getTelegramWebApp();
     if (!webApp) return;
     webApp.ready();
-    webApp.expand();
+    // Browsing MESTO does not need an extra "Close anyway" confirmation.
+    // Configure the native close control; do not intercept or imitate its tap.
+    try {
+      webApp.disableClosingConfirmation?.();
+    } catch {
+      /* old Telegram clients do not expose this option */
+    }
+    // Do not reopen/expand a WebView the user already minimized during startup.
+    const active = webApp.isActive !== false;
+    if (active) webApp.expand();
     // Как в прототипе: на телефоне сразу на весь экран, без шапки Telegram
     // (Bot API 8.0+). Отступы сверху берутся из --tg-content-safe-area-inset-top,
     // поэтому кнопки «закрыть / меню» Telegram ничего не перекрывают.
     try {
       const mobile = webApp.platform === "ios" || webApp.platform === "android";
-      if (mobile && webApp.isVersionAtLeast?.("8.0") && !webApp.isFullscreen) webApp.requestFullscreen?.();
+      if (active && mobile && webApp.isVersionAtLeast?.("8.0") && !webApp.isFullscreen) webApp.requestFullscreen?.();
     } catch {
       /* старый клиент — остаёмся в обычном раскрытом окне */
     }

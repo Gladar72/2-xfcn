@@ -1,7 +1,7 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { LoadingScenes } from "@/components/brand/LoadingScenes";
 import { getInitData } from "@/lib/telegram/webapp-client";
 import { waitForLaunchData } from "@/lib/telegram/launch-data";
@@ -34,35 +34,11 @@ function EntryPageInner() {
   const [status, setStatus] = useState<"loading" | "no_telegram" | "error">("loading");
   const [errorMessage, setErrorMessage] = useState<string>();
   const [attempt, setAttempt] = useState(0);
-  const navigationTimer = useRef<ReturnType<typeof setTimeout>>();
+  const router = useRouter();
   const searchParams = useSearchParams();
   // Кнопка "Купить подписку" в боте открывает приложение с ?goto=subscriptions —
   // после обычной проверки авторизации ниже редиректим сразу туда, а не в /feed.
   const goto = searchParams.get("goto");
-  // Первый запуск — полная анимация (Мося бежит по стенкам, ~4,6 с),
-  // дальше — короткая версия, чтобы не задерживать вход.
-  const [full, setFull] = useState(false);
-  const fullRef = useRef(false);
-  useEffect(() => {
-    try {
-      fullRef.current = !localStorage.getItem("mesto_splash_seen");
-    } catch {
-      fullRef.current = false;
-    }
-    setFull(fullRef.current);
-  }, []);
-  const startedAt = useRef(Date.now());
-  const go = (url: string) => {
-    try {
-      localStorage.setItem("mesto_splash_seen", "1");
-    } catch {
-      /* без хранилища — просто всегда короткая анимация не включится */
-    }
-    const wait = Math.max(0, (fullRef.current ? 4600 : 900) - (Date.now() - startedAt.current));
-    navigationTimer.current = setTimeout(() => {
-      window.location.href = url;
-    }, wait);
-  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -73,7 +49,7 @@ function EntryPageInner() {
       const initData = await waitForLaunchData(getInitData, controller.signal);
       if (controller.signal.aborted) return;
       if (!initData) {
-        window.location.replace(`/login${goto ? `?goto=${encodeURIComponent(goto)}` : ""}`);
+        router.replace(`/login${goto ? `?goto=${encodeURIComponent(goto)}` : ""}`);
         return;
       }
       // Ссылка «Поделиться» t.me/<bot>?startapp=event_<id> открывает приложение
@@ -101,7 +77,9 @@ function EntryPageInner() {
             const eventMatch = target?.match(/^event(share)?_([0-9a-f-]{36})$/);
             // Кнопка «Открыть чат» под уведомлением о сообщении: ?goto=chat_<id>.
             const chatMatch = target?.match(/^chat_([0-9a-f-]{36})$/);
-            go(eventMatch
+            // Enter as soon as authentication succeeds. Keep the existing WebView
+            // and Telegram controls instead of loading another document/animation.
+            router.replace(eventMatch
               ? `/events/${eventMatch[2]}${eventMatch[1] ? "?share=1" : ""}`
               : chatMatch
                 ? `/chats/${chatMatch[1]}`
@@ -118,7 +96,7 @@ function EntryPageInner() {
                 /* хранилище недоступно — просто попадёт в ленту */
               }
             }
-            go("/onboarding");
+            router.replace("/onboarding");
           } else {
             setErrorMessage(apiErrorText(data, "Не получилось войти. Попробуй ещё раз.", res.status));
             setStatus("error");
@@ -136,16 +114,14 @@ function EntryPageInner() {
     return () => {
       controller.abort();
       clearTimeout(requestTimer);
-      clearTimeout(navigationTimer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attempt, goto]);
+  }, [attempt, goto, router]);
 
-  return <SplashScreen status={status} full={full} errorMessage={errorMessage} onRetry={() => setAttempt((n) => n + 1)} />;
+  return <SplashScreen status={status} errorMessage={errorMessage} onRetry={() => setAttempt((n) => n + 1)} />;
 }
 
 /** Экран загрузки: три сцены с персонажами «Места» (components/brand/LoadingScenes). */
-function SplashScreen({ status, errorMessage, onRetry }: { status: "loading" | "no_telegram" | "error"; full?: boolean; errorMessage?: string; onRetry?: () => void }) {
+function SplashScreen({ status, errorMessage, onRetry }: { status: "loading" | "no_telegram" | "error"; errorMessage?: string; onRetry?: () => void }) {
   const message =
     status === "no_telegram"
       ? "Это приложение открывается только внутри Telegram. Открой его через кнопку в боте."
@@ -154,7 +130,7 @@ function SplashScreen({ status, errorMessage, onRetry }: { status: "loading" | "
         : undefined;
   return <>
     <LoadingScenes message={message} loading={status === "loading"} />
-    {status === "error" && <div style={{ position: "fixed", bottom: "max(24px, env(safe-area-inset-bottom))", left: 20, right: 20, zIndex: 20, display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12 }}>
+    {status === "error" && <div style={{ position: "fixed", bottom: "max(24px, env(safe-area-inset-bottom))", left: 20, right: 20, zIndex: 60, display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 12 }}>
       <button type="button" onClick={onRetry} className="m-btn m-btn-v px-5 py-3">Попробовать снова</button>
       <a href={TELEGRAM_BOT_URL} className="m-btn m-btn-o px-5 py-3">Открыть через бота</a>
     </div>}

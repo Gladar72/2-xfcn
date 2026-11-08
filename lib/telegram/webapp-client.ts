@@ -20,6 +20,8 @@ interface TelegramWebApp {
   initDataUnsafe: Record<string, unknown>;
   ready: () => void;
   expand: () => void;
+  /** Bot API 6.2+: closing the app must not require a second confirmation. */
+  disableClosingConfirmation?: () => void;
   /** Bot API 7.7+: отключает сворачивание приложения свайпом вниз (иначе Telegram перехватывает вертикальные свайпы). */
   disableVerticalSwipes?: () => void;
   colorScheme: "light" | "dark";

@@ -292,9 +292,10 @@ html:has(.P),body:has(.P){overflow:hidden;height:100%;overscroll-behavior:none}
 /* ── «Для бизнеса»: поиск, разделы, «Когда», вид карточки / списком (29.10) ── */
 .P .bzf-top{display:flex;gap:10px;margin-top:20px;align-items:center}
 .P .bzf-top .sfield{height:48px;cursor:text}
-.P .bzf-top .sfield input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:15px;color:var(--ink)}
-.P .bzf-top .sfield input::placeholder{color:var(--grey)}
-.P .bzf-top .sfield button{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:rgba(22,18,31,.08);color:var(--ink-2);flex:none}
+/* Search inputs keep their rounded container when focused, including the current business screen. */
+.P .sfield input{flex:1;min-width:0;padding:0;border:0;outline:0;box-shadow:none;background:none;font:inherit;font-size:16px;color:var(--ink)}
+.P .sfield input::placeholder{color:var(--grey)}
+.P .sfield button{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:rgba(22,18,31,.08);color:var(--ink-2);flex:none}
 .P .bzf-view{display:flex;padding:3px;border-radius:999px;flex:none}
 .P .bzf-view button{width:42px;height:42px;border-radius:999px;display:grid;place-items:center;color:var(--ink-2);transition:background .25s,color .25s}
 .P .bzf-view button.on{background:var(--ink);color:#fff}
