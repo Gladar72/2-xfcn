@@ -10,7 +10,7 @@ import { CATEGORY_ICON, trainingIcon } from "@/lib/data/category-icons";
 import { apiErrorText } from "@/lib/validation/api-error-text";
 import { interestIcon } from "@/lib/data/interests";
 import { EmptyIll, Ic, RowCard, Screen, Sheet, Toast, type HeroEvent } from "@/components/proto/ui";
-import { KI, KHc, TwoLine, bg } from "@/components/proto/k";
+import { KI, KHc, TwoLine, bg, backgroundPhotoUrl } from "@/components/proto/k";
 import { Creature } from "@/components/brand/Creature";
 import type { ApplicationStatus } from "@/components/applications/ApplicationStatus";
 import { goBack } from "@/lib/nav/back";
@@ -411,7 +411,7 @@ function HomeScreen() {
             <Link
               key={q.id}
               className="k-mt k-pr"
-              onClick={() => rememberSelectedPerson(q)}
+              onClick={() => rememberSelectedPerson({ ...q, avatarUrl: backgroundPhotoUrl(q.avatarUrl, 640) })}
               href={`/people?start=${q.id}${city ? `&city=${encodeURIComponent(city)}` : ""}`}
               style={{ ...MZ[mosaic.length === 1 ? 0 : i], ...(mosaic.length === 1 ? { width: "100%" } : mosaic.length === 2 && i === 1 ? { height: 268 } : {}), ...bg(q.avatarUrl, 640, "center 30%") }}
             >

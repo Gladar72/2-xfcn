@@ -89,7 +89,10 @@ function DeckRoute() {
 
 function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter: string | null; filters: PeopleFilters }) {
   const router = useRouter();
-  const [preview] = useState(() => selectedPersonPreview(start));
+  const [preview] = useState<Card | null>(() => {
+    const selected = selectedPersonPreview(start);
+    return selected ? { ...selected, ratingAvg: 0, completedMeetingsCount: 0, sharedInterests: [] } : null;
+  });
   const [cards, setCards] = useState<Card[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ix, setIx] = useState(0);
@@ -284,31 +287,32 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
     q.set("mix", crypto.randomUUID());
     router.replace(`/people${q.size ? `?${q}` : ""}`, { scroll: false });
   }
+  // Keep the same gallery mounted while the server validates a home selection.
+  // The preview is display-only; interactions start after the deck response.
+  const c = cards?.[ix] ?? (cards === null ? preview : null);
   const toolbar = <>
-    <div className={`people-tools ${cards?.[ix] ? "over-photo" : ""}`}>
-      {!cards?.[ix] && <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад"><Ic n="back" /></button>}
-      <button className={`rb ${cards?.[ix] ? "glass" : "gl"} people-filter-trigger`} onClick={() => setFiltersOpen(true)} aria-label="Фильтры" aria-haspopup="dialog" aria-expanded={filtersOpen}>
+    <div className={`people-tools ${c ? "over-photo" : ""}`}>
+      {!c && <button className="rb gl" onClick={() => goBack(router, "/feed")} aria-label="Назад"><Ic n="back" /></button>}
+      <button className={`rb ${c ? "glass" : "gl"} people-filter-trigger`} onClick={() => setFiltersOpen(true)} aria-label="Фильтры" aria-haspopup="dialog" aria-expanded={filtersOpen}>
         <Ic n="filter" />{filtered && <span className="people-filter-dot" aria-label="Фильтры включены" />}
       </button>
     </div>
     <PeopleFilterSheet open={filtersOpen} value={filters} onClose={() => setFiltersOpen(false)} onApply={changeFilters} />
   </>;
 
-  if (cards === null)
+  if (cards === null && !preview)
     return (
       <section className="scr pr people-loading" data-id="person" data-transition="deck" aria-busy="true" aria-label="Загрузка профиля">
         {toolbar}
         <div className="gal">
-          {preview?.avatarUrl ? <PersonPhoto src={preview.avatarUrl} className="on" /> : <div className="sk" style={{ position: "absolute", inset: 0, borderRadius: 0 }} />}
+          <div className="sk" style={{ position: "absolute", inset: 0, borderRadius: 0 }} />
         </div>
         <div className="people-loading-caption">
-          {preview && <h1>{preview.name}{preview.age ? `, ${preview.age}` : ""}</h1>}
           <p role="status">Загружаем профиль…</p>
         </div>
       </section>
     );
 
-  const c = cards[ix];
   if (!c)
     return (
       <section className="scr aurora in" data-id="deck-end" data-transition="deck">
@@ -319,7 +323,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
             <img src={mosyaSrc("sit")} alt="" />
           </div>
           <h1 className="t">
-            {error ? "Не удалось открыть профиль" : moreError ? "Не удалось загрузить анкеты" : moreBusy || nextOffset !== null ? "Загружаем людей…" : cards.length ? (
+            {error ? "Не удалось открыть профиль" : moreError ? "Не удалось загрузить анкеты" : moreBusy || nextOffset !== null ? "Загружаем людей…" : cards?.length ? (
               <>
                 Пока <em>всё</em>
               </>
@@ -332,7 +336,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
           <p>
             {error ?? (moreError ? "Попробуй ещё раз — продолжим с той же анкеты."
               : moreBusy || nextOffset !== null ? "Сейчас покажем следующие анкеты."
-              : cards.length ? "Ты посмотрел всех по выбранным фильтрам. Можно изменить условия или создать встречу."
+              : cards?.length ? "Ты посмотрел всех по выбранным фильтрам. Можно изменить условия или создать встречу."
               : "Попробуй расширить возраст или выбрать другие интересы.")}
 
           </p>
@@ -349,7 +353,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
       </section>
     );
 
-  const next = cards[ix + 1];
+  const next = cards?.[ix + 1];
   const cached = cache.current.get(c.id);
   return (
     <div className="people-stack" style={{ display: "contents" }}
@@ -381,6 +385,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
       key={c.id}
       id={c.id}
       initial={cached ?? quick(c)}
+      pending={cards === null}
       deck={{
         from,
         onSwipe: (dir) => {

@@ -107,11 +107,13 @@ test("a clicked home portrait remains visible while the deck request is slow", a
   });
   try {
     await page.goto("/feed");
-    await page.locator(".k-mt").filter({ hasText: anna.name }).tap();
+    const card = page.locator(".k-mt").filter({ hasText: anna.name });
+    const thumbnail = await card.evaluate(el => getComputedStyle(el).backgroundImage.slice(5, -2));
+    await card.tap();
     const loading = page.getByRole("region", { name: "Загрузка профиля" });
     await expect(loading.getByRole("heading", { name: "Анна, 28" })).toBeVisible();
-    await expect(loading.locator(".gal > img")).toHaveAttribute("src", anna.avatarUrl);
-    await expect(loading).toHaveCSS("background-color", "rgb(23, 20, 31)");
+    await expect(loading.locator(".gal > img")).toHaveJSProperty("src", thumbnail);
+    await expect(loading.locator(".evbg")).toHaveCSS("background-color", "rgb(23, 20, 31)");
     await expect(loading.getByRole("button", { name: "Поставить сердечко" })).toHaveCount(0);
     await page.screenshot({ path: info.outputPath("loading-selected-profile.png") });
     release();

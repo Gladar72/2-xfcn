@@ -78,11 +78,13 @@ export interface DeckCtl {
  * в колоде свайп вбок — следующий человек. Внизу «Позвать на встречу»
  * (приглашение на свою встречу в личный чат + Telegram) и «Написать».
  */
-export function PersonView({ id, initial, deck }: { id: string; initial?: Person | null; deck?: DeckCtl }) {
-  return <PersonViewContent key={id} id={id} initial={initial} deck={deck} />;
+type PersonViewProps = { id: string; initial?: Person | null; deck?: DeckCtl; pending?: boolean };
+
+export function PersonView({ id, ...props }: PersonViewProps) {
+  return <PersonViewContent key={id} id={id} {...props} />;
 }
 
-function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person | null; deck?: DeckCtl }) {
+function PersonViewContent({ id, initial, deck, pending = false }: PersonViewProps) {
   const router = useRouter();
   const [person, setPerson] = useState<Person | null>(initial ?? null);
   const [error, setError] = useState<string | null>(null);
@@ -92,6 +94,8 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
   const directRequest = useRef<AbortController | null>(null);
   useEffect(() => () => directRequest.current?.abort(), []);
   const [gi, setGi] = useState(0);
+  // Upgrading the already-visible home thumbnail is not a gallery swipe.
+  const [animatePhotos, setAnimatePhotos] = useState(!pending);
   const [shownPhoto, setShownPhoto] = useState<string | null>(null);
   const [readyPhotos, setReadyPhotos] = useState<Set<string>>(() => new Set());
   const [failedPhotos, setFailedPhotos] = useState<Set<string>>(() => new Set());
@@ -102,6 +106,10 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
   }, [person?.photos, person?.avatarUrl]);
   const photoIndex = photos.length ? gi % photos.length : 0;
   const requestedPhoto = photos[photoIndex];
+  function changePhoto(direction: 1 | -1) {
+    setAnimatePhotos(true);
+    setGi(index => (index + direction + photos.length) % photos.length);
+  }
   useEffect(() => {
     if (requestedPhoto && readyPhotos.has(requestedPhoto)) setShownPhoto(requestedPhoto);
     else if (!requestedPhoto) setShownPhoto(null);
@@ -142,7 +150,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
   const [followBusy, setFollowBusy] = useState(false);
   const followPending = useRef(false);
   useEffect(() => {
-    if (!person?.id) return;
+    if (pending || !person?.id) return;
     const controller = new AbortController();
     setFollow(null);
     setFollowError(false);
@@ -151,9 +159,9 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
       .then((d) => { if (!controller.signal.aborted) setFollow({ following: !!d.following, followers: d.followers ?? 0, events: Array.isArray(d.events) ? d.events : [] }); })
       .catch(() => { if (!controller.signal.aborted) setFollowError(true); });
     return () => controller.abort();
-  }, [person?.id, followRetry]);
+  }, [person?.id, followRetry, pending]);
   async function toggleFollow() {
-    if (!person || followPending.current) return;
+    if (pending || !person || followPending.current) return;
     if (!follow) {
       if (followError) { setFollowError(false); setFollowRetry(n => n + 1); }
       return;
@@ -180,7 +188,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
     }
   }
   useEffect(() => {
-    if (!person?.id) return;
+    if (pending || !person?.id) return;
     setLiked(false);
     const controller = new AbortController();
     const version = ++likeVersion.current;
@@ -189,7 +197,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
       .then((d) => { if (d && !controller.signal.aborted && version === likeVersion.current) setLiked(!!d.liked); })
       .catch(() => {});
     return () => controller.abort();
-  }, [person?.id]);
+  }, [person?.id, pending]);
   // Подсказка Моси про сердечко — один раз, на втором человеке в колоде (первый — общий гид).
   const seenInDeck = useRef(0);
   useEffect(() => {
@@ -205,7 +213,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
     return;
   }, [deck, person?.id, person?.name]);
   async function heart() {
-    if (!person || likePending.current) return;
+    if (pending || !person || likePending.current) return;
     // A pending GET describes the state before this tap. Do not let it overwrite
     // the mutation, and serialize taps so POST/DELETE cannot finish backwards.
     likeVersion.current += 1;
@@ -276,7 +284,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
     else openDirect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [person, deck]);
-  useGuide(deck ? "deck" : "person", { when: person !== null, force: !!deck });
+  useGuide(deck ? "deck" : "person", { when: person !== null && !pending, force: !!deck });
 
   // Колода сначала даёт короткую карточку (имя, фото), потом полный профиль —
   // подменяем без перерисовки экрана, чтобы не было мигания.
@@ -325,7 +333,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
   }, [person?.id]);
   function fly(dir: 1 | -1) {
     const el = card.current;
-    if (!deck || flying.current) return;
+    if (pending || !deck || flying.current) return;
     flying.current = true;
     if (el) {
       el.style.transition = "transform .22s cubic-bezier(.3,.6,.4,1), opacity .22s";
@@ -342,7 +350,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
   }
 
   async function openDirect(eventId?: string) {
-    if (!person || directRequest.current) return;
+    if (pending || !person || directRequest.current) return;
     const controller = new AbortController();
     directRequest.current = controller;
     setBusy(true);
@@ -383,6 +391,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
   }
 
   function openInvite() {
+    if (pending) return;
     setInviteOpen(true);
     if (myEvents === null)
       fetch("/api/me/events?scope=upcoming")
@@ -406,7 +415,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
   }, [person?.id, deck]);
 
   async function report(reason: string) {
-    if (!person) return;
+    if (pending || !person) return;
     setMoreOpen(false);
     await fetch("/api/reports", {
       method: "POST",
@@ -461,9 +470,11 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
 
   return (
     <section
-      className={`scr pr pr2 aurora ${deck ? `deck ${deck.from === 1 ? "dk-r" : deck.from === -1 ? "dk-l" : "dk-0"}` : "in"}`}
+      className={`scr pr pr2 aurora ${!animatePhotos ? "person-entry" : ""} ${deck ? `deck ${deck.from === 1 ? "dk-r" : deck.from === -1 ? "dk-l" : "dk-0"}` : "in"}`}
       data-id="person"
       data-transition={deck ? "deck" : undefined}
+      aria-busy={pending || undefined}
+      aria-label={pending ? "Загрузка профиля" : undefined}
     >
       <div className="person-swipe-surface" ref={card}>
       <div className="evbg" aria-hidden />
@@ -480,15 +491,15 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
             <img src={mosyaSrc("wave")} alt="" style={{ width: 220, position: "static", opacity: 1, transform: "none" }} />
           </div>
         )}
-        {photos.length > 1 && (
+        {!pending && photos.length > 1 && (
           <>
             <div className="gb">
               {photos.map((_, i) => (
                 <i key={i} className={i <= photoIndex ? "on" : ""} />
               ))}
             </div>
-            <button className="tapL" onClick={() => setGi((gi - 1 + photos.length) % photos.length)} aria-label="Предыдущее фото" />
-            <button className="tapR" onClick={() => setGi((gi + 1) % photos.length)} aria-label="Следующее фото" />
+            <button className="tapL" onClick={() => changePhoto(-1)} aria-label="Предыдущее фото" />
+            <button className="tapR" onClick={() => changePhoto(1)} aria-label="Следующее фото" />
           </>
         )}
         <div className="nm">
@@ -498,8 +509,9 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
             {person.age ? `, ${person.age}` : ""}
           </h1>
           </div>
-          <PresenceLabel lastActiveAt={person.lastActiveAt} gender={person.gender} />
+          {!pending && <PresenceLabel lastActiveAt={person.lastActiveAt} gender={person.gender} />}
           <p>
+            {pending ? <span role="status">Загружаем профиль…</span> : <>
             {(person.distanceM !== undefined ? personDistanceLabel(person.distanceM) : distanceLabel(person.distanceKm)) && (
               <span className="pill glass dist">
                 <Ic n="pin" c="xs" />
@@ -521,6 +533,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
                 {follow.followers} {plural(follow.followers, "подписчик", "подписчика", "подписчиков")}
               </span>
             )}
+            </>}
           </p>
         </div>
       </div>
@@ -540,7 +553,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
           не листается), а нажатие по фото над карточкой листает галерею. */}
       <div
         className="body"
-        style={{ pointerEvents: "auto" }}
+        style={{ pointerEvents: pending ? "none" : "auto", display: pending ? "none" : undefined }}
         ref={bodyRef}
         onTouchStart={(e) => {
           swipe.current = null;
@@ -591,7 +604,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
           }
           if (!st.top || photos.length < 2 || st.axis !== "x") return;
           if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-            setGi((g) => (dx < 0 ? (g + 1) % photos.length : (g - 1 + photos.length) % photos.length));
+            changePhoto(dx < 0 ? 1 : -1);
           }
         }}
         onClickCapture={(e) => {
@@ -604,7 +617,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
           if (e.target !== e.currentTarget || photos.length < 2) return;
           const r = e.currentTarget.getBoundingClientRect();
           const left = e.clientX - r.left < r.width / 2;
-          setGi((g) => (left ? (g - 1 + photos.length) % photos.length : (g + 1) % photos.length));
+          changePhoto(left ? -1 : 1);
         }}
       >
         {deck && <button className="rb people-profile-menu" aria-label="Меню профиля" onClick={() => setMoreOpen(true)}><Ic n="more" /></button>}
@@ -688,7 +701,7 @@ function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person
         </div>
       </div>
       </div>
-      <div className="cta">
+      <div className="cta" style={{ display: pending ? "none" : undefined }}>
         <button className="rb gl" onClick={() =>
             person.canMessage === false
               ? say(NO_MEET_TEXT)

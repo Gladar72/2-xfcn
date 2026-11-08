@@ -41,7 +41,10 @@ function RecoveringPhoto({ src, className, onReady, onFailure }: Props) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      setFailed(n => n + 1);
+      // React may replay this effect for an already-failed cached image.
+      // Advancing from the captured candidate is idempotent; incrementing the
+      // latest state could skip the optimizer before it is requested.
+      setFailed(failed + 1);
     }
     img.addEventListener("load", loaded);
     img.addEventListener("error", fail);
@@ -50,9 +53,11 @@ function RecoveringPhoto({ src, className, onReady, onFailure }: Props) {
       settled = true; clearTimeout(timer);
       img.removeEventListener("load", loaded); img.removeEventListener("error", fail);
     };
-  }, [current, exhausted]);
+  }, [current, exhausted, failed]);
   return (
+    // A new candidate needs a fresh element: complete/naturalWidth can still
+    // describe the previous failed URL immediately after changing src.
     // eslint-disable-next-line @next/next/no-img-element
-    <img ref={image} src={current ?? mosyaSrc("wave")} className={className} alt="" decoding="async" draggable={false} />
+    <img key={current ?? "placeholder"} ref={image} src={current ?? mosyaSrc("wave")} className={className} alt="" decoding="async" draggable={false} />
   );
 }

@@ -203,6 +203,7 @@
 .P .pr.deck .gal::after,.P .pr .gal::after{background:linear-gradient(180deg,rgba(10,8,14,.36),transparent 22%,transparent 55%,rgba(10,8,14,.78))!important}
 .P .pr.pr2 .evbg{filter:none!important;background:#17141F!important;background-image:none!important;inset:0}
 .P .pr.pr2 .gal>img{transition:opacity .18s ease;transform:none!important;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.P .pr.person-entry .gal>img{transition:none}
 .P .person-photo-notice{position:absolute;z-index:8;top:32%;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100% - 48px);display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 16px;border-radius:18px;background:rgba(23,20,31,.82);color:#fff;text-align:center;font:400 14px/1.35 var(--disp);pointer-events:none}
 .P .person-photo-notice button{min-height:44px;padding:8px 14px;border-radius:14px;background:rgba(255,255,255,.14);color:#fff;pointer-events:auto}
 .P .pr.pr2,.P .pr.deck{background:#17141F!important}
@@ -276,7 +277,7 @@
 @media (prefers-reduced-motion: reduce){.k-crl>img{animation:none}}
 
 /* Stable portrait hand-off: the incoming card matches the already-visible photo. */
-.P .pr.dk-r,.P .pr.dk-l{animation:none}
+.P .pr.dk-0,.P .pr.dk-r,.P .pr.dk-l{animation:none}
 .P .pr.pr2 .cta .rb{width:48px;height:52px;background:rgba(23,20,31,.78);color:#fff}
 .P .pr.pr2 .cta .fbell.on{background:rgba(255,255,255,.94);color:var(--ink);box-shadow:none}
 .P .pr.pr2 .cta .btn{min-width:0;font-size:14px;line-height:1.15;padding:0 10px}
