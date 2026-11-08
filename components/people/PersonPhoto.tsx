@@ -1,28 +1,58 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { photoThumb } from "@/lib/photos/thumb";
 import { mosyaSrc } from "@/components/brand/Mosya";
 
 /** Share this URL with preloading: a different width is a separate network request. */
 export const personPhotoUrl = (src: string) => src;
 
-type Props = { src: string; className?: string; onReady?: () => void };
+type Props = { src: string; className?: string; retry?: number; onReady?: () => void; onFailure?: () => void };
 
-export function PersonPhoto({ src, className, onReady }: Props) {
-  return <RecoveringPhoto key={src} src={src} className={className} onReady={onReady} />;
+export function PersonPhoto({ retry = 0, ...props }: Props) {
+  return <RecoveringPhoto key={`${props.src}:${retry}`} {...props} />;
 }
 
-function RecoveringPhoto({ src, className, onReady }: Props) {
+function RecoveringPhoto({ src, className, onReady, onFailure }: Props) {
   const [failed, setFailed] = useState(0);
+  const image = useRef<HTMLImageElement>(null);
+  const callbacks = useRef({ onReady, onFailure });
+  callbacks.current = { onReady, onFailure };
   // Full-screen portraits use the stored original, without a second lossy encode.
   const optimized = photoThumb(src, 420, true);
-  const candidates = [...new Set([src, optimized, mosyaSrc("wave")])];
-  const current = candidates[Math.min(failed, candidates.length - 1)]!;
+  const candidates = [...new Set([src, optimized])];
+  const exhausted = failed >= candidates.length;
+  const current = candidates[failed];
+  useEffect(() => {
+    if (exhausted) { callbacks.current.onFailure?.(); return; }
+    const img = image.current;
+    if (!img) return;
+    let settled = false;
+    const timer = setTimeout(fail, 10_000);
+    function loaded() {
+      if (settled || !img?.naturalWidth) return;
+      settled = true;
+      clearTimeout(timer);
+      // onLoad/complete already means this image can be shown. Waiting for
+      // decode() again can hang indefinitely in a Telegram WebView.
+      callbacks.current.onReady?.();
+    }
+    function fail() {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      setFailed(n => n + 1);
+    }
+    img.addEventListener("load", loaded);
+    img.addEventListener("error", fail);
+    if (img.complete) { if (img.naturalWidth) loaded(); else fail(); }
+    return () => {
+      settled = true; clearTimeout(timer);
+      img.removeEventListener("load", loaded); img.removeEventListener("error", fail);
+    };
+  }, [current, exhausted]);
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={current} className={className} alt="" decoding="async" draggable={false}
-      onLoad={async e => { const img = e.currentTarget; await img.decode().catch(() => {}); onReady?.(); }}
-      onError={() => setFailed(n => Math.min(n + 1, candidates.length - 1))} />
+    <img ref={image} src={current ?? mosyaSrc("wave")} className={className} alt="" decoding="async" draggable={false} />
   );
 }

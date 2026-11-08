@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { mosyaSrc } from "@/components/brand/Mosya";
@@ -11,7 +11,7 @@ import { useGuide } from "@/lib/mosya/guide";
 import { peek, say } from "@/lib/mosya/peek";
 import { goBack } from "@/lib/nav/back";
 import { PresenceLabel } from "@/components/people/PresenceLabel";
-import { PersonPhoto, personPhotoUrl } from "@/components/people/PersonPhoto";
+import { PersonPhoto } from "@/components/people/PersonPhoto";
 import { distanceLabel, personDistanceLabel } from "@/lib/geo/approx-distance";
 import { suggestMeet } from "@/lib/mosya/suggest";
 
@@ -79,6 +79,10 @@ export interface DeckCtl {
  * (приглашение на свою встречу в личный чат + Telegram) и «Написать».
  */
 export function PersonView({ id, initial, deck }: { id: string; initial?: Person | null; deck?: DeckCtl }) {
+  return <PersonViewContent key={id} id={id} initial={initial} deck={deck} />;
+}
+
+function PersonViewContent({ id, initial, deck }: { id: string; initial?: Person | null; deck?: DeckCtl }) {
   const router = useRouter();
   const [person, setPerson] = useState<Person | null>(initial ?? null);
   const [error, setError] = useState<string | null>(null);
@@ -90,10 +94,32 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
   const [gi, setGi] = useState(0);
   const [shownPhoto, setShownPhoto] = useState<string | null>(null);
   const [readyPhotos, setReadyPhotos] = useState<Set<string>>(() => new Set());
-  const requestedPhoto = (person?.photos?.length ? person.photos : [person?.avatarUrl])[gi];
+  const [failedPhotos, setFailedPhotos] = useState<Set<string>>(() => new Set());
+  const [photoRetries, setPhotoRetries] = useState<Record<string, number>>({});
+  const photos = useMemo(() => {
+    const list = (person?.photos ?? []).filter((src): src is string => typeof src === "string" && !!src.trim()).map(src => src.trim());
+    return [...new Set(list.length ? list : person?.avatarUrl ? [person.avatarUrl] : [])];
+  }, [person?.photos, person?.avatarUrl]);
+  const photoIndex = photos.length ? gi % photos.length : 0;
+  const requestedPhoto = photos[photoIndex];
   useEffect(() => {
     if (requestedPhoto && readyPhotos.has(requestedPhoto)) setShownPhoto(requestedPhoto);
+    else if (!requestedPhoto) setShownPhoto(null);
   }, [requestedPhoto, readyPhotos]);
+  const retryPhotos = useCallback(() => {
+    // Preserve loaded image elements (including an optimizer fallback) while
+    // retrying only failed sources. Replacing them would flash an empty card.
+    setPhotoRetries(previous => {
+      const next = { ...previous };
+      for (const src of failedPhotos) next[src] = (next[src] ?? 0) + 1;
+      return next;
+    });
+    setFailedPhotos(new Set());
+  }, [failedPhotos]);
+  useEffect(() => {
+    window.addEventListener("online", retryPhotos);
+    return () => window.removeEventListener("online", retryPhotos);
+  }, [retryPhotos]);
   const swipe = useRef<{ x: number; y: number; t: number; top: boolean; axis: "x" | "y" | null } | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -268,14 +294,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
     return () => controller.abort();
   }, [id, initial]);
 
-  // Все фото человека грузим сразу — быстрые тапы не показывают пустоту.
-  useEffect(() => {
-    for (const src of person?.photos ?? []) {
-      const im = new Image();
-      im.decoding = "async";
-      im.src = personPhotoUrl(src);
-    }
-  }, [person?.photos]);
+  // Gallery images preload themselves. Avoid a second set of Image instances.
 
   /** Карточка улетает в сторону, потом колода показывает следующего. */
   const flying = useRef(false);
@@ -431,7 +450,11 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       </section>
     );
 
-  const photos = person.photos?.length ? person.photos : person.avatarUrl ? [person.avatarUrl] : [];
+  // The full profile can replace the preview's URL. Keep that loaded image
+  // mounted until a photo from the new set is ready, scoped to this person only.
+  const renderedPhotos = shownPhoto && photos.length && !photos.includes(shownPhoto) ? [shownPhoto, ...photos] : photos;
+  const pendingPhoto = !!requestedPhoto && !readyPhotos.has(requestedPhoto);
+  const photoFailed = !!requestedPhoto && failedPhotos.has(requestedPhoto);
   const common = person.commonInterests ?? [];
   const others = (person.interests ?? []).filter((i) => !common.includes(i));
   const meets = person.completedMeetingsCount;
@@ -446,12 +469,13 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
       <div className="evbg" aria-hidden />
       <div className="gal">
         {photos.length ? (
-          photos.map((src) => (
-            <PersonPhoto key={src} src={src} className={src === (shownPhoto ?? photos[0]) ? "on" : ""}
-              onReady={() => setReadyPhotos(previous => previous.has(src) ? previous : new Set([...previous, src]))} />
+          renderedPhotos.map((src) => (
+            <PersonPhoto key={src} src={src} retry={photoRetries[src] ?? 0} className={src === (shownPhoto ?? requestedPhoto) ? "on" : ""}
+              onReady={() => setReadyPhotos(previous => previous.has(src) ? previous : new Set([...previous, src]))}
+              onFailure={() => setFailedPhotos(previous => previous.has(src) ? previous : new Set([...previous, src]))} />
           ))
         ) : (
-          <div style={{ position: "absolute", inset: 0, background: "var(--g)", display: "grid", placeItems: "center" }}>
+          <div style={{ position: "absolute", inset: 0, background: "#17141F", display: "grid", placeItems: "center" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={mosyaSrc("wave")} alt="" style={{ width: 220, position: "static", opacity: 1, transform: "none" }} />
           </div>
@@ -460,7 +484,7 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           <>
             <div className="gb">
               {photos.map((_, i) => (
-                <i key={i} className={i <= gi ? "on" : ""} />
+                <i key={i} className={i <= photoIndex ? "on" : ""} />
               ))}
             </div>
             <button className="tapL" onClick={() => setGi((gi - 1 + photos.length) % photos.length)} aria-label="Предыдущее фото" />
@@ -500,6 +524,10 @@ export function PersonView({ id, initial, deck }: { id: string; initial?: Person
           </p>
         </div>
       </div>
+      {pendingPhoto && <div className="person-photo-notice" role="status">
+        <span>{photoFailed ? "Не удалось загрузить фото" : "Загружаем фото…"}</span>
+        {photoFailed && <button onClick={retryPhotos} aria-label="Загрузить фото снова">Попробовать снова</button>}
+      </div>}
       <div className="hb">
         <button className="rb glass" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
