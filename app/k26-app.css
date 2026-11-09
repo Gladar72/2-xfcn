@@ -330,7 +330,7 @@
 .K .k-story .k-stt.k-stt3{font-size:17px;line-height:1.15!important;letter-spacing:-.01em}
 .K .k-story .k-sdetails{bottom:51px;display:flex;flex-direction:column;gap:8px;font:400 10.5px/1.4 var(--disp)}
 .K .k-story .k-sdescription{margin:0;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:7;overflow:hidden}
-.K .k-story .k-sdetails .k-sme{position:static;font:inherit;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+.K .k-story .k-sdetails .k-sme{position:static;font:inherit;white-space:normal;overflow-wrap:anywhere;opacity:.85}
 .P .people-loading{background:#17141F!important;color:#fff}
 .P .people-loading .gal{height:100%;background:#17141F}
 .P .people-loading .gal>img{opacity:1;object-position:50% 0%}

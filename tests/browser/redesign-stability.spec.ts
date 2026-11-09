@@ -494,7 +494,8 @@ test("share card aligns its text, shows the description and removes the duplicat
   const description = "Встречаемся у входа в парк. Лёгкая пробежка и кофе после тренировки.";
   await page.route("**/api/events/meeting", r => r.fulfill({ json: {
     ...event, title: "Бегаем 20", description, status: "published", viewerStatus: "none",
-    participants: [], costType: "free", placeName: "Парк Гагарина",
+    participants: [], costType: "free", placeName: "Арена", address: "Россия, Тюмень, улица Ленина, 10", city: "Тюмень",
+    seatsTaken: 0, seatsTotal: 3,
   } }));
   await page.goto("/events/meeting");
   await page.getByRole("button", { name: "Поделиться", exact: true }).first().tap();
@@ -503,6 +504,7 @@ test("share card aligns its text, shows the description and removes the duplicat
   await expect(story.locator(".k-sdescription")).toHaveText(description);
   await expect(story).not.toContainText("Бегаем 20");
   await expect(story.locator(".k-scta")).toHaveText("Пойти со мной");
+  await expect(story.locator(".k-sme")).toHaveText("Арена, улица Ленина, 10 · 1 из 4");
   const layout = await story.evaluate(el => {
     const logo = el.querySelector(".k-swm")!.getBoundingClientRect();
     return [".k-schip", ".k-sdescription", ".k-sme"].map(selector => {
@@ -513,6 +515,9 @@ test("share card aligns its text, shows the description and removes the duplicat
   });
   for (const item of layout) { expect(Math.abs(item.left)).toBeLessThan(1); expect(item.font).toBe("10.5px"); expect(item.fits).toBe(true); }
   await page.screenshot({ path: info.outputPath("share-card.png"), animations: "disabled" });
+  await page.getByRole("button", { name: "Instagram", exact: true }).tap();
+  await expect(page.getByText("Вставь скопированную ссылку и размести стикер поверх значка внизу")).toBeVisible();
+  await expect(page.getByAltText("Сторис для Instagram")).toHaveAttribute("src", /story\.png\?v=.+&ig=1$/);
 });
 
 for (const status of ["missed", "silent", "added", "unsupported"] as const) {

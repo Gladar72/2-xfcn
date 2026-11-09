@@ -12,7 +12,7 @@ import { storyDescription } from "@/lib/events/story-text";
  *
  * Instagram не принимает ссылку от приложения — поэтому ссылку копируем заранее,
  * картинку отдаём в системное окно «Поделиться» (или сохраняем через Telegram),
- * а человек сам добавляет стикер «Ссылка» в пунктирную рамку.
+ * а человек сам добавляет стикер «Ссылка» поверх значка внизу картинки.
  */
 type Target = "tg" | "tgs" | "ig" | "wa" | "vk";
 
@@ -84,7 +84,7 @@ export function ShareSheet({
     setStoryOk(!!tg?.shareToStory && (tg.isVersionAtLeast?.("7.8") ?? false));
   }, [open]);
   // Change the image URL after a layout or event edit so old CDN images expire.
-  const v = hashKey(`s5|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
+  const v = hashKey(`s6|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
   const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
   const igUrl = `${storyUrl}&ig=1`;
   // Картинку для сторис рисуем заранее, пока человек смотрит событие: к нажатию
@@ -228,7 +228,7 @@ export function ShareSheet({
           </div>
           <div className="gl" style={{ display: "grid", gap: 12, borderRadius: 20, padding: 16 }}>
             {step(1, "Выбери Instagram → «История»", "Если картинка сохранилась в галерею — выбери её в сторис")}
-            {step(2, "Добавь стикер «Ссылка»", "Ссылка уже скопирована — вставь её в пунктирную рамку")}
+            {step(2, "Добавь стикер «Ссылка»", "Вставь скопированную ссылку и размести стикер поверх значка внизу")}
             {step(3, "Опубликуй", "Друзья нажмут на стикер и сразу откроют событие")}
           </div>
           <button

@@ -74,7 +74,7 @@ export function CardStory(d: CardStoryData) {
 
       <div style={{ position: "absolute", left: L, width: W - 2 * L, bottom: H - ctaTop + 40, display: "flex", flexDirection: "column", gap: 26, fontSize: 38, fontWeight: 400, lineHeight: 1.4 }}>
         {description && <div style={{ display: "flex", overflow: "hidden", maxHeight: 320, wordBreak: "break-word" }}>{description}</div>}
-        {d.meta && <div style={{ display: "flex", color: "rgba(255,255,255,0.86)" }}>{d.meta}</div>}
+        {d.meta && <div style={{ display: "flex", color: "rgba(255,255,255,0.86)", wordBreak: "break-word" }}>{d.meta}</div>}
       </div>
 
       <div
@@ -105,9 +105,6 @@ export function CardStory(d: CardStoryData) {
             top: ctaTop + 108 + 36,
             width: 360,
             height: 100,
-            borderRadius: 50,
-            border: "3px dashed rgba(255,255,255,0.6)",
-            background: "rgba(255,255,255,0.1)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",

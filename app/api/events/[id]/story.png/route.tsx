@@ -9,6 +9,7 @@ import { PhoneStory } from "./phone-layout";
 import { InviteStory } from "./invite-layout";
 import { PosterStory } from "./poster-layout";
 import { CardStory } from "./card-layout";
+import { storyMeta } from "@/lib/events/story-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
  * GET /api/events/[id]/story.png — картинка 1080×1920 для сторис (Telegram, Instagram)
  * и для напоминания «никто не откликнулся» в боте.
  * Путь оканчивается на .png — middleware его не трогает (Telegram забирает картинку без входа).
- * ?ig=1 — с пунктирной рамкой под стикер «Ссылка» (Instagram не даёт вставить ссылку сам).
+ * ?ig=1 — со значком ссылки под стикер Instagram в основном макете.
  *
  * Оформление «F»: фон — та же картинка, сильно размытая; сама картинка — ЦЕЛИКОМ,
  * в своих пропорциях (афиши с текстом не обрезаются). Сверху название, справа белый
@@ -147,7 +148,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
   const origin = process.env.APP_URL?.replace(/\/$/, "") || reqUrl.origin;
 
   const t0 = Date.now();
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
   const { data: e } = await admin
     .from("events")
     .select(
@@ -463,10 +464,11 @@ async function phoneStoryResponse(e: StoryEvent, ig: boolean, origin: string, tD
     const whenTxt = dateTop === "сегодня" ? `Сегодня, ${time}` : dateTop === "завтра" ? `Завтра, ${time}` : `${wdShort.charAt(0).toUpperCase()}${wdShort.slice(1)}, ${dm}, ${time}`;
     const CAT: Record<string, string> = { coffee: "Кофе", training: "Тренировка", cinema: "Кино", breakfast: "Завтрак", dinner: "Ужин", walk: "Прогулка", active: "Активный отдых", party: "Вечеринка", custom: "Встреча" };
     const catName = e.is_business ? "Афиша" : e.is_anonymous ? "Анонимно" : CAT[catSlug ?? ""] ?? "Встреча";
-    const place = e.is_anonymous ? "место после одобрения" : placeName.replace(new RegExp(`^${city || "—"}[,\\s]+|[,\\s]+${city || "—"}$`, "gi"), "") || street.replace(/^ул(ица)?\.?\s*/i, "");
-    const seatsTxt = free > 0 ? `${e.seats_taken ?? 0} из ${e.seats_total ?? 0}` : "мест нет";
-    let meta = [place, seatsTxt].filter(Boolean).join(" · ");
-    if (meta.length > 44) meta = meta.slice(0, 43).trimEnd() + "…";
+    const meta = storyMeta({
+      placeName: e.place_name, address: e.address, city: e.city,
+      seatsTaken: e.seats_taken, seatsTotal: e.seats_total,
+      isBusiness: e.is_business, isAnonymous: e.is_anonymous,
+    });
     const logoWhite = wordmark.toString().replace(/#16121F/gi, "#FFFFFF");
     return new ImageResponse(
       CardStory({

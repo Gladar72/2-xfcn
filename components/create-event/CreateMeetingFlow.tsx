@@ -17,6 +17,7 @@ import { KI, TwoLine } from "@/components/proto/k";
 import { Creature } from "@/components/brand/Creature";
 import { CalendarSheet, Wheel } from "@/components/proto/pickers";
 import { ShareSheet } from "@/components/proto/ShareSheet";
+import { storyMeta } from "@/lib/events/story-text";
 import { PhotoCropModal } from "./PhotoCropModal";
 import { goBack } from "@/lib/nav/back";
 import { maxGroupSize, type Plan } from "@/lib/subscriptions/limits";
@@ -695,7 +696,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             </button>
           </div>
         </div>
-        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={publishedId} title={title} description={description} when={sumTxt} version={photo ?? ""} photo={photo} chip={`${catLabel} · ${DAYS[di]?.s}, ${hh}:${pad2(mi * 5)}`} meta={[isAnonymous ? null : placeName, `0 из ${seatsTotal}`].filter(Boolean).join(" · ")} />
+        <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={publishedId} title={title} description={description} when={sumTxt} version={photo ?? ""} photo={photo} chip={`${catLabel} · ${DAYS[di]?.s}, ${hh}:${pad2(mi * 5)}`} meta={storyMeta({ placeName, address, seatsTaken: 0, seatsTotal, isBusiness: business, isAnonymous })} />
       </section>
     );
   }

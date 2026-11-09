@@ -17,6 +17,7 @@ import { openRoute } from "@/lib/maps/route";
 import { JoinFlow } from "@/components/events/JoinFlow";
 import { Chr, Ic, MiniMap, Sheet, Toast, costShort, dayLong, eventIcon } from "@/components/proto/ui";
 import { ShareSheet } from "@/components/proto/ShareSheet";
+import { storyMeta } from "@/lib/events/story-text";
 import { KI, bg } from "@/components/proto/k";
 import { goBack } from "@/lib/nav/back";
 import { shareNudgeDue } from "@/lib/events/share-nudge";
@@ -31,6 +32,7 @@ interface EventDetails {
   trainingType: { slug: string; name: string; emoji: string | null } | null;
   placeName: string | null;
   address: string | null;
+  city?: string | null;
   latitude: number | null;
   longitude: number | null;
   eventDate: string;
@@ -995,7 +997,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
           }}
         />
       )}
-      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} description={event.description} when={shareWhen} version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`} photo={event.photoUrl} chip={`${catName} · ${shareWhen}`} meta={[event.isAnonymous ? null : realPlace(event.placeName), `${event.seatsTaken} из ${event.seatsTotal}`].filter(Boolean).join(" · ")} />
+      <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} description={event.description} when={shareWhen} version={event.photoUrl ?? ""} photo={event.photoUrl} chip={`${catName} · ${shareWhen}`} meta={storyMeta(event)} />
 
       <Sheet open={anonOpen} onClose={() => setAnonOpen(false)}>
         <div className="anonbox">
