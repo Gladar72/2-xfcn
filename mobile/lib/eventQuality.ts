@@ -26,15 +26,13 @@ function isJunk(s: string): boolean {
   return false;
 }
 
-const words = (s: string) => norm(s).split(" ").filter((w) => /[a-zа-я]/.test(w));
-
 // Признаки бизнес-события: такие создают в разделе «Для бизнеса», а не как встречу людей.
 const BUSINESS_RE =
   /мастер[\s-]?класс|мастеркласс|воркшоп|workshop|семинар|вебинар|тренинг|обучени|провожу|проведу|научу|стоимость участия|предоплат|платн(ый|ое|ая) (вход|участи|занят|мероприят)|записывайтесь|запись по телефону|бронь по телефону/;
 
 export const QUALITY_TEXT = {
   title: "Название не подходит 🙂 Напиши, что будете делать — например «Кофе и настолки в субботу».",
-  description: "Расскажи в паре предложений, что будете делать и для кого — так к тебе захотят прийти.",
+  description: "Добавь описание встречи.",
   place: "Выбери место встречи — без него никто не придёт.",
   business:
     "Похоже, ты проводишь событие — мастер-класс, семинар или платное занятие. Такие создают в разделе «Для бизнеса»: там можно указать цену и позвать до 500 гостей. Обычная встреча — когда просто ищешь компанию.",
@@ -54,7 +52,7 @@ export function titleProblem(title: string): string | null {
 
 export function descriptionProblem(description: string): string | null {
   const d = description.trim();
-  if (d.length < 20 || words(d).length < 3 || isJunk(d)) return QUALITY_TEXT.description;
+  if (!d) return QUALITY_TEXT.description;
   return null;
 }
 

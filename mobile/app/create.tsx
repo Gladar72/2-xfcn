@@ -183,7 +183,7 @@ export default function CreateScreen() {
       const t = titleProblem(form.title);
       if (t) return t;
       const fullDesc = [isOwn && own && !form.title.toLowerCase().includes(own.toLowerCase()) ? own : "", form.description].filter(Boolean).join(". ");
-      const d = descriptionProblem(fullDesc);
+      const d = descriptionProblem(form.description);
       if (d) return d;
       // Мастер-классы и платные занятия — только через «Для бизнеса».
       if (!form.business) {

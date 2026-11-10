@@ -486,7 +486,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       const t = titleProblem(title);
       if (t) return t;
       const fullDesc = [(isOwn || (business && bizCategory === "other") || trainingTypeSlug === "custom") && own.trim() && !title.toLowerCase().includes(own.trim().toLowerCase()) ? own.trim() : "", description].filter(Boolean).join(". ");
-      const d = descriptionProblem(fullDesc);
+      const d = descriptionProblem(description);
       if (d) return d;
       // Мастер-классы и платные занятия — только через «Для бизнеса».
       if (!business) {

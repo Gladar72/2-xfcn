@@ -11,7 +11,8 @@ export const createEventSchema = z
       .min(1, "Добавь название встречи")
       .max(120, "Название слишком длинное — максимум 120 символов")
       .optional(),
-    description: z.string().max(1000, "Описание слишком длинное — максимум 1000 символов").optional(),
+    description: z.string({ required_error: "Добавь описание встречи.", invalid_type_error: "Добавь описание встречи." })
+      .trim().min(1, "Добавь описание встречи.").max(1000, "Описание слишком длинное — максимум 1000 символов"),
     // Для «Для бизнеса» категорию не выбирают — сервер подставит служебную.
     categorySlug: z.string().optional().default(""),
     trainingTypeSlug: z.string().optional(),
