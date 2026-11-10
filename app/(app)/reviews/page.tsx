@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ReviewSheet } from "@/components/proto/ReviewSheet";
 import { EmptyIll, Ic, Screen, Toast } from "@/components/proto/ui";
 import { photoThumb } from "@/lib/photos/thumb";
 import { goBack } from "@/lib/nav/back";
+import { getJson } from "@/lib/http/get-json";
 
 interface ReviewableMember {
   id: string;
@@ -24,22 +25,22 @@ export default function ReviewsPage() {
   const router = useRouter();
   const [events, setEvents] = useState<ReviewableEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const request = useRef<AbortController | null>(null);
   const [activeTarget, setActiveTarget] = useState<{ eventId: string; title: string; member: ReviewableMember } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   // Пришли из уведомления «Оцени, как прошла встреча» — /reviews?event=<id>
   const [focusEventId, setFocusEventId] = useState<string | null>(null);
 
-  useEffect(() => {
-    const eventParam = new URLSearchParams(window.location.search).get("event");
-    setFocusEventId(eventParam);
-    load(eventParam, true);
-  }, []);
-
-  function load(focusId: string | null = focusEventId, autoOpen = false) {
+  const load = useCallback((focusId: string | null, autoOpen = false) => {
+    request.current?.abort();
+    const controller = new AbortController();
+    request.current = controller;
     setLoading(true);
-    fetch("/api/reviews/reviewable")
-      .then((r) => r.json())
+    setLoadError(false);
+    getJson<{ events: ReviewableEvent[] }>("/api/reviews/reviewable", controller.signal)
       .then((data) => {
+        if (controller.signal.aborted) return;
         let list: ReviewableEvent[] = data.events ?? [];
         if (focusId) {
           // Нужную встречу — наверх и сразу открываем форму оценки.
@@ -50,10 +51,18 @@ export default function ReviewsPage() {
         }
         setEvents(list);
       })
-      .finally(() => setLoading(false));
-  }
+      .catch(() => { if (!controller.signal.aborted) setLoadError(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+  }, []);
 
-  const focusDone = !!focusEventId && !loading && !events.some((e) => e.eventId === focusEventId);
+  useEffect(() => {
+    const eventParam = new URLSearchParams(window.location.search).get("event");
+    setFocusEventId(eventParam);
+    load(eventParam, true);
+    return () => request.current?.abort();
+  }, [load]);
+
+  const focusDone = !!focusEventId && !loading && !loadError && !events.some((e) => e.eventId === focusEventId);
 
   async function handleSubmit(data: {
     rating: number;
@@ -107,7 +116,11 @@ export default function ReviewsPage() {
       </p>
       {loading && [0, 1].map((i) => <div key={i} className="sk" style={{ height: 64, marginTop: 10 }} />)}
       {focusDone && <div className="note gl" style={{ marginTop: 14 }}>Эту встречу ты уже оценил — спасибо!</div>}
-      {!loading && events.length === 0 && (
+      {loadError && <div className="empty" role="alert" style={{ marginTop: 20 }}>
+        <b>Не удалось загрузить отзывы.</b>
+        <button className="btn v" onClick={() => load(focusEventId, true)}>Попробовать снова</button>
+      </div>}
+      {!loading && !loadError && events.length === 0 && (
         <div className="empty" style={{ marginTop: 20 }}>
           <EmptyIll a={["cloud", "mint", "calm"]} b={["ball", "lilac", "smile"]} c={["star", "peach", "sly"]} />
           <b>Оценивать пока некого</b>

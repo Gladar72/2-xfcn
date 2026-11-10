@@ -8,6 +8,7 @@ import { KI, bg } from "@/components/proto/k";
 import { Creature } from "@/components/brand/Creature";
 import { ReviewSheet, type ReviewData } from "@/components/proto/ReviewSheet";
 import { doneHints, markHintDone } from "@/lib/meet-hints";
+import { getJson } from "@/lib/http/get-json";
 
 interface MeetHint {
   notificationId: string;
@@ -45,6 +46,8 @@ export default function MyEventsPage() {
   const [tab, setTab] = useState<Tab>(0);
   const scope: Scope = tab === 2 ? "archive" : "upcoming";
   const [items, setItems] = useState<MyEvent[] | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [unread, setUnread] = useState(0);
   const [reviewable, setReviewable] = useState<Reviewable[]>([]);
   const [review, setReview] = useState<{ eventId: string; title: string; member: { id: string; name: string } } | null>(null);
@@ -80,11 +83,12 @@ export default function MyEventsPage() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
     setItems(null);
-    fetch(`/api/me/events?scope=${scope}`)
-      .then((r) => r.json())
+    setLoadError(false);
+    getJson<{ items: MyEvent[] }>(`/api/me/events?scope=${scope}`, controller.signal)
       .then((data) => !cancelled && setItems(data.items ?? []))
-      .catch(() => !cancelled && setItems([]));
+      .catch(() => { if (!cancelled) { setItems([]); setLoadError(true); } });
     if (scope === "archive")
       fetch("/api/reviews/reviewable")
         .then((r) => r.json())
@@ -92,16 +96,18 @@ export default function MyEventsPage() {
         .catch(() => {});
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [scope]);
+  }, [scope, attempt]);
 
   async function sendReview(d: ReviewData) {
     if (!review) return;
-    await fetch("/api/reviews", {
+    const response = await fetch("/api/reviews", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ eventId: review.eventId, revieweeId: review.member.id, ...d }),
-    }).catch(() => {});
+    });
+    if (!response.ok) throw new Error("Review was not saved");
     setReviewable((list) =>
       list.map((e) => (e.eventId === review.eventId ? { ...e, reviewableMembers: e.reviewableMembers.filter((m) => m.id !== review.member.id) } : e))
     );
@@ -196,7 +202,13 @@ export default function MyEventsPage() {
           );
         })}
       </div>
-      {items !== null && shown.length === 0 && (
+      {loadError && (
+        <div className="k-cempty k-g" role="alert" style={{ marginTop: 14 }}>
+          <b>Не удалось загрузить встречи.</b>
+          <button className="k-btn k-d k-pr" onClick={() => setAttempt((n) => n + 1)}>Попробовать снова</button>
+        </div>
+      )}
+      {!loadError && items !== null && shown.length === 0 && (
         <div className="k-cempty k-g" style={{ marginTop: 14 }}>
           <Creature size={84} variant="e" />
           <b>{tab === 2 ? "Прошедших встреч пока нет" : tab === 1 ? "Ты ещё ничего не создал" : "Ты пока никуда не идёшь"}</b>

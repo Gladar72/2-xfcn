@@ -6,6 +6,7 @@ import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Screen } from "@/components/proto/ui";
 import { useRouter } from "next/navigation";
 import { goBack } from "@/lib/nav/back";
+import { getJson } from "@/lib/http/get-json";
 
 interface NotificationItem {
   id: string;
@@ -69,19 +70,26 @@ export default function NotificationsPage() {
   const router = useRouter();
   const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   useGuide("notifications");
   const [tab, setTab] = useState<Tab>("all");
 
   useEffect(() => {
-    fetch("/api/notifications")
-      .then((r) => r.json())
-      .then((data) => setItems(data.items ?? []))
-      .finally(() => setLoading(false));
-
-    // Отмечаем всё прочитанным при открытии экрана — как и большинство
-    // приложений с уведомлениями (не по одному, а разом при заходе).
-    fetch("/api/notifications", { method: "PATCH" });
-  }, []);
+    const controller = new AbortController();
+    setLoading(true);
+    setLoadError(false);
+    getJson<{ items: NotificationItem[] }>("/api/notifications", controller.signal)
+      .then((data) => {
+        if (controller.signal.aborted) return;
+        setItems(data.items ?? []);
+        // Mark as read only once the notifications have actually loaded.
+        void fetch("/api/notifications", { method: "PATCH" }).catch(() => {});
+      })
+      .catch(() => { if (!controller.signal.aborted) setLoadError(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [attempt]);
 
   const filtered = useMemo(() => {
     if (tab === "all") return items;
@@ -148,7 +156,13 @@ export default function NotificationsPage() {
         ))}
       </div>
       {loading && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 66, marginTop: 8 }} />)}
-      {!loading && filtered.length === 0 && (
+      {loadError && (
+        <div className="empty" role="alert" style={{ marginTop: 24 }}>
+          <b>Не удалось загрузить уведомления.</b>
+          <button className="btn v" onClick={() => setAttempt((n) => n + 1)}>Попробовать снова</button>
+        </div>
+      )}
+      {!loading && !loadError && filtered.length === 0 && (
         <div className="empty" style={{ marginTop: 24 }}>
           <EmptyIll a={["cloud", "mint", "calm"]} b={["ball", "lilac", "smile"]} c={["star", "peach", "sly"]} />
           <b>Пока тихо</b>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { eventShareUrl } from "@/components/events/ShareEventButton";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 import { Ic, Sheet } from "./ui";
@@ -71,7 +71,11 @@ export function ShareSheet({
   meta?: string;
   description?: string | null;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copying" | "copied" | "error">("idle");
+  const [sharing, setSharing] = useState(false);
+  const [shareError, setShareError] = useState("");
+  const sharingRef = useRef(false);
+  const session = useRef(0);
   const [mode, setMode] = useState<"list" | "ig">("list");
   const [storyOk, setStoryOk] = useState(false);
   const link = eventShareUrl(eventId);
@@ -79,10 +83,16 @@ export function ShareSheet({
   const [origin, setOrigin] = useState("");
   useEffect(() => setOrigin(window.location.origin), []);
   useEffect(() => {
+    const current = ++session.current;
+    sharingRef.current = false;
+    setSharing(false);
+    setShareError("");
+    setCopyStatus("idle");
     if (open) setMode("list");
     const tg = getTelegramWebApp();
     setStoryOk(!!tg?.shareToStory && (tg.isVersionAtLeast?.("7.8") ?? false));
-  }, [open]);
+    return () => { session.current = current + 1; };
+  }, [open, eventId]);
   // Change the image URL after a layout or event edit so old CDN images expire.
   const v = hashKey(`s6|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
   const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
@@ -105,10 +115,14 @@ export function ShareSheet({
   }, [open, origin, igUrl]);
 
   async function copyLink(withText = true): Promise<boolean> {
+    const current = session.current;
+    setCopyStatus("copying");
     try {
       await navigator.clipboard.writeText(withText ? `${text}\n${link}` : link);
+      if (session.current === current) setCopyStatus("copied");
       return true;
     } catch {
+      if (session.current === current) setCopyStatus("error");
       return false;
     }
   }
@@ -142,30 +156,62 @@ export function ShareSheet({
 
   /** Картинку — в системное окно «Поделиться» (там есть Instagram → История), иначе сохраняем через Telegram. */
   async function openInstagram() {
+    if (sharingRef.current) return;
+    sharingRef.current = true;
+    setSharing(true);
+    setShareError("");
+    const current = session.current;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
-      const blob = await fetch(igUrl).then((r) => r.blob());
+      const response = await fetch(igUrl, { signal: controller.signal });
+      if (!response.ok) throw new Error("Story request failed");
+      const blob = await response.blob();
+      if (!blob.size || blob.type.split(";")[0] !== "image/png") throw new Error("Invalid story image");
+      clearTimeout(timeout);
+      if (session.current !== current) return;
       const file = new File([blob], "mesto-story.png", { type: "image/png" });
-      if (navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file] });
-        return;
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+          return;
+        } catch (error) {
+          // Closing the system share sheet is the user's choice, not a failure.
+          if (error instanceof Error && error.name === "AbortError") return;
+        }
+      }
+      if (session.current !== current) return;
+      const tg = getTelegramWebApp();
+      if (tg?.downloadFile && (tg.isVersionAtLeast?.("8.0") ?? false)) {
+        await new Promise<void>((resolve, reject) => {
+          tg.downloadFile!({ url: igUrl, file_name: "mesto-story.png" }, (accepted) => {
+            try {
+              if (accepted && session.current === current) openExternal("https://www.instagram.com/");
+              resolve();
+            } catch (error) { reject(error); }
+          });
+        });
+      } else {
+        openExternal(igUrl);
       }
     } catch {
-      /* окно закрыли или не поддерживается — ниже запасной путь */
-    }
-    const tg = getTelegramWebApp();
-    if (tg?.downloadFile && (tg.isVersionAtLeast?.("8.0") ?? false)) {
-      tg.downloadFile({ url: igUrl, file_name: "mesto-story.png" }, () => openExternal("https://www.instagram.com/"));
-    } else {
-      openExternal(igUrl);
+      if (session.current === current) setShareError("Не удалось подготовить сторис. Попробуй ещё раз.");
+    } finally {
+      clearTimeout(timeout);
+      if (session.current === current) {
+        sharingRef.current = false;
+        setSharing(false);
+      }
     }
   }
 
-  async function copy() {
-    if (await copyLink()) {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    }
-  }
+  const copyFallback = copyStatus === "error" && (
+    <div style={{ display: "grid", gap: 8 }}>
+      <p role="alert" className="muted" style={{ margin: 0 }}>Не удалось скопировать ссылку. Попробуй снова или скопируй её вручную.</p>
+      <input aria-label="Ссылка на встречу" readOnly value={link} onFocus={(e) => e.currentTarget.select()} style={{ width: "100%", minWidth: 0, padding: 10, borderRadius: 10 }} />
+      <button className="btn o" onClick={() => void copyLink(mode !== "ig")}>Скопировать ссылку</button>
+    </div>
+  );
 
   const step = (n: number, t: string, s: string) => (
     <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
@@ -205,14 +251,15 @@ export function ShareSheet({
                   {t.short}
                 </button>
               ))}
-              <button className="k-pr" onClick={copy}>
+              <button className="k-pr" disabled={copyStatus === "copying"} onClick={() => void copyLink()}>
                 <span style={{ background: "#17141F" }}>
-                  <Ic n={copied ? "check" : "copy"} />
+                  <Ic n={copyStatus === "copied" ? "check" : "copy"} />
                 </span>
-                {copied ? "Готово" : "Ссылка"}
+                {copyStatus === "copied" ? "Готово" : "Ссылка"}
               </button>
             </div>
           </div>
+          {copyFallback}
         </>
       ) : (
         <>
@@ -220,24 +267,27 @@ export function ShareSheet({
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={igUrl} alt="Сторис для Instagram" width={110} height={196} style={{ flex: "none", width: 110, height: 196, borderRadius: 14, objectFit: "cover", background: "#17141F" }} />
             <div style={{ display: "grid", gap: 8, paddingBottom: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#1E8A4C", background: "#E3F7EA", padding: "5px 10px", borderRadius: 99, width: "fit-content" }}>✓ Ссылка скопирована</span>
+              {copyStatus === "copied" && <span style={{ fontSize: 13, fontWeight: 600, color: "#1E8A4C", background: "#E3F7EA", padding: "5px 10px", borderRadius: 99, width: "fit-content" }}>✓ Ссылка скопирована</span>}
               <h2 className="t" style={{ margin: 0 }}>
                 Сторис <em>готова</em>
               </h2>
             </div>
           </div>
+          {copyFallback}
           <div className="gl" style={{ display: "grid", gap: 12, borderRadius: 20, padding: 16 }}>
             {step(1, "Выбери Instagram → «История»", "Если картинка сохранилась в галерею — выбери её в сторис")}
             {step(2, "Добавь стикер «Ссылка»", "Вставь скопированную ссылку и размести стикер поверх значка внизу")}
             {step(3, "Опубликуй", "Друзья нажмут на стикер и сразу откроют событие")}
           </div>
+          {shareError && <p role="alert" className="muted">{shareError}</p>}
           <button
             className="btn"
             onClick={openInstagram}
+            disabled={sharing}
             style={{ background: "linear-gradient(45deg,#F9A13A,#E1306C 50%,#8A3AB9)", color: "#fff" }}
           >
             <Glyph k="ig" />
-            Открыть Instagram
+            {sharing ? "Подготавливаем…" : "Открыть Instagram"}
           </button>
           <button className="btn o" onClick={() => setMode("list")}>
             Назад

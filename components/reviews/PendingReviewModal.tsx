@@ -51,7 +51,7 @@ export function PendingReviewModal() {
     meetingHappened: boolean;
     wouldMeetAgain: boolean;
   }) {
-    await fetch("/api/reviews", {
+    const response = await fetch("/api/reviews", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -60,6 +60,7 @@ export function PendingReviewModal() {
         ...data,
       }),
     });
+    if (!response.ok) throw new Error("Review was not saved");
     setQueue((prev) => prev.slice(1));
   }
 

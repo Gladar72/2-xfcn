@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useProfilePhoto } from "@/components/profile/useProfilePhoto";
@@ -8,6 +8,7 @@ import { photoThumb } from "@/lib/photos/thumb";
 import { interestIcon } from "@/lib/data/interests";
 import { Ic, Screen, Toast } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
+import { getJson } from "@/lib/http/get-json";
 
 interface Profile {
   name: string;
@@ -26,21 +27,27 @@ export default function EditProfilePage() {
   const [name, setName] = useState("");
   const [birthText, setBirthText] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/me/profile")
-      .then((r) => r.json())
+    const controller = new AbortController();
+    setLoadError(false);
+    getJson<Profile>("/api/me/profile", controller.signal)
       .then((d) => {
-        if (d.error) return;
+        if (controller.signal.aborted) return;
         setP(d);
         setBio(d.bio ?? "");
         setName(d.name ?? "");
         const m = String(d.birthDate ?? "").match(/^(\d{4})-(\d{2})-(\d{2})/);
         setBirthText(m ? `${m[3]}.${m[2]}.${m[1]}` : "");
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => { if (!controller.signal.aborted) setLoadError(true); });
+    return () => controller.abort();
+  }, [attempt]);
 
   function flash(t: string) {
     setToast(t);
@@ -60,18 +67,28 @@ export default function EditProfilePage() {
   const busySlot = photo.busySlot;
 
   async function removeExtra(url: string) {
-    if (!p) return;
-    const res = await fetch("/api/me/photos", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-    const d = await res.json().catch(() => ({}));
-    if (res.ok) setP({ ...p, photos: d.photos });
+    if (!p || deleting) return;
+    setDeleting(url);
+    try {
+      const res = await fetch("/api/me/photos", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
+      const d = await res.json();
+      if (!res.ok || !Array.isArray(d.photos)) throw new Error("Photo was not deleted");
+      setP((current) => current ? { ...current, photos: d.photos } : current);
+    } catch {
+      flash("Не удалось удалить фото. Попробуй ещё раз.");
+    } finally {
+      setDeleting(null);
+    }
   }
 
   async function save() {
+    if (!p || savingRef.current) return;
     const nm = name.trim();
     if (nm.length < 2) return flash("Имя — минимум 2 буквы");
     const bm = birthText.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
     if (!bm) return flash("Дата рождения: ДД.ММ.ГГГГ");
     const birthDate = `${bm[3]}-${bm[2]}-${bm[1]}`;
+    savingRef.current = true;
     setSaving(true);
     try {
       const res = await fetch("/api/me/profile", {
@@ -93,7 +110,10 @@ export default function EditProfilePage() {
                 ? "Имя — от 2 до 50 букв"
                 : "Не получилось сохранить"
         );
+    } catch {
+      flash("Не удалось сохранить профиль. Попробуй ещё раз.");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   }
@@ -107,13 +127,18 @@ export default function EditProfilePage() {
           <button className="rb gl" onClick={() => goBack(router, "/profile")} aria-label="Назад">
             <Ic n="back" />
           </button>
-          <button className="sm" onClick={save} disabled={saving}>
+          <button className="sm" onClick={save} disabled={saving || !p}>
             Сохранить
           </button>
         </div>
         <h1 className="t" style={{ marginTop: 18 }}>
           Мой <em>профиль</em>
         </h1>
+        {loadError && <div className="empty" role="alert">
+          <b>Не удалось загрузить профиль.</b>
+          <button className="btn v" onClick={() => setAttempt((n) => n + 1)}>Попробовать снова</button>
+        </div>}
+        {!p && !loadError && <p className="muted">Загружаем профиль…</p>}
         <p className="muted" style={{ margin: "8px 0 14px", fontSize: 15, lineHeight: 1.5 }}>
           До 3 фото. Первое — главное, оно на аватарке и в ленте людей. Нажми «+», чтобы загрузить со своего устройства.
         </p>
@@ -140,7 +165,7 @@ export default function EditProfilePage() {
                     }}
                   />
                   {i > 0 && (
-                    <button className="x" onClick={() => removeExtra(src)} aria-label="Удалить фото">
+                    <button className="x" disabled={!!deleting} onClick={() => removeExtra(src)} aria-label="Удалить фото">
                       <Ic n="close" c="xs" />
                     </button>
                   )}
@@ -151,6 +176,7 @@ export default function EditProfilePage() {
               <button
                 key={i}
                 className="phs gl"
+                disabled={!p}
                 onClick={() => {
                   photo.pick(i === 0 || !photos[0] ? 0 : i);
                 }}
@@ -168,11 +194,12 @@ export default function EditProfilePage() {
 
         <span className="lbl">Имя</span>
         <label className="field gl">
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={50} placeholder="Имя" />
+          <input disabled={!p} value={name} onChange={(e) => setName(e.target.value)} maxLength={50} placeholder="Имя" />
         </label>
         <span className="lbl">Дата рождения</span>
         <label className="field gl">
           <input
+            disabled={!p}
             value={birthText}
             onChange={(e) => {
               const d = e.target.value.replace(/\D/g, "").slice(0, 8);
@@ -186,7 +213,7 @@ export default function EditProfilePage() {
 
         <span className="lbl">О себе</span>
         <label className="field gl ta">
-          <textarea rows={3} maxLength={300} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Чем живёшь, что любишь, с кем хочешь встречаться" />
+          <textarea disabled={!p} rows={3} maxLength={300} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Чем живёшь, что любишь, с кем хочешь встречаться" />
         </label>
 
         <span className="lbl" style={{ display: "flex", justifyContent: "space-between" }}>
@@ -206,7 +233,7 @@ export default function EditProfilePage() {
         </div>
       </Screen>
       <div className="foot" style={{ zIndex: 6 }}>
-        <button className="btn v" onClick={save} disabled={saving}>
+        <button className="btn v" onClick={save} disabled={saving || !p}>
           {saving ? "Сохраняем…" : "Сохранить"}
         </button>
       </div>

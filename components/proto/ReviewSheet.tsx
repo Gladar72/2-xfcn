@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sheet } from "./ui";
 
 export interface ReviewData {
@@ -34,15 +34,18 @@ export function ReviewSheet({
   const [rating, setRating] = useState(0);
   const [flags, setFlags] = useState({ arrivedOnTime: true, pleasantCommunication: true, meetingHappened: true, wouldMeetAgain: true });
   const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
+  const [error, setError] = useState("");
   useEffect(() => {
     if (open) {
       setRating(0);
+      setError("");
       setFlags({ arrivedOnTime: true, pleasantCommunication: true, meetingHappened: true, wouldMeetAgain: true });
     }
   }, [open, personName]);
 
   return (
-    <Sheet open={open} onClose={onClose}>
+    <Sheet open={open} onClose={() => { if (!sendingRef.current) onClose(); }}>
       <h2 className="t">
         Как прошла встреча <em>«{personName}»?</em>
       </h2>
@@ -51,6 +54,7 @@ export function ReviewSheet({
           <button
             key={i}
             className={i <= rating ? "on" : ""}
+            disabled={sending}
             onClick={(e) => {
               setRating(i);
               Array.from(e.currentTarget.parentElement?.children ?? [])
@@ -71,27 +75,34 @@ export function ReviewSheet({
       </div>
       <div style={{ display: "grid", gap: 8 }}>
         {TOGGLES.map(([k, t]) => (
-          <button key={k} className="opt gl" onClick={() => setFlags((f) => ({ ...f, [k]: !f[k] }))} role="switch" aria-checked={flags[k]}>
+          <button key={k} className="opt gl" disabled={sending} onClick={() => setFlags((f) => ({ ...f, [k]: !f[k] }))} role="switch" aria-checked={flags[k]}>
             <b>{t}</b>
             <span className={`sw-t ${flags[k] ? "on" : ""}`} />
           </button>
         ))}
       </div>
+      {error && <p role="alert" className="muted">{error}</p>}
       <button
         className="btn v"
         disabled={!rating || sending}
         onClick={async () => {
+          if (sendingRef.current || !rating) return;
+          sendingRef.current = true;
           setSending(true);
+          setError("");
           try {
             await onSubmit({ rating, ...flags });
+          } catch {
+            setError("Не удалось отправить отзыв. Оценка сохранена в форме — попробуй ещё раз.");
           } finally {
+            sendingRef.current = false;
             setSending(false);
           }
         }}
       >
         {sending ? "Отправляем…" : "Отправить"}
       </button>
-      <button className="btn o" onClick={onClose}>
+      <button className="btn o" disabled={sending} onClick={onClose}>
         Отмена
       </button>
     </Sheet>
