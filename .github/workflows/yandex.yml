@@ -24,13 +24,13 @@ concurrency:
 
 jobs:
   run:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || vars.YC_AUTODEPLOY == 'on'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' || vars.YC_AUTODEPLOY == 'on' || contains(github.event.head_commit.message, '[deploy]') || contains(github.event.head_commit.message, '[support-check]')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     timeout-minutes: 40
     env:
-      TASK: ${{ github.event.inputs.task || (github.event_name == 'schedule' && 'watch') || 'deploy' }}
+      TASK: ${{ github.event.inputs.task || (github.event_name == 'schedule' && 'watch') || (contains(github.event.head_commit.message, '[support-check]') && 'envcheck') || 'deploy' }}
       HOST: ${{ secrets.YC_HOST }}
     steps:
       - uses: actions/checkout@v4
