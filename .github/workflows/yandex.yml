@@ -72,6 +72,11 @@ jobs:
           set -o pipefail
           ssh deploy@"$HOST" 'bash -s' -- "$TASK" < deploy/yandex/remote.sh 2>&1 | tee run.log
 
+      - name: Restore bot delivery after support release
+        if: env.TASK == 'deploy' && contains(github.event.head_commit.message, '[repair-bot]')
+        run: |
+          ssh deploy@"$HOST" 'python3 /opt/mesto/app/deploy/yandex/support-webhook.py /opt/mesto/.env'
+
       - name: Publish failure log to branch
         if: failure() || endsWith(env.TASK, 'diag') || env.TASK == 'promofix' || env.TASK == 'bizmove' || env.TASK == 'status' || env.TASK == 'osupdate' || env.TASK == 'broadcast' || env.TASK == 'blocksreport'
         run: |

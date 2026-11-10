@@ -1,6 +1,6 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notify/user";
-import { notifyTelegram } from "@/lib/telegram/notify";
+import { getBot } from "@/lib/telegram/bot";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -28,36 +28,49 @@ export function parseTicketTag(text: string | null | undefined): string | null {
  * приложении в «Помощи»; "delivered" — ушло push-уведомлением или в Telegram.
  */
 export async function deliverAdminReply(admin: Admin, ticketId: string, reply: string): Promise<"missing" | "saved" | "delivered"> {
-  const { data: ticket } = await admin
+  const { data: ticket, error: readError } = await admin
     .from("support_tickets")
-    .select("id, user_id, telegram_id, admin_reply")
+    .select("id, user_id, telegram_id, admin_reply, admin_telegram_message_id")
     .eq("id", ticketId)
     .maybeSingle();
+  if (readError) throw new Error("Could not read support ticket");
   if (!ticket) return "missing";
 
   const text = reply.trim().slice(0, 2000);
+  if (!text) throw new Error("Empty support reply");
   const prev = (ticket.admin_reply as string | null) ?? "";
-  await admin
+  const repeated = prev === text || prev.endsWith(`\n\n${text}`);
+  if (repeated && ticket.admin_telegram_message_id) return "delivered";
+  const { error: saveError } = await admin
     .from("support_tickets")
-    .update({ admin_reply: prev ? `${prev}\n\n${text}` : text, admin_replied_at: new Date().toISOString(), status: "resolved" })
+    .update({
+      admin_reply: repeated ? prev : prev ? `${prev}\n\n${text}` : text,
+      admin_replied_at: new Date().toISOString(), status: "resolved",
+      admin_telegram_message_id: null, admin_telegram_delivered_at: null,
+    })
     .eq("id", ticketId);
-
-  let delivered = !!ticket.telegram_id;
-  if (ticket.user_id) {
-    const { count } = await admin.from("push_tokens").select("token", { count: "exact", head: true }).eq("user_id", ticket.user_id);
-    delivered = delivered || (count ?? 0) > 0;
-  }
+  if (saveError) throw new Error("Could not save support reply");
 
   if (ticket.user_id) {
     await notifyUser(admin, ticket.user_id as string, {
       title: "Ответ поддержки МЕСТО",
       body: text.length > 140 ? `${text.slice(0, 139)}…` : text,
       url: "/support",
-      telegramText: `💬 Ответ поддержки МЕСТО:\n\n${text}`,
-      telegramId: (ticket.telegram_id as number | null) ?? null,
-    });
-  } else if (ticket.telegram_id) {
-    await notifyTelegram(Number(ticket.telegram_id), `💬 Ответ поддержки МЕСТО:\n\n${text}`);
+    }).catch(() => console.error("Support: app notification unavailable"));
   }
-  return delivered ? "delivered" : "saved";
+  if (!ticket.telegram_id) return "saved";
+  try {
+    // Always the MESTO bot. Do not infer delivery from the presence of a chat ID.
+    const sent = await getBot().api.sendMessage(Number(ticket.telegram_id), `💬 Ответ поддержки МЕСТО:\n\n${text}`);
+    const { error } = await admin.from("support_tickets").update({
+      admin_telegram_message_id: sent.message_id,
+      admin_telegram_delivered_at: new Date().toISOString(),
+    }).eq("id", ticketId);
+    if (error) console.error("Support: delivery acknowledgment could not be saved");
+    return "delivered";
+  } catch {
+    console.error("Support: Telegram did not confirm delivery");
+    if (ticket.user_id) return "saved";
+    throw new Error("Telegram support reply was not delivered");
+  }
 }

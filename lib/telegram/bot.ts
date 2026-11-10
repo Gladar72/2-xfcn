@@ -1012,7 +1012,7 @@ export function getBot(): Bot {
         res === "delivered"
           ? "✅ Ответ отправлен пользователю."
           : res === "saved"
-            ? "💾 Ответ сохранён: человек увидит его в приложении в «Помощи» (уведомления у него не включены)."
+            ? "💾 Ответ сохранён в «Помощи» в приложении. Доставка в Telegram не подтверждена."
             : res === "missing"
               ? "Не нашёл обращение — ответ не отправлен."
               : "Не получилось отправить ответ — попробуй ещё раз."
@@ -1040,19 +1040,19 @@ export function getBot(): Bot {
       return;
     }
 
-    // Последние сообщения этого пользователя за 2 часа — контекст для ИИ.
+    // Последние сообщения этого пользователя за сутки — контекст для ИИ.
     const { data: recentTickets } = await createAdminClient()
       .from("support_tickets")
-      .select("message, bot_reply")
+      .select("message, bot_reply, admin_reply")
       .eq("telegram_id", ctx.from.id)
-      .gte("created_at", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
+      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .order("created_at", { ascending: false })
-      .limit(4)
+      .limit(8)
       .then(
         (r) => r,
         () => ({ data: null })
       );
-    const history = ((recentTickets ?? []) as { message: string; bot_reply: string | null }[]).reverse();
+    const history = ((recentTickets ?? []) as { message: string; bot_reply: string | null; admin_reply: string | null }[]).reverse();
 
     const { reply, needsHuman } = await getSupportAiReply(userMessage, history);
     await ctx.reply(reply);

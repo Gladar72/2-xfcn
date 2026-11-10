@@ -32,12 +32,12 @@ export async function POST(req: NextRequest) {
 
   const { data: recent } = await admin
     .from("support_tickets")
-    .select("message, bot_reply")
+    .select("message, bot_reply, admin_reply")
     .eq("user_id", currentUser.userId)
-    .gte("created_at", new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString())
+    .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
     .order("created_at", { ascending: false })
-    .limit(4);
-  const history = ((recent ?? []) as { message: string; bot_reply: string | null }[]).reverse();
+    .limit(8);
+  const history = ((recent ?? []) as { message: string; bot_reply: string | null; admin_reply: string | null }[]).reverse();
 
   // «Позвать человека» — не чаще раза в 10 минут: иначе каждое сообщение летит админу.
   let throttled = false;

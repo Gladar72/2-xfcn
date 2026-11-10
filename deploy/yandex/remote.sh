@@ -214,6 +214,8 @@ deploy() {
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
     < "$APP/supabase/migrations/0080_blogger_start_gift.sql"
   log "build & start app"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
+    < "$APP/supabase/migrations/0081_support_reply_delivery.sql"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
   cleanup
@@ -315,7 +317,7 @@ envcheck() {
   prepare_env
   local k v
   for k in YOOKASSA_SHOP_ID YOOKASSA_SECRET_KEY APP_URL TELEGRAM_API_ROOT CRON_ENABLED TELEGRAM_BOT_TOKEN \
-    NEXT_PUBLIC_YANDEX_MAPS_API_KEY YANDEX_GEOCODER_API_KEY YANDEX_PLACES_API_KEY YANDEX_GPT_API_KEY YANDEX_FOLDER_ID OPENAI_API_KEY OPENAI_SUPPORT_MODEL \
+    NEXT_PUBLIC_YANDEX_MAPS_API_KEY YANDEX_GEOCODER_API_KEY YANDEX_PLACES_API_KEY YANDEX_GPT_API_KEY YANDEX_FOLDER_ID OPENAI_API_KEY OPENAI_SUPPORT_MODEL OPENAI_SUPPORT_ENABLED \
     BREVO_API_KEY POSTBOX_ACCESS_KEY_ID POSTBOX_SECRET_KEY MAIL_FROM SMSRU_API_ID SIGHTENGINE_API_USER SIGHTENGINE_API_SECRET \
     APPLE_IAP_ISSUER_ID APPLE_IAP_KEY_ID APPLE_IAP_PRIVATE_KEY EXPO_ACCESS_TOKEN RUSTORE_PUSH_PROJECT_ID RUSTORE_PUSH_SERVICE_TOKEN; do
     v=$(envget "$k" || true)
@@ -577,7 +579,8 @@ webhook() {
   prepare_env
   local tok url sec root
   tok=$(envget TELEGRAM_BOT_TOKEN); sec=$(envget TELEGRAM_WEBHOOK_SECRET); root=$(tgroot)
-  url="$(envget APP_URL | sed 's#/$##')/api/telegram/webhook"
+  url=$(envget TELEGRAM_WEBHOOK_URL || true)
+  url="${url:-$(envget APP_URL | sed 's#/$##')/api/telegram/webhook}"
   [ -n "$tok" ] || { echo "нет TELEGRAM_BOT_TOKEN"; exit 1; }
   log "setWebhook → $url (через $root)"
   curl -sS -m 30 -X POST "$root/bot$tok/setWebhook" \
