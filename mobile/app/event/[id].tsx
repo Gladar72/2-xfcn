@@ -205,13 +205,15 @@ export default function EventScreen() {
       case "rejected":
         return <Btn kind="o" title="Не в этот раз" disabled />;
       default:
-        return <Btn title={full ? "Мест нет" : "Я иду"} onPress={apply} loading={busy} disabled={full || !open} />;
+        return <Btn kind="w" title={full ? "Мест нет" : "Я иду"} onPress={apply} loading={busy} disabled={full || !open} />;
     }
   })();
 
   return (
-    <View style={{ flex: 1 }}>
-      <Aurora />
+    <View style={{ flex: 1, backgroundColor: colors.ink }}>
+      {/* Как в прототипе: тёмная страница, обложка размыта на фоне. */}
+      {event.photoUrl ? <Image source={{ uri: event.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} /> : null}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(23,20,31,0.72)" }]} />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           {event.photoUrl ? (
@@ -240,7 +242,20 @@ export default function EventScreen() {
               <Image source={{ uri: eventIcon(event) }} style={{ width: 200, height: 200 }} contentFit="contain" />
             </Grad>
           )}
-          <LinearGradient colors={["rgba(30,10,70,0.35)", "rgba(0,0,0,0)"]} locations={[0, 0.4]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <LinearGradient colors={["rgba(23,20,31,0.35)", "rgba(23,20,31,0)", "rgba(23,20,31,0.15)", "rgba(23,20,31,0.95)"]} locations={[0, 0.25, 0.55, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <View style={styles.heroText}>
+            <View style={styles.badges}>
+              <View style={styles.chip}>
+                {live ? <View style={styles.liveDot} /> : <Image source={{ uri: eventIcon(event) }} style={{ width: 18, height: 18 }} tintColor="#fff" />}
+                <Text style={styles.chipText}>
+                  {live ? "Идёт сейчас · " : ""}
+                  {catLabel}
+                  {event.isAnonymous ? ` · ${anonymousTag(event.organizer?.gender).toLowerCase()}` : event.isBusiness ? "" : " · личная встреча"}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.title}>{event.title}</Text>
+          </View>
           <View style={[styles.heroTop, { top: insets.top + 8 }]}>
             <RoundBtn onPress={() => router.back()}>
               <Icon name="back" />
@@ -259,12 +274,6 @@ export default function EventScreen() {
         </View>
 
         <View style={styles.body}>
-          <View style={styles.badges}>
-            <Pill label={catLabel} />
-            {live ? <Pill kind="live" label="Идёт сейчас" /> : null}
-            {event.isAnonymous ? <Pill kind="dark" label={anonymousTag(event.organizer?.gender)} icon={<Icon name="mask" size={14} color="#fff" />} /> : null}
-          </View>
-          <Text style={styles.title}>{event.title}</Text>
 
           {event.myInvite?.status === "pending" && event.viewerStatus !== "accepted" && event.viewerStatus !== "organizer" && open ? (
             <Glass strong style={styles.banner}>
@@ -299,25 +308,46 @@ export default function EventScreen() {
             </Glass>
           ) : null}
 
-          <Glass strong style={styles.info}>
-            <InfoRow icon="cal" text={`${formatEventDate(event.eventDate, event.eventTime)}${event.eventEndTime ? ` – ${event.eventEndTime.slice(0, 5)}` : ""}`} />
+          {/* Плитки как в прототипе: Когда · Мест · Расходы · Чат */}
+          <View style={styles.tiles}>
+            <View style={[styles.tile, { flex: 1.25 }]}>
+              <View style={styles.tileHead}><Icon name="cal" size={13} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>Когда</Text></View>
+              <Text style={styles.tileVal} numberOfLines={1}>{formatEventDate(event.eventDate, event.eventTime)}</Text>
+              {event.eventEndTime ? <Text style={styles.tileSub}>до {event.eventEndTime.slice(0, 5)}</Text> : null}
+            </View>
+            <View style={styles.tile}>
+              <View style={styles.tileHead}><Icon name="people" size={13} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>Мест</Text></View>
+              <Text style={styles.tileVal}>{event.seatsTaken + 1} из {event.seatsTotal + 1}</Text>
+            </View>
+            <View style={styles.tile}>
+              <View style={styles.tileHead}><Icon name="wallet" size={13} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>{event.isBusiness ? "Билет" : "Расходы"}</Text></View>
+              <Text style={styles.tileVal} numberOfLines={2}>{costShort(event)}</Text>
+            </View>
+            {event.hasChat && event.conversationId && (event.viewerStatus === "organizer" || event.viewerStatus === "accepted") ? (
+              <Pressable onPress={openChat} style={[styles.tile, styles.tileChat]}>
+                <Icon name="chat" size={20} color="#fff" />
+                <Text style={styles.tileLabel}>Чат</Text>
+              </Pressable>
+            ) : null}
+          </View>
+          <View style={[styles.card, { paddingVertical: 4 }]}>
             <InfoRow
               icon="pin"
               text={event.organizerHidden ? "Место откроется после одобрения заявки" : [event.placeName, event.address].filter(Boolean).join(", ") || "Место уточняется"}
+              last
             />
-            <InfoRow icon="people" text={`${event.seatsTaken + 1} из ${event.seatsTotal + 1} · ${seatsLeft(event.seatsTotal, event.seatsTaken)}`} />
-            <InfoRow icon="wallet" text={costShort(event)} last />
-          </Glass>
+          </View>
 
           {event.description ? (
-            <Glass strong style={styles.card}>
+            <View style={styles.card}>
+              <Text style={styles.cardH}>О встрече</Text>
               <Text style={styles.desc}>{event.description}</Text>
-            </Glass>
+            </View>
           ) : null}
 
           {event.organizer ? (
             <Pressable disabled={event.organizerHidden} onPress={() => router.push(`/person/${event.organizer!.id}` as Href)} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}>
-            <Glass strong style={[styles.card, styles.org]}>
+            <View style={[styles.card, styles.org]}>
               {event.organizerHidden ? (
                 <View style={styles.maskAva}>
                   <Icon name="mask" color={colors.violet} />
@@ -333,23 +363,23 @@ export default function EventScreen() {
                   Организатор · ★ {event.organizer.ratingAvg ? event.organizer.ratingAvg.toFixed(1) : "—"} · встреч: {event.organizer.completedMeetingsCount}
                 </Text>
               </View>
-            </Glass>
+            </View>
             </Pressable>
           ) : null}
 
           {event.isAnonymous && event.viewerStatus !== "organizer" && event.viewerStatus !== "accepted" ? (
-            <Glass strong style={styles.card}>
+            <View style={styles.card}>
               <Text style={styles.muted}>
                 Организатор увидит твоё фото и профиль сразу после отправки заявки. Его профиль и точный адрес откроются тебе после одобрения.
               </Text>
-            </Glass>
+            </View>
           ) : null}
 
           {event.viewerStatus === "organizer" ? (
             <OrganizerPanel event={event} onChanged={load} />
           ) : event.participants.length > 0 ? (
             <View style={{ gap: 10 }}>
-              <Text style={styles.section}>Уже идут</Text>
+              <Text style={styles.section}>Идут · {event.participants.length + 1}</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
                 {event.participants.map((p, i) => (
                   // Анонимная встреча: других участников видно только условно — профиль не открывается.
@@ -413,7 +443,12 @@ export default function EventScreen() {
         version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`}
       />
 
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>{action}</View>
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+        <Pressable onPress={share} style={styles.shareBtn} accessibilityLabel="Поделиться">
+          <Icon name="share" color="#fff" size={20} />
+        </Pressable>
+        <View style={{ flex: 1 }}>{action}</View>
+      </View>
     </View>
   );
 }
@@ -422,40 +457,54 @@ function InfoRow({ icon, text, last }: { icon: "cal" | "pin" | "people" | "walle
   return (
     <View style={[styles.infoRow, !last && styles.infoSep]}>
       <View style={styles.infoIc}>
-        <Icon name={icon} size={18} color={colors.violet} />
+        <Icon name={icon} size={18} color="#fff" />
       </View>
       <Text style={styles.infoText}>{text}</Text>
     </View>
   );
 }
 
+const W = "#fff";
+const W60 = "rgba(255,255,255,0.6)";
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  hero: { height: 360, borderBottomLeftRadius: 36, borderBottomRightRadius: 36, overflow: "hidden", backgroundColor: colors.violet },
+  hero: { height: 520, overflow: "hidden", backgroundColor: colors.ink },
+  heroText: { position: "absolute", left: 20, right: 20, bottom: 18, gap: 10 },
   gfx: { alignItems: "center", justifyContent: "center" },
   heroTop: { position: "absolute", left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" },
-  body: { padding: 20, gap: 14 },
+  body: { paddingHorizontal: 16, paddingTop: 6, gap: 10 },
   badges: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  title: { fontSize: 28, lineHeight: 31, ...f("500"), letterSpacing: -0.8, color: colors.ink },
-  info: { borderRadius: 26, paddingHorizontal: 14 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, height: 32, paddingHorizontal: 12, borderRadius: 999, backgroundColor: "rgba(23,20,31,0.38)", borderWidth: 1, borderColor: "rgba(255,255,255,0.4)" },
+  chipText: { color: W, fontSize: 13, ...f("500") },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.ok },
+  title: { fontSize: 40, lineHeight: 42, ...f("300"), letterSpacing: -1.6, color: W },
+  tiles: { flexDirection: "row", gap: 8 },
+  tile: { flex: 1, minHeight: 74, borderRadius: 20, padding: 10, gap: 4, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  tileChat: { flex: 0, width: 58, alignItems: "center", justifyContent: "center" },
+  tileHead: { flexDirection: "row", alignItems: "center", gap: 4 },
+  tileLabel: { fontFamily: FONT, fontSize: 11.5, color: W60 },
+  tileVal: { fontSize: 15, ...f("500"), color: W },
+  tileSub: { fontFamily: FONT, fontSize: 11, color: W60 },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
-  infoSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(23,20,31,0.15)" },
-  infoIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
-  infoText: { flex: 1, fontFamily: FONT, fontSize: 15, color: colors.ink },
-  card: { borderRadius: 26, padding: 16 },
-  desc: { fontFamily: FONT, fontSize: 15.5, lineHeight: 22, color: colors.ink2 },
+  infoSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.15)" },
+  infoIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
+  infoText: { flex: 1, fontFamily: FONT, fontSize: 15, color: W },
+  card: { borderRadius: 22, padding: 16, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  cardH: { fontSize: 15, ...f("500"), color: W, marginBottom: 6 },
+  desc: { fontFamily: FONT, fontSize: 15, lineHeight: 22, color: "rgba(255,255,255,0.82)" },
   org: { flexDirection: "row", alignItems: "center", gap: 12 },
-  maskAva: { width: 52, height: 52, borderRadius: 26, backgroundColor: "#ECE8F2", alignItems: "center", justifyContent: "center" },
-  orgName: { fontSize: 16, ...f("500"), color: colors.ink },
-  muted: { fontFamily: FONT, fontSize: 13, color: colors.grey, marginTop: 2 },
-  section: { fontSize: 19, ...f("500"), color: colors.ink, letterSpacing: -0.4 },
-  pName: { fontFamily: FONT, fontSize: 12, color: colors.ink2 },
+  maskAva: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
+  orgName: { fontSize: 16, ...f("500"), color: W },
+  muted: { fontFamily: FONT, fontSize: 13, color: W60, marginTop: 2 },
+  section: { fontSize: 15, ...f("500"), color: W },
+  pName: { fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.75)" },
   banner: { borderRadius: 26, padding: 16, gap: 10 },
   bannerHead: { flexDirection: "row", alignItems: "center", gap: 12 },
   bannerTitle: { flex: 1, fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
   bannerText: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.ink2 },
   bannerBtns: { flexDirection: "row", gap: 10, marginTop: 2 },
   quietLink: { alignSelf: "center", paddingVertical: 10 },
-  quietText: { fontSize: 15, ...f("500"), color: colors.danger },
-  footer: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
+  quietText: { fontSize: 15, ...f("500"), color: "#FF9A9A" },
+  footer: { position: "absolute", left: 12, right: 12, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 10 },
+  shareBtn: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
 });

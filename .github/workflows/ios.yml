@@ -93,7 +93,8 @@ jobs:
           xcodebuild -workspace "${{ steps.proj.outputs.ws }}" -scheme "${{ steps.proj.outputs.scheme }}" \
             -configuration Release -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Mesto.xcarchive" \
-            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic "${AUTH[@]}" archive | tail -n 40
+            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Distribution" "${AUTH[@]}" archive > "$RUNNER_TEMP/archive.log" 2>&1 || { grep -nE "error|rror:|[Pp]rovision|[Ss]igning|certificate|device" "$RUNNER_TEMP/archive.log" | grep -v "^.*note:" | tail -n 60; exit 1; }
+          tail -n 5 "$RUNNER_TEMP/archive.log"
           cat > "$RUNNER_TEMP/export.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -106,6 +107,6 @@ jobs:
           </dict></plist>
           EOF
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Mesto.xcarchive" \
-            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/out" "${AUTH[@]}" | tail -n 40
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/out" "${AUTH[@]}" 2>&1 | grep -v "note:" | tail -n 60
           rm -f "$KEY"
           echo "Сборка ${{ github.run_number }} загружена в App Store Connect — появится в TestFlight через 10–30 минут."
