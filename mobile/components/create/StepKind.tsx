@@ -1,7 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { Glass } from "@/components/brand";
-import { Icon } from "@/components/Icon";
 import { tapLight } from "@/lib/feedback";
 import { stickerUrl } from "@/lib/stickers";
 import { colors, FONT, f } from "@/lib/theme";
@@ -36,14 +35,23 @@ export function StepKind({ value, onPick }: { value: Kind | null; onPick: (k: Ki
             }}
             style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }] })}
           >
-            <Glass strong style={[s.card, on && s.cardOn]}>
+            {on ? (
+              <View style={[s.card, s.cardOn]}>
               <Image source={{ uri: stickerUrl(k.sticker) }} style={s.img} contentFit="contain" cachePolicy="disk" />
               <View style={{ flex: 1, gap: 4 }}>
-                <Text style={s.title}>{k.title}</Text>
-                <Text style={s.text}>{k.text}</Text>
+                <Text style={[s.title, on && { color: "#fff" }]}>{k.title}</Text>
+                <Text style={[s.text, on && { color: "rgba(255,255,255,0.72)" }]}>{k.text}</Text>
               </View>
-              <View style={[s.check, on && s.checkOn]}>{on ? <Icon name="check" size={14} color="#fff" strokeWidth={2.4} /> : null}</View>
-            </Glass>
+              </View>
+            ) : (
+              <Glass strong style={s.card}>
+              <Image source={{ uri: stickerUrl(k.sticker) }} style={s.img} contentFit="contain" cachePolicy="disk" />
+              <View style={{ flex: 1, gap: 4 }}>
+                <Text style={[s.title, on && { color: "#fff" }]}>{k.title}</Text>
+                <Text style={[s.text, on && { color: "rgba(255,255,255,0.72)" }]}>{k.text}</Text>
+              </View>
+              </Glass>
+            )}
           </Pressable>
         );
       })}
@@ -53,10 +61,8 @@ export function StepKind({ value, onPick }: { value: Kind | null; onPick: (k: Ki
 
 const s = StyleSheet.create({
   card: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 24, padding: 14, borderWidth: 1.5, borderColor: "transparent" },
-  cardOn: { borderColor: colors.violet },
+  cardOn: { backgroundColor: colors.ink, borderColor: colors.ink },
   img: { width: 64, height: 64 },
-  title: { fontSize: 17, ...f("600"), color: colors.ink },
+  title: { fontSize: 17, ...f("500"), color: colors.ink },
   text: { fontFamily: FONT, fontSize: 13.5, lineHeight: 19, color: colors.grey },
-  check: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: "rgba(23,20,31,0.25)", alignItems: "center", justifyContent: "center" },
-  checkOn: { backgroundColor: colors.violet, borderColor: colors.violet },
 });

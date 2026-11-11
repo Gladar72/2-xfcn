@@ -4,7 +4,7 @@ import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { Btn, Glass, Mosya, RoundBtn } from "@/components/brand";
+import { Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { InviteSheet } from "@/components/people/InviteSheet";
 import { ReportSheet } from "@/components/people/ReportSheet";
@@ -13,7 +13,7 @@ import { getMyId } from "@/lib/me";
 import { tapLight, tapWarn } from "@/lib/feedback";
 import { plural } from "@/lib/format";
 import { distanceLabel, interestIcon } from "@/lib/interests";
-import { colors, FONT, f } from "@/lib/theme";
+import { colors, FONT, SERIF, f } from "@/lib/theme";
 
 /** Ответ GET /api/users/[id] (app/api/users/[id]/route.ts). */
 export interface Person {
@@ -146,57 +146,70 @@ export function PersonView({
           {photos.length ? (
             <Image source={{ uri: photos[photo] ?? photos[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />
           ) : (
-            <LinearGradient colors={["#17141F", "#3F3A4E", "#AAA0FF"]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
+            <LinearGradient colors={["#3F3A4E", "#AAA0FF", colors.milk]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
               <Mosya pose="wave" size={170} />
             </LinearGradient>
           )}
-          <LinearGradient colors={["rgba(20,8,50,0.45)", "rgba(0,0,0,0)", "rgba(0,0,0,0)", "rgba(20,8,50,0.75)"]} locations={[0, 0.25, 0.55, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <LinearGradient colors={["rgba(23,20,31,0.35)", "rgba(244,242,248,0)", "rgba(244,242,248,0)", "rgba(244,242,248,0.85)", colors.milk]} locations={[0, 0.22, 0.55, 0.86, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={styles.zones}>
             <Pressable style={{ flex: 1 }} onPress={() => flip(-1)} />
             <Pressable style={{ flex: 1 }} onPress={() => flip(1)} />
           </View>
         </Animated.View>
 
-        <View style={[styles.overlay, { marginTop: -150 }]} pointerEvents="none">
+        {/* Как в прототипе: имя по центру поверх растворяющегося фото, строка фактов, интересы, «Позвать». */}
+        <View style={[styles.overlay, { marginTop: -170 }]}>
           <Text style={styles.name} numberOfLines={2}>
             {name}
             {age ? `, ${age}` : ""}
           </Text>
           {p ? (
-            <View style={styles.pills}>
-              {dist ? <Tag icon="pin" text={dist} /> : null}
-              {p.ratingAvg > 0 ? <Tag icon="star" text={p.ratingAvg.toFixed(1).replace(".", ",")} /> : null}
-              <Tag icon="people" text={`${p.completedMeetingsCount} ${plural(p.completedMeetingsCount, "встреча", "встречи", "встреч")}`} />
-              {common.length ? <Tag icon="heart" text={`${common.length} ${plural(common.length, "общий интерес", "общих интереса", "общих интересов")}`} /> : null}
+            <Text style={styles.meta}>
+              {[dist, `${p.completedMeetingsCount} ${plural(p.completedMeetingsCount, "встреча", "встречи", "встреч")}`, p.ratingAvg > 0 ? `${p.ratingAvg.toFixed(1).replace(".", ",")} ★` : null].filter(Boolean).join(" · ")}
+            </Text>
+          ) : null}
+          {p && p.interests.length ? <Chips items={[...common, ...other].slice(0, 6)} common={common} /> : null}
+          {!isMe && p ? (
+            <View style={styles.actions}>
+              <Pressable onPress={write} disabled={writing} style={({ pressed }) => [styles.roundAct, !p.canMessage && { opacity: 0.45 }, { transform: [{ scale: pressed ? 0.94 : 1 }] }]} accessibilityLabel="Написать">
+                {writing ? <ActivityIndicator color={colors.ink} /> : <Icon name="chat" size={20} color={colors.ink} />}
+              </Pressable>
+              <Pressable onPress={() => setReport(true)} style={({ pressed }) => [styles.roundAct, { transform: [{ scale: pressed ? 0.94 : 1 }] }]} accessibilityLabel="Пожаловаться">
+                <Icon name="flag" size={19} color={colors.ink} />
+              </Pressable>
+              <Pressable onPress={() => setInvite(true)} style={({ pressed }) => [styles.callBtn, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
+                <Text style={styles.callText}>Позвать</Text>
+              </Pressable>
             </View>
           ) : null}
         </View>
 
         <View style={styles.body}>
           {!p ? (
-            error ? <Text style={styles.muted}>{error}</Text> : <ActivityIndicator color={colors.violet} style={{ marginTop: 30 }} />
+            error ? <Text style={styles.muted}>{error}</Text> : <ActivityIndicator color={colors.ink} style={{ marginTop: 30 }} />
           ) : (
             <>
-              <Glass strong style={styles.card}>
-                <Text style={styles.cardTitle}>О себе</Text>
-                <Text style={[styles.bio, !p.bio && { color: colors.grey }]}>{p.bio?.trim() || "Пока без описания"}</Text>
-              </Glass>
-              {common.length ? (
-                <Glass strong style={styles.card}>
-                  <View style={styles.cardHead}>
-                    <Text style={styles.cardTitle}>Общие интересы</Text>
-                    <Text style={styles.muted}>
-                      {common.length} из {p.interests.length}
-                    </Text>
+              {photos.length > 1 ? (
+                <>
+                  <Text style={styles.section}>Фото</Text>
+                  <View style={styles.grid}>
+                    {photos.slice(0, 6).map((u, i) => (
+                      <Pressable key={u + i} onPress={() => setPhoto(i)} style={styles.gridCell}>
+                        <Image source={{ uri: u }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+                      </Pressable>
+                    ))}
                   </View>
-                  <Chips items={common} accent />
-                </Glass>
+                </>
               ) : null}
-              {other.length ? (
-                <Glass strong style={styles.card}>
-                  <Text style={styles.cardTitle}>{common.length ? "Ещё интересы" : "Интересы"}</Text>
-                  <Chips items={other} />
-                </Glass>
+              {p.bio?.trim() ? (
+                <>
+                  <Text style={styles.section}>
+                    О <Text style={styles.sectionEm}>себе</Text>
+                  </Text>
+                  <Glass strong style={styles.card}>
+                    <Text style={styles.bio}>{p.bio.trim()}</Text>
+                  </Glass>
+                </>
               ) : null}
               {!isMe ? (
                 <Pressable onPress={() => setReport(true)} style={styles.reportLink} hitSlop={6}>
@@ -233,14 +246,6 @@ export function PersonView({
         </View>
       </View>
 
-      {!isMe && p ? (
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
-          <Pressable onPress={write} disabled={writing} style={({ pressed }) => [styles.chatBtn, !p.canMessage && { opacity: 0.45 }, { transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
-            {writing ? <ActivityIndicator color={colors.ink} /> : <Icon name="chat" size={22} color={colors.ink} />}
-          </Pressable>
-          <Btn title="Позвать на встречу" icon={<Icon name="plus" size={20} color="#fff" />} style={{ flex: 1 }} onPress={() => setInvite(true)} />
-        </View>
-      ) : null}
 
       {p ? (
         <>
@@ -261,22 +266,13 @@ export function PersonView({
   );
 }
 
-function Tag({ icon, text }: { icon: "pin" | "star" | "people" | "heart"; text: string }) {
-  return (
-    <View style={styles.tag}>
-      <Icon name={icon} size={13} color="#fff" />
-      <Text style={styles.tagText}>{text}</Text>
-    </View>
-  );
-}
-
-function Chips({ items, accent }: { items: string[]; accent?: boolean }) {
+function Chips({ items, common }: { items: string[]; common: string[] }) {
   return (
     <View style={styles.chips}>
       {items.map((i) => (
-        <View key={i} style={[styles.chip, accent && styles.chipAccent]}>
-          <Image source={{ uri: interestIcon(i) }} style={{ width: 22, height: 22 }} contentFit="contain" />
-          <Text style={[styles.chipText, accent && { color: colors.violet }]}>{i}</Text>
+        <View key={i} style={[styles.chip, common.includes(i) && styles.chipAccent]}>
+          <Image source={{ uri: interestIcon(i) }} style={{ width: 20, height: 20 }} contentFit="contain" />
+          <Text style={styles.chipText}>{i}</Text>
         </View>
       ))}
     </View>
@@ -287,20 +283,29 @@ const styles = StyleSheet.create({
   photoBox: { height: PHOTO_H, backgroundColor: colors.violet, overflow: "hidden" },
   noPhoto: { alignItems: "center", justifyContent: "center" },
   zones: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
-  overlay: { height: 150, justifyContent: "flex-end", paddingHorizontal: 20, paddingBottom: 22, gap: 10 },
-  name: { fontSize: 32, lineHeight: 36, ...f("500"), color: "#fff", letterSpacing: -0.8 },
+  overlay: { alignItems: "center", paddingHorizontal: 20, gap: 12 },
+  name: { fontSize: 42, lineHeight: 46, ...f("300"), color: colors.ink, letterSpacing: -1.6, textAlign: "center" },
+  meta: { fontFamily: FONT, fontSize: 14, color: colors.grey, marginTop: -6 },
+  actions: { flexDirection: "row", alignItems: "center", gap: 10, alignSelf: "stretch", marginTop: 4 },
+  roundAct: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.85)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(23,20,31,0.08)" },
+  callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" },
+  callText: { color: "#fff", fontSize: 16, ...f("500") },
+  section: { fontSize: 24, ...f("300"), color: colors.ink, letterSpacing: -0.6, marginTop: 8 },
+  sectionEm: { fontFamily: SERIF, fontSize: 25 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  gridCell: { width: "31.6%", aspectRatio: 0.78, borderRadius: 18, overflow: "hidden", backgroundColor: colors.pearl2 },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   tag: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.22)", borderColor: "rgba(255,255,255,0.35)", borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   tagText: { fontSize: 13, color: "#fff", ...f("500") },
-  body: { padding: 16, gap: 12, marginTop: -6, backgroundColor: colors.milk, borderTopLeftRadius: 28, borderTopRightRadius: 28 },
+  body: { padding: 16, paddingTop: 10, gap: 12 },
   card: { borderRadius: 24, padding: 16, gap: 10 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
   bio: { fontFamily: FONT, fontSize: 15.5, lineHeight: 22, color: colors.ink2 },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fff", borderRadius: 999, paddingLeft: 6, paddingRight: 12, paddingVertical: 5 },
-  chipAccent: { backgroundColor: "#EFE8FF" },
+  chips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 8, paddingRight: 12, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(23,20,31,0.06)" },
+  chipAccent: { backgroundColor: "#ECE8FF", borderColor: "rgba(170,160,255,0.5)" },
   chipText: { fontFamily: FONT, fontSize: 14, color: colors.ink },
   reportLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12 },
   reportText: { fontFamily: FONT, fontSize: 14, color: colors.grey },

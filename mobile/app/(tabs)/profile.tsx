@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Aurora, Glass, RoundBtn } from "@/components/brand";
+import { Glass, RoundBtn } from "@/components/brand";
 import { Image } from "expo-image";
 import { Icon, type IconName } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { plural } from "@/lib/format";
-import { PLAN_NAME, untilLabel, type Subscription } from "@/lib/subscription";
-import { colors, FONT, f } from "@/lib/theme";
+import { PLAN_NAME, PLAN_PRICE_RUB, untilLabel, type Subscription } from "@/lib/subscription";
+import { interestIcon } from "@/lib/interests";
+import { colors, FONT, SERIF, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 
@@ -28,7 +29,6 @@ export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const [me, setMe] = useState<MyProfile | null>(null);
   const [sub, setSub] = useState<Subscription | null>(null);
-  const bar = useRef(new Animated.Value(0)).current;
 
   useFocusEffect(
     useCallback(() => {
@@ -39,114 +39,130 @@ export default function ProfileScreen() {
 
   const pct = me ? completeness(me).pct : 0;
   const tip = me ? completeness(me).tip : "";
-  useEffect(() => {
-    if (me) Animated.timing(bar, { toValue: pct, duration: 700, useNativeDriver: false }).start();
-  }, [me, pct, bar]);
 
   const rating = me?.ratingAvg ? me.ratingAvg.toFixed(1).replace(".", ",") : null;
 
+  const photos = me ? (me.photos?.length ? me.photos : me.avatarUrl ? [me.avatarUrl] : []) : [];
+  const ints = me?.interests ?? [];
+  const used = sub?.events?.used ?? 0;
+  const limit = sub?.events?.limit ?? null;
+
   return (
-    <View style={{ flex: 1 }}>
-      <Aurora />
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 20, paddingBottom: insets.bottom + 120, gap: 12 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.head}>
-          <Text style={styles.h1}>Профиль</Text>
-          <RoundBtn onPress={() => router.push("/settings")}>
-            <Icon name="gear" />
-          </RoundBtn>
-        </View>
-
-        {/* Как в прототипе: большое фото, имя тонким шрифтом поверх затемнения. */}
-        <View style={styles.card}>
+    <View style={{ flex: 1, backgroundColor: colors.milk }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} showsVerticalScrollIndicator={false}>
+        {/* Как в прототипе: фото на весь верх растворяется в перламутре, имя по центру. */}
+        <View style={styles.hero}>
           {me?.avatarUrl ? (
-            <Image source={{ uri: me.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            <Image source={{ uri: me.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
           ) : (
-            <LinearGradient colors={["#3F3A4E", "#17141F"]} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={["#3F3A4E", "#AAA0FF"]} style={StyleSheet.absoluteFill} />
           )}
-          <LinearGradient colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.15)", "rgba(23,20,31,0.88)"]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
-          <Pressable onPress={() => router.push("/profile-edit")} style={styles.camBadge} accessibilityLabel="Сменить фото">
-            <Icon name="camera" size={17} color={colors.ink} />
-          </Pressable>
-          <Text style={styles.name}>{me ? `${me.name}, ${me.age}` : " "}</Text>
-          <Text style={styles.city}>
-            {me?.city ?? ""}
-            {me && rating ? ` · ★ ${rating} · ${me.ratingCount} ${plural(me.ratingCount, "оценка", "оценки", "оценок")}` : ""}
-          </Text>
-          {me?.bio ? (
-            <Text style={styles.bio} numberOfLines={3}>
-              {me.bio}
-            </Text>
-          ) : null}
-
-          {me ? (
-            <View style={styles.fill}>
-              <View style={styles.fillRow}>
-                <Text style={styles.fillText}>Профиль заполнен на {Math.min(100, pct)}%</Text>
-                <Text style={styles.fillTip}>{tip}</Text>
-              </View>
-              <View style={styles.track}>
-                <Animated.View style={[styles.trackOn, { width: bar.interpolate({ inputRange: [0, 100], outputRange: ["0%", "100%"], extrapolate: "clamp" }) }]} />
-              </View>
-            </View>
-          ) : null}
-
-          <View style={styles.btns}>
-            <Pressable onPress={() => me && router.push(`/person/${me.id}?self=1` as Href)} style={({ pressed }) => [styles.ghost, pressed && { opacity: 0.8 }]}>
-              <Icon name="eye" size={16} color="#fff" />
-              <Text style={styles.ghostText}>Как меня видят</Text>
-            </Pressable>
-            <Pressable onPress={() => router.push("/profile-edit")} style={({ pressed }) => [styles.solid, pressed && { opacity: 0.85 }]}>
-              <Icon name="edit" size={16} color={colors.ink} />
-              <Text style={styles.solidText}>Редактировать</Text>
-            </Pressable>
+          <LinearGradient
+            colors={["rgba(23,20,31,0.3)", "rgba(244,242,248,0)", "rgba(244,242,248,0)", "rgba(244,242,248,0.85)", colors.milk]}
+            locations={[0, 0.22, 0.55, 0.86, 1]}
+            style={StyleSheet.absoluteFill}
+          />
+          <View style={[styles.heroTop, { top: insets.top + 8 }]}>
+            <RoundBtn onPress={() => me && router.push(`/person/${me.id}?self=1` as Href)}>
+              <Icon name="eye" />
+            </RoundBtn>
+            <RoundBtn onPress={() => router.push("/settings")}>
+              <Icon name="gear" />
+            </RoundBtn>
           </View>
         </View>
 
-        <View style={styles.stats}>
-          <Stat value={me?.eventsOrganizedCount ?? 0} label="создано" />
-          <Stat value={me?.eventsAttendedCount ?? 0} label="посещено" />
-          <Stat value={me?.completedMeetingsCount ?? 0} label="состоялось" />
+        <View style={styles.head}>
+          <Text style={styles.name} numberOfLines={2}>
+            {me ? `${me.name}, ${me.age}` : " "}
+          </Text>
+          <Text style={styles.meta}>
+            {[me?.city, me ? `${me.completedMeetingsCount} ${plural(me.completedMeetingsCount, "встреча", "встречи", "встреч")}` : null, rating ? `${rating} ★` : null].filter(Boolean).join(" · ")}
+          </Text>
+          {ints.length ? (
+            <View style={styles.chips}>
+              {ints.slice(0, 6).map((i) => (
+                <View key={i.id} style={styles.chip}>
+                  <Image source={{ uri: interestIcon(i.name) }} style={{ width: 20, height: 20 }} contentFit="contain" />
+                  <Text style={styles.chipText}>{i.name}</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
 
-        {sub ? (
-          <Pressable onPress={() => router.push("/subscription")}>
-            <Glass strong style={styles.sub}>
-              <View style={[styles.rowIc, { backgroundColor: sub.active ? "rgba(34,181,115,0.14)" : colors.lav }]}>
-                <Icon name="wallet" size={19} color={sub.active ? colors.ok : colors.violet} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.rowText}>{sub.active ? `Тариф «${PLAN_NAME[sub.plan ?? ""] ?? "—"}»` : "Нет подписки"}</Text>
-                <Text style={styles.muted}>
-                  {sub.active
-                    ? `Активна до ${untilLabel(sub.periodEnd)}${sub.events?.limit ? ` · ${sub.events.used} из ${sub.events.limit} встреч` : ""}`
-                    : "Подключи, чтобы создавать свои встречи"}
-                </Text>
-              </View>
-            </Glass>
-          </Pressable>
-        ) : null}
+        <View style={styles.body}>
+          {sub ? (
+            <Pressable onPress={() => router.push("/subscription")}>
+              <Glass strong style={styles.plan}>
+                <View style={styles.planRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.planSmall}>ТВОЙ ТАРИФ</Text>
+                    <Text style={styles.planName}>
+                      {sub.active ? PLAN_NAME[sub.plan ?? ""] ?? "—" : "Нет подписки"}
+                      {sub.active && sub.plan ? <Text style={styles.planPrice}>{`  ${PLAN_PRICE_RUB[sub.plan]} ₽/мес`}</Text> : null}
+                    </Text>
+                  </View>
+                  <View style={styles.planBtn}>
+                    <Text style={styles.planBtnText}>{sub.active ? "Сменить" : "Выбрать"}</Text>
+                  </View>
+                </View>
+                {sub.active ? (
+                  <>
+                    <View style={styles.track}>
+                      <View style={[styles.trackOn, { width: `${limit ? Math.min(100, (used / limit) * 100) : 100}%` }]} />
+                    </View>
+                    <Text style={styles.muted}>
+                      {limit ? `Встречи ${used} из ${limit}` : "Встречи без ограничений"}
+                      {sub.periodEnd ? ` · до ${untilLabel(sub.periodEnd)}` : ""}
+                    </Text>
+                  </>
+                ) : (
+                  <Text style={styles.muted}>Подключи, чтобы создавать свои встречи</Text>
+                )}
+              </Glass>
+            </Pressable>
+          ) : null}
 
-        <Glass strong style={styles.list}>
-          <Row icon="cal" label="Мои встречи" onPress={() => router.push("/my-events")} />
-          <Row icon="people" label="Люди рядом" onPress={() => router.push("/people")} />
-          <Row icon="bell" label="Уведомления" onPress={() => router.push("/notifications")} />
-          <Row icon="star" label="Отзывы после встреч" onPress={() => router.push("/reviews")} />
-          <Row icon="heart" label="Мои интересы" onPress={() => router.push("/interests")} />
-          <Row icon="gift" label="Партнёрская программа" onPress={() => router.push("/partner")} />
-          <Row icon="help" label="Помощь" onPress={() => router.push("/support")} />
-          <Row icon="gear" label="Настройки" onPress={() => router.push("/settings")} last />
-        </Glass>
+          <Pressable onPress={() => router.push("/profile-edit")} style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.85 }]}>
+            <Text style={styles.editText}>Редактировать профиль</Text>
+          </Pressable>
+          {me && pct < 100 ? <Text style={[styles.muted, { textAlign: "center" }]}>Профиль заполнен на {pct}% — {tip}</Text> : null}
+
+          <View style={styles.sectionRow}>
+            <Text style={styles.section}>
+              Мои <Text style={styles.sectionEm}>фото</Text>
+            </Text>
+            <Pressable onPress={() => router.push("/profile-edit")} style={styles.smallPill}>
+              <Text style={styles.smallPillText}>Изменить</Text>
+            </Pressable>
+          </View>
+          <View style={styles.grid}>
+            {[0, 1, 2].map((i) =>
+              photos[i] ? (
+                <View key={i} style={styles.gridCell}>
+                  <Image source={{ uri: photos[i] }} style={StyleSheet.absoluteFill} contentFit="cover" />
+                </View>
+              ) : (
+                <Pressable key={i} onPress={() => router.push("/profile-edit")} style={[styles.gridCell, styles.gridAdd]}>
+                  <Icon name="plus" size={22} color={colors.grey} />
+                </Pressable>
+              )
+            )}
+          </View>
+
+          <Glass strong style={styles.list}>
+            <Row icon="cal" label="Мои встречи" onPress={() => router.push("/my-events")} />
+            <Row icon="people" label="Люди рядом" onPress={() => router.push("/people")} />
+            <Row icon="bell" label="Уведомления" onPress={() => router.push("/notifications")} />
+            <Row icon="star" label="Отзывы после встреч" onPress={() => router.push("/reviews")} />
+            <Row icon="heart" label="Мои интересы" onPress={() => router.push("/interests")} />
+            <Row icon="gift" label="Партнёрская программа" onPress={() => router.push("/partner")} />
+            <Row icon="help" label="Помощь" onPress={() => router.push("/support")} last />
+          </Glass>
+        </View>
       </ScrollView>
     </View>
-  );
-}
-
-function Stat({ value, label }: { value: number; label: string }) {
-  return (
-    <Glass strong style={styles.stat}>
-      <Text style={styles.statValue}>{value}</Text>
-      <Text style={styles.muted}>{label}</Text>
-    </Glass>
   );
 }
 
@@ -154,7 +170,7 @@ function Row({ icon, label, onPress, last }: { icon: IconName; label: string; on
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, !last && styles.rowSep, pressed && { opacity: 0.7 }]}>
       <View style={styles.rowIc}>
-        <Icon name={icon} size={19} color={colors.violet} />
+        <Icon name={icon} size={19} color={colors.ink} />
       </View>
       <Text style={styles.rowText} numberOfLines={1}>
         {label}
@@ -165,30 +181,36 @@ function Row({ icon, label, onPress, last }: { icon: IconName; label: string; on
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4 },
-  h1: { fontSize: 32, ...f("300"), color: colors.ink, letterSpacing: -1 },
-  card: { borderRadius: 28, padding: 18, paddingTop: 300, alignItems: "flex-start", gap: 4, overflow: "hidden", backgroundColor: colors.ink },
-  camBadge: { position: "absolute", right: 14, top: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center" },
-  name: { fontSize: 34, ...f("300"), color: "#fff", letterSpacing: -1.2 },
-  city: { fontFamily: FONT, fontSize: 14, color: "rgba(255,255,255,0.82)" },
-  bio: { fontFamily: FONT, fontSize: 14, lineHeight: 20, color: "#fff", marginTop: 6, opacity: 0.92 },
-  fill: { alignSelf: "stretch", marginTop: 14, gap: 6 },
-  fillRow: { flexDirection: "row", justifyContent: "space-between" },
-  fillText: { fontSize: 13, color: "#fff", ...f("500") },
-  fillTip: { fontFamily: FONT, fontSize: 13, color: "rgba(255,255,255,0.85)" },
-  track: { height: 8, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden" },
-  trackOn: { height: 8, borderRadius: 4, backgroundColor: "#fff" },
-  btns: { flexDirection: "row", gap: 8, alignSelf: "stretch", marginTop: 14 },
-  ghost: { flex: 1, height: 44, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.6)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  ghostText: { fontSize: 14.5, ...f("500"), color: "#fff" },
-  solid: { flex: 1, height: 44, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  solidText: { fontSize: 14.5, ...f("500"), color: colors.ink },
-  stats: { flexDirection: "row", gap: 8 },
-  stat: { flex: 1, borderRadius: 22, paddingVertical: 12, alignItems: "center" },
-  statValue: { fontSize: 26, ...f("300"), color: colors.ink, letterSpacing: -0.8 },
-  muted: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, marginTop: 1 },
-  sub: { borderRadius: 24, padding: 12, flexDirection: "row", alignItems: "center", gap: 12 },
-  list: { borderRadius: 26, paddingHorizontal: 12 },
+  hero: { height: 420, backgroundColor: colors.ink, overflow: "hidden" },
+  heroTop: { position: "absolute", left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" },
+  head: { alignItems: "center", paddingHorizontal: 20, marginTop: -110, gap: 8 },
+  name: { fontSize: 42, lineHeight: 46, ...f("300"), color: colors.ink, letterSpacing: -1.6, textAlign: "center" },
+  meta: { fontFamily: FONT, fontSize: 14, color: colors.grey },
+  chips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6, marginTop: 4 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 8, paddingRight: 12, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(23,20,31,0.06)" },
+  chipText: { fontFamily: FONT, fontSize: 14, color: colors.ink },
+  body: { paddingHorizontal: 16, paddingTop: 18, gap: 12 },
+  plan: { borderRadius: 24, padding: 16, gap: 10 },
+  planRow: { flexDirection: "row", alignItems: "center", gap: 10 },
+  planSmall: { fontSize: 11, ...f("500"), color: colors.grey, letterSpacing: 1 },
+  planName: { fontSize: 26, ...f("300"), color: colors.ink, letterSpacing: -0.6, marginTop: 2 },
+  planPrice: { fontFamily: FONT, fontSize: 14, color: colors.grey, letterSpacing: 0 },
+  planBtn: { height: 38, paddingHorizontal: 16, borderRadius: 999, backgroundColor: colors.ink, justifyContent: "center" },
+  planBtnText: { color: "#fff", fontSize: 14, ...f("500") },
+  track: { height: 5, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.1)", overflow: "hidden" },
+  trackOn: { height: 5, borderRadius: 3, backgroundColor: colors.ink },
+  editBtn: { height: 54, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.85)", borderWidth: 1, borderColor: "rgba(23,20,31,0.08)", alignItems: "center", justifyContent: "center" },
+  editText: { fontSize: 16, ...f("500"), color: colors.ink },
+  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
+  section: { fontSize: 26, ...f("300"), color: colors.ink, letterSpacing: -0.6 },
+  sectionEm: { fontFamily: SERIF, fontSize: 27 },
+  smallPill: { height: 34, paddingHorizontal: 14, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.85)", justifyContent: "center" },
+  smallPillText: { fontSize: 13.5, ...f("500"), color: colors.ink },
+  grid: { flexDirection: "row", gap: 8 },
+  gridCell: { flex: 1, aspectRatio: 0.78, borderRadius: 18, overflow: "hidden", backgroundColor: colors.pearl2 },
+  gridAdd: { alignItems: "center", justifyContent: "center", borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(23,20,31,0.18)", backgroundColor: "rgba(255,255,255,0.5)" },
+  muted: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
+  list: { borderRadius: 26, paddingHorizontal: 12, marginTop: 6 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
   rowSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(23,20,31,0.15)" },
   rowIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },

@@ -73,8 +73,8 @@ export default function CreateScreen() {
   const [chosen, setChosen] = useState(skipKind);
   const kind: Kind = form.business ? "business" : form.isAnonymous ? "anon" : "open";
   function pickKind(k: Kind) {
+    // Как в прототипе: выбор подсвечивается тёмным, дальше — кнопка «Далее».
     set({ business: k === "business", isAnonymous: k === "anon" });
-    setTimeout(() => setChosen(true), 220);
   }
   const [categories, setCategories] = useState<Category[]>([]);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
@@ -401,6 +401,7 @@ export default function CreateScreen() {
                 </Pressable>
               </Glass>
             ) : null}
+            {!chosen ? <Btn kind="k" title="Далее" onPress={() => setChosen(true)} /> : null}
             {chosen && !needsPhoto ? (
             <Btn
               kind={step === 4 ? "v" : "k"}
@@ -421,10 +422,10 @@ const st = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: 20, paddingBottom: 6 },
   prog: { flex: 1, flexDirection: "row", gap: 6 },
   dot: { flex: 1, height: 5, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.15)" },
-  dotOn: { backgroundColor: colors.violet },
+  dotOn: { backgroundColor: colors.ink },
   count: { minWidth: 44, textAlign: "right", fontFamily: FONT, fontSize: 13, color: colors.grey },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  foot: { paddingHorizontal: 20, paddingTop: 10, gap: 10, backgroundColor: "rgba(246,242,255,0.92)" },
+  foot: { paddingHorizontal: 20, paddingTop: 10, gap: 10, backgroundColor: "rgba(244,242,248,0.94)" },
   banner: { flexDirection: "row", alignItems: "flex-start", gap: 10, borderRadius: 22, padding: 12 },
   bannerText: { fontFamily: FONT, fontSize: 14, lineHeight: 19, color: colors.ink },
 });
