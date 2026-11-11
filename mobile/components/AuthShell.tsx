@@ -45,11 +45,20 @@ export function AuthShell({
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <View style={[styles.center, { paddingTop: insets.top + (compact ? 16 : 0) }, compact && { flex: 0, marginBottom: 18 }]}>
           <Wordmark height={compact ? 30 : 46} color="#fff" />
-          <Text style={[styles.tag, compact && { fontSize: 22, lineHeight: 26, marginTop: 14 }]}>
-            {compact ? plain : "Найди "}
-            <Text style={styles.tagEm}>{compact ? em : "компанию"}</Text>
-            {compact ? "" : "\nна сегодня"}
-          </Text>
+          {compact ? (
+            <Text style={[styles.tag, { fontSize: 22, lineHeight: 26, marginTop: 14 }]}>
+              {plain}
+              <Text style={[styles.tagEm, { fontSize: 24 }]}>{em}</Text>
+            </Text>
+          ) : (
+            <>
+              <View style={{ marginTop: 22, flexDirection: "row", alignItems: "baseline" }}>
+                <Text style={[styles.tag, { marginTop: 0 }]}>Найди </Text>
+                <Text style={[styles.tag, styles.tagEm, { marginTop: 0 }]}>компанию</Text>
+              </View>
+              <Text style={[styles.tag, { marginTop: 0 }]}>на сегодня</Text>
+            </>
+          )}
           {sub && compact ? <Text style={styles.sub}>{sub}</Text> : null}
         </View>
 

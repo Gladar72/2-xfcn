@@ -333,7 +333,7 @@ export default function EventScreen() {
           <View style={[styles.card, { paddingVertical: 4 }]}>
             <InfoRow
               icon="pin"
-              text={event.organizerHidden ? "Место откроется после одобрения заявки" : [event.placeName, event.address].filter(Boolean).join(", ") || "Место уточняется"}
+              text={event.organizerHidden ? "Место откроется после одобрения заявки" : (event.address && event.placeName && event.address.toLowerCase().startsWith(event.placeName.toLowerCase()) ? event.address : [event.placeName, event.address].filter(Boolean).join(", ")) || "Место уточняется"}
               last
             />
           </View>
@@ -443,6 +443,8 @@ export default function EventScreen() {
         version={`${event.photoUrl ?? ""}|${event.placeName ?? ""}|${event.seatsTaken}`}
       />
 
+      {/* Затемнение под кнопкой, чтобы текст страницы не просвечивал. */}
+      <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.92)", "#17141F"]} locations={[0, 0.45, 1]} style={[styles.fade, { height: 120 + insets.bottom }]} />
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
         <Pressable onPress={share} style={styles.shareBtn} accessibilityLabel="Поделиться">
           <Icon name="share" color="#fff" size={20} />
@@ -505,6 +507,7 @@ const styles = StyleSheet.create({
   bannerBtns: { flexDirection: "row", gap: 10, marginTop: 2 },
   quietLink: { alignSelf: "center", paddingVertical: 10 },
   quietText: { fontSize: 15, ...f("500"), color: "#FF9A9A" },
+  fade: { position: "absolute", left: 0, right: 0, bottom: 0 },
   footer: { position: "absolute", left: 12, right: 12, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 10 },
   shareBtn: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
 });

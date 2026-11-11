@@ -79,7 +79,7 @@ const DETAIL = {
   endsAt: `${day(1)}T04:30:00Z`,
   latitude: 57.1612,
   longitude: 65.5326,
-  status: "upcoming",
+  status: "published",
   hasChat: true,
   participants: [
     { id: "p1", name: "Даша", avatarUrl: C("cof05") },
@@ -132,7 +132,7 @@ export function smokeApi(path: string): unknown {
   if (p === "/api/city-events") return { items: [] };
   if (p === "/api/conversations") return { items: CHATS };
   if (p === "/api/notifications") return { items: [] };
-  if (p === "/api/subscriptions") return { active: true, plan: "start", currentPeriodEnd: day(30) };
+  if (p === "/api/subscriptions") return { active: true, plan: "start", periodEnd: `${day(30)}T00:00:00Z`, currentPeriodEnd: day(30) };
   if (p === "/api/me/pending-applications") return { count: 0, latest: null };
   return { items: [] };
 }

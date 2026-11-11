@@ -123,10 +123,11 @@ export function LoadingScenes() {
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(23,20,31,0.38)" }]} />
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}>
         <Wordmark height={46} color="#fff" />
-        <Text style={{ marginTop: 22, fontSize: 30, lineHeight: 34, fontFamily: "Inter-Light", color: "#fff", textAlign: "center", letterSpacing: -1 }}>
-          Найди <Text style={{ fontFamily: "Lora-Italic", fontSize: 32 }}>компанию</Text>
-          {"\n"}на сегодня
-        </Text>
+        <View style={{ marginTop: 22, flexDirection: "row", alignItems: "baseline" }}>
+          <Text style={{ fontSize: 30, fontFamily: "Inter-Light", color: "#fff", letterSpacing: -1 }}>Найди </Text>
+          <Text style={{ fontSize: 32, fontFamily: "Lora-Italic", color: "#fff" }}>компанию</Text>
+        </View>
+        <Text style={{ fontSize: 30, fontFamily: "Inter-Light", color: "#fff", letterSpacing: -1 }}>на сегодня</Text>
       </View>
       <View style={{ position: "absolute", left: "50%", marginLeft: -60, width: 120, height: 3, borderRadius: 2, bottom: insets.bottom + 64, backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden" }}>
         <Animated.View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: "#fff", transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-48, 120] }) }] }} />
