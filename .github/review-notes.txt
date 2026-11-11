@@ -1,0 +1,7 @@
+«Место» (Mesto) helps people find company for today: users create small meetups (running, coffee, cinema, dinner, walks) or join meetups nearby, see them on a city map, chat with participants and leave reviews afterwards. Venues can post events to a city afisha. The app is for adults (18+, confirmed at registration).
+
+Sign in: tap «Войти по почте» (Sign in with email), enter the demo e-mail from the Sign-In Information section and the 4-digit code given there as the password — no real e-mail is sent for this account. Sign in with Apple is also available.
+
+This iOS version has no purchases of any kind: no In-App Purchase, no prices, no buy buttons and no links to external payment. Every account gets the «Старт» plan for free, so all features are available.
+
+User-generated content: users can report or block any profile (flag icon on the profile) and any event; reports are reviewed within 24 hours. Account deletion: Profile → Settings → «Удалить аккаунт».

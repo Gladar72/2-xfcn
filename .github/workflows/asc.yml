@@ -1,0 +1,30 @@
+name: App Store Connect
+
+# Подставить свежую сборку в версию App Store и обновить заметки для проверяющих
+# (.github/review-notes.txt). На проверку не отправляет.
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        description: "Номер сборки (пусто — самая свежая)"
+        required: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Обновить версию
+        env:
+          KID: ${{ secrets.ASC_KEY_ID }}
+          ISS: ${{ secrets.ASC_ISSUER_ID }}
+          P8: ${{ secrets.ASC_KEY_P8 }}
+          BUILD: ${{ inputs.build }}
+          NOTES_FILE: .github/review-notes.txt
+        run: |
+          export KEY="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s\n' "$P8" > "$KEY"
+          pip install -q pyjwt cryptography
+          python3 .github/scripts/asc.py
+          rm -f "$KEY"
