@@ -41,7 +41,8 @@ export interface PersonPreview {
 }
 
 const NO_MEET = "Пока написать нельзя — у вас ещё не было общей встречи. Позови на свою встречу или создай новую 😉";
-const { height: SCREEN_H } = Dimensions.get("window");
+// «screen», а не «window»: на Android окно не включает панель навигации — внизу оставалась светлая полоса.
+const { height: SCREEN_H } = Dimensions.get("screen");
 // Как в мини-приложении: фото на весь экран, имя внизу поверх, панель «♡ 🔔 Позвать на встречу».
 const PHOTO_H = SCREEN_H;
 const OVERLAY_H = 250;
