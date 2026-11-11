@@ -16,10 +16,13 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "check — проверка сборки, release — в App Store Connect"
+        description: "check — проверка сборки, release — в App Store Connect, shots — снимки экранов на симуляторе iPhone"
         type: choice
-        options: [check, release]
+        options: [check, release, shots]
         default: check
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -77,6 +80,30 @@ jobs:
           xcodebuild -workspace "${{ steps.proj.outputs.ws }}" -scheme "${{ steps.proj.outputs.scheme }}" \
             -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
             CODE_SIGNING_ALLOWED=NO build | tail -n 60
+
+      - name: Снимки экранов на iPhone (тестовые данные, без входа)
+        if: inputs.mode == 'shots'
+        env:
+          EXPO_PUBLIC_UI_SMOKE: "1"
+        run: |
+          set -o pipefail
+          xcodebuild -workspace "${{ steps.proj.outputs.ws }}" -scheme "${{ steps.proj.outputs.scheme }}" \
+            -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/dd" CODE_SIGNING_ALLOWED=NO build | tail -n 15
+          APP=$(ls -d "$RUNNER_TEMP"/dd/Build/Products/Release-iphonesimulator/*.app | head -1)
+          DT=$(xcrun simctl list devicetypes | grep -oE "iPhone 1[0-9] Pro Max" | sort -V | tail -1)
+          RT=$(xcrun simctl list runtimes | grep -oE "com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+" | sort -V | tail -1)
+          echo "device: $DT runtime: $RT"
+          UDID=$(xcrun simctl create shots "$DT" "$RT")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl status_bar "$UDID" override --time "9:41" --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+          xcrun simctl install "$UDID" "$APP"
+          mkdir -p "$GITHUB_WORKSPACE/ishots"
+          xcrun simctl launch "$UDID" ru.mesto.app
+          for i in $(seq -w 0 32); do xcrun simctl io "$UDID" screenshot "$GITHUB_WORKSPACE/ishots/t$i.png" >/dev/null 2>&1; sleep 6; done
+          cd "$GITHUB_WORKSPACE/ishots" && git init -q && git config user.name github-actions && git config user.email actions@users.noreply.github.com
+          git add -A && git commit -qm "Снимки iPhone" && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" HEAD:ios-shots
 
       - name: Номер сборки
         if: inputs.mode == 'release'

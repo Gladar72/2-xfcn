@@ -111,8 +111,8 @@ function Gate() {
       if (smokeHold) return;
       if (!smokeLogin.current) {
         smokeLogin.current = true;
-        const seq: Href[] = ["/(auth)/login", "/(tabs)", "/event/e1", "/(tabs)/map", "/(tabs)/chats", "/(tabs)/profile", "/create", "/people"];
-        seq.forEach((h, i) => setTimeout(() => router.replace(h), i * 14000));
+        const seq: Href[] = ["/(auth)/login", "/(tabs)", "/event/e1", "/(tabs)/map", "/(tabs)/chats", "/(tabs)/profile", "/create", "/people", "/business"];
+        seq.forEach((h, i) => setTimeout(() => router.replace(h), i * 16000));
       }
       return;
     }

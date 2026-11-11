@@ -89,20 +89,29 @@ const DETAIL = {
   goingCount: 3,
 };
 
-const MAP = SMOKE_EVENTS.map((e, i) => ({
-  id: e.id,
-  title: e.title,
-  latitude: 57.153 + i * 0.006,
-  longitude: 65.534 + (i % 2 ? 0.012 : -0.01),
-  startsAt: `${e.eventDate}T${e.eventTime.slice(0, 5)}:00+05:00`,
-  endsAt: `${e.eventDate}T23:00:00+05:00`,
-  seatsLeft: e.seatsTotal - e.seatsTaken,
-  isBusiness: false,
-  placeName: e.placeName,
-  organizer: { name: e.organizer.name, avatarUrl: e.organizer.avatarUrl },
-  markerPhoto: e.photoUrl,
-  category: e.category,
-}));
+// Точки разбросаны по всей Тюмени — как живой город, а не одна кучка.
+const SPOTS: [number, number][] = [
+  [57.1612, 65.5326], [57.1505, 65.5602], [57.1688, 65.5011], [57.1413, 65.5244], [57.1297, 65.5689],
+  [57.1801, 65.5482], [57.1466, 65.4783], [57.1577, 65.6013], [57.1219, 65.5157], [57.1742, 65.5865],
+  [57.1372, 65.5953], [57.1885, 65.5192],
+];
+const MAP = SPOTS.map(([lat, lon], i) => {
+  const e = SMOKE_EVENTS[i % SMOKE_EVENTS.length]!;
+  return {
+    id: i < SMOKE_EVENTS.length ? e.id : `${e.id}-${i}`,
+    title: e.title,
+    latitude: lat,
+    longitude: lon,
+    startsAt: `${e.eventDate}T${e.eventTime.slice(0, 5)}:00+05:00`,
+    endsAt: `${e.eventDate}T23:00:00+05:00`,
+    seatsLeft: e.seatsTotal - e.seatsTaken,
+    isBusiness: false,
+    placeName: e.placeName,
+    organizer: { name: e.organizer.name, avatarUrl: e.organizer.avatarUrl },
+    markerPhoto: [C("run01"), C("cin02"), C("cof03"), C("din04"), C("hyr03"), C("party"), C("bar"), C("walk"), C("active"), C("cof05"), C("run05"), C("din02")][i],
+    category: e.category,
+  };
+});
 
 const now = Date.now();
 const CHATS = [
