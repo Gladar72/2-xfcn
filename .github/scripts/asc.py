@@ -59,6 +59,11 @@ if NOTES and os.path.exists(NOTES):
     notes = open(NOTES).read().strip()
     d = api("GET", f"/v1/appStoreVersions/{v['id']}/appStoreReviewDetail")
     rid = ((d or {}).get("data") or {}).get("id")
+    print("Детали проверки:", rid, str(d)[:200])
+    if not rid:
+        c = api("POST", "/v1/appStoreReviewDetails", {"data": {"type": "appStoreReviewDetails", "attributes": {"notes": notes},
+                 "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": v["id"]}}}}})
+        print("Детали созданы:", bool(c))
     if rid:
         api("PATCH", f"/v1/appStoreReviewDetails/{rid}", {"data": {"type": "appStoreReviewDetails", "id": rid, "attributes": {"notes": notes}}})
         print("Заметки обновлены")
