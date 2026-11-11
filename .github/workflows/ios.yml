@@ -10,7 +10,7 @@ name: iOS
 #   переменная репозитория APPLE_TEAM_ID       — Team ID (developer.apple.com → Membership)
 #   секрет ASC_KEY_ID, ASC_ISSUER_ID          — ключ App Store Connect API (Users and Access → Integrations, роль Admin)
 #   секрет ASC_KEY_P8                         — содержимое файла AuthKey_XXXX.p8
-# Сертификаты и профили Xcode создаёт сам по этому ключу (-allowProvisioningUpdates).
+# Сертификат и профиль создаются по этому ключу на время сборки (.github/scripts/ios-sign.py) и потом отзываются.
 
 on:
   workflow_dispatch:
@@ -78,22 +78,33 @@ jobs:
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PLIST"
           /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST"
 
-      - name: Архив и загрузка в App Store Connect
+      - name: Сертификат и профиль App Store (через API, временные)
         if: inputs.mode == 'release'
+        id: sign
         env:
           TEAM: ${{ vars.APPLE_TEAM_ID }}
           KID: ${{ secrets.ASC_KEY_ID }}
           ISS: ${{ secrets.ASC_ISSUER_ID }}
           P8: ${{ secrets.ASC_KEY_P8 }}
         run: |
+          export KEY="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s\n' "$P8" > "$KEY"
+          pip3 install --break-system-packages -q pyjwt cryptography || pip3 install -q pyjwt cryptography
+          python3 ../.github/scripts/ios-sign.py
+
+      - name: Архив и загрузка в App Store Connect
+        if: inputs.mode == 'release'
+        env:
+          TEAM: ${{ vars.APPLE_TEAM_ID }}
+          KID: ${{ secrets.ASC_KEY_ID }}
+          ISS: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
           set -o pipefail
           KEY="$RUNNER_TEMP/AuthKey_$KID.p8"
-          printf '%s\n' "$P8" > "$KEY"
-          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$KEY" -authenticationKeyID "$KID" -authenticationKeyIssuerID "$ISS")
+          cp "$RUNNER_TEMP/AuthKey.p8" "$KEY"
           xcodebuild -workspace "${{ steps.proj.outputs.ws }}" -scheme "${{ steps.proj.outputs.scheme }}" \
             -configuration Release -destination 'generic/platform=iOS' \
-            -archivePath "$RUNNER_TEMP/Mesto.xcarchive" \
-            DEVELOPMENT_TEAM="$TEAM" CODE_SIGN_STYLE=Automatic CODE_SIGN_IDENTITY="Apple Distribution" "${AUTH[@]}" archive > "$RUNNER_TEMP/archive.log" 2>&1 || { grep -nE "error|rror:|[Pp]rovision|[Ss]igning|certificate|device" "$RUNNER_TEMP/archive.log" | grep -v "^.*note:" | tail -n 60; exit 1; }
+            -archivePath "$RUNNER_TEMP/Mesto.xcarchive" archive > "$RUNNER_TEMP/archive.log" 2>&1 || { grep -nE "error:|rror:|[Pp]rovision|[Ss]igning|certificate" "$RUNNER_TEMP/archive.log" | grep -v "note:" | tail -n 60; exit 1; }
           tail -n 5 "$RUNNER_TEMP/archive.log"
           cat > "$RUNNER_TEMP/export.plist" <<EOF
           <?xml version="1.0" encoding="UTF-8"?>
@@ -102,11 +113,26 @@ jobs:
             <key>method</key><string>app-store-connect</string>
             <key>destination</key><string>upload</string>
             <key>teamID</key><string>$TEAM</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict><key>ru.mesto.app</key><string>${{ steps.sign.outputs.uuid }}</string></dict>
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
           EOF
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Mesto.xcarchive" \
-            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/out" "${AUTH[@]}" 2>&1 | grep -v "note:" | tail -n 60
-          rm -f "$KEY"
+            -exportOptionsPlist "$RUNNER_TEMP/export.plist" -exportPath "$RUNNER_TEMP/out" \
+            -authenticationKeyPath "$KEY" -authenticationKeyID "$KID" -authenticationKeyIssuerID "$ISS" 2>&1 | grep -v "note:" | tail -n 60
           echo "Сборка ${{ github.run_number }} загружена в App Store Connect — появится в TestFlight через 10–30 минут."
+
+      - name: Отозвать временный сертификат (если сборка упала)
+        if: failure() && inputs.mode == 'release'
+        env:
+          TEAM: ${{ vars.APPLE_TEAM_ID }}
+          KID: ${{ secrets.ASC_KEY_ID }}
+          ISS: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          export KEY="$RUNNER_TEMP/AuthKey.p8"
+          [ -f "$KEY" ] && python3 ../.github/scripts/ios-sign.py revoke || true
+
+      - name: Убрать ключи
+        if: always() && inputs.mode == 'release'
+        run: rm -f "$RUNNER_TEMP"/AuthKey*.p8 "$RUNNER_TEMP"/dist.*

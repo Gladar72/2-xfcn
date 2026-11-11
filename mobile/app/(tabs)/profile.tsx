@@ -3,9 +3,9 @@ import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from "react-n
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Aurora, Glass, Mosya, RoundBtn } from "@/components/brand";
+import { Aurora, Glass, RoundBtn } from "@/components/brand";
+import { Image } from "expo-image";
 import { Icon, type IconName } from "@/components/Icon";
-import { Avatar } from "@/components/ui";
 import { api } from "@/lib/api";
 import { plural } from "@/lib/format";
 import { PLAN_NAME, untilLabel, type Subscription } from "@/lib/subscription";
@@ -56,14 +56,16 @@ export default function ProfileScreen() {
           </RoundBtn>
         </View>
 
+        {/* Как в прототипе: большое фото, имя тонким шрифтом поверх затемнения. */}
         <View style={styles.card}>
-          <LinearGradient colors={["#17141F", "#3F3A4E", "#AAA0FF"]} start={{ x: 0, y: 0.2 }} end={{ x: 1, y: 0.8 }} style={StyleSheet.absoluteFill} />
-          <Mosya pose="glasses" size={96} style={styles.mosya} />
-          <Pressable onPress={() => router.push("/profile-edit")} style={styles.avaRing}>
-            <Avatar uri={me?.avatarUrl} name={me?.name} size={96} />
-            <View style={styles.camBadge}>
-              <Icon name="camera" size={14} color={colors.violet} />
-            </View>
+          {me?.avatarUrl ? (
+            <Image source={{ uri: me.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          ) : (
+            <LinearGradient colors={["#3F3A4E", "#17141F"]} style={StyleSheet.absoluteFill} />
+          )}
+          <LinearGradient colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.15)", "rgba(23,20,31,0.88)"]} locations={[0, 0.4, 1]} style={StyleSheet.absoluteFill} />
+          <Pressable onPress={() => router.push("/profile-edit")} style={styles.camBadge} accessibilityLabel="Сменить фото">
+            <Icon name="camera" size={17} color={colors.ink} />
           </Pressable>
           <Text style={styles.name}>{me ? `${me.name}, ${me.age}` : " "}</Text>
           <Text style={styles.city}>
@@ -94,7 +96,7 @@ export default function ProfileScreen() {
               <Text style={styles.ghostText}>Как меня видят</Text>
             </Pressable>
             <Pressable onPress={() => router.push("/profile-edit")} style={({ pressed }) => [styles.solid, pressed && { opacity: 0.85 }]}>
-              <Icon name="edit" size={16} color={colors.violet} />
+              <Icon name="edit" size={16} color={colors.ink} />
               <Text style={styles.solidText}>Редактировать</Text>
             </Pressable>
           </View>
@@ -164,14 +166,12 @@ function Row({ icon, label, onPress, last }: { icon: IconName; label: string; on
 
 const styles = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4 },
-  h1: { fontSize: 30, ...f("500"), color: colors.ink, letterSpacing: -0.8 },
-  card: { borderRadius: 32, padding: 20, paddingTop: 24, alignItems: "center", gap: 4, overflow: "hidden" },
-  mosya: { position: "absolute", right: -6, top: -4, opacity: 0.95 },
-  avaRing: { padding: 4, borderRadius: 60, backgroundColor: "rgba(255,255,255,0.35)" },
-  camBadge: { position: "absolute", right: 2, bottom: 2, width: 28, height: 28, borderRadius: 14, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  name: { fontSize: 24, ...f("500"), color: "#fff", marginTop: 8, letterSpacing: -0.5 },
-  city: { fontFamily: FONT, fontSize: 14, color: "rgba(255,255,255,0.88)", textAlign: "center" },
-  bio: { fontFamily: FONT, fontSize: 14, color: "#fff", textAlign: "center", marginTop: 6, opacity: 0.95 },
+  h1: { fontSize: 32, ...f("300"), color: colors.ink, letterSpacing: -1 },
+  card: { borderRadius: 28, padding: 18, paddingTop: 300, alignItems: "flex-start", gap: 4, overflow: "hidden", backgroundColor: colors.ink },
+  camBadge: { position: "absolute", right: 14, top: 14, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center" },
+  name: { fontSize: 34, ...f("300"), color: "#fff", letterSpacing: -1.2 },
+  city: { fontFamily: FONT, fontSize: 14, color: "rgba(255,255,255,0.82)" },
+  bio: { fontFamily: FONT, fontSize: 14, lineHeight: 20, color: "#fff", marginTop: 6, opacity: 0.92 },
   fill: { alignSelf: "stretch", marginTop: 14, gap: 6 },
   fillRow: { flexDirection: "row", justifyContent: "space-between" },
   fillText: { fontSize: 13, color: "#fff", ...f("500") },
@@ -180,12 +180,12 @@ const styles = StyleSheet.create({
   trackOn: { height: 8, borderRadius: 4, backgroundColor: "#fff" },
   btns: { flexDirection: "row", gap: 8, alignSelf: "stretch", marginTop: 14 },
   ghost: { flex: 1, height: 44, borderRadius: 999, borderWidth: 1, borderColor: "rgba(255,255,255,0.6)", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  ghostText: { fontSize: 14.5, ...f("600"), color: "#fff" },
+  ghostText: { fontSize: 14.5, ...f("500"), color: "#fff" },
   solid: { flex: 1, height: 44, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
-  solidText: { fontSize: 14.5, ...f("600"), color: colors.violet },
+  solidText: { fontSize: 14.5, ...f("500"), color: colors.ink },
   stats: { flexDirection: "row", gap: 8 },
   stat: { flex: 1, borderRadius: 22, paddingVertical: 12, alignItems: "center" },
-  statValue: { fontSize: 22, ...f("500"), color: colors.ink },
+  statValue: { fontSize: 26, ...f("300"), color: colors.ink, letterSpacing: -0.8 },
   muted: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, marginTop: 1 },
   sub: { borderRadius: 24, padding: 12, flexDirection: "row", alignItems: "center", gap: 12 },
   list: { borderRadius: 26, paddingHorizontal: 12 },
