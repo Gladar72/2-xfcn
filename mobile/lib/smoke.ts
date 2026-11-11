@@ -1,10 +1,14 @@
 // Тестовая сборка для снимков экранов на эмуляторе (EXPO_PUBLIC_UI_SMOKE=1, не для магазина):
 // вместо сервера — готовые данные, как в прототипе. Так видно весь дизайн без входа.
+import { Image as RNImage } from "react-native";
 import { API_URL } from "./config";
 
 export const UI_SMOKE = process.env.EXPO_PUBLIC_UI_SMOKE === "1";
 
 const C = (n: string) => `${API_URL}/brand/covers/${n}.webp`;
+// Фото «Даши» для снимков магазина — локальный файл в тестовой сборке.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const DASHA: string = RNImage.resolveAssetSource(require("../assets/smoke/dasha.webp")).uri;
 const day = (d: number) => {
   const t = new Date(Date.now() + d * 864e5);
   return t.toISOString().slice(0, 10);
@@ -47,7 +51,7 @@ const BIZ = [
 ];
 
 const PEOPLE = [
-  { id: "p1", name: "Даша", age: 27, avatarUrl: C("cof05"), sharedInterests: ["Бег", "Кофе"], sharedCount: 2, distanceM: 900 },
+  { id: "p1", name: "Даша", age: 27, avatarUrl: DASHA, sharedInterests: ["Бег", "Кофе"], sharedCount: 2, distanceM: 900 },
   { id: "p2", name: "Олег", age: 31, avatarUrl: C("run05"), sharedInterests: ["Бег"], sharedCount: 1, distanceM: 2100 },
   { id: "p3", name: "Макс", age: 29, avatarUrl: C("din02"), sharedInterests: ["Кино", "Ужины"], sharedCount: 2, distanceM: 3400 },
 ];
@@ -82,7 +86,7 @@ const DETAIL = {
   status: "published",
   hasChat: true,
   participants: [
-    { id: "p1", name: "Даша", avatarUrl: C("cof05") },
+    { id: "p1", name: "Даша", avatarUrl: DASHA },
     { id: "p3", name: "Макс", avatarUrl: C("din02") },
   ],
   viewerStatus: "none",
@@ -118,7 +122,7 @@ const CHATS = [
   { conversationId: "c1", eventId: "e1", eventTitle: "Пробежка на рассвете", eventStatus: "upcoming", eventPhotoUrl: C("run01"), otherUser: null, otherMembersCount: 3, unreadCount: 2, lastMessage: { content: "Встречаемся у моста в 7:55 👋", createdAt: new Date(now - 6e5).toISOString(), isMine: false, senderName: "Олег" } },
   { conversationId: "c3", eventId: "e3", eventTitle: "Кофе и разговоры", eventStatus: "upcoming", eventPhotoUrl: C("cof03"), otherUser: null, otherMembersCount: 2, unreadCount: 0, lastMessage: { content: "Я заняла столик у окна", createdAt: new Date(now - 36e5).toISOString(), isMine: false, senderName: "Даша" } },
   { conversationId: "c4", eventId: "e4", eventTitle: "Ужин в новом месте", eventStatus: "upcoming", eventPhotoUrl: C("din04"), otherUser: null, otherMembersCount: 4, unreadCount: 0, lastMessage: { content: "Столик на 20:00 забронировал", createdAt: new Date(now - 864e5).toISOString(), isMine: true, senderName: null } },
-  { conversationId: "c2", eventId: null, eventTitle: null, eventStatus: null, eventPhotoUrl: null, otherUser: { id: "p1", name: "Даша", avatarUrl: C("cof05") }, otherMembersCount: 1, unreadCount: 0, lastMessage: { content: "А после — кофе?", createdAt: new Date(now - 72e5).toISOString(), isMine: false, senderName: "Даша" } },
+  { conversationId: "c2", eventId: null, eventTitle: null, eventStatus: null, eventPhotoUrl: null, otherUser: { id: "p1", name: "Даша", avatarUrl: DASHA }, otherMembersCount: 1, unreadCount: 0, lastMessage: { content: "А после — кофе?", createdAt: new Date(now - 72e5).toISOString(), isMine: false, senderName: "Даша" } },
 ];
 
 /** Ответ «сервера» для тестовой сборки. */
@@ -132,7 +136,7 @@ export function smokeApi(path: string): unknown {
     };
   if (p.startsWith("/api/users/")) {
     const x = PEOPLE.find((u) => p.endsWith(u.id)) ?? PEOPLE[0]!;
-    return { id: x.id, name: x.name, age: x.age, gender: "female", avatarUrl: x.avatarUrl, photos: [x.avatarUrl, C("cof07"), C("run02")], canMessage: true, bio: "Люблю утренние пробежки и хороший кофе. Ищу компанию на выходные.", ratingAvg: 4.9, completedMeetingsCount: 12, distanceKm: 0.9, interests: ["Бег", "Кофе", "Кино", "Путешествия"], commonInterests: x.sharedInterests };
+    return { id: x.id, name: x.name, age: x.age, gender: "female", avatarUrl: x.avatarUrl, photos: x.id === "p1" ? [DASHA, C("cof05"), C("run02")] : [x.avatarUrl, C("cof07"), C("run02")], canMessage: true, bio: "Люблю утренние пробежки и хороший кофе. Ищу компанию на выходные.", ratingAvg: 4.9, completedMeetingsCount: 12, distanceKm: 0.9, interests: ["Бег", "Кофе", "Кино", "Путешествия"], commonInterests: x.sharedInterests };
   }
   if (p === "/api/people") return { items: PEOPLE, meHasLocation: true };
   if (p === "/api/events/map") return { items: MAP, city: "Тюмень" };
