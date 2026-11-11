@@ -27,7 +27,7 @@ const TRAINING_COVER: Record<string, string> = {
 
 /**
  * Фирменные наборы обложек брендбука 2026 (вертикальные 3:4, лица размыты):
- * бег — 10, кино — 8, Hyrox — 10, кофе — 15, ужин — 10, спортзал — 12, прогулка — 8. Для остальных разделов — одна обложка
+ * бег — 10, кино — 8, Hyrox — 10, кофе — 15, ужин — 10, спортзал — 12, прогулка — 8, активный отдых — 9. Для остальных разделов — одна обложка
  * категории или своё фото.
  */
 const n2 = (p: string, list: number[]) => list.map((i) => `/brand/covers/${p}${String(i).padStart(2, "0")}.webp`);
@@ -39,6 +39,7 @@ const COVER_SETS: Record<string, string[]> = {
   dinner: n2("din", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
   gym: n2("gym", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]),
   walk: n2("wlk", [1, 2, 3, 4, 5, 6, 7, 8]),
+  active: n2("act", [1, 2, 3, 4, 5, 6, 7, 8, 9]),
 };
 
 /** Библиотека фирменных обложек для выбора при создании (вкладки «Бег / Кино / …»). */
@@ -50,13 +51,14 @@ export const COVER_LIBRARY: { key: string; label: string; icon: string }[] = [
   { key: "dinner", label: "Ужин", icon: "/brand/pi/uzhin.svg" },
   { key: "gym", label: "Спортзал", icon: "/brand/pi/sportzal.svg" },
   { key: "walk", label: "Прогулка", icon: "/brand/pi/walk.svg" },
+  { key: "active", label: "Активный отдых", icon: "/brand/pi/camp.svg" },
 ];
 export function coverLibrary(key: string): string[] {
   return COVER_SETS[key] ?? [];
 }
 /** Ключ библиотеки, подходящий разделу встречи (для вкладки по умолчанию). */
 export function coverLibraryKey(categorySlug: string | null | undefined, trainingTypeSlug?: string | null): string | null {
-  if (categorySlug === "cinema" || categorySlug === "coffee" || categorySlug === "dinner" || categorySlug === "walk") return categorySlug;
+  if (categorySlug === "cinema" || categorySlug === "coffee" || categorySlug === "dinner" || categorySlug === "walk" || categorySlug === "active") return categorySlug;
   if (categorySlug === "training" && trainingTypeSlug && COVER_SETS[trainingTypeSlug]) return trainingTypeSlug;
   return null;
 }
@@ -64,7 +66,7 @@ export function coverLibraryKey(categorySlug: string | null | undefined, trainin
 /** Набор обложек на выбор для раздела (пусто — набора нет). */
 export function coverSetFor(categorySlug: string | null | undefined, trainingTypeSlug?: string | null, business?: boolean): string[] {
   if (business) return [];
-  if (categorySlug === "cinema" || categorySlug === "coffee" || categorySlug === "dinner" || categorySlug === "walk") return COVER_SETS[categorySlug] ?? [];
+  if (categorySlug === "cinema" || categorySlug === "coffee" || categorySlug === "dinner" || categorySlug === "walk" || categorySlug === "active") return COVER_SETS[categorySlug] ?? [];
   if (categorySlug === "training" && trainingTypeSlug && COVER_SETS[trainingTypeSlug]) return COVER_SETS[trainingTypeSlug] ?? [];
   return [];
 }
@@ -99,6 +101,8 @@ export function presetCoverUrl(value: string | null | undefined): string | null 
  * не подошло — null, и тогда нужно своё фото.
  */
 const TEXT_COVER: [RegExp, string][] = [
+  // Зима и горы — раньше «спорта», чтобы «лыжная тренировка» получила снежную обложку
+  [/лыж|сноуборд|сноуб|горнолыж|склон|курорт|подъ[её]мник|фрирайд|коньк|каток|ватрушк|тюбинг/i, "active"],
   [/йог|растяж|медитац|пилатес/i, "yoga"],
   [/бег|пробеж|марафон|забег/i, "running"],
   [/вело|байк|самокат/i, "cycling"],
