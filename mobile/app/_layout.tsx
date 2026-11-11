@@ -11,6 +11,7 @@ import { MosyaPeekHost } from "@/components/MosyaPeek";
 import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
 import { LoadingScenes } from "@/components/LoadingScenes";
+import { tapOk } from "@/lib/feedback";
 import { colors, fonts, FONT } from "@/lib/theme";
 import { UI_SMOKE } from "@/lib/smoke";
 
@@ -141,7 +142,13 @@ function Gate() {
   // Тап по push-уведомлению открывает нужный экран (встреча, чат, уведомления).
   useNotificationTaps(ready && fontReady && signedIn);
 
-  if (!ready || !fontReady || smokeHold) return <Splash fontReady={fontReady} />;
+  const loaded = ready && fontReady && !smokeHold;
+  // Приложение загрузилось — короткая вибрация «готово» (один раз за запуск).
+  useEffect(() => {
+    if (loaded) tapOk();
+  }, [loaded]);
+
+  if (!loaded) return <Splash fontReady={fontReady} />;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.milk }, animation: "slide_from_right" }}>
