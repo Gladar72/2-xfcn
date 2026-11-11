@@ -1,0 +1,13 @@
+--------- beginning of main
+11-11 12:02:30.796  3258  3379 I ReactNativeJS: Running "main"
+11-11 12:02:40.235  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:03:13.308  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:03:14.384  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:03:28.859  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:03:44.996  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:04:00.887  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:04:16.818  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:04:32.831  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:04:48.814  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:05:04.796  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
+11-11 12:05:20.806  3258  3379 W ReactNativeJS: Deprecated: prop 'getId' on screen subscription is deprecated. Please rename the prop to 'dangerouslySingular'
