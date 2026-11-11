@@ -5,7 +5,7 @@ import { describeValidationError } from "@/lib/validation/describe-error";
 import { verifyRegistrationTicket } from "@/lib/mobile/auth";
 import { mobileSessionPayload } from "@/lib/mobile/session-response";
 import { uploadAvatar } from "@/lib/photos/upload-avatar";
-import { applyPendingGifts } from "@/lib/gifts/channel-gift";
+import { applyPendingGifts, grantFirstMonthFree } from "@/lib/gifts/channel-gift";
 import { grantPartnerPremiumIfPartner, recordReferralForUser } from "@/lib/subscriptions/referrals";
 
 /**
@@ -101,6 +101,8 @@ export async function POST(req: NextRequest) {
     await applyPendingGifts(admin, ticket.telegramId, userId).catch((e) => console.error("mobile/register gifts:", e));
     await grantPartnerPremiumIfPartner(admin, ticket.telegramId).catch((e) => console.error("mobile/register partner:", e));
   }
+  // Первый месяц «Старта» бесплатно — каждому новому аккаунту.
+  await grantFirstMonthFree(admin, userId).catch((e) => console.error("first month free:", e));
 
   return NextResponse.json({ ...(await mobileSessionPayload(admin, created)), photoError });
 }

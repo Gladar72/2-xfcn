@@ -182,6 +182,20 @@ export async function grantWelcomeGift(admin: Admin, telegramId: number, userId:
   return result.kind === "granted";
 }
 
+/**
+ * Первый месяц бесплатно (решение 11.11.2026): каждому новому аккаунту —
+ * «Старт» на 30 дней сразу после регистрации, потом обычная подписка.
+ * Только если у человека ещё не было ни одной подписки: подарок по ссылке
+ * или партнёрский Премиум уже включены — второй раз не даём.
+ */
+export const FIRST_MONTH_DAYS = 30;
+export async function grantFirstMonthFree(admin: Admin, userId: string): Promise<boolean> {
+  const { count } = await admin.from("subscriptions").select("id", { count: "exact", head: true }).eq("user_id", userId);
+  if ((count ?? 0) > 0) return false;
+  await grantGiftSubscription(admin, userId, "start", FIRST_MONTH_DAYS);
+  return true;
+}
+
 export function formatUntil(date: Date): string {
   return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" });
 }

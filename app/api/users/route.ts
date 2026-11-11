@@ -4,7 +4,7 @@ import { onboardingSchema } from "@/lib/validation/onboarding";
 import { describeValidationError } from "@/lib/validation/describe-error";
 import { issueSessionToken, SESSION_COOKIE } from "@/lib/telegram/session";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { applyPendingGifts } from "@/lib/gifts/channel-gift";
+import { applyPendingGifts, grantFirstMonthFree } from "@/lib/gifts/channel-gift";
 import { grantPartnerPremiumIfPartner } from "@/lib/subscriptions/referrals";
 import { uploadAvatar } from "@/lib/photos/upload-avatar";
 
@@ -127,6 +127,8 @@ export async function POST(req: NextRequest) {
   await grantPartnerPremiumIfPartner(admin, telegramUser.id).catch((err) =>
     console.error("POST /api/users — не удалось включить Премиум партнёру:", err)
   );
+  // Первый месяц «Старта» бесплатно — каждому новому аккаунту.
+  await grantFirstMonthFree(admin, userId).catch((e) => console.error("first month free:", e));
 
   const sessionToken = issueSessionToken(userId, telegramUser.id);
   const response = NextResponse.json({ status: "registered", userId, photoError });
