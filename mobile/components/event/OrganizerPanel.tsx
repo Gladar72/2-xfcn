@@ -319,7 +319,7 @@ const styles = StyleSheet.create({
   countText: { fontSize: 13, ...f("700"), color: "#fff" },
   list: { borderRadius: 22, paddingHorizontal: 12 },
   person: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
-  sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(108,59,255,0.15)" },
+  sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(23,20,31,0.15)" },
   personTap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
   personName: { flex: 1, fontFamily: FONT, fontSize: 15.5, color: colors.ink },
   status: { fontSize: 13, ...f("600") },

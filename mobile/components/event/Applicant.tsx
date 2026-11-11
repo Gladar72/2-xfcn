@@ -120,7 +120,7 @@ export function SmallBtn({
       disabled={disabled}
       style={({ pressed }) => [
         styles.small,
-        primary ? { backgroundColor: colors.violet } : { backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(108,59,255,0.18)" },
+        primary ? { backgroundColor: colors.violet } : { backgroundColor: "#fff", borderWidth: 1, borderColor: "rgba(23,20,31,0.18)" },
         { opacity: disabled && !loading ? 0.5 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
       ]}
     >

@@ -145,7 +145,7 @@ export function PersonView({
           {photos.length ? (
             <Image source={{ uri: photos[photo] ?? photos[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />
           ) : (
-            <LinearGradient colors={["#6C3BFF", "#A24DFF", "#FF6FA0"]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
+            <LinearGradient colors={["#17141F", "#3F3A4E", "#AAA0FF"]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
               <Mosya pose="wave" size={170} />
             </LinearGradient>
           )}
@@ -310,5 +310,5 @@ const styles = StyleSheet.create({
   topRow: { flexDirection: "row", justifyContent: "space-between" },
   topRight: { flexDirection: "row", gap: 10 },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.94)" },
-  chatBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(108,59,255,0.15)" },
+  chatBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(23,20,31,0.15)" },
 });

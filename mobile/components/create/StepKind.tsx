@@ -57,6 +57,6 @@ const s = StyleSheet.create({
   img: { width: 64, height: 64 },
   title: { fontSize: 17, ...f("600"), color: colors.ink },
   text: { fontFamily: FONT, fontSize: 13.5, lineHeight: 19, color: colors.grey },
-  check: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: "rgba(108,59,255,0.25)", alignItems: "center", justifyContent: "center" },
+  check: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, borderColor: "rgba(23,20,31,0.25)", alignItems: "center", justifyContent: "center" },
   checkOn: { backgroundColor: colors.violet, borderColor: colors.violet },
 });

@@ -1,4 +1,4 @@
-import { API_URL } from "./config";
+import { piIcon } from "./theme";
 
 /**
  * Копия lib/events/biz-categories.ts сайта (держать одинаковыми).
@@ -120,7 +120,7 @@ export function guessBizCategory(e: BizCategorizable): string {
 }
 
 export function bizCategoryIcon(c: BizCategory) {
-  return `${API_URL}/brand/cat3d/${c.icon}.webp`;
+  return piIcon(c.icon);
 }
 
 export interface BizCategorizable {

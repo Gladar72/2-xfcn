@@ -121,6 +121,6 @@ const styles = StyleSheet.create({
   star: { fontFamily: FONT, fontSize: 44, lineHeight: 52 },
   toggles: { backgroundColor: "#fff", borderRadius: 20, paddingHorizontal: 14, marginBottom: 6 },
   toggle: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10 },
-  sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(108,59,255,0.15)" },
+  sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(23,20,31,0.15)" },
   toggleText: { fontFamily: FONT, fontSize: 15, color: colors.ink },
 });

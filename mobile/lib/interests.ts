@@ -1,3 +1,4 @@
+import { piIcon } from "./theme";
 /**
  * Копия lib/data/interests.ts и lib/mosya/suggest.ts из веб-версии.
  * Группы и 3D-иконки интересов для анкеты (редизайн 2026).
@@ -5,9 +6,8 @@
  * какую группу их положить и какую иконку показать. Неизвестный интерес
  * попадает в «Ещё» с иконкой-глобусом.
  */
-import { API_URL } from "./config";
 
-const I = (n: string) => `${API_URL}/brand/cat3d/i_${n}.webp`;
+const I = (n: string) => piIcon(n);
 
 export const INTEREST_GROUPS: { title: string; items: [name: string, icon: string][] }[] = [
   {

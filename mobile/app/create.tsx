@@ -420,7 +420,7 @@ export default function CreateScreen() {
 const st = StyleSheet.create({
   head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingHorizontal: 20, paddingBottom: 6 },
   prog: { flex: 1, flexDirection: "row", gap: 6 },
-  dot: { flex: 1, height: 5, borderRadius: 3, backgroundColor: "rgba(108,59,255,0.15)" },
+  dot: { flex: 1, height: 5, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.15)" },
   dotOn: { backgroundColor: colors.violet },
   count: { minWidth: 44, textAlign: "right", fontFamily: FONT, fontSize: 13, color: colors.grey },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },

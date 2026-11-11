@@ -3,9 +3,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Tabs, router } from "expo-router";
 import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Glass, Grad } from "@/components/brand";
+import { Glass } from "@/components/brand";
+import { Image } from "expo-image";
+import { API_URL } from "@/lib/config";
 import { Icon, type IconName } from "@/components/Icon";
-import { f } from "@/lib/theme";
+import { colors, f } from "@/lib/theme";
 import { PendingReviews } from "@/components/reviews/PendingReviews";
 import { fetchPendingApplications } from "@/lib/pending";
 
@@ -16,7 +18,7 @@ const TABS: Record<string, { label: string; icon: IconName }> = {
   profile: { label: "Профиль", icon: "user" },
 };
 
-/** Плавающий тёмный стеклянный таббар с кнопкой «+» по центру — как в мини-приложении. */
+/** Плавающий светлый стеклянный таббар с Мосей «+» по центру — как в прототипе. */
 function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const routes = state.routes.filter((r) => TABS[r.name]);
@@ -40,26 +42,26 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
         }}
         style={[styles.tab, on && styles.tabOn]}
       >
-        <Icon name={t.icon} color={on ? "#fff" : "rgba(255,255,255,0.55)"} size={22} />
+        <Icon name={t.icon} color={on ? colors.ink : "rgba(23,20,31,0.45)"} size={22} />
         {r.name === "profile" && pending > 0 ? (
           <View style={styles.badge} accessibilityLabel={`Новых заявок: ${pending}`}>
             <Text style={styles.badgeText}>{pending > 9 ? "9+" : pending}</Text>
           </View>
         ) : null}
-        <Text style={[styles.label, { color: on ? "#fff" : "rgba(255,255,255,0.55)" }]}>{t.label}</Text>
+        <Text style={[styles.label, { color: on ? colors.ink : "rgba(23,20,31,0.45)" }]}>{t.label}</Text>
       </Pressable>
     );
   };
 
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { bottom: Math.max(insets.bottom, 14) }]}>
-      <Glass dark intensity={60} style={styles.bar}>
+      <Glass strong intensity={50} style={styles.bar}>
         <View style={styles.row}>
           {left.map(item)}
-          <Pressable onPress={() => router.push("/create")} style={({ pressed }) => [styles.plusRing, { transform: [{ scale: pressed ? 0.86 : 1 }] }]}>
-            <Grad style={styles.plus}>
-              <Icon name="plus" color="#fff" size={26} strokeWidth={2.2} />
-            </Grad>
+          {/* Как в прототипе: по центру — Мося-капля с «+», чуть выше панели. */}
+          <Pressable onPress={() => router.push("/create")} accessibilityLabel="Создать встречу" style={({ pressed }) => [styles.plusRing, { transform: [{ scale: pressed ? 0.9 : 1 }] }]}>
+            <Image source={{ uri: `${API_URL}/brand/creature/mp00.webp` }} style={styles.blob} contentFit="contain" cachePolicy="disk" />
+            <Icon name="plus" color="#fff" size={28} strokeWidth={2.2} />
           </Pressable>
           {right.map(item)}
         </View>
@@ -87,7 +89,7 @@ const styles = StyleSheet.create({
   bar: { width: "100%", maxWidth: 440, height: 68, borderRadius: 999 },
   row: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 8 },
   tab: { width: 62, height: 54, borderRadius: 999, alignItems: "center", justifyContent: "center", gap: 3 },
-  tabOn: { backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+  tabOn: {},
   label: { fontSize: 10.5, ...f("500") },
   badge: {
     position: "absolute",
@@ -101,20 +103,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderWidth: 2,
-    borderColor: "rgba(22,18,31,0.85)",
+    borderColor: "#fff",
   },
   badgeText: { color: "#fff", fontSize: 10.5, ...f("700") },
-  plusRing: { width: 68, height: 68, borderRadius: 34, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center", marginTop: -2 },
-  plus: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#AA46FF",
-    shadowOpacity: 0.9,
-    shadowRadius: 13,
-    shadowOffset: { width: 0, height: 10 },
-    elevation: 8,
-  },
+  plusRing: { width: 74, height: 74, alignItems: "center", justifyContent: "center", marginTop: -26 },
+  blob: { position: "absolute", width: 78, height: 78 },
 });

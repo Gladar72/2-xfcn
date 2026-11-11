@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Stack, router, useSegments } from "expo-router";
+import { Stack, router, useSegments, type Href } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppState, StyleSheet, Text, View } from "react-native";
@@ -12,19 +12,19 @@ import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
 import { LoadingScenes } from "@/components/LoadingScenes";
 import { colors, fonts, FONT } from "@/lib/theme";
+import { UI_SMOKE } from "@/lib/smoke";
 
-/** Шрифт Golos Text — статические файлы по насыщенностям (assets/fonts); не загрузился за 3 с — продолжаем на системном. */
+/** Шрифты прототипа: Inter (заголовки Light) и Lora Italic (одно слово-акцент). Не загрузились за 3 с — продолжаем на системном. */
 function useBrandFont() {
   const [done, setDone] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setDone(true), 3000);
     Font.loadAsync({
-      [fonts["400"]]: require("../assets/fonts/Golos-Regular.ttf"),
-      [fonts["500"]]: require("../assets/fonts/Golos-Medium.ttf"),
-      [fonts["600"]]: require("../assets/fonts/Golos-SemiBold.ttf"),
-      [fonts["700"]]: require("../assets/fonts/Golos-Bold.ttf"),
-      [fonts["800"]]: require("../assets/fonts/Golos-ExtraBold.ttf"),
-      [fonts["900"]]: require("../assets/fonts/Golos-Black.ttf"),
+      "Inter-Light": require("../assets/fonts/Inter-Light.ttf"),
+      "Inter-Regular": require("../assets/fonts/Inter-Regular.ttf"),
+      "Inter-Medium": require("../assets/fonts/Inter-Medium.ttf"),
+      "Inter-SemiBold": require("../assets/fonts/Inter-SemiBold.ttf"),
+      "Lora-Italic": require("../assets/fonts/Lora-Italic.ttf"),
     })
       .catch(() => {})
       .finally(() => {
@@ -43,7 +43,7 @@ function Splash() {
 
 /** Тестовая сборка для эмулятора держит заставку 8 с, чтобы её успели снять. */
 function useSmokeHold() {
-  const [hold, setHold] = useState(process.env.EXPO_PUBLIC_MAP_SMOKE === "1" || process.env.EXPO_PUBLIC_AUTH_SMOKE === "1");
+  const [hold, setHold] = useState(process.env.EXPO_PUBLIC_MAP_SMOKE === "1" || process.env.EXPO_PUBLIC_AUTH_SMOKE === "1" || UI_SMOKE);
   useEffect(() => {
     if (!hold) return;
     const t = setTimeout(() => setHold(false), 8000);
@@ -104,6 +104,16 @@ function Gate() {
           setTimeout(() => setSmokePhase("map"), 25000);
         }
       } else if ((segments as string[])[1] !== "register") router.replace("/(auth)/register");
+      return;
+    }
+    // Тестовая сборка для снимков дизайна (не для магазина): экраны по очереди, данные — из lib/smoke.ts.
+    if (UI_SMOKE) {
+      if (smokeHold) return;
+      if (!smokeLogin.current) {
+        smokeLogin.current = true;
+        const seq: Href[] = ["/(auth)/login", "/(tabs)", "/event/e1", "/(tabs)/map", "/(tabs)/chats", "/(tabs)/profile", "/create", "/people"];
+        seq.forEach((h, i) => setTimeout(() => router.replace(h), i * 14000));
+      }
       return;
     }
     // Ссылка партнёра сама решает, куда вести (сначала сохраняет код).
@@ -176,5 +186,5 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   splash: { flex: 1, alignItems: "center", justifyContent: "center", gap: 14 },
   tagline: { fontFamily: FONT, fontSize: 15, color: colors.ink2 },
-  track: { width: 120, height: 5, borderRadius: 3, backgroundColor: "rgba(108,59,255,0.12)", overflow: "hidden", marginTop: 24 },
+  track: { width: 120, height: 5, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.12)", overflow: "hidden", marginTop: 24 },
 });

@@ -119,7 +119,7 @@ const st = StyleSheet.create({
   headLbl: { fontSize: 15, ...f("500"), color: colors.ink },
   tag: { backgroundColor: colors.lav, borderRadius: 999, paddingHorizontal: 10, height: 26, justifyContent: "center", flexShrink: 1 },
   tagText: { fontSize: 12, color: colors.violet, ...f("500") },
-  cover: { aspectRatio: 1.5, borderRadius: 22, overflow: "hidden", backgroundColor: "#EDE5FF", borderWidth: 3, borderColor: "transparent" },
+  cover: { aspectRatio: 1.5, borderRadius: 22, overflow: "hidden", backgroundColor: "#ECE8F2", borderWidth: 3, borderColor: "transparent" },
   on: { borderColor: colors.violet },
   badge: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(255,255,255,0.88)", borderRadius: 999, paddingHorizontal: 10, height: 26, justifyContent: "center" },
   badgeText: { fontSize: 12, color: colors.violet, ...f("500") },
@@ -127,5 +127,5 @@ const st = StyleSheet.create({
   cell: { width: "32%" },
   up: { aspectRatio: 1, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 6 },
   upText: { fontSize: 13, color: colors.ink, ...f("500") },
-  thumb: { aspectRatio: 1, borderRadius: 18, overflow: "hidden", backgroundColor: "#EDE5FF", borderWidth: 2, borderColor: "transparent" },
+  thumb: { aspectRatio: 1, borderRadius: 18, overflow: "hidden", backgroundColor: "#ECE8F2", borderWidth: 2, borderColor: "transparent" },
 });

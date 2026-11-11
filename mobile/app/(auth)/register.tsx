@@ -575,7 +575,7 @@ const styles = StyleSheet.create({
   top: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 18, paddingTop: 8 },
   back: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.8)", alignItems: "center", justifyContent: "center" },
   prog: { flex: 1, flexDirection: "row", gap: 5 },
-  bar: { flex: 1, height: 5, borderRadius: 3, backgroundColor: "rgba(108,59,255,0.15)" },
+  bar: { flex: 1, height: 5, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.15)" },
   barOn: { backgroundColor: colors.violet },
   cnt: { fontFamily: FONT, fontSize: 12, color: colors.grey, minWidth: 30, textAlign: "right" },
   body: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
@@ -584,7 +584,7 @@ const styles = StyleSheet.create({
   photoGrid: { marginTop: 20, flexDirection: "column", flexWrap: "wrap", alignContent: "space-between", rowGap: 12, columnGap: 12 },
   ph: { borderRadius: 22, alignItems: "center", justifyContent: "center", overflow: "hidden" },
 
-  phEmpty: { backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 2, borderStyle: "dashed", borderColor: "rgba(108,59,255,0.35)" },
+  phEmpty: { backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 2, borderStyle: "dashed", borderColor: "rgba(23,20,31,0.35)" },
   phText: { fontSize: 14, color: colors.violet, marginTop: 6, ...f("600") },
   phX: { position: "absolute", top: 8, right: 8, width: 26, height: 26, borderRadius: 13, backgroundColor: "rgba(22,18,31,0.45)", alignItems: "center", justifyContent: "center" },
   phTag: { position: "absolute", bottom: 7, fontSize: 10.5, color: "#fff", backgroundColor: "rgba(22,18,31,0.4)", paddingHorizontal: 7, paddingVertical: 2, borderRadius: 8, overflow: "hidden", ...f("500") },
@@ -606,7 +606,7 @@ const styles = StyleSheet.create({
   tgLink: { fontSize: 14, color: colors.tg, ...f("600") },
 
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 16 },
-  tile: { height: 84, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.9)", borderWidth: 1.5, borderColor: "rgba(108,59,255,0.1)", alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 4 },
+  tile: { height: 84, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.9)", borderWidth: 1.5, borderColor: "rgba(23,20,31,0.1)", alignItems: "center", justifyContent: "center", gap: 4, paddingHorizontal: 4 },
   tileOn: { backgroundColor: "#fff", borderColor: colors.violet },
   tileIc: { width: 40, height: 40 },
   tileText: { fontSize: 13, color: colors.ink, ...f("500") },
@@ -624,7 +624,7 @@ const styles = StyleSheet.create({
 
   foot: { paddingHorizontal: 18, paddingTop: 6, paddingBottom: 12, gap: 10 },
   terms: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  check: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: "rgba(108,59,255,0.35)", alignItems: "center", justifyContent: "center", marginTop: 1 },
+  check: { width: 22, height: 22, borderRadius: 7, borderWidth: 2, borderColor: "rgba(23,20,31,0.35)", alignItems: "center", justifyContent: "center", marginTop: 1 },
   checkOn: { backgroundColor: colors.violet, borderColor: colors.violet },
   termsText: { flex: 1, fontFamily: FONT, fontSize: 12.5, lineHeight: 17, color: "#5B5470" },
   link: { color: colors.violet, textDecorationLine: "underline" },

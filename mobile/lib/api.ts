@@ -1,5 +1,6 @@
 import * as SecureStore from "expo-secure-store";
 import { API_URL } from "./config";
+import { smokeApi, UI_SMOKE } from "./smoke";
 
 /**
  * Клиент к тому же бэкенду, что и мини-приложение в Telegram (Next.js на Vercel).
@@ -37,6 +38,7 @@ export async function api<T = unknown>(
   path: string,
   options: { method?: string; body?: unknown; auth?: boolean } = {}
 ): Promise<T> {
+  if (UI_SMOKE) return smokeApi(path) as T;
   const headers: Record<string, string> = { Accept: "application/json" };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   if (options.auth !== false) {

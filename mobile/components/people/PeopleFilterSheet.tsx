@@ -262,7 +262,7 @@ const styles = StyleSheet.create({
   ageInput: { flex: 1, fontFamily: FONT, fontSize: 16, color: colors.ink, paddingVertical: 0 },
   search: { height: 44, borderRadius: 14, backgroundColor: "#fff", paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 },
   searchInput: { flex: 1, fontFamily: FONT, fontSize: 15, color: colors.ink, paddingVertical: 0 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 6, paddingRight: 14, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(108,59,255,0.12)" },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 6, paddingRight: 14, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(23,20,31,0.12)" },
   chipOn: { backgroundColor: colors.violet, borderColor: colors.violet },
   chipText: { fontFamily: FONT, fontSize: 14, color: colors.ink },
   link: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start" },

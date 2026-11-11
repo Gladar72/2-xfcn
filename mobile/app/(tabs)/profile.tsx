@@ -57,7 +57,7 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.card}>
-          <LinearGradient colors={["#6C3BFF", "#A24DFF", "#FF6FA0"]} start={{ x: 0, y: 0.2 }} end={{ x: 1, y: 0.8 }} style={StyleSheet.absoluteFill} />
+          <LinearGradient colors={["#17141F", "#3F3A4E", "#AAA0FF"]} start={{ x: 0, y: 0.2 }} end={{ x: 1, y: 0.8 }} style={StyleSheet.absoluteFill} />
           <Mosya pose="glasses" size={96} style={styles.mosya} />
           <Pressable onPress={() => router.push("/profile-edit")} style={styles.avaRing}>
             <Avatar uri={me?.avatarUrl} name={me?.name} size={96} />
@@ -190,7 +190,7 @@ const styles = StyleSheet.create({
   sub: { borderRadius: 24, padding: 12, flexDirection: "row", alignItems: "center", gap: 12 },
   list: { borderRadius: 26, paddingHorizontal: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
-  rowSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(108,59,255,0.15)" },
+  rowSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(23,20,31,0.15)" },
   rowIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   rowText: { flex: 1, fontFamily: FONT, fontSize: 15, color: colors.ink },
 });

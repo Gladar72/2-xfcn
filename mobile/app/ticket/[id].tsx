@@ -201,7 +201,7 @@ const styles = StyleSheet.create({
   ic: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   rowText: { flex: 1, fontFamily: FONT, fontSize: 14.5, color: colors.ink },
   perf: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 12 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(108,59,255,0.18)" },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.18)" },
   codeBox: { alignItems: "center", paddingVertical: 20, paddingHorizontal: 16, gap: 4 },
   codeLabel: { fontFamily: FONT, fontSize: 13, color: colors.grey, textTransform: "uppercase", letterSpacing: 1 },
   code: { fontSize: 40, ...f("800"), color: colors.violet, letterSpacing: 4 },

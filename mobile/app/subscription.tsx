@@ -341,7 +341,7 @@ const styles = StyleSheet.create({
   plan: { borderRadius: 24, padding: 16, borderWidth: 1.5, borderColor: "transparent" },
   planOn: { borderColor: colors.violet },
   planHead: { flexDirection: "row", alignItems: "center", gap: 8 },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: "rgba(108,59,255,0.3)", alignItems: "center", justifyContent: "center" },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: "rgba(23,20,31,0.3)", alignItems: "center", justifyContent: "center" },
   radioOn: { borderColor: colors.violet },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.violet },
   planName: { fontSize: 18, ...f("600"), color: colors.ink },

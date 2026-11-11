@@ -3,64 +3,69 @@
 import { API_URL } from "./config";
 
 export const colors = {
-  violet: "#6C3BFF",
-  violet2: "#A24DFF",
-  pink: "#FF6FA0",
-  peach: "#FFB27A",
-  sky: "#5AA9FF",
+  // Палитра прототипа 2026: чернила, перламутр, сирень, небо, персик, зелёный «ок». Розового нет.
+  violet: "#17141F", // бывший фиолетовый акцент — теперь чернила (кнопки, ссылки, активные элементы)
+  violet2: "#3F3A4E",
+  pink: "#AAA0FF", // бывший розовый — сирень
+  lilac: "#AAA0FF",
+  peach: "#FFBEA0",
+  sky: "#8CAAFF",
   tg: "#2AABEE",
-  ok: "#22B573",
-  live: "#FF3B5C",
-  ink: "#16121F",
-  ink2: "#3D3752",
-  grey: "#8A84A0",
-  milk: "#F6F2FF",
-  glass: "rgba(255,255,255,0.56)",
-  glass2: "rgba(255,255,255,0.76)",
+  ok: "#2FA86A",
+  live: "#2FA86A", // «Идёт сейчас» — зелёная точка
+  ink: "#17141F",
+  ink2: "#3F3A4E",
+  grey: "#7C7787",
+  milk: "#F4F2F8", // перламутр
+  pearl: "#F4F2F8",
+  pearl2: "#ECE8F2",
+  glass: "rgba(255,255,255,0.62)",
+  glass2: "rgba(255,255,255,0.86)",
   stroke: "rgba(255,255,255,0.9)",
-  lav: "rgba(108,59,255,0.1)",
+  lav: "rgba(23,20,31,0.06)",
   danger: "#E5484D",
 
-  // старые имена — чтобы не сломать экраны, которые ещё не перерисованы
-  accent: "#6C3BFF",
-  accentSoft: "#A24DFF",
-  orange: "#FFB27A",
-  lavender50: "#F6F2FF",
-  lavender100: "#EDE5FF",
-  lavender200: "#DCCDFF",
-  background: "#F6F2FF",
+  // старые имена — чтобы не сломать экраны
+  accent: "#17141F",
+  accentSoft: "#3F3A4E",
+  orange: "#FFBEA0",
+  lavender50: "#F4F2F8",
+  lavender100: "#ECE8F2",
+  lavender200: "#DCD5FF",
+  background: "#F4F2F8",
   surface: "#FFFFFF",
-  ink900: "#16121F",
-  ink600: "#3D3752",
-  ink400: "#8A84A0",
-  border: "rgba(108,59,255,0.12)",
-  success: "#22B573",
+  ink900: "#17141F",
+  ink600: "#3F3A4E",
+  ink400: "#7C7787",
+  border: "rgba(23,20,31,0.08)",
+  success: "#2FA86A",
 };
 
-/** Фирменный градиент: фиолетовый → сиреневый → розовый (120°). */
-export const brandGradient = ["#6C3BFF", "#A24DFF", "#FF6FA0"] as const;
+/** Бывший фирменный градиент → чернила (в прототипе акцент — Lora Italic, без цветных градиентов). */
+export const brandGradient = ["#17141F", "#2A2636", "#3F3A4E"] as const;
 export const gradientStart = { x: 0, y: 0.2 };
 export const gradientEnd = { x: 1, y: 0.8 };
 
 export const radius = { card: 24, hero: 32, pill: 999, input: 18 };
 
-/** Шрифт Golos Text — грузится при старте (app/_layout.tsx) из assets/fonts.
- *  Android не умеет брать насыщенность из одного вариативного файла, поэтому
- *  у каждой насыщенности свой статический файл и своё имя семейства. */
-export const FONT = "Golos";
+/** Шрифты прототипа: Inter (Light — заголовки) и Lora Italic — одно слово-акцент.
+ *  На Android у каждой насыщенности свой файл и своё имя семейства. */
+export const FONT = "Inter-Regular";
+export const SERIF = "Lora-Italic";
 
 export const fonts = {
-  "400": FONT,
-  "500": "Golos-Medium",
-  "600": "Golos-SemiBold",
-  "700": "Golos-Bold",
-  "800": "Golos-ExtraBold",
-  "900": "Golos-Black",
+  "300": "Inter-Light",
+  "400": "Inter-Regular",
+  "500": "Inter-Medium",
+  "600": "Inter-SemiBold",
+  "700": "Inter-SemiBold",
+  "800": "Inter-SemiBold",
+  "900": "Inter-SemiBold",
 } as const;
 
 export type Weight = keyof typeof fonts;
 
-/** Насыщенность → нужное семейство Golos (вместо fontWeight, который Android игнорирует). */
+/** Насыщенность → нужное семейство (вместо fontWeight, который Android игнорирует). */
 export function f(weight: Weight = "400") {
   return { fontFamily: fonts[weight] };
 }
@@ -74,10 +79,10 @@ export const font = {
   xs: 12.5,
 };
 
-/** Текстовые стили: у Golos средняя насыщенность (500) — основная для заголовков. */
+/** Текстовые стили: заголовки — Inter Light, как в прототипе. */
 export const type = {
-  display: { ...f("500"), fontSize: 32, lineHeight: 34, letterSpacing: -0.9, color: colors.ink },
-  title: { ...f("500"), fontSize: 24, lineHeight: 27, letterSpacing: -0.6, color: colors.ink },
+  display: { ...f("300"), fontSize: 34, lineHeight: 37, letterSpacing: -1.1, color: colors.ink },
+  title: { ...f("300"), fontSize: 26, lineHeight: 29, letterSpacing: -0.7, color: colors.ink },
   h2: { ...f("500"), fontSize: 19, letterSpacing: -0.4, color: colors.ink },
   body: { fontFamily: FONT, fontSize: 15, color: colors.ink },
   small: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
@@ -86,38 +91,48 @@ export const type = {
 /** Картинки бренда берём с сайта (они там уже есть и кэшируются) — так приложение остаётся лёгким. */
 const B = `${API_URL}/brand`;
 export const brand = {
-  mosya: (pose: "stand" | "wave" | "jump" | "run" | "sit" | "phone" | "think" | "glasses") => `${B}/mosya/mosya_${pose}.webp`,
+  // Мося прототипа — перламутровая капля с глазами (кадры шейдера); у каждой «позы» своя форма капли.
+  mosya: (pose: "stand" | "wave" | "jump" | "run" | "sit" | "phone" | "think" | "glasses") =>
+    `${B}/creature/me${{ stand: "00", wave: "04", jump: "08", run: "12", sit: "16", phone: "20", think: "06", glasses: "10" }[pose]}.webp`,
 };
 
+// Иконки прототипа (тёмные силуэты, одна идея — одна иконка): public/brand/pi/*.svg на сайте.
 const CAT: Record<string, string> = {
-  training: "i_gym",
-  cinema: "i_kino",
-  coffee: "i_kofe",
-  breakfast: "i_zavtrak",
-  dinner: "i_uzhin",
-  walk: "i_hike",
-  active: "i_camp",
-  party: "i_party",
-  business: "i_biz",
-  custom: "i_games",
+  training: "training",
+  cinema: "kino",
+  coffee: "kofe",
+  breakfast: "zavtrak",
+  dinner: "uzhin",
+  walk: "walk",
+  active: "camp",
+  party: "party",
+  business: "biz",
+  custom: "other",
 };
 const TRAIN: Record<string, string> = {
-  running: "i_run", run: "i_run", gym: "i_gym", yoga: "i_yoga", cycling: "i_bike", bike: "i_bike",
-  football: "i_football", tennis: "i_tennis", padel: "i_tennis", swimming: "i_swim", swim: "i_swim",
-  boxing: "i_box", martial: "i_box", ski: "i_ski", skiing: "i_ski", roller: "i_roller", hike: "i_hike", hiking: "i_hike",
+  running: "run", run: "run", gym: "gym", yoga: "yoga", cycling: "bike", bike: "bike",
+  football: "football", tennis: "tennis", padel: "padel", swimming: "swim", swim: "swim",
+  boxing: "box", martial: "box", ski: "ski", skiing: "ski", roller: "roller", hike: "hike", hiking: "hike", hyrox: "hyrox",
 };
 
 export function catIcon(slug?: string | null): string {
-  return `${B}/cat3d/${(slug && CAT[slug]) || "i_art"}.webp`;
+  return `${B}/pi/${(slug && CAT[slug]) || "other"}.svg`;
 }
 
 export function eventIcon(e: { isBusiness?: boolean; category?: { slug: string } | null; trainingType?: { slug: string } | null }): string {
   if (e.isBusiness) return catIcon("business");
   if (e.category?.slug === "training") {
     const t = e.trainingType?.slug;
-    return `${B}/cat3d/${(t && (TRAIN[t] ?? TRAIN[t.split(/[-_]/)[0] ?? ""])) || "i_gym"}.webp`;
+    return `${B}/pi/${(t && (TRAIN[t] ?? TRAIN[t.split(/[-_]/)[0] ?? ""])) || "training"}.svg`;
   }
   return catIcon(e.category?.slug);
+}
+
+/** Старое имя 3D-иконки (i_kofe, kofe…) → иконка прототипа (как lib/data/interests.ts на сайте). */
+const PI: Record<string, string> = { kofe: "kofe", zavtrak: "zavtraki", uzhin: "uzhiny", bar: "bars", pizza: "street", party: "parties", games: "games", cook: "cook", dogs: "dogs", biz: "network", banya: "banya", lang: "lang", run: "run", gym: "sportzal", yoga: "yoga", bike: "bike", hike: "hike", camp: "camp", ski: "ski", swim: "swim", football: "football", tennis: "tennis", box: "box", roller: "roller", travel: "travel", trip: "travel", world: "excursion", photo: "photo", kino: "kino", theatre: "theatre", music: "music", karaoke: "karaoke", guitar: "jam", art: "expo", books: "books", concert: "concert" };
+export function piIcon(name: string): string {
+  const n = name.replace(/^i_/, "");
+  return `${B}/pi/${PI[n] ?? "other"}.svg`;
 }
 
 export const CATEGORY_SHORT: Record<string, string> = {

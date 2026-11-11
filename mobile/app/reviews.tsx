@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   muted: { fontFamily: FONT, fontSize: 13, color: colors.grey },
   list: { borderRadius: 22, paddingHorizontal: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10 },
-  sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(108,59,255,0.15)" },
+  sep: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "rgba(23,20,31,0.15)" },
   name: { fontSize: 15.5, ...f("500"), color: colors.ink },
   rate: { backgroundColor: colors.violet, borderRadius: 999, height: 38, paddingHorizontal: 16, justifyContent: "center" },
   rateText: { fontSize: 14.5, ...f("600"), color: "#fff" },

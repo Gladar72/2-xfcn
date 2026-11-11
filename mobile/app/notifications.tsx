@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   tabs: { flexDirection: "row", gap: 8 },
   label: { fontSize: 13, ...f("500"), color: colors.grey, marginTop: 6, marginLeft: 6 },
   row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 24, alignItems: "center" },
-  unread: { borderWidth: 1, borderColor: "rgba(108,59,255,0.35)" },
+  unread: { borderWidth: 1, borderColor: "rgba(23,20,31,0.35)" },
   thumb: { width: 50, height: 50, borderRadius: 16 },
   iconBox: { backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },

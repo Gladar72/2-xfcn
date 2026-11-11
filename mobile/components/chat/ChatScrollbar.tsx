@@ -118,6 +118,6 @@ export function ChatScrollbar({
 
 const styles = StyleSheet.create({
   track: { position: "absolute", right: 3, width: 14 },
-  thumb: { position: "absolute", right: 0, width: 6, borderRadius: 3, backgroundColor: "rgba(108,59,255,0.35)" },
+  thumb: { position: "absolute", right: 0, width: 6, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.35)" },
   thumbOn: { width: 8, borderRadius: 4, backgroundColor: colors.violet },
 });

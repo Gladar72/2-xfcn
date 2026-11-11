@@ -7,40 +7,34 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import Svg, { Defs, LinearGradient as SvgLinear, Path, RadialGradient, Rect, Stop, G, Text as SvgText } from "react-native-svg";
-import { brand, brandGradient, colors, fonts, gradientEnd, gradientStart, f } from "@/lib/theme";
+import { brand, brandGradient, colors, fonts, gradientEnd, gradientStart, f, SERIF } from "@/lib/theme";
 import { LOGO_LETTERS, LOGO_M, LOGO_VIEWBOX } from "@/lib/logo-paths";
 import { textWidth } from "@/lib/textWidth";
-import { SvgTitle } from "./title-svg";
 
 export { textWidth };
 
-/** Фон экрана: мягкие пятна фиолетового, розового, голубого и персикового на молочном. */
+/** Фон экрана как в прототипе: перламутр + мягкий свет сирени справа сверху и персика слева снизу. */
 export function Aurora({ style }: { style?: StyleProp<ViewStyle> }) {
   return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.milk }, style]} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.pearl }, style]} pointerEvents="none">
       <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
         <Defs>
-          <RadialGradient id="a1" cx="0" cy="0" rx="70" ry="38" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="rgb(150,115,255)" stopOpacity="0.55" />
-            <Stop offset="0.7" stopColor="rgb(150,115,255)" stopOpacity="0" />
+          <RadialGradient id="a1" cx="100" cy="0" rx="75" ry="40" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#DCD5FF" stopOpacity="0.95" />
+            <Stop offset="0.75" stopColor="#DCD5FF" stopOpacity="0" />
           </RadialGradient>
-          <RadialGradient id="a2" cx="100" cy="12" rx="70" ry="34" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="rgb(255,150,205)" stopOpacity="0.5" />
-            <Stop offset="0.7" stopColor="rgb(255,150,205)" stopOpacity="0" />
+          <RadialGradient id="a2" cx="0" cy="48" rx="70" ry="30" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#FFE3D6" stopOpacity="0.85" />
+            <Stop offset="0.75" stopColor="#FFE3D6" stopOpacity="0" />
           </RadialGradient>
-          <RadialGradient id="a3" cx="30" cy="62" rx="80" ry="36" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="rgb(170,200,255)" stopOpacity="0.35" />
-            <Stop offset="0.7" stopColor="rgb(170,200,255)" stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="a4" cx="90" cy="100" rx="90" ry="40" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="rgb(255,196,150)" stopOpacity="0.5" />
-            <Stop offset="0.7" stopColor="rgb(255,196,150)" stopOpacity="0" />
+          <RadialGradient id="a3" cx="85" cy="100" rx="80" ry="34" gradientUnits="userSpaceOnUse">
+            <Stop offset="0" stopColor="#D8E2FF" stopOpacity="0.7" />
+            <Stop offset="0.75" stopColor="#D8E2FF" stopOpacity="0" />
           </RadialGradient>
         </Defs>
         <Rect x="0" y="0" width="100" height="100" fill="url(#a1)" />
         <Rect x="0" y="0" width="100" height="100" fill="url(#a2)" />
         <Rect x="0" y="0" width="100" height="100" fill="url(#a3)" />
-        <Rect x="0" y="0" width="100" height="100" fill="url(#a4)" />
       </Svg>
     </View>
   );
@@ -96,7 +90,7 @@ export function Grad({ children, style }: { children?: ReactNode; style?: StyleP
   );
 }
 
-type BtnKind = "v" | "k" | "o" | "tg" | "ok" | "apple";
+type BtnKind = "v" | "k" | "o" | "tg" | "ok" | "apple" | "w";
 
 /** Кнопка как .btn: v — градиент, k — чёрная, o — стекло, tg — Telegram, ok — зелёная. */
 export function Btn({
@@ -116,8 +110,8 @@ export function Btn({
   disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 }) {
-  const fg = kind === "o" ? colors.ink : "#fff";
-  const bg: Record<BtnKind, string> = { v: "transparent", k: colors.ink, o: colors.glass2, tg: colors.tg, ok: colors.ok, apple: "#000" };
+  const fg = kind === "o" || kind === "w" ? colors.ink : "#fff";
+  const bg: Record<BtnKind, string> = { v: "transparent", k: colors.ink, o: colors.glass2, tg: colors.tg, ok: colors.ok, apple: "#000", w: "#fff" };
   const content = loading ? (
     <ActivityIndicator color={fg} />
   ) : (
@@ -166,9 +160,15 @@ export function RoundBtn({ children, onPress, dark, size = 44, style }: { childr
  * стоял на одной линии с текстом и не обрезался.
  */
 export function Title({ plain, em, size = 32, after, style }: { plain: string; em?: string; size?: number; after?: string; style?: StyleProp<TextStyle> }) {
-  const base: TextStyle = { fontSize: size, lineHeight: size * 1.08, ...f("500"), letterSpacing: -size * 0.03, color: colors.ink };
-  if (!em) return <Text style={[base, style]}>{plain}</Text>;
-  return <SvgTitle plain={plain} em={em} after={after} size={size} style={style} />;
+  // Как в прототипе: Inter Light, одно слово-акцент — Lora Italic (чуть крупнее), всё одной строкой текста.
+  const base: TextStyle = { fontSize: size, lineHeight: Math.round(size * 1.12), ...f("300"), letterSpacing: -size * 0.035, color: colors.ink };
+  return (
+    <Text style={[base, style]}>
+      {plain}
+      {em ? <Text style={{ fontFamily: SERIF, fontSize: size * 1.06, letterSpacing: -size * 0.01 }}>{em}</Text> : null}
+      {after ?? ""}
+    </Text>
+  );
 }
 
 /**
@@ -177,27 +177,7 @@ export function Title({ plain, em, size = 32, after, style }: { plain: string; e
  * так градиентное слово стоит ровно на одной линии с обычным текстом.
  */
 export function GradWord({ text, size }: { text: string; size: number }) {
-  const w = Math.ceil(textWidth(text, size)) + 3;
-  const h = Math.ceil(size * 1.25);
-  const baseline = Math.round(size * 0.98); // восходящая часть Golos — 980/1000
-  // Коробка высотой до базовой линии: её низ RN ставит на базовую линию строки,
-  // а хвосты букв («у», «д», «р») рисуются ниже, за пределами коробки.
-  return (
-    <View style={{ width: w, height: baseline, overflow: "visible" }}>
-      <Svg width={w} height={h} style={{ position: "absolute", left: 0, top: 0 }}>
-        <Defs>
-          <SvgLinear id="gw" x1="0" y1="0" x2="1" y2="0.6">
-            <Stop offset="0" stopColor={brandGradient[0]} />
-            <Stop offset="0.48" stopColor={brandGradient[1]} />
-            <Stop offset="1" stopColor={brandGradient[2]} />
-          </SvgLinear>
-        </Defs>
-        <SvgText x="0" y={baseline} fill="url(#gw)" fontFamily={fonts["500"]} fontSize={size} letterSpacing={-size * 0.03}>
-          {text}
-        </SvgText>
-      </Svg>
-    </View>
-  );
+  return <Text style={{ fontFamily: SERIF, fontSize: size * 1.06, color: colors.ink, letterSpacing: -size * 0.01 }}>{text}</Text>;
 }
 
 /** Логотип «место» (своя «м» с петлёй). */
@@ -208,9 +188,9 @@ export function Wordmark({ height = 28, color = colors.ink, gradientM }: { heigh
       {gradientM ? (
         <Defs>
           <SvgLinear id="wm" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#7A45FF" />
-            <Stop offset="0.55" stopColor="#B04CFF" />
-            <Stop offset="1" stopColor="#FF6FA0" />
+            <Stop offset="0" stopColor="#17141F" />
+            <Stop offset="0.55" stopColor="#2A2636" />
+            <Stop offset="1" stopColor="#3F3A4E" />
           </SvgLinear>
         </Defs>
       ) : null}
@@ -238,7 +218,7 @@ export function Pill({ label, kind = "lav", icon }: { label: string; kind?: "lav
   const map = {
     lav: { bg: colors.lav, fg: colors.violet },
     glass: { bg: "rgba(255,255,255,0.22)", fg: "#fff" },
-    live: { bg: "#fff", fg: "#16A34A" },
+    live: { bg: "#fff", fg: "#2FA86A" },
     dark: { bg: colors.ink, fg: "#fff" },
     white: { bg: "#fff", fg: colors.violet },
   }[kind];
@@ -265,7 +245,7 @@ export function Faces({ people, size = 24, ring = "#fff" }: { people: { id: stri
         ) : (
           <View
             key={p.id}
-            style={{ width: size, height: size, borderRadius: size / 2, marginLeft: i ? -size / 3 : 0, borderWidth: 2, borderColor: ring, backgroundColor: "#EDE5FF", alignItems: "center", justifyContent: "center" }}
+            style={{ width: size, height: size, borderRadius: size / 2, marginLeft: i ? -size / 3 : 0, borderWidth: 2, borderColor: ring, backgroundColor: "#ECE8F2", alignItems: "center", justifyContent: "center" }}
           >
             <Text style={{ fontSize: size * 0.42, color: colors.violet, ...f("600") }}>{p.name.charAt(0).toUpperCase()}</Text>
           </View>
@@ -290,19 +270,19 @@ export function SectionHead({ title, action, onAction }: { title: string; action
 }
 
 const styles = StyleSheet.create({
-  glassShadow: { shadowColor: "#5028AA", shadowOpacity: 0.18, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 2 },
+  glassShadow: { shadowColor: "#2A2160", shadowOpacity: 0.08, shadowRadius: 14, shadowOffset: { width: 0, height: 8 }, elevation: 2 },
   btn: { height: 56, borderRadius: 999, alignItems: "center", justifyContent: "center", paddingHorizontal: 22, overflow: "hidden" },
-  btnVShadow: { shadowColor: "#8236FF", shadowOpacity: 0.55, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
+  btnVShadow: { shadowColor: "#17141F", shadowOpacity: 0.22, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
   btnTgShadow: { shadowColor: colors.tg, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 10 }, elevation: 6 },
   btnRow: { flexDirection: "row", alignItems: "center", gap: 10 },
   btnText: { fontSize: 16, ...f("500") },
   round: { alignItems: "center", justifyContent: "center", borderRadius: 999 },
   pill: { flexDirection: "row", alignItems: "center", gap: 6, height: 30, paddingHorizontal: 11, borderRadius: 999, alignSelf: "flex-start" },
   pillText: { fontSize: 12.5, ...f("500") },
-  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#22C55E" },
+  liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#2FA86A" },
   sec: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 26, marginBottom: 12 },
-  secTitle: { flexShrink: 1, fontSize: 19, ...f("500"), letterSpacing: -0.4, color: colors.ink },
-  secBtn: { backgroundColor: colors.lav, borderRadius: 999, paddingHorizontal: 12, height: 30, justifyContent: "center" },
+  secTitle: { flexShrink: 1, fontSize: 22, ...f("300"), letterSpacing: -0.6, color: colors.ink },
+  secBtn: { backgroundColor: "rgba(255,255,255,0.86)", borderRadius: 999, paddingHorizontal: 12, height: 30, justifyContent: "center" },
   secBtnText: { fontSize: 13.5, color: colors.violet, ...f("500") },
 });
 

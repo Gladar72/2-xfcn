@@ -163,9 +163,9 @@ const st = StyleSheet.create({
   priceInput: { flex: 1, fontFamily: FONT, fontSize: 16, color: colors.ink, height: 56 },
   rub: { fontFamily: FONT, fontSize: 16, color: colors.grey },
   pv: { flexDirection: "row", gap: 12, borderRadius: 24, padding: 12, alignItems: "center" },
-  pvImg: { width: 84, height: 84, borderRadius: 18, overflow: "hidden", backgroundColor: "#EDE5FF" },
+  pvImg: { width: 84, height: 84, borderRadius: 18, overflow: "hidden", backgroundColor: "#ECE8F2" },
   pvTitle: { fontSize: 16, ...f("500"), color: colors.ink },
   org: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
-  mask: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#EDE5FF", alignItems: "center", justifyContent: "center" },
+  mask: { width: 22, height: 22, borderRadius: 11, backgroundColor: "#ECE8F2", alignItems: "center", justifyContent: "center" },
   orgText: { flex: 1, fontFamily: FONT, fontSize: 12.5, color: colors.ink2 },
 });

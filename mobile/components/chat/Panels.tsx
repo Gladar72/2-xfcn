@@ -171,7 +171,7 @@ export function ReadersSheet({ msg, members, onClose }: { msg: ChatMessage | nul
 }
 
 const styles = StyleSheet.create({
-  panel: { backgroundColor: "rgba(255,255,255,0.96)", borderTopWidth: 1, borderTopColor: "rgba(108,59,255,0.08)" },
+  panel: { backgroundColor: "rgba(255,255,255,0.96)", borderTopWidth: 1, borderTopColor: "rgba(23,20,31,0.08)" },
   tabs: { flexDirection: "row", gap: 6, paddingHorizontal: 12, paddingVertical: 8 },
   tab: { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 14 },
   tabOn: { backgroundColor: colors.lav },

@@ -82,7 +82,7 @@ export default function PrivacyScreen() {
 const styles = StyleSheet.create({
   list: { borderRadius: 24, paddingHorizontal: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
-  sep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(108,59,255,0.15)" },
+  sep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(23,20,31,0.15)" },
   ic: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   label: { fontFamily: FONT, fontSize: 15.5, color: colors.ink },
   sub: { fontFamily: FONT, fontSize: 12.5, lineHeight: 17, color: colors.grey, marginTop: 2 },

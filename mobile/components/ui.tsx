@@ -48,7 +48,7 @@ export function Field(props: TextInputProps & { label?: string }) {
 export function Avatar({ uri, size = 40, name }: { uri?: string | null; size?: number; name?: string }) {
   if (uri) return <Image source={{ uri }} style={{ width: size, height: size, borderRadius: size / 2 }} contentFit="cover" />;
   return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#EDE5FF", alignItems: "center", justifyContent: "center" }}>
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#ECE8F2", alignItems: "center", justifyContent: "center" }}>
       <Text style={{ color: colors.violet, ...f("600"), fontSize: size * 0.4 }}>{(name ?? "?").slice(0, 1).toUpperCase()}</Text>
     </View>
   );

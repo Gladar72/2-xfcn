@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   from: { fontSize: 12.5, ...f("600"), color: colors.violet, marginBottom: 2 },
   text: { fontFamily: FONT, fontSize: 15.5, color: colors.ink, lineHeight: 21 },
   chips: { gap: 8, paddingVertical: 10 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.9)", borderWidth: 1, borderColor: "rgba(108,59,255,0.14)" },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14, paddingVertical: 9, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.9)", borderWidth: 1, borderColor: "rgba(23,20,31,0.14)" },
   chipHuman: { backgroundColor: colors.lav },
   chipText: { fontFamily: FONT, fontSize: 14, color: colors.ink2 },
   inputRow: { flexDirection: "row", alignItems: "flex-end", gap: 8, paddingHorizontal: 12, paddingTop: 8 },

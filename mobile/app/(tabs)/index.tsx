@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Animated, AppState, Easing, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Animated, AppState, Dimensions, Easing, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { Image } from "expo-image";
@@ -19,6 +19,9 @@ import { useGuide } from "@/lib/guide";
 import { fetchPendingApplications, type PendingApplications } from "@/lib/pending";
 import { distanceShort } from "@/lib/interests";
 import { refreshLocationSilently, shareLocation } from "@/lib/location";
+
+// Как в прототипе: на экране две карточки встреч, обложка 3:4.
+const CARD_W = Math.floor((Dimensions.get("window").width - 52) / 2);
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -160,11 +163,11 @@ export default function HomeScreen() {
       >
         <View style={styles.top}>
           <Pressable onPress={() => setCityOpen(true)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-            <Text style={styles.locSmall}>Ищем компанию в</Text>
-            <View style={styles.locRow}>
+            <Glass strong style={styles.cityPill}>
+              <Icon name="pin" size={17} />
               <Text style={styles.locCity}>{city ?? "…"}</Text>
-              <Icon name="down" size={18} />
-            </View>
+              <Icon name="down" size={16} />
+            </Glass>
           </Pressable>
           <View style={styles.topBtns}>
             <RoundBtn onPress={() => router.push("/notifications")}>
@@ -183,7 +186,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.ttl}>
-          <Title plain="Что ищешь " em="сегодня?" size={30} />
+          <Title plain="Найди " em="компанию" after={"\nна сегодня"} size={34} />
         </View>
 
         <View style={styles.search}>
@@ -264,9 +267,9 @@ export default function HomeScreen() {
             </Pressable>
           </Glass>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railOut} contentContainerStyle={styles.rail} snapToInterval={312} decelerationRate="fast">
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railOut} contentContainerStyle={styles.rail} snapToInterval={CARD_W + 12} decelerationRate="fast">
             {popular.map((e) => (
-              <EventCard key={e.id} event={e} />
+              <EventCard key={e.id} event={e} width={CARD_W} height={Math.round(CARD_W * 4 / 3)} />
             ))}
           </ScrollView>
         )}
@@ -274,7 +277,7 @@ export default function HomeScreen() {
         {people.length > 0 && !cat ? (
           <>
             <SectionHead
-              title={people.some((p) => p.distanceM != null) ? "Люди рядом" : "Люди с похожими интересами"}
+              title={people.some((p) => p.distanceM != null) ? "Люди рядом" : "Люди в твоём городе"}
               action="Листать"
               onAction={() => router.push("/people")}
             />
@@ -302,11 +305,11 @@ export default function HomeScreen() {
                   {p.avatarUrl ? (
                     <Image source={{ uri: p.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                   ) : (
-                    <LinearGradient colors={["#6C3BFF", "#FF6FA0"]} style={[StyleSheet.absoluteFill, styles.pInit]}>
+                    <LinearGradient colors={["#17141F", "#AAA0FF"]} style={[StyleSheet.absoluteFill, styles.pInit]}>
                       <Text style={styles.pInitText}>{p.name.charAt(0).toUpperCase()}</Text>
                     </LinearGradient>
                   )}
-                  <LinearGradient colors={["rgba(0,0,0,0)", "rgba(40,10,70,0.7)"]} locations={[0.45, 1]} style={StyleSheet.absoluteFill} />
+                  <LinearGradient colors={["rgba(0,0,0,0)", "rgba(23,20,31,0.72)"]} locations={[0.45, 1]} style={StyleSheet.absoluteFill} />
                   {p.sharedCount > 0 ? (
                     <View style={styles.pTag}>
                       <Text style={styles.pTagText}>
@@ -336,7 +339,7 @@ export default function HomeScreen() {
 
         {!cat ? (
           <View style={styles.afisha}>
-            <LinearGradient colors={["#1B1236", "#2A1650", "#3B1A55"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={["#17141F", "#2A2636", "#3F3A4E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
             <View style={styles.afHead}>
               <View>
                 <Text style={styles.afSmall}>ДЛЯ БИЗНЕСА</Text>
@@ -354,11 +357,11 @@ export default function HomeScreen() {
                     {e.photoUrl ? (
                       <Image source={{ uri: e.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                     ) : (
-                      <LinearGradient colors={["#6C3BFF", "#FF6FA0"]} style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
+                      <LinearGradient colors={["#17141F", "#AAA0FF"]} style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
                         <Image source={{ uri: eventIcon(e) }} style={{ width: 90, height: 90 }} />
                       </LinearGradient>
                     )}
-                    <LinearGradient colors={["rgba(10,5,25,0.15)", "rgba(0,0,0,0)", "rgba(10,5,25,0.85)"]} locations={[0, 0.35, 0.8]} style={StyleSheet.absoluteFill} />
+                    <LinearGradient colors={["rgba(23,20,31,0.15)", "rgba(0,0,0,0)", "rgba(23,20,31,0.85)"]} locations={[0, 0.35, 0.8]} style={StyleSheet.absoluteFill} />
                     <View style={styles.acTop}>
                       {e.isLive ? (
                         <Pill kind="live" label="Идёт сейчас" />
@@ -385,7 +388,7 @@ export default function HomeScreen() {
                         {e.organizer?.avatarUrl ? (
                           <Image source={{ uri: e.organizer.avatarUrl }} style={styles.aava} contentFit="cover" />
                         ) : (
-                          <LinearGradient colors={["#6C3BFF", "#FF6FA0"]} style={[styles.aava, { alignItems: "center", justifyContent: "center" }]}>
+                          <LinearGradient colors={["#17141F", "#AAA0FF"]} style={[styles.aava, { alignItems: "center", justifyContent: "center" }]}>
                             <Text style={styles.aavaText}>{(e.organizer?.name ?? "Б").charAt(0).toUpperCase()}</Text>
                           </LinearGradient>
                         )}
@@ -399,11 +402,11 @@ export default function HomeScreen() {
                   {c.photoUrl ? (
                     <Image source={{ uri: c.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
                   ) : (
-                    <LinearGradient colors={["#3B1A55", "#6C3BFF"]} style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
+                    <LinearGradient colors={["#3F3A4E", "#17141F"]} style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
                       <Image source={{ uri: cityEventIcon(c.kind) }} style={{ width: 90, height: 90 }} />
                     </LinearGradient>
                   )}
-                  <LinearGradient colors={["rgba(0,0,0,0)", "rgba(20,8,40,0.85)"]} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
+                  <LinearGradient colors={["rgba(0,0,0,0)", "rgba(23,20,31,0.85)"]} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
                   <View style={styles.acTop}>
                     <View style={styles.acOrg}>
                       <Text style={styles.acOrgText} numberOfLines={1}>{KIND_LABEL[c.kind ?? ""] ?? "В городе"}</Text>
@@ -425,7 +428,7 @@ export default function HomeScreen() {
               ))}
               {biz.length < 4 ? (
                 <Pressable onPress={() => router.push("/business")} style={[styles.acard, styles.invite]}>
-                  <Image source={{ uri: `${API_URL}/brand/cat3d/i_biz.webp` }} style={{ width: 84, height: 84 }} />
+                  <Image source={{ uri: `${API_URL}/brand/pi/biz.svg` }} style={{ width: 84, height: 84 }} />
                   <Text style={styles.invTitle}>Здесь может быть ваше событие</Text>
                   <Text style={styles.invText}>Бесплатно для заведений: концерты, квизы, дегустации</Text>
                 </Pressable>
@@ -478,7 +481,8 @@ const styles = StyleSheet.create({
   top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   locSmall: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
   locRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  locCity: { fontSize: 17, ...f("500"), color: colors.ink },
+  locCity: { fontSize: 15, ...f("500"), color: colors.ink },
+  cityPill: { flexDirection: "row", alignItems: "center", gap: 6, height: 44, paddingHorizontal: 14, borderRadius: 999 },
   cnt: { position: "absolute", top: 3, right: 3, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.pink, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   cntText: { color: "#fff", fontSize: 10.5, ...f("600") },
   ttl: { marginTop: 18 },
@@ -505,7 +509,7 @@ const styles = StyleSheet.create({
   emptyText: { fontFamily: FONT, fontSize: 14, color: colors.grey, textAlign: "center" },
   emptyBtn: { marginTop: 10, backgroundColor: colors.ink, borderRadius: 999, height: 44, paddingHorizontal: 20, justifyContent: "center" },
   emptyBtnText: { color: "#fff", fontSize: 15, ...f("500") },
-  pcard: { width: 172, height: 244, borderRadius: 28, overflow: "hidden", backgroundColor: colors.lavender100 },
+  pcard: { width: CARD_W, height: Math.round(CARD_W * 4 / 3), borderRadius: 24, overflow: "hidden", backgroundColor: colors.lavender100 },
   pInit: { alignItems: "center", justifyContent: "center" },
   pInitText: { color: "#fff", fontSize: 48, ...f("500") },
   pTag: { position: "absolute", top: 10, left: 10, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999, paddingHorizontal: 9, height: 26, justifyContent: "center" },
@@ -535,7 +539,7 @@ const styles = StyleSheet.create({
   invText: { fontFamily: FONT, color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "center" },
   afSmall: { fontFamily: FONT, color: "rgba(255,255,255,0.6)", fontSize: 11.5, letterSpacing: 0.8 },
   afTitle: { color: "#fff", fontSize: 19, ...f("500"), letterSpacing: -0.4, marginTop: 2 },
-  acard: { width: 210, height: 290, borderRadius: 24, overflow: "hidden", backgroundColor: "#2A1650" },
+  acard: { width: 210, height: 290, borderRadius: 24, overflow: "hidden", backgroundColor: "#2A2636" },
   acTop: { position: "absolute", top: 10, left: 10, right: 10, flexDirection: "row", gap: 6, flexWrap: "wrap" },
   acOrg: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 999, height: 28, paddingHorizontal: 10, justifyContent: "center", maxWidth: 140 },
   acOrgText: { color: "#fff", fontSize: 12.5, ...f("500") },

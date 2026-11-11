@@ -233,8 +233,8 @@ function Slot({ url, big, main, loading, disabled, onPress }: { url?: string; bi
 const styles = StyleSheet.create({
   hint: { fontFamily: FONT, fontSize: 13.5, lineHeight: 19, color: colors.grey, marginLeft: 4 },
   photos: { flexDirection: "row", gap: 10, height: 260 },
-  slotBig: { flex: 1.6, borderRadius: 24, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 1.5, borderColor: "rgba(108,59,255,0.18)", borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
-  slot: { flex: 1, borderRadius: 20, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 1.5, borderColor: "rgba(108,59,255,0.18)", borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
+  slotBig: { flex: 1.6, borderRadius: 24, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 1.5, borderColor: "rgba(23,20,31,0.18)", borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
+  slot: { flex: 1, borderRadius: 20, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 1.5, borderColor: "rgba(23,20,31,0.18)", borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
   slotOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(22,18,31,0.35)", alignItems: "center", justifyContent: "center" },
   plus: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   mainBadge: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },

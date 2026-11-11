@@ -100,7 +100,7 @@ export default function LoginScreen() {
 
   return (
     <AuthShell plain={"Есть куда пойти.\n"} em="Найдём, с кем" sub="Встречи рядом, люди, которые идут туда же">
-      <Btn kind="tg" title="Войти через Telegram" icon={<Icon name="tg" color="#fff" size={20} />} onPress={telegramLogin} loading={loading === "tg"} />
+      <Btn kind="w" title="Войти через Telegram" icon={<Icon name="tg" color={colors.tg} size={20} />} onPress={telegramLogin} loading={loading === "tg"} />
       {appleReady ? (
         loading === "apple" ? (
           <Btn kind="apple" title="" loading />

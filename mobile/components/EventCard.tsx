@@ -1,96 +1,71 @@
-// Карточка встречи «hero» — как на главной мини-приложения: фото или 3D-иконка
-// категории на градиенте, сверху «1 из 4», «Анонимно» и стрелка «в популярном», снизу стеклянная
-// плашка с названием, временем, местом и ценой.
+// Карточка встречи как в прототипе (k-hc): вертикальная обложка 3:4, сверху плашка
+// «3 из 10 · бег» (или «анонимно», «идёт сейчас»), снизу на затемнении — название
+// тонким Inter, строка «Сб, 08:00 · место» и белая кнопка «Я иду».
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { router } from "expo-router";
-import { Grad, Pill } from "./brand";
 import { Icon } from "./Icon";
-import { colors, eventIcon, FONT, f } from "@/lib/theme";
-import { costShort, dayShort } from "@/lib/format";
+import { CATEGORY_SHORT, colors, eventIcon, FONT, f } from "@/lib/theme";
+import { dayShort } from "@/lib/format";
 import { distanceShort } from "@/lib/interests";
-import { anonymousTag, type FeedEvent } from "@/lib/types";
+import { type FeedEvent } from "@/lib/types";
 
-const STATUS_LABEL = { pending: "Заявка отправлена", accepted: "Ты идёшь", rejected: "Не подтвердили" } as const;
+const STATUS_LABEL = { pending: "Заявка отправлена", accepted: "Ты идёшь ✓", rejected: "Не подтвердили" } as const;
 
 export function EventCard({ event: e, width = 300, height = 360 }: { event: FeedEvent; width?: number | `${number}%`; height?: number }) {
   const going = e.seatsTaken + 1;
   const max = e.seatsTotal + 1;
   const full = e.seatsTaken >= e.seatsTotal;
+  const kind = e.isBusiness
+    ? e.organizer?.name ?? "Афиша"
+    : e.category?.slug === "training"
+      ? (e.trainingType?.name ?? "тренировка").toLowerCase()
+      : (CATEGORY_SHORT[e.category?.slug ?? ""] ?? "встреча").toLowerCase();
+  const tag = e.isBusiness ? kind : `${full ? "мест нет" : `${going} из ${max}`} · ${e.isAnonymous ? "анонимно" : kind}`;
+  const small = typeof width === "number" && width < 220;
+  const place = e.organizerHidden ? "место после одобрения" : e.placeName ?? "";
+  const dist = distanceShort(e.distanceM);
 
   return (
     <Pressable onPress={() => router.push(`/event/${e.id}`)} style={({ pressed }) => [styles.card, { width, height, transform: [{ scale: pressed ? 0.975 : 1 }] }]}>
-      <Grad style={StyleSheet.absoluteFill} />
       {e.photoUrl ? (
         <Image source={{ uri: e.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
       ) : (
-        <View style={[StyleSheet.absoluteFill, styles.gfx]}>
-          <Image source={{ uri: eventIcon(e) }} style={styles.gfxIcon} contentFit="contain" />
-        </View>
+        <LinearGradient colors={["#3F3A4E", "#17141F"]} style={[StyleSheet.absoluteFill, styles.gfx]}>
+          <Image source={{ uri: eventIcon(e) }} style={styles.gfxIcon} contentFit="contain" tintColor="#fff" />
+        </LinearGradient>
       )}
       <LinearGradient
-        colors={["rgba(60,20,140,0.28)", "rgba(0,0,0,0)", "rgba(0,0,0,0)", "rgba(40,10,70,0.5)"]}
-        locations={[0, 0.28, 0.5, 1]}
+        colors={["rgba(23,20,31,0.28)", "rgba(23,20,31,0)", "rgba(23,20,31,0.1)", "rgba(23,20,31,0.86)"]}
+        locations={[0, 0.25, 0.5, 1]}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
 
       <View style={styles.top}>
-        <View style={styles.glassPill}>
-          {e.isBusiness ? (
-            <Text style={styles.glassText} numberOfLines={1}>{e.organizer?.name ?? "Бизнес событие"}</Text>
-          ) : (
-            <>
-              <Icon name="people" size={15} color="#fff" />
-              <Text style={styles.glassText} numberOfLines={1}>{full ? `${going} · мест нет` : `${going} из ${max}`}</Text>
-            </>
-          )}
+        <View style={styles.tag}>
+          {e.isLive ? <View style={styles.live} /> : null}
+          <Text style={styles.tagText} numberOfLines={1}>{e.isLive ? "идёт сейчас" : tag}</Text>
         </View>
-        {e.isAnonymous ? (
-          <View style={styles.glassPill}>
-            <Text style={styles.glassText} numberOfLines={1}>{anonymousTag(e.organizer?.gender)}</Text>
-          </View>
-        ) : null}
-        {e.isBoosted && !e.isBusiness && !e.isLive ? (
+        {e.isBoosted && !e.isLive ? (
           <View style={styles.upb} accessibilityLabel="В топе">
-            <Icon name="up" size={17} color="#fff" />
+            <Icon name="up" size={14} color="#fff" />
           </View>
         ) : null}
       </View>
 
-      <View style={styles.badges}>
-        {e.isLive ? <Pill kind="live" label="Идёт сейчас" /> : e.isBoosted && e.isBusiness ? (
-          <View style={styles.glassBadge}>
-            <Icon name="up" size={12} color="#fff" />
-            <Text style={styles.glassBadgeText}>В топе</Text>
-          </View>
-        ) : null}
-        {e.myApplicationStatus ? <Pill kind="white" label={STATUS_LABEL[e.myApplicationStatus]} /> : null}
-      </View>
-
-      <View style={styles.bar}>
-        <BlurView intensity={30} tint="light" style={StyleSheet.absoluteFill} />
-        <View style={styles.barTint} />
-        <Text style={styles.title} numberOfLines={2}>
+      <View style={styles.bottom}>
+        <Text style={[styles.title, small && { fontSize: 17, lineHeight: 20 }]} numberOfLines={2}>
           {e.title}
         </Text>
-        <View style={styles.barRow}>
-          <View style={styles.dt}>
-            <Text style={styles.dtTime}>{e.eventTime.slice(0, 5)}</Text>
-            <Text style={styles.dtDay} numberOfLines={1}>{dayShort(e.eventDate)}</Text>
-          </View>
-          <View style={styles.place}>
-            <Icon name="pin" size={15} color="#fff" />
-            <Text style={styles.placeText} numberOfLines={1}>
-              {e.organizerHidden ? "место — после одобрения" : e.placeName ?? "место уточняется"}
-              {distanceShort(e.distanceM) ? ` · ${distanceShort(e.distanceM)}` : ""}
-            </Text>
-          </View>
-          <View style={styles.price}>
-            <Text style={styles.priceText} numberOfLines={1}>{costShort(e)}</Text>
-          </View>
+        <Text style={styles.meta} numberOfLines={1}>
+          {dayShort(e.eventDate)}, {e.eventTime.slice(0, 5)}
+          {place ? ` · ${place}` : ""}
+          {dist ? ` · ${dist}` : ""}
+        </Text>
+        <View style={styles.go}>
+          <Text style={styles.goText} numberOfLines={1}>{e.myApplicationStatus ? STATUS_LABEL[e.myApplicationStatus] : "Я иду"}</Text>
         </View>
       </View>
     </Pressable>
@@ -99,44 +74,36 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 32,
+    borderRadius: 24,
     overflow: "hidden",
-    backgroundColor: colors.violet,
-    shadowColor: "#5A28B4",
-    shadowOpacity: 0.45,
-    shadowRadius: 20,
-    shadowOffset: { width: 0, height: 16 },
-    elevation: 6,
+    backgroundColor: colors.ink,
+    shadowColor: "#17141F",
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 4,
   },
-  gfx: { alignItems: "center", justifyContent: "center", paddingBottom: 70 },
-  gfxIcon: { width: "62%", height: "62%" },
-  top: { position: "absolute", top: 14, left: 14, right: 14, flexDirection: "row", gap: 6 },
-  upb: { marginLeft: "auto", width: 38, height: 38, borderRadius: 19, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
-  glassBadge: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", height: 26, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
-  glassBadgeText: { color: "#fff", fontSize: 11.5, ...f("600") },
-  glassPill: {
+  gfx: { alignItems: "center", justifyContent: "center", paddingBottom: 60 },
+  gfxIcon: { width: "46%", height: "46%", opacity: 0.9 },
+  top: { position: "absolute", top: 10, left: 10, right: 10, flexDirection: "row", alignItems: "center", gap: 6 },
+  tag: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    height: 34,
+    gap: 5,
+    height: 26,
     paddingHorizontal: 10,
     borderRadius: 999,
-    backgroundColor: "rgba(255,255,255,0.22)",
+    backgroundColor: "rgba(23,20,31,0.38)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
-    maxWidth: "70%",
+    borderColor: "rgba(255,255,255,0.35)",
+    maxWidth: "86%",
   },
-  glassText: { color: "#fff", fontSize: 13, ...f("500") },
-  badges: { position: "absolute", top: 56, left: 14, gap: 6 },
-  bar: { position: "absolute", left: 10, right: 10, bottom: 10, borderRadius: 24, overflow: "hidden", padding: 10, gap: 8 },
-  barTint: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(40,16,90,0.32)", borderRadius: 24, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
-  title: { color: "#fff", fontSize: 17, lineHeight: 21, ...f("500"), letterSpacing: -0.2, paddingHorizontal: 4 },
-  barRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  dt: { width: 52, height: 52, borderRadius: 18, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  dtTime: { fontSize: 15, ...f("600"), color: colors.ink },
-  dtDay: { fontFamily: FONT, fontSize: 10.5, color: colors.grey, marginTop: 2 },
-  place: { flex: 1, flexDirection: "row", alignItems: "center", gap: 4, minWidth: 0 },
-  placeText: { fontFamily: FONT, color: "#fff", fontSize: 12.5, opacity: 0.92, flexShrink: 1 },
-  price: { height: 36, paddingHorizontal: 13, borderRadius: 999, backgroundColor: "#fff", justifyContent: "center", maxWidth: 110 },
-  priceText: { fontSize: 13, ...f("500"), color: colors.ink },
+  tagText: { color: "#fff", fontSize: 11.5, ...f("500") },
+  live: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.ok },
+  upb: { marginLeft: "auto", width: 26, height: 26, borderRadius: 13, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(23,20,31,0.38)", borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
+  bottom: { position: "absolute", left: 12, right: 12, bottom: 12, gap: 4 },
+  title: { color: "#fff", fontSize: 21, lineHeight: 24, ...f("300"), letterSpacing: -0.6 },
+  meta: { fontFamily: FONT, color: "rgba(255,255,255,0.82)", fontSize: 11.5 },
+  go: { alignSelf: "flex-start", marginTop: 6, height: 30, paddingHorizontal: 14, borderRadius: 999, backgroundColor: "#fff", justifyContent: "center" },
+  goText: { fontSize: 12.5, ...f("500"), color: colors.ink },
 });

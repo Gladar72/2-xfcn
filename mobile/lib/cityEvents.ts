@@ -1,4 +1,4 @@
-import { API_URL } from "./config";
+import { piIcon } from "./theme";
 
 /** Событие городской афиши (GET /api/city-events, lib/city-events.ts на сервере). */
 export interface CityEvent {
@@ -56,7 +56,7 @@ const KIND_ICON: Record<string, string> = {
 };
 
 export function cityEventIcon(kind: string | null | undefined): string {
-  return `${API_URL}/brand/cat3d/${KIND_ICON[kind ?? ""] ?? "i_world"}.webp`;
+  return piIcon(KIND_ICON[kind ?? ""] ?? "i_world");
 }
 
 const MON = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];

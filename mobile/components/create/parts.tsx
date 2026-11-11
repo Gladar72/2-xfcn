@@ -121,7 +121,7 @@ export const s = StyleSheet.create({
   muted: { fontFamily: FONT, fontSize: 13, lineHeight: 18, color: colors.grey },
   opt: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 14 },
   optOn: { borderWidth: 2, borderColor: colors.violet },
-  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: "rgba(108,59,255,0.35)", alignItems: "center", justifyContent: "center" },
+  radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: "rgba(23,20,31,0.35)", alignItems: "center", justifyContent: "center" },
   radioOn: { borderColor: colors.violet },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.violet },
   optTitle: { fontSize: 15.5, ...f("500"), color: colors.ink },

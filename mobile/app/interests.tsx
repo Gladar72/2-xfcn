@@ -102,7 +102,7 @@ const styles = StyleSheet.create({
   sub: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.grey, marginLeft: 4 },
   group: { fontSize: 17, ...f("500"), color: colors.ink, marginLeft: 4 },
   wrap: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 6, paddingRight: 14, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(108,59,255,0.12)" },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 6, paddingRight: 14, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(23,20,31,0.12)" },
   chipOn: { backgroundColor: colors.violet, borderColor: colors.violet },
   chipText: { fontFamily: FONT, fontSize: 14.5, color: colors.ink },
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 10, gap: 8, backgroundColor: "rgba(246,242,255,0.94)" },
