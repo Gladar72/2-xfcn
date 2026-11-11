@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F6F2FF"
+      "backgroundColor": "#F4F2F8"
     },
     "ios": {
       "bundleIdentifier": "ru.mesto.app",
@@ -34,7 +34,7 @@
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#A8B6E5"
+        "backgroundColor": "#F1EEF8"
       },
       "intentFilters": [
         {

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Animated, Easing, StyleSheet, Text, View } from "react-native";
 import { SvgXml } from "react-native-svg";
+import { Image as ExpoImage } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Grad, Wordmark } from "@/components/brand";
 import { characterSvg, type Face, type Palette, type Shape } from "@/lib/characters";
@@ -106,84 +107,29 @@ export function Pop({ children, delay, from, x, y, size, active }: { children: R
   );
 }
 
+/** Заставка как экран входа в прототипе: фото компании, белый логотип по центру,
+ *  «Найди компанию на сегодня» и тонкая полоска загрузки внизу. */
 export function LoadingScenes() {
   const insets = useSafeAreaInsets();
-  const [i, setI] = useState(0);
-  const fade = useRef(new Animated.Value(1)).current;
-  const load = useRef(new Animated.Value(0)).current;
+  const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const t = setInterval(() => {
-      Animated.timing(fade, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
-        setI((x) => (x + 1) % SCENES.length);
-        Animated.timing(fade, { toValue: 1, duration: 300, useNativeDriver: true }).start();
-      });
-    }, 3200);
-    const l = Animated.loop(Animated.timing(load, { toValue: 1, duration: 1400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }));
-    l.start();
-    return () => {
-      clearInterval(t);
-      l.stop();
-    };
-  }, [fade, load]);
-  const xml = useMemo(() => SCENES.map((s, k) => s.cast.map(([sh, p, f], n) => charXml(sh, p, f, k * 10 + n + 1))), []);
-  const s = SCENES[i]!;
-
+    const loop = Animated.loop(Animated.timing(x, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }));
+    loop.start();
+    return () => loop.stop();
+  }, [x]);
   return (
-    <View style={styles.root}>
-      <View style={[styles.head, { top: insets.top + 40 }]}>
-        <Wordmark height={24} color={colors.violet} />
-        <View style={styles.dots}>
-          {SCENES.map((_, k) => (
-            <View key={k} style={[styles.dot, k === i && styles.dotOn]} />
-          ))}
-        </View>
+    <View style={{ flex: 1, backgroundColor: "#17141F" }}>
+      <ExpoImage source={require("../assets/auth_bg.webp")} style={StyleSheet.absoluteFill} contentFit="cover" />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(23,20,31,0.38)" }]} />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}>
+        <Wordmark height={46} color="#fff" />
+        <Text style={{ marginTop: 22, fontSize: 30, lineHeight: 34, fontFamily: "Inter-Light", color: "#fff", textAlign: "center", letterSpacing: -1 }}>
+          Найди <Text style={{ fontFamily: "Lora-Italic", fontSize: 32 }}>компанию</Text>
+          {"\n"}на сегодня
+        </Text>
       </View>
-      <Animated.View style={[styles.stage, { opacity: fade }]}>
-        {i === 2 ? (
-          <Pop x={50} y={46} size={70} delay={0} from="drop" active>
-            <SvgXml xml={PIN} width={70} height={92} style={{ marginTop: -22 }} />
-          </Pop>
-        ) : null}
-        {s.cast.map(([, , , x, y, size, d, a], n) => (
-          <Pop key={`${i}-${n}`} x={x} y={y} size={size} delay={d} from={a} active>
-            <SvgXml xml={xml[i]![n]!} width={size} height={size} />
-          </Pop>
-        ))}
-        {i === 1 ? (
-          <>
-            <Pop x={50} y={24} size={34} delay={0.7} active>
-              <SvgXml xml={HEART} width={34} height={34} />
-            </Pop>
-            <Pop x={62} y={12} size={20} delay={1} active>
-              <SvgXml xml={HEART.replace("#FF5FAE", "#FFB27A")} width={20} height={20} />
-            </Pop>
-          </>
-        ) : null}
-      </Animated.View>
-      <View style={styles.clouds} pointerEvents="none">
-        {[
-          [-2, 34, 70],
-          [22, 30, 95],
-          [46, 36, 75],
-          [74, 34, 100],
-        ].map(([l, w, h], k) => (
-          <View key={k} style={[styles.cloud, { left: `${l}%`, width: `${w}%`, height: `${h}%` }]} />
-        ))}
-      </View>
-      <View style={styles.txt}>
-        <Animated.View style={{ opacity: fade, alignItems: "center" }}>
-          <Text style={styles.h1}>
-            {s.title[0]}
-            {"\n"}
-            <Text style={{ color: colors.violet }}>{s.title[1]}</Text>
-          </Text>
-          <Text style={styles.p}>{s.text}</Text>
-        </Animated.View>
-        <View style={[styles.track, { bottom: insets.bottom + 36 }]}>
-          <Animated.View style={{ width: "40%", height: "100%", transform: [{ translateX: load.interpolate({ inputRange: [0, 1], outputRange: [-48, 120] }) }] }}>
-            <Grad style={{ flex: 1, borderRadius: 3 }} />
-          </Animated.View>
-        </View>
+      <View style={{ position: "absolute", left: "50%", marginLeft: -60, width: 120, height: 3, borderRadius: 2, bottom: insets.bottom + 64, backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden" }}>
+        <Animated.View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: "#fff", transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-48, 120] }) }] }} />
       </View>
     </View>
   );
