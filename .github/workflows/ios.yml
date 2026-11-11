@@ -47,6 +47,13 @@ jobs:
             if [ -z "${!v}" ]; then echo "::error::Не задано: $v (см. шапку ios.yml)"; exit 1; fi
           done
 
+      - name: Xcode 26 (App Store принимает только сборки на iOS 26 SDK)
+        run: |
+          X=$(ls -d /Applications/Xcode_26*.app 2>/dev/null | sort -V | tail -1)
+          if [ -z "$X" ]; then echo "::error::На раннере нет Xcode 26"; ls /Applications | grep Xcode; exit 1; fi
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+
       - name: Зависимости
         run: npm install --no-audit --no-fund
 

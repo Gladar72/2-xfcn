@@ -121,6 +121,10 @@ export function smokeApi(path: string): unknown {
       categories: [cat("coffee", "Кофе"), cat("training", "Тренировка"), cat("cinema", "Кино"), cat("breakfast", "Завтрак"), cat("dinner", "Ужин"), cat("walk", "Прогулка"), cat("active", "Активный отдых"), cat("party", "Вечеринка")],
       trainingTypes: [cat("running", "Бег"), cat("gym", "Зал"), cat("yoga", "Йога"), cat("cycling", "Велосипед"), cat("football", "Футбол"), cat("padel", "Падел"), cat("hyrox", "Hyrox")],
     };
+  if (p.startsWith("/api/users/")) {
+    const x = PEOPLE.find((u) => p.endsWith(u.id)) ?? PEOPLE[0]!;
+    return { id: x.id, name: x.name, age: x.age, gender: "female", avatarUrl: x.avatarUrl, photos: [x.avatarUrl, C("cof07"), C("run02")], canMessage: true, bio: "Люблю утренние пробежки и хороший кофе. Ищу компанию на выходные.", ratingAvg: 4.9, completedMeetingsCount: 12, distanceKm: 0.9, interests: ["Бег", "Кофе", "Кино", "Путешествия"], commonInterests: x.sharedInterests };
+  }
   if (p === "/api/people") return { items: PEOPLE, meHasLocation: true };
   if (p === "/api/events/map") return { items: MAP, city: "Тюмень" };
   if (p === "/api/events") return { items: path.includes("business=true") ? BIZ : SMOKE_EVENTS };

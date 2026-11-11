@@ -86,6 +86,7 @@ export function PersonView({
 
   const load = useCallback(() => {
     api<Person>(`/api/users/${id}`)
+      .then((x) => ({ ...x, photos: x.photos ?? [], interests: x.interests ?? [], commonInterests: x.commonInterests ?? [] }))
       .then((r) => {
         setP(r);
         setError(null);
