@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveSubscriptionInfo, type ActiveSubscriptionInfo } from "@/lib/subscriptions/server";
 import { PLAN_LIMITS } from "@/lib/subscriptions/limits";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
+import { keepIphoneStart } from "@/lib/gifts/channel-gift";
 
 /**
  * GET /api/subscriptions
@@ -11,11 +12,13 @@ import { isAdminTelegramId } from "@/lib/admin/is-admin";
  * лимиты и текущее использование. Используется paywall'ом (решить,
  * пускать ли сразу в создание встречи) и экраном профиля ("Мой пакет").
  */
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
+  // iPhone-приложение: «Старт» бесплатно, пока в App Store нет оплаты (lib/gifts/channel-gift.ts).
+  if (req.headers.get("x-app-platform") === "ios") await keepIphoneStart(admin, user.userId).catch(() => false);
   let info: ActiveSubscriptionInfo | null;
   try {
     info = await getActiveSubscriptionInfo(admin, user.userId);

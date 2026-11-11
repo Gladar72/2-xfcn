@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Stack, router, useSegments, type Href } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { AppState, StyleSheet, Text, View } from "react-native";
+import { AppState, Platform, StyleSheet, Text, View } from "react-native";
 import * as Font from "expo-font";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { registerForPush, useNotificationTaps } from "@/lib/push";
@@ -134,6 +134,8 @@ function Gate() {
     registerForPush().catch(() => {});
     // iPhone: продления и прерванные покупки App Store — на сервер и закрыть.
     if (CAN_PAY) startAppleWatcher();
+    // iPhone без оплаты: сервер держит «Старт» бесплатным — спрашиваем тариф при входе.
+    if (Platform.OS === "ios") api("/api/subscriptions").catch(() => {});
     // Открывал ссылку партнёра до входа в существующий аккаунт — применяем код.
     applyPendingRef().catch(() => {});
   }, [signedIn]);

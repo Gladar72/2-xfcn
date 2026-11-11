@@ -196,6 +196,24 @@ export async function grantFirstMonthFree(admin: Admin, userId: string): Promise
   return true;
 }
 
+/**
+ * iPhone: оплаты в приложении пока нет (Apple не открывает российскому аккаунту платные
+ * приложения), поэтому владельцам iPhone «Старт» бесплатно — продлеваем на 30 дней,
+ * когда своего активного тарифа нет. Вызывается, когда iPhone-приложение спрашивает тариф.
+ */
+export async function keepIphoneStart(admin: Admin, userId: string): Promise<boolean> {
+  const nowIso = new Date().toISOString();
+  const { count } = await admin
+    .from("subscriptions")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "active")
+    .gt("current_period_end", nowIso);
+  if ((count ?? 0) > 0) return false;
+  await grantGiftSubscription(admin, userId, "start", FIRST_MONTH_DAYS);
+  return true;
+}
+
 export function formatUntil(date: Date): string {
   return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" });
 }

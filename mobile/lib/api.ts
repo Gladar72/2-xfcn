@@ -1,3 +1,4 @@
+import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { API_URL } from "./config";
 import { smokeApi, UI_SMOKE } from "./smoke";
@@ -39,7 +40,7 @@ export async function api<T = unknown>(
   options: { method?: string; body?: unknown; auth?: boolean } = {}
 ): Promise<T> {
   if (UI_SMOKE) return smokeApi(path) as T;
-  const headers: Record<string, string> = { Accept: "application/json" };
+  const headers: Record<string, string> = { Accept: "application/json", "X-App-Platform": Platform.OS };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
   if (options.auth !== false) {
     const token = await getToken();
