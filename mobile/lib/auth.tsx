@@ -47,7 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setUnauthorizedHandler(() => void signOut());
     (async () => {
-      const token = await getToken();
+      // Связка ключей может не ответить (сборка без подписи на симуляторе) — тогда просто «не вошёл».
+      const token = await Promise.race([getToken().catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 4000))]);
       if (token) {
         try {
           await api("/api/me");
