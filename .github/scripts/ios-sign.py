@@ -55,18 +55,20 @@ def setup():
     json.dump({"cert": cert_id}, open(STATE, "w"))
     der = os.path.join(TMP, "dist.cer")
     open(der, "wb").write(base64.b64decode(cert["attributes"]["certificateContent"]))
-    pem = os.path.join(TMP, "dist.pem")
-    sh("openssl", "x509", "-inform", "DER", "-in", der, "-out", pem)
-    p12 = os.path.join(TMP, "dist.p12")
-    sh("openssl", "pkcs12", "-export", "-legacy", "-inkey", key, "-in", pem, "-out", p12, "-passout", "pass:ci")
 
     kc = os.path.join(TMP, "ci.keychain-db")
     sh("security", "create-keychain", "-p", "ci", kc)
     sh("security", "set-keychain-settings", "-lut", "21600", kc)
     sh("security", "unlock-keychain", "-p", "ci", kc)
-    sh("security", "import", p12, "-k", kc, "-P", "ci", "-T", "/usr/bin/codesign", "-T", "/usr/bin/security")
+    # Ключ и сертификат по отдельности (в LibreSSL на macOS нет -legacy для p12).
+    sh("security", "import", key, "-k", kc, "-t", "priv", "-f", "openssl", "-T", "/usr/bin/codesign", "-T", "/usr/bin/security")
+    sh("security", "import", der, "-k", kc, "-T", "/usr/bin/codesign")
+    wwdr = os.path.join(TMP, "wwdr.cer")
+    urllib.request.urlretrieve("https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer", wwdr)
+    subprocess.run(["security", "import", wwdr, "-k", kc])
     sh("security", "set-key-partition-list", "-S", "apple-tool:,apple:,codesign:", "-s", "-k", "ci", kc)
     cur = subprocess.run(["security", "list-keychains", "-d", "user"], capture_output=True, text=True).stdout
+    sh("security", "default-keychain", "-s", kc)
     sh("security", "list-keychains", "-d", "user", "-s", kc, *[c.strip().strip('"') for c in cur.split()])
 
     bid = api("GET", f"/v1/bundleIds?filter[identifier]={BUNDLE}&limit=20")["data"]
@@ -95,6 +97,7 @@ def setup():
         subprocess.run(["/usr/libexec/PlistBuddy", "-c", "Set :aps-environment production", ent])
     with open(os.environ["GITHUB_OUTPUT"], "a") as o:
         o.write(f"profile={name}\nuuid={uuid}\n")
+    subprocess.run(["security", "find-identity", "-v", "-p", "codesigning", kc])
     print("Подпись готова:", name)
 
 
