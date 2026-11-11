@@ -109,7 +109,7 @@ export function Pop({ children, delay, from, x, y, size, active }: { children: R
 
 /** Заставка как экран входа в прототипе: фото компании, белый логотип по центру,
  *  «Найди компанию на сегодня» и тонкая полоска загрузки внизу. */
-export function LoadingScenes() {
+export function LoadingScenes({ fontReady = true }: { fontReady?: boolean }) {
   const insets = useSafeAreaInsets();
   const x = useRef(new Animated.Value(0)).current;
   useEffect(() => {
@@ -123,11 +123,16 @@ export function LoadingScenes() {
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(23,20,31,0.38)" }]} />
       <View style={{ flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 24 }}>
         <Wordmark height={46} color="#fff" />
+        {/* Слоган — когда шрифты загружены, иначе Android переносит строку криво. */}
+        {fontReady ? (
+          <>
         <View style={{ marginTop: 22, flexDirection: "row", alignItems: "baseline" }}>
           <Text style={{ fontSize: 30, fontFamily: "Inter-Light", color: "#fff", letterSpacing: -1 }}>Найди </Text>
           <Text style={{ fontSize: 32, fontFamily: "Lora-Italic", color: "#fff" }}>компанию</Text>
         </View>
         <Text style={{ fontSize: 30, fontFamily: "Inter-Light", color: "#fff", letterSpacing: -1 }}>на сегодня</Text>
+          </>
+        ) : null}
       </View>
       <View style={{ position: "absolute", left: "50%", marginLeft: -60, width: 120, height: 3, borderRadius: 2, bottom: insets.bottom + 64, backgroundColor: "rgba(255,255,255,0.25)", overflow: "hidden" }}>
         <Animated.View style={{ width: 48, height: 3, borderRadius: 2, backgroundColor: "#fff", transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-48, 120] }) }] }} />

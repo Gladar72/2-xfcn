@@ -37,8 +37,8 @@ function useBrandFont() {
 }
 
 /** Заставка на время загрузки: три сцены с персонажами «Места» (components/LoadingScenes). */
-function Splash() {
-  return <LoadingScenes />;
+function Splash({ fontReady }: { fontReady: boolean }) {
+  return <LoadingScenes fontReady={fontReady} />;
 }
 
 /** Тестовая сборка для эмулятора держит заставку 8 с, чтобы её успели снять. */
@@ -141,7 +141,7 @@ function Gate() {
   // Тап по push-уведомлению открывает нужный экран (встреча, чат, уведомления).
   useNotificationTaps(ready && fontReady && signedIn);
 
-  if (!ready || !fontReady || smokeHold) return <Splash />;
+  if (!ready || !fontReady || smokeHold) return <Splash fontReady={fontReady} />;
 
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.milk }, animation: "slide_from_right" }}>
