@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 import { plural } from "@/lib/format";
 import { PLAN_NAME, PLAN_PRICE_RUB, untilLabel, type Subscription } from "@/lib/subscription";
 import { interestIcon } from "@/lib/interests";
+import { CAN_PAY } from "@/lib/store";
 import { colors, FONT, SERIF, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
@@ -100,11 +101,11 @@ export default function ProfileScreen() {
                     <Text style={styles.planSmall}>ТВОЙ ТАРИФ</Text>
                     <Text style={styles.planName}>
                       {sub.active ? PLAN_NAME[sub.plan ?? ""] ?? "—" : "Нет подписки"}
-                      {sub.active && sub.plan ? <Text style={styles.planPrice}>{`  ${PLAN_PRICE_RUB[sub.plan]} ₽/мес`}</Text> : null}
+                      {sub.active && sub.plan && CAN_PAY ? <Text style={styles.planPrice}>{`  ${PLAN_PRICE_RUB[sub.plan]} ₽/мес`}</Text> : null}
                     </Text>
                   </View>
                   <View style={styles.planBtn}>
-                    <Text style={styles.planBtnText}>{sub.active ? "Сменить" : "Выбрать"}</Text>
+                    <Text style={styles.planBtnText}>{!CAN_PAY ? "Подробнее" : sub.active ? "Сменить" : "Выбрать"}</Text>
                   </View>
                 </View>
                 {sub.active ? (

@@ -7,6 +7,7 @@ import * as Font from "expo-font";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { registerForPush, useNotificationTaps } from "@/lib/push";
 import { startAppleWatcher, stopAppleWatcher } from "@/lib/iap";
+import { CAN_PAY } from "@/lib/store";
 import { MosyaPeekHost } from "@/components/MosyaPeek";
 import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
@@ -132,7 +133,7 @@ function Gate() {
     }
     registerForPush().catch(() => {});
     // iPhone: продления и прерванные покупки App Store — на сервер и закрыть.
-    startAppleWatcher();
+    if (CAN_PAY) startAppleWatcher();
     // Открывал ссылку партнёра до входа в существующий аккаунт — применяем код.
     applyPendingRef().catch(() => {});
   }, [signedIn]);

@@ -13,7 +13,7 @@ import { tapLight, tapOk, tapWarn } from "@/lib/feedback";
 import { buyApple, loadApplePrices, restoreApple } from "@/lib/iap";
 import { getMyId } from "@/lib/me";
 import { stickerUrl } from "@/lib/stickers";
-import { STORE } from "@/lib/store";
+import { CAN_PAY, STORE } from "@/lib/store";
 import { PLAN_FEATURES, PLAN_NAME, PLAN_PRICE_RUB, untilLabel, type Plan, type Subscription } from "@/lib/subscription";
 import { colors, FONT, f } from "@/lib/theme";
 import { useGuide } from "@/lib/guide";
@@ -63,7 +63,7 @@ export default function SubscriptionScreen() {
 
   useEffect(() => {
     load().then(() => Animated.timing(appear, { toValue: 1, duration: 420, useNativeDriver: true }).start());
-    if (STORE === "appstore") {
+    if (STORE === "appstore" && CAN_PAY) {
       loadApplePrices().then(setPrices).catch(() => {});
       // Дозавершаем покупку, если приложение закрылось посреди оплаты.
       restoreApple()
@@ -161,7 +161,7 @@ export default function SubscriptionScreen() {
   }
 
   const priceLabel = (p: Plan) =>
-    STORE === "appstore" ? (prices[p] ? `${prices[p]} / мес` : "…") : STORE === "rustore" ? `${PLAN_PRICE_RUB[p]} ₽ / 30 дней` : "";
+    !CAN_PAY ? "" : STORE === "appstore" ? (prices[p] ? `${prices[p]} / мес` : "…") : STORE === "rustore" ? `${PLAN_PRICE_RUB[p]} ₽ / 30 дней` : "";
   const isCurrent = (p: Plan) => !!sub?.active && sub.plan === p;
   const ctaTitle =
     busy === "buy"
@@ -258,7 +258,7 @@ export default function SubscriptionScreen() {
               );
             })}
 
-            {STORE === "googleplay" ? (
+            {!CAN_PAY ? (
               <Glass strong style={styles.note}>
                 <Text style={styles.muted}>
                   В этой версии приложения оформить тариф нельзя. Если он у тебя уже есть — все возможности работают и здесь.
