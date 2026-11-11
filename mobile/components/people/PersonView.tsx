@@ -42,7 +42,9 @@ export interface PersonPreview {
 
 const NO_MEET = "Пока написать нельзя — у вас ещё не было общей встречи. Позови на свою встречу или создай новую 😉";
 const { height: SCREEN_H } = Dimensions.get("window");
-const PHOTO_H = Math.round(SCREEN_H * 0.62);
+// Как в мини-приложении: фото на весь экран, имя внизу поверх, панель «♡ 🔔 Позвать на встречу».
+const PHOTO_H = SCREEN_H;
+const OVERLAY_H = 250;
 
 /**
  * Профиль человека (components/people/PersonView.tsx в мини-приложении):
@@ -78,6 +80,39 @@ export function PersonView({
   const [report, setReport] = useState(false);
   const [writing, setWriting] = useState(false);
   const scrollY = useRef(new Animated.Value(0)).current;
+  const [liked, setLiked] = useState(false);
+  const [following, setFollowing] = useState(false);
+
+  // Сердечко и подписка на события человека — как в мини-приложении (/api/likes, /api/follows).
+  useEffect(() => {
+    if (!active || self) return;
+    api<{ liked?: boolean }>(`/api/likes?userId=${id}`).then((r) => setLiked(!!r?.liked)).catch(() => {});
+    api<{ following?: boolean }>(`/api/follows?userId=${id}`).then((r) => setFollowing(!!r?.following)).catch(() => {});
+  }, [active, self, id]);
+
+  async function heart() {
+    tapLight();
+    const next = !liked;
+    setLiked(next);
+    try {
+      if (next) await api("/api/likes", { body: { userId: id, kind: "heart" } });
+      else await api(`/api/likes?userId=${id}`, { method: "DELETE" });
+    } catch (e) {
+      setLiked(!next);
+      if ((e as { status?: number }).status === 429) Alert.alert("Сердечки на сегодня закончились", "Завтра будут новые");
+    }
+  }
+
+  async function toggleFollow() {
+    tapLight();
+    const next = !following;
+    setFollowing(next);
+    try {
+      await api("/api/follows", { method: next ? "POST" : "DELETE", body: { userId: id } });
+    } catch {
+      setFollowing(!next);
+    }
+  }
   const [isMe, setIsMe] = useState(!!self);
 
   useEffect(() => {
@@ -150,15 +185,15 @@ export function PersonView({
               <Mosya pose="wave" size={170} />
             </LinearGradient>
           )}
-          <LinearGradient colors={["rgba(23,20,31,0.35)", "rgba(244,242,248,0)", "rgba(244,242,248,0)", "rgba(244,242,248,0.85)", colors.milk]} locations={[0, 0.22, 0.55, 0.86, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <LinearGradient colors={["rgba(23,20,31,0.4)", "rgba(23,20,31,0)", "rgba(23,20,31,0)", "rgba(23,20,31,0.55)", "rgba(23,20,31,0.92)"]} locations={[0, 0.2, 0.45, 0.72, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={styles.zones}>
             <Pressable style={{ flex: 1 }} onPress={() => flip(-1)} />
             <Pressable style={{ flex: 1 }} onPress={() => flip(1)} />
           </View>
         </Animated.View>
 
-        {/* Как в прототипе: имя по центру поверх растворяющегося фото, строка фактов, интересы, «Позвать». */}
-        <View style={[styles.overlay, { marginTop: -170 }]}>
+        {/* Имя, факты и интересы — внизу фото, над панелью действий. */}
+        <View style={[styles.overlay, { marginTop: -(OVERLAY_H + insets.bottom) , height: OVERLAY_H + insets.bottom, paddingBottom: (isMe ? 24 : 96) + insets.bottom }]}>
           <Text style={styles.name} numberOfLines={2}>
             {name}
             {age ? `, ${age}` : ""}
@@ -169,19 +204,6 @@ export function PersonView({
             </Text>
           ) : null}
           {p && p.interests.length ? <Chips items={[...common, ...other].slice(0, 6)} common={common} /> : null}
-          {!isMe && p ? (
-            <View style={styles.actions}>
-              <Pressable onPress={write} disabled={writing} style={({ pressed }) => [styles.roundAct, !p.canMessage && { opacity: 0.45 }, { transform: [{ scale: pressed ? 0.94 : 1 }] }]} accessibilityLabel="Написать">
-                {writing ? <ActivityIndicator color={colors.ink} /> : <Icon name="chat" size={20} color={colors.ink} />}
-              </Pressable>
-              <Pressable onPress={() => setReport(true)} style={({ pressed }) => [styles.roundAct, { transform: [{ scale: pressed ? 0.94 : 1 }] }]} accessibilityLabel="Пожаловаться">
-                <Icon name="flag" size={19} color={colors.ink} />
-              </Pressable>
-              <Pressable onPress={() => setInvite(true)} style={({ pressed }) => [styles.callBtn, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
-                <Text style={styles.callText}>Позвать</Text>
-              </Pressable>
-            </View>
-          ) : null}
         </View>
 
         <View style={styles.body}>
@@ -251,6 +273,24 @@ export function PersonView({
       </View>
 
 
+      {!isMe && p ? (
+        <View style={[styles.bar2, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <Pressable onPress={write} disabled={writing} style={({ pressed }) => [styles.rb, !p.canMessage && { opacity: 0.5 }, pressed && { opacity: 0.8 }]} accessibilityLabel="Написать">
+            {writing ? <ActivityIndicator color="#fff" /> : <Icon name="chat" size={21} color="#fff" />}
+          </Pressable>
+          <Pressable onPress={heart} style={({ pressed }) => [styles.rb, liked && styles.rbOn, pressed && { transform: [{ scale: 0.92 }] }]} accessibilityLabel={liked ? "Убрать сердечко" : "Поставить сердечко"}>
+            <Icon name="heart" size={22} color={liked ? colors.ink : "#fff"} />
+          </Pressable>
+          <Pressable onPress={toggleFollow} style={({ pressed }) => [styles.rb, following && styles.rbOn, pressed && { transform: [{ scale: 0.92 }] }]} accessibilityLabel={following ? "Отписаться от событий" : "Подписаться на события"}>
+            <Icon name="bell" size={21} color={following ? colors.ink : "#fff"} />
+          </Pressable>
+          <Pressable onPress={() => setInvite(true)} style={({ pressed }) => [styles.callBtn, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
+            <Icon name="cal" size={18} color={colors.ink} />
+            <Text style={styles.callText} numberOfLines={1}>Позвать на встречу</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {p ? (
         <>
           <InviteSheet visible={invite} person={p} onClose={() => setInvite(false)} />
@@ -287,13 +327,16 @@ const styles = StyleSheet.create({
   photoBox: { height: PHOTO_H, backgroundColor: colors.violet, overflow: "hidden" },
   noPhoto: { alignItems: "center", justifyContent: "center" },
   zones: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
-  overlay: { alignItems: "center", paddingHorizontal: 20, gap: 12 },
-  name: { fontSize: 42, lineHeight: 46, ...f("300"), color: colors.ink, letterSpacing: -1.6, textAlign: "center" },
-  meta: { fontFamily: FONT, fontSize: 14, color: colors.grey, marginTop: -6 },
+  overlay: { justifyContent: "flex-end", paddingHorizontal: 20, gap: 10 },
+  name: { fontSize: 42, lineHeight: 46, ...f("300"), color: "#fff", letterSpacing: -1.6 },
+  meta: { fontFamily: FONT, fontSize: 14, color: "rgba(255,255,255,0.8)", marginTop: -4 },
+  bar2: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingTop: 10 },
+  rb: { width: 50, height: 52, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.78)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  rbOn: { backgroundColor: "rgba(255,255,255,0.94)" },
   actions: { flexDirection: "row", alignItems: "center", gap: 10, alignSelf: "stretch", marginTop: 4 },
   roundAct: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.85)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(23,20,31,0.08)" },
-  callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" },
-  callText: { color: "#fff", fontSize: 16, ...f("500") },
+  callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
+  callText: { color: colors.ink, fontSize: 15, ...f("500") },
   section: { fontSize: 24, ...f("300"), color: colors.ink, letterSpacing: -0.6, marginTop: 8 },
   sectionEm: { fontFamily: SERIF, fontSize: 25 },
   grid: { flexDirection: "row", gap: 8 },
@@ -307,8 +350,8 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
   bio: { fontFamily: FONT, fontSize: 15.5, lineHeight: 22, color: colors.ink2 },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey },
-  chips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 8, paddingRight: 12, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(23,20,31,0.06)" },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 999, paddingLeft: 8, paddingRight: 12, paddingVertical: 6 },
   chipAccent: { backgroundColor: "#ECE8FF", borderColor: "rgba(170,160,255,0.5)" },
   chipText: { fontFamily: FONT, fontSize: 14, color: colors.ink },
   reportLink: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 12 },
