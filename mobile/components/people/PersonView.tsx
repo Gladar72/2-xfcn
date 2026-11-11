@@ -193,11 +193,15 @@ export function PersonView({
                 <>
                   <Text style={styles.section}>Фото</Text>
                   <View style={styles.grid}>
-                    {photos.slice(0, 6).map((u, i) => (
-                      <Pressable key={u + i} onPress={() => setPhoto(i)} style={styles.gridCell}>
-                        <Image source={{ uri: u }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-                      </Pressable>
-                    ))}
+                    {[0, 1, 2].map((i) =>
+                      photos[i] ? (
+                        <Pressable key={i} onPress={() => setPhoto(i)} style={styles.gridCell}>
+                          <Image source={{ uri: photos[i] }} style={{ width: "100%", height: "100%" }} contentFit="cover" cachePolicy="memory-disk" />
+                        </Pressable>
+                      ) : (
+                        <View key={i} style={[styles.gridCell, { opacity: 0.5 }]} />
+                      )
+                    )}
                   </View>
                 </>
               ) : null}
@@ -292,8 +296,8 @@ const styles = StyleSheet.create({
   callText: { color: "#fff", fontSize: 16, ...f("500") },
   section: { fontSize: 24, ...f("300"), color: colors.ink, letterSpacing: -0.6, marginTop: 8 },
   sectionEm: { fontFamily: SERIF, fontSize: 25 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  gridCell: { width: "31.6%", aspectRatio: 0.78, borderRadius: 18, overflow: "hidden", backgroundColor: colors.pearl2 },
+  grid: { flexDirection: "row", gap: 8 },
+  gridCell: { flex: 1, aspectRatio: 0.78, borderRadius: 18, overflow: "hidden", backgroundColor: colors.pearl2 },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   tag: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "rgba(255,255,255,0.22)", borderColor: "rgba(255,255,255,0.35)", borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5 },
   tagText: { fontSize: 13, color: "#fff", ...f("500") },
