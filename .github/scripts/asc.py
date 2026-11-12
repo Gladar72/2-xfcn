@@ -65,6 +65,5 @@ if NOTES and os.path.exists(NOTES):
                  "relationships": {"appStoreVersion": {"data": {"type": "appStoreVersions", "id": v["id"]}}}}})
         print("Детали созданы:", bool(c))
     if rid:
-        api("PATCH", f"/v1/appStoreReviewDetails/{rid}", {"data": {"type": "appStoreReviewDetails", "id": rid, "attributes": {"notes": notes,
-                 "contactFirstName": "Андрей", "contactLastName": "Гладаренко", "contactEmail": "support@mesto-go.ru", "demoAccountRequired": True}}})
+        api("PATCH", f"/v1/appStoreReviewDetails/{rid}", {"data": {"type": "appStoreReviewDetails", "id": rid, "attributes": {"notes": notes}}})
         print("Заметки обновлены")
