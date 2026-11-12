@@ -20,6 +20,7 @@ import { ShareSheet } from "@/components/proto/ShareSheet";
 import { storyMeta } from "@/lib/events/story-text";
 import { KI, bg } from "@/components/proto/k";
 import { goBack } from "@/lib/nav/back";
+import { useEventFire, observeEventFire } from "@/lib/events/use-fire";
 import { FireIcon } from "@/components/proto/Fire";
 import { shareNudgeDue } from "@/lib/events/share-nudge";
 import { PromoDone, PromoteSheet, loadPromoInfo, type PromoStatus } from "@/components/promotions/Promote";
@@ -139,9 +140,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     setLoadFailure(null);
     setEvent(null);
     setPendingApplicants([]);
+    const requestedAt = Date.now();
     getJson<EventDetails>(`/api/events/${eventId}`, controller.signal)
       .then((data) => {
         if (controller.signal.aborted) return;
+        observeEventFire(data, requestedAt);
         setEvent(data);
         // Заявки на СВОЮ встречу показываем прямо здесь, сразу как только
         // организатор открыл событие — не нужно проваливаться ещё на один
@@ -296,27 +299,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   }, [event?.viewerStatus, eventId]);
 
   const [shareOpen, setShareOpen] = useState(false);
-  // «Огонёк»: отметить, что событие классное (даже если не идёшь). Оптимистично, без ожидания сервера.
-  const [fire, setFire] = useState<{ count: number; mine: boolean; pop: boolean } | null>(null);
-  useEffect(() => {
-    if (event) setFire((f) => f ?? { count: event.fireCount ?? 0, mine: !!event.myFire, pop: false });
-  }, [event]);
-  const toggleFire = () => {
-    if (!fire) return;
-    const mine = !fire.mine;
-    try {
-      (window as unknown as { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (s: string) => void } } } }).Telegram?.WebApp?.HapticFeedback?.impactOccurred?.(mine ? "medium" : "light");
-    } catch {
-      /* нет вибро */
-    }
-    setFire({ count: Math.max(0, fire.count + (mine ? 1 : -1)), mine, pop: mine });
-    fetch(`/api/events/${eventId}/fire`, { method: mine ? "POST" : "DELETE" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { count?: number; fired?: boolean } | null) => {
-        if (d && typeof d.count === "number") setFire((f) => (f ? { ...f, count: d.count!, mine: !!d.fired } : f));
-      })
-      .catch(() => {});
-  };
+  const fire = useEventFire(eventId, event?.fireCount ?? 0, !!event?.myFire);
+  const toggleFire = fire.toggle;
   // Кнопка «Сторис» в напоминании бота открывает событие с ?share=1 — сразу показываем «Поделиться».
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("share") === "1") setShareOpen(true);

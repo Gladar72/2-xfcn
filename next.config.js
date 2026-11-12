@@ -19,6 +19,8 @@ const nextConfig = {
     },
   },
   images: {
+    // Public photos use unique filenames; keep resized copies warm for one day.
+    minimumCacheTTL: 86400,
     remotePatterns: [
       {
         protocol: "https",

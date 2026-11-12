@@ -461,7 +461,11 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
 
   // The full profile can replace the preview's URL. Keep that loaded image
   // mounted until a photo from the new set is ready, scoped to this person only.
-  const renderedPhotos = shownPhoto && photos.length && !photos.includes(shownPhoto) ? [shownPhoto, ...photos] : photos;
+  // Fetch the visible photo first, then only its next neighbour. Keep decoded
+  // images mounted so a swipe back never flashes or downloads the photo again.
+  const nextPhoto = photos.length > 1 && requestedPhoto && readyPhotos.has(requestedPhoto) ? photos[(photoIndex + 1) % photos.length] : undefined;
+  const visiblePhotos = photos.filter(src => src === requestedPhoto || src === shownPhoto || src === nextPhoto || readyPhotos.has(src));
+  const renderedPhotos = shownPhoto && photos.length && !visiblePhotos.includes(shownPhoto) ? [shownPhoto, ...visiblePhotos] : visiblePhotos;
   const pendingPhoto = !!requestedPhoto && !readyPhotos.has(requestedPhoto);
   const photoFailed = !!requestedPhoto && failedPhotos.has(requestedPhoto);
   const common = person.commonInterests ?? [];
@@ -481,7 +485,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
       <div className="gal">
         {photos.length ? (
           renderedPhotos.map((src) => (
-            <PersonPhoto key={src} src={src} retry={photoRetries[src] ?? 0} className={src === (shownPhoto ?? requestedPhoto) ? "on" : ""}
+            <PersonPhoto key={src} src={src} priority={src === requestedPhoto} retry={photoRetries[src] ?? 0} className={src === (shownPhoto ?? requestedPhoto) ? "on" : ""}
               onReady={() => setReadyPhotos(previous => previous.has(src) ? previous : new Set([...previous, src]))}
               onFailure={() => setFailedPhotos(previous => previous.has(src) ? previous : new Set([...previous, src]))} />
           ))

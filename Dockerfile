@@ -23,8 +23,8 @@ ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL \
     NEXT_PUBLIC_YANDEX_MAPS_API_KEY=$NEXT_PUBLIC_YANDEX_MAPS_API_KEY \
     STANDALONE=1 \
     NEXT_TELEMETRY_DISABLED=1
-# sharp — быстрое уменьшение картинок (next/image) на своём сервере.
-RUN npm install --no-save --no-audit --no-fund sharp@0.33.5 && npm run build
+# sharp is pinned in package-lock.json, shared by the build and runtime.
+RUN npm run build
 
 FROM node:20-bookworm-slim
 WORKDIR /app

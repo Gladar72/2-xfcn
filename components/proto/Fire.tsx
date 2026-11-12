@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect, useState, type MouseEvent } from "react";
+import { useId, type MouseEvent } from "react";
+import { useEventFire } from "@/lib/events/use-fire";
 
 /** «Огонёк» — значок для счётчика на карточке и кнопки на экране события. */
 export function FireIcon({ size = 18, off = false }: { size?: number; off?: boolean }) {
+  const gradient = useId();
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden style={{ flex: "none", display: "block" }}>
       <defs>
-        <linearGradient id="k-fire-g" x1="0" y1="1" x2="0" y2="0">
+        <linearGradient id={gradient} x1="0" y1="1" x2="0" y2="0">
           <stop offset="0" stopColor="#FF4D12" />
           <stop offset=".6" stopColor="#FF8A1F" />
           <stop offset="1" stopColor="#FFC93C" />
         </linearGradient>
       </defs>
       <path
-        fill={off ? "none" : "url(#k-fire-g)"}
+        fill={off ? "none" : `url(#${gradient})`}
         stroke={off ? "currentColor" : "none"}
         strokeWidth={off ? 1.7 : 0}
         strokeLinejoin="round"
@@ -30,24 +32,11 @@ export function FireIcon({ size = 18, off = false }: { size?: number; off?: bool
  * (карточку при этом не открывает). Число — когда огоньки уже есть.
  */
 export function FireChip({ id, count, mine }: { id: string; count: number; mine: boolean }) {
-  const [st, setSt] = useState({ count, mine, pop: false });
-  useEffect(() => setSt({ count, mine, pop: false }), [count, mine]);
+  const st = useEventFire(id, count, mine);
   const tap = (ev: MouseEvent<HTMLSpanElement>) => {
     ev.preventDefault();
     ev.stopPropagation();
-    const on = !st.mine;
-    try {
-      (window as unknown as { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (s: string) => void } } } }).Telegram?.WebApp?.HapticFeedback?.impactOccurred?.(on ? "medium" : "light");
-    } catch {
-      /* нет вибро */
-    }
-    setSt({ count: Math.max(0, st.count + (on ? 1 : -1)), mine: on, pop: on });
-    fetch(`/api/events/${id}/fire`, { method: on ? "POST" : "DELETE" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { count?: number; fired?: boolean } | null) => {
-        if (d && typeof d.count === "number") setSt((s) => ({ ...s, count: d.count!, mine: !!d.fired }));
-      })
-      .catch(() => {});
+    st.toggle();
   };
   return (
     <span
@@ -55,6 +44,9 @@ export function FireChip({ id, count, mine }: { id: string; count: number; mine:
       tabIndex={0}
       className={`k-fc${st.mine ? " on" : ""}${st.pop ? " pop" : ""}${st.count > 0 ? "" : " k-fc0"}`}
       onClick={tap}
+      onKeyDown={ev => {
+        if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); ev.stopPropagation(); if (!ev.repeat) st.toggle(); }
+      }}
       aria-pressed={st.mine}
       aria-label={st.mine ? "Убрать огонёк" : "Поставить огонёк"}
     >

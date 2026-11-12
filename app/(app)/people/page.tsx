@@ -262,13 +262,13 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
       cache.current.set(c.id, null);
       const controller = new AbortController();
       profileRequests.current.set(c.id, controller);
-      if (c.avatarUrl) new Image().src = personPhotoUrl(c.avatarUrl);
+      if (c.avatarUrl) { const image = new Image(); image.fetchPriority = c.id === currentCard.current ? "high" : "low"; image.src = personPhotoUrl(c.avatarUrl); }
       fetch(`/api/users/${c.id}`, { signal: controller.signal })
         .then((r) => { if (!r.ok) throw new Error("profile_unavailable"); return r.json(); })
         .then((d) => {
           if (!d.error && d.id === c.id && !controller.signal.aborted) {
             // Neighbours need their cover only; the active gallery loads its other photos.
-            for (const src of ((d.photos ?? []) as string[]).slice(0, 1)) new Image().src = personPhotoUrl(src);
+            for (const src of ((d.photos ?? []) as string[]).slice(0, 1)) { const image = new Image(); image.fetchPriority = "low"; image.src = personPhotoUrl(src); }
             const latest = latestCards.current?.find((item) => item.id === c.id) ?? c;
             cache.current.set(c.id, { ...d, city: latest.city, distanceKm: latest.distanceKm, distanceM: latest.distanceM });
             // Prefetched neighbours should not repaint the card under the finger.

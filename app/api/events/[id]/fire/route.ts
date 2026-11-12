@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
 import { sendPushPersonal } from "@/lib/push/expo";
+import { runInBackground } from "@/lib/server/background";
 import { isBlocked } from "@/lib/likes";
 
 export const dynamic = "force-dynamic";
@@ -48,8 +49,11 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   const count = Number(after?.fire_count ?? ev.fire_count ?? 0);
 
   const quiet = last?.created_at && Date.now() - Date.parse(last.created_at as string) < NOTIFY_GAP_MS;
-  if (added && ev.organizer_id !== me.userId && !quiet && !(await isBlocked(admin, me.userId, ev.organizer_id as string))) {
-    void notifyOrganizer(admin, ev.organizer_id as string, me.userId, eventId, String(ev.title ?? ""), count);
+  if (added && ev.organizer_id !== me.userId && !quiet) {
+    void runInBackground(async () => {
+      if (!(await isBlocked(admin, me.userId, ev.organizer_id as string)))
+        await notifyOrganizer(admin, ev.organizer_id as string, me.userId, eventId, String(ev.title ?? ""), count);
+    });
   }
   return NextResponse.json({ fired: true, count });
 }
@@ -60,7 +64,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const eventId = params.id;
   if (!UUID.test(eventId)) return NextResponse.json({ error: "bad_request" }, { status: 400 });
   const admin = createAdminClient();
-  await admin.from("event_fires").delete().eq("event_id", eventId).eq("user_id", me.userId);
+  const { error } = await admin.from("event_fires").delete().eq("event_id", eventId).eq("user_id", me.userId);
+  if (error) return NextResponse.json({ error: "failed" }, { status: 500 });
   const { data: after } = await admin.from("events").select("fire_count").eq("id", eventId).maybeSingle();
   return NextResponse.json({ fired: false, count: Number(after?.fire_count ?? 0) });
 }

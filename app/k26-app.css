@@ -375,8 +375,11 @@
 .P .bizmap-note img{display:none}
 
 /* «Огонёк»: счётчик на карточке события и кнопка в нижней панели события. */
-.K .k-hc .k-fc{position:absolute;top:10px;right:10px;z-index:2;height:28px;padding:0 10px 0 7px;border-radius:14px;display:inline-flex;align-items:center;gap:4px;font:600 12.5px var(--disp);color:#fff;background:rgba(23,20,31,.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.28)}
-.K .k-hc:has(.k-fc) .k-tg{max-width:calc(100% - 82px)}
+.K .k-hc .k-fc{position:relative;flex:none;z-index:2;height:28px;padding:0 10px 0 7px;border-radius:14px;display:inline-flex;align-items:center;gap:4px;font:600 12.5px var(--disp);color:#fff;background:rgba(23,20,31,.55);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.28)}
+.K .k-hc .k-tg{max-width:calc(100% - 20px);overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.K .k-hc .k-card-actions{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.K .k-hc .k-card-actions .k-cta{margin-top:0;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;display:block;line-height:28px}
+.K .k-hc .k-fc:focus-visible{outline:2px solid #fff;outline-offset:3px}
 .K .k-hc .k-fc{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .K .k-hc .k-fc.k-fc0{width:28px;padding:0;justify-content:center}
 .K .k-hc .k-fc.on{background:rgba(255,106,31,.35);border-color:rgba(255,170,100,.7)}

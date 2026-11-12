@@ -20,6 +20,7 @@ import { KIND_LABEL } from "@/lib/city-events";
 import { personDistanceLabel } from "@/lib/geo/approx-distance";
 import { watchMyLocation, sendMyLocation } from "@/lib/geo/client-location";
 import { usePeopleVisitSeed } from "@/lib/people/use-visit-seed";
+import { observeEventFire } from "@/lib/events/use-fire";
 import { rememberSelectedPerson } from "@/lib/people/selected-preview";
 
 interface Category {
@@ -147,12 +148,21 @@ function HomeScreen() {
       })
       .catch(() => {});
   }, []);
-  useEffect(() => { void loadPeople(); }, [peopleSeed, loadPeople]);
+  // Refresh once for a new visit seed, without duplicating the city request.
+  const previousSeed = useRef(peopleSeed);
+  useEffect(() => {
+    if (previousSeed.current !== peopleSeed) { previousSeed.current = peopleSeed; void loadPeople(); }
+  }, [peopleSeed, loadPeople]);
   const loadEvents = useCallback((c: string) => {
+    const requestedAt = Date.now();
     return fetch(`/api/events?page=0&shuffle=1&city=${encodeURIComponent(c)}`, { signal: requestController.current?.signal })
       .then((r) => r.json())
-      .then((d) => setEvents(d.items ?? []))
-      .catch(() => setEvents((prev) => prev ?? []));
+      .then((d) => {
+        if (requestController.current?.signal.aborted || cityRef.current !== c) return;
+        (d.items ?? []).forEach((e: FeedEvent) => observeEventFire(e, requestedAt));
+        setEvents(d.items ?? []);
+      })
+      .catch(() => { if (!requestController.current?.signal.aborted && cityRef.current === c) setEvents((prev) => prev ?? []); });
   }, []);
 
   useEffect(() => watchMyLocation(() => {
@@ -193,7 +203,7 @@ function HomeScreen() {
   }
 
   useEffect(() => {
-    fetch("/api/me/profile", { signal: requestController.current?.signal })
+    fetch("/api/me/profile?summary=1", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => setCity(d.city || "Тюмень"))
       .catch(() => setCity("Тюмень"));
@@ -204,7 +214,6 @@ function HomeScreen() {
         setTrainingTypes(d.trainingTypes ?? []);
       })
       .catch(() => {});
-    loadPeople();
     fetch("/api/notifications", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => setUnreadNotif((d.items ?? []).some((n: { isRead?: boolean }) => !n.isRead)))
@@ -224,20 +233,35 @@ function HomeScreen() {
       .catch(() => {});
   }, [loadPeople]);
 
+  const previousCity = useRef(initial?.city ?? null);
   useEffect(() => {
     if (!city) return;
-    setPeople([]);
-    setPeopleLoaded(false);
+    // Returning home paints its existing mosaic while fresh data arrives.
+    if (previousCity.current !== city) {
+      setPeople([]);
+      setPeopleLoaded(false);
+      setEvents(null);
+      setBiz([]);
+      setCityEv([]);
+    }
+    previousCity.current = city;
+    const requestedAt = Date.now();
+    const controller = new AbortController();
     loadPeople();
     loadEvents(city);
-    fetch(`/api/events?business=true&city=${encodeURIComponent(city)}`, { signal: requestController.current?.signal })
+    fetch(`/api/events?business=true&city=${encodeURIComponent(city)}`, { signal: controller.signal })
       .then((r) => r.json())
-      .then((d) => setBiz((d.items ?? []).filter((e: FeedEvent) => e.isBusiness)))
+      .then((d) => {
+        if (controller.signal.aborted) return;
+        (d.items ?? []).forEach((e: FeedEvent) => observeEventFire(e, requestedAt));
+        setBiz((d.items ?? []).filter((e: FeedEvent) => e.isBusiness));
+      })
       .catch(() => {});
-    fetch(`/api/city-events?city=${encodeURIComponent(city)}`, { signal: requestController.current?.signal })
+    fetch(`/api/city-events?city=${encodeURIComponent(city)}`, { signal: controller.signal })
       .then((r) => r.json())
-      .then((d) => setCityEv(d.items ?? []))
+      .then((d) => { if (!controller.signal.aborted) setCityEv(d.items ?? []); })
       .catch(() => {});
+    return () => controller.abort();
   }, [city, loadEvents, loadPeople]);
 
   // Заявка «ждём ответа» тоже показывается плашкой сверху (если нет подтверждённой).
@@ -386,7 +410,9 @@ function HomeScreen() {
           </h3>
           <p>С общими интересами</p>
         </div>
-        <Link className="k-all k-g k-pr" href={city ? `/people?city=${encodeURIComponent(city)}` : "/people"}>
+        <Link className="k-all k-g k-pr"
+          onClick={() => { const first = people[0]; if (first) rememberSelectedPerson({ ...first, avatarUrl: backgroundPhotoUrl(first.avatarUrl, 640) }); }}
+          href={people[0] ? `/people?start=${people[0].id}${city ? `&city=${encodeURIComponent(city)}` : ""}` : city ? `/people?city=${encodeURIComponent(city)}` : "/people"}>
           Листать
         </Link>
       </div>

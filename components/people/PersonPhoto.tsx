@@ -5,22 +5,22 @@ import { photoThumb } from "@/lib/photos/thumb";
 import { mosyaSrc } from "@/components/brand/Mosya";
 
 /** Share this URL with preloading: a different width is a separate network request. */
-export const personPhotoUrl = (src: string) => src;
+export const personPhotoUrl = (src: string) => photoThumb(src, 320, true);
 
-type Props = { src: string; className?: string; retry?: number; onReady?: () => void; onFailure?: () => void };
+type Props = { priority?: boolean; src: string; className?: string; retry?: number; onReady?: () => void; onFailure?: () => void };
 
 export function PersonPhoto({ retry = 0, ...props }: Props) {
   return <RecoveringPhoto key={`${props.src}:${retry}`} {...props} />;
 }
 
-function RecoveringPhoto({ src, className, onReady, onFailure }: Props) {
+function RecoveringPhoto({ src, className, onReady, onFailure, priority = false }: Props) {
   const [failed, setFailed] = useState(0);
   const image = useRef<HTMLImageElement>(null);
   const callbacks = useRef({ onReady, onFailure });
   callbacks.current = { onReady, onFailure };
-  // Full-screen portraits use the stored original, without a second lossy encode.
-  const optimized = photoThumb(src, 420, true);
-  const candidates = [...new Set([src, optimized])];
+  // The same 1080px image as the home mosaic: reuse the browser cache on entry.
+  // Originals stay available as a fallback if optimization is unavailable.
+  const candidates = [...new Set([personPhotoUrl(src), src])];
   const exhausted = failed >= candidates.length;
   const current = candidates[failed];
   useEffect(() => {
@@ -58,6 +58,6 @@ function RecoveringPhoto({ src, className, onReady, onFailure }: Props) {
     // A new candidate needs a fresh element: complete/naturalWidth can still
     // describe the previous failed URL immediately after changing src.
     // eslint-disable-next-line @next/next/no-img-element
-    <img key={current ?? "placeholder"} ref={image} src={current ?? mosyaSrc("wave")} className={className} alt="" decoding="async" draggable={false} />
+    <img key={current ?? "placeholder"} ref={image} src={current ?? mosyaSrc("wave")} className={className} alt="" fetchPriority={priority ? "high" : "low"} decoding="async" draggable={false} />
   );
 }

@@ -117,7 +117,6 @@ export function KHc({ e, cta, tag }: { e: HeroEvent & { myApplicationStatus?: st
   return (
     <Link href={`/events/${e.id}`} className="k-hc k-pr" style={bg(e.photoUrl, 600)}>
       <span className="k-chip k-gw k-tg">{tag ?? defTag}</span>
-      <FireChip id={e.id} count={e.fireCount ?? 0} mine={!!e.myFire} />
       <span className="k-bt">
         <span className="k-tt">
           <TwoLine text={e.title} />
@@ -125,7 +124,10 @@ export function KHc({ e, cta, tag }: { e: HeroEvent & { myApplicationStatus?: st
         <span className="k-mm" style={{ display: "block" }}>
           {[when, who].filter(Boolean).join(" · ")}
         </span>
-        <span className="k-cta">{cta ?? status ?? (e.isBusiness ? costShort(e) : "Я иду")}</span>
+        <span className="k-card-actions">
+          <span className="k-cta">{cta ?? status ?? (e.isBusiness ? costShort(e) : "Я иду")}</span>
+          <FireChip id={e.id} count={e.fireCount ?? 0} mine={!!e.myFire} />
+        </span>
       </span>
     </Link>
   );

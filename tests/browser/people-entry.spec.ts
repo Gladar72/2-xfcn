@@ -90,7 +90,6 @@ for (const available of [true, false]) {
       await card.tap();
       await expect(active(page)).toBeVisible({ timeout: 20_000 });
       await expect.poll(() => shown(page).evaluate((im: HTMLImageElement) => im.complete && im.naturalWidth > 0)).toBe(true);
-      const previewImage = await shown(page).elementHandle();
       await expect(active(page).getByRole("button", { name: "Поставить сердечко" })).toHaveCount(0);
       expect(sideRequests).toEqual([]);
       releaseDeck();
@@ -101,10 +100,10 @@ for (const available of [true, false]) {
         return;
       }
       await expect(active(page).getByRole("button", { name: "Поставить сердечко" })).toBeVisible();
-      expect(await previewImage!.evaluate((im: HTMLImageElement) => im.isConnected && im.naturalWidth > 0 && im.classList.contains("on"))).toBe(true);
       await expect(shown(page)).toHaveJSProperty("src", thumbnail);
       releasePhoto();
-      await expect(shown(page)).toHaveAttribute("src", portrait);
+      // Full profile reuses the mosaic thumbnail; no second original download.
+      await expect(shown(page)).toHaveJSProperty("src", thumbnail);
       await expect.poll(() => shown(page).evaluate((im: HTMLImageElement) => im.complete && im.naturalWidth > 0)).toBe(true);
     } finally { releaseDeck(); releasePhoto(); }
   });

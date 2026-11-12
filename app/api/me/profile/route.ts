@@ -10,11 +10,20 @@ import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
  * Отдельно от /api/me (который отдаёт только userId для чата), чтобы не
  * тащить лишние данные туда, где нужен просто идентификатор.
  */
-export async function GET() {
+export async function GET(req: Request) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const admin = createAdminClient();
+
+  // The home screen only needs a city. Avoid counting meetings and loading the
+  // entire photo gallery before the first events/people requests can start.
+  if (new URL(req.url).searchParams.get("summary") === "1") {
+    const { data, error } = await admin.from("users").select("id, city").eq("id", currentUser.userId).maybeSingle();
+    if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+    if (!data) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return NextResponse.json(data, { headers: { "Cache-Control": "private, no-store" } });
+  }
 
   const { data: user, error } = await admin
     .from("users")

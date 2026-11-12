@@ -3,6 +3,7 @@ import { validateTelegramInitData } from "@/lib/telegram/validate-init-data";
 import { issueSessionToken, SESSION_COOKIE } from "@/lib/telegram/session";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchTelegramAvatarDataUrl } from "@/lib/telegram/profile-photo";
+import { runInBackground } from "@/lib/server/background";
 import { uploadAvatar } from "@/lib/photos/upload-avatar";
 
 /**
@@ -73,14 +74,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "user_banned" }, { status: 403 });
   }
 
-  // Зарегистрировался без фото — подтягиваем аватарку из Telegram (если
-  // она там есть и открыта). Делается при каждом входе, пока фото нет;
-  // не дольше нескольких секунд и без влияния на сам вход.
+  // Import a missing Telegram avatar in the background. Authentication must
+  // not wait up to seven seconds for Telegram, moderation and photo storage.
   if (!existingUser.avatar_url) {
-    await Promise.race([
-      fillAvatarFromTelegram(admin, existingUser.id, telegramUser.id, botToken),
-      new Promise((resolve) => setTimeout(resolve, 7000)),
-    ]).catch((err) => console.error("POST /api/auth — аватарка из Telegram:", err));
+    void runInBackground(() => fillAvatarFromTelegram(admin, existingUser.id, telegramUser.id, botToken));
   }
 
   const sessionToken = issueSessionToken(existingUser.id, telegramUser.id);
