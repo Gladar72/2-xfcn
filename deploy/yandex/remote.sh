@@ -516,6 +516,23 @@ phototrim() {
     sh -c 'cd /tmp && npm i --silent --no-audit --no-fund sharp@0.33.5 >/dev/null 2>&1 && cp /w/phototrim.mjs . && node phototrim.mjs http://127.0.0.1:8000'
 }
 
+adminpremium() {
+  # Админам (ADMIN_TELEGRAM_IDS) — тариф Премиум без срока: всё без ограничений.
+  local ids; ids="$(envget ADMIN_TELEGRAM_IDS | tr -cd '0-9,')"
+  [ -n "$ids" ] || { echo "ADMIN_TELEGRAM_IDS пуст"; return 1; }
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -v ON_ERROR_STOP=1 <<SQL
+with a as (select id from public.users where telegram_id in ($ids)),
+upd as (
+  update public.subscriptions s set plan = 'premium', current_period_end = '2099-12-31', updated_at = now()
+  where s.status = 'active' and s.user_id in (select id from a) returning s.user_id
+)
+insert into public.subscriptions (user_id, plan, status, current_period_start, current_period_end)
+select id, 'premium', 'active', now(), '2099-12-31' from a where id not in (select user_id from upd);
+select u.name, s.plan, s.current_period_end from public.subscriptions s join public.users u on u.id = s.user_id
+where s.status = 'active' and u.telegram_id in ($ids);
+SQL
+}
+
 photowarm() {
   # Прогреть сжатые копии фото (аватарки активных людей и афиши), чтобы первый показ был быстрым.
   update_code
@@ -637,6 +654,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | photowarm | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | photowarm | adminpremium | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
