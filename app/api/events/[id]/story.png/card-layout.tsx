@@ -1,4 +1,3 @@
-import { storyDescription } from "@/lib/events/story-text";
 
 /** Story and preview share one left edge and plain Inter text. */
 export interface CardStoryData {
@@ -31,7 +30,9 @@ export function CardStory(d: CardStoryData) {
   const fx = Math.round((W - fw) / 2);
   const fy = Math.round((H - fh) / 2);
 
-  const description = storyDescription(d.description, d.title);
+  // В сторис — только заголовок встречи (описание бывает длинным и не помещается).
+  const heading = d.title.replace(/\s+/g, " ").trim();
+  const headingSize = heading.length <= 24 ? 76 : heading.length <= 48 ? 64 : 54;
   const ctaTop = d.ig ? 1450 : 1560;
 
   return (
@@ -73,7 +74,7 @@ export function CardStory(d: CardStoryData) {
       </div>
 
       <div style={{ position: "absolute", left: L, width: W - 2 * L, bottom: H - ctaTop + 40, display: "flex", flexDirection: "column", gap: 26, fontSize: 38, fontWeight: 400, lineHeight: 1.4 }}>
-        {description && <div style={{ display: "flex", overflow: "hidden", maxHeight: 320, wordBreak: "break-word" }}>{description}</div>}
+        {heading && <div style={{ display: "flex", overflow: "hidden", maxHeight: headingSize * 3.3, wordBreak: "break-word", fontSize: headingSize, fontWeight: 600, lineHeight: 1.08, letterSpacing: -1.5 }}>{heading}</div>}
         {d.meta && <div style={{ display: "flex", color: "rgba(255,255,255,0.86)", wordBreak: "break-word" }}>{d.meta}</div>}
       </div>
 

@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { eventShareUrl } from "@/components/events/ShareEventButton";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 import { Ic, Sheet } from "./ui";
-import { storyDescription } from "@/lib/events/story-text";
 
 /**
  * «Поделиться событием»: чат Telegram, сторис Telegram, сторис Instagram, WhatsApp, ВКонтакте,
@@ -94,7 +93,7 @@ export function ShareSheet({
     return () => { session.current = current + 1; };
   }, [open, eventId]);
   // Change the image URL after a layout or event edit so old CDN images expire.
-  const v = hashKey(`s6|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
+  const v = hashKey(`s7|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
   const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
   const igUrl = `${storyUrl}&ig=1`;
   // Картинку для сторис рисуем заранее, пока человек смотрит событие: к нажатию
@@ -237,7 +236,7 @@ export function ShareSheet({
               <img className="k-swm" src="/brand/auth/wordmark-white.svg" alt="" />
               <span className="k-schip">{chip ?? when}</span>
               <div className="k-sdetails">
-                {storyDescription(description, title) && <p className="k-sdescription">{storyDescription(description, title)}</p>}
+                {title && <p className="k-sdescription k-stitle">{title}</p>}
                 {meta && <span className="k-sme">{meta}</span>}
               </div>
               <span className="k-scta">Пойти со мной</span>
@@ -263,6 +262,10 @@ export function ShareSheet({
         </>
       ) : (
         <>
+          {/* Назад к выбору соцсети — сверху, чтобы не искать кнопку внизу шторки. */}
+          <button className="rb gl" onClick={() => setMode("list")} aria-label="Назад" style={{ alignSelf: "flex-start", justifySelf: "start", width: 40, height: 40, borderRadius: 20, display: "grid", placeItems: "center" }}>
+            <Ic n="back" />
+          </button>
           <div style={{ display: "flex", gap: 14, alignItems: "flex-end" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={igUrl} alt="Сторис для Instagram" width={110} height={196} style={{ flex: "none", width: 110, height: 196, borderRadius: 14, objectFit: "cover", background: "#17141F" }} />

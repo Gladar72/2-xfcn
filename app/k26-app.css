@@ -452,3 +452,4 @@
 .K .k-sw::after{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:12px;background:#fff;transition:transform .25s var(--spring,ease)}
 .K .k-sw.on{background:#17141F}
 .K .k-sw.on::after{transform:translateX(20px)}
+.K .k-story .k-sdescription.k-stitle{font-size:18px;font-weight:600;line-height:1.1;letter-spacing:-.3px;-webkit-line-clamp:3}
