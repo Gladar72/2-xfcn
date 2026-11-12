@@ -546,7 +546,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     const i = t.lastIndexOf(" ");
     return i > 2 && t.length <= 40 ? [t.slice(0, i), t.slice(i + 1)] : [t, ""];
   })();
-  const evPhoto = event.photoUrl ? photoThumb(event.photoUrl, 1100) : null;
+  // Сжатая копия 1200px (WebP ~100 КБ) вместо оригинала до 600 КБ — афиша открывается в разы быстрее.
+  const evPhoto = event.photoUrl ? photoThumb(event.photoUrl, 400, true) : null;
 
   return (
     <section className={`scr k-ev in${canManage ? " k-ev-owner" : ""}`} data-id="event">

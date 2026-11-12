@@ -1,6 +1,7 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { moderateImage } from "@/lib/photos/moderate-image";
 import { trimBlackBars } from "@/lib/photos/trim-bars";
+import { warmPhoto, EVENT_WIDTHS } from "@/lib/photos/warm";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 МБ
 
@@ -54,5 +55,6 @@ export async function uploadEventPhoto(
   }
 
   const { data } = admin.storage.from("event-photos").getPublicUrl(path);
+  warmPhoto(data.publicUrl, EVENT_WIDTHS);
   return { ok: true, publicUrl: data.publicUrl };
 }

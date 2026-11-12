@@ -1,3 +1,4 @@
+import { warmPhoto, AVATAR_WIDTHS } from "@/lib/photos/warm";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { moderateImage } from "@/lib/photos/moderate-image";
 
@@ -51,5 +52,6 @@ export async function uploadAvatar(
   }
 
   const { data } = admin.storage.from("avatars").getPublicUrl(path);
+  warmPhoto(data.publicUrl, AVATAR_WIDTHS);
   return { ok: true, publicUrl: data.publicUrl };
 }

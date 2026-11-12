@@ -19,8 +19,9 @@ const nextConfig = {
     },
   },
   images: {
-    // Public photos use unique filenames; keep resized copies warm for one day.
-    minimumCacheTTL: 86400,
+    // У фото уникальные имена файлов — сжатые копии держим 30 дней (раньше сутки:
+    // после этого первый зритель снова ждал пережатия).
+    minimumCacheTTL: 30 * 86400,
     remotePatterns: [
       {
         protocol: "https",

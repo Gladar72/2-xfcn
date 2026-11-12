@@ -496,6 +496,13 @@ phototrim() {
     sh -c 'cd /tmp && npm i --silent --no-audit --no-fund sharp@0.33.5 >/dev/null 2>&1 && cp /w/phototrim.mjs . && node phototrim.mjs http://127.0.0.1:8000'
 }
 
+photowarm() {
+  # Прогреть сжатые копии фото (аватарки активных людей и афиши), чтобы первый показ был быстрым.
+  update_code
+  sudo docker run --rm --network host -v "$APP/deploy/yandex:/w:ro" -e SERVICE_ROLE_KEY="$(envget SUPABASE_SERVICE_ROLE_KEY)" node:20-bookworm-slim \
+    sh -c 'cp /w/photowarm.mjs /tmp/ && node /tmp/photowarm.mjs http://127.0.0.1:8000 http://127.0.0.1:3000'
+}
+
 osupdate() {
   # Только обновления безопасности Ubuntu (unattended-upgrade), без смены версии системы.
   sudo apt-get update -qq || true
@@ -610,6 +617,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | photowarm | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
