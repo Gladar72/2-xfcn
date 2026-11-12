@@ -56,7 +56,6 @@ export default function EventScreen() {
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<null | "withdraw" | "leave">(null);
   const [shareOpen, setShareOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
 
   const load = useCallback(() => {
@@ -243,7 +242,7 @@ export default function EventScreen() {
               <Image source={{ uri: eventIcon(event) }} style={{ width: 200, height: 200 }} contentFit="contain" />
             </Grad>
           )}
-          <LinearGradient colors={["rgba(23,20,31,0)", "rgba(23,20,31,0)", "rgba(23,20,31,0.95)"]} locations={[0, 0.55, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <LinearGradient colors={["rgba(23,20,31,0.35)", "rgba(23,20,31,0)", "rgba(23,20,31,0.15)", "rgba(23,20,31,0.95)"]} locations={[0, 0.25, 0.55, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={styles.heroText}>
             <View style={styles.badges}>
               <View style={styles.chip}>
@@ -259,38 +258,19 @@ export default function EventScreen() {
           </View>
           <View style={[styles.heroTop, { top: insets.top + 8 }]}>
             <RoundBtn onPress={() => router.back()}>
-              <Icon name="close" />
+              <Icon name="back" />
             </RoundBtn>
-            <RoundBtn onPress={() => setMenuOpen((v) => !v)}>
-              <Icon name="more" />
-            </RoundBtn>
-          </View>
-          {menuOpen ? (
-            <Glass strong style={[styles.menu, { top: insets.top + 60 }]}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
               {hasCoords ? (
-                <Pressable
-                  style={styles.menuRow}
-                  onPress={() => {
-                    setMenuOpen(false);
-                    openRoute(event.latitude!, event.longitude!);
-                  }}
-                >
-                  <Icon name="route" size={20} />
-                  <Text style={styles.menuText}>Маршрут</Text>
-                </Pressable>
+                <RoundBtn onPress={() => openRoute(event.latitude!, event.longitude!)}>
+                  <Icon name="route" />
+                </RoundBtn>
               ) : null}
-              <Pressable
-                style={styles.menuRow}
-                onPress={() => {
-                  setMenuOpen(false);
-                  share();
-                }}
-              >
-                <Icon name="share" size={20} />
-                <Text style={styles.menuText}>Поделиться</Text>
-              </Pressable>
-            </Glass>
-          ) : null}
+              <RoundBtn onPress={share}>
+                <Icon name="share" />
+              </RoundBtn>
+            </View>
+          </View>
         </View>
 
         <View style={styles.body}>
@@ -493,9 +473,6 @@ const styles = StyleSheet.create({
   hero: { height: 520, overflow: "hidden", backgroundColor: colors.ink },
   heroText: { position: "absolute", left: 20, right: 20, bottom: 18, gap: 10 },
   gfx: { alignItems: "center", justifyContent: "center" },
-  menu: { position: "absolute", right: 16, borderRadius: 20, paddingVertical: 6, minWidth: 190 },
-  menuRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
-  menuText: { fontSize: 15.5, ...f("500"), color: colors.ink },
   heroTop: { position: "absolute", left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" },
   body: { paddingHorizontal: 16, paddingTop: 6, gap: 10 },
   badges: { flexDirection: "row", gap: 6, flexWrap: "wrap" },
