@@ -20,6 +20,8 @@ import { KIND_LABEL } from "@/lib/city-events";
 import { personDistanceLabel } from "@/lib/geo/approx-distance";
 import { watchMyLocation, sendMyLocation } from "@/lib/geo/client-location";
 import { usePeopleVisitSeed } from "@/lib/people/use-visit-seed";
+import { EventCardCover } from "@/components/events/EventCardCover";
+import { stableRefresh } from "@/lib/events/stable-refresh";
 import { observeEventFire } from "@/lib/events/use-fire";
 import { rememberSelectedPerson } from "@/lib/people/selected-preview";
 
@@ -160,7 +162,7 @@ function HomeScreen() {
       .then((d) => {
         if (requestController.current?.signal.aborted || cityRef.current !== c) return;
         (d.items ?? []).forEach((e: FeedEvent) => observeEventFire(e, requestedAt));
-        setEvents(d.items ?? []);
+        setEvents(previous => stableRefresh(previous ?? [], d.items ?? []));
       })
       .catch(() => { if (!requestController.current?.signal.aborted && cityRef.current === c) setEvents((prev) => prev ?? []); });
   }, []);
@@ -254,12 +256,12 @@ function HomeScreen() {
       .then((d) => {
         if (controller.signal.aborted) return;
         (d.items ?? []).forEach((e: FeedEvent) => observeEventFire(e, requestedAt));
-        setBiz((d.items ?? []).filter((e: FeedEvent) => e.isBusiness));
+        setBiz(previous => stableRefresh(previous, (d.items ?? []).filter((e: FeedEvent) => e.isBusiness)));
       })
       .catch(() => {});
     fetch(`/api/city-events?city=${encodeURIComponent(city)}`, { signal: controller.signal })
       .then((r) => r.json())
-      .then((d) => { if (!controller.signal.aborted) setCityEv(d.items ?? []); })
+      .then((d) => { if (!controller.signal.aborted) setCityEv(previous => stableRefresh(previous, d.items ?? [])); })
       .catch(() => {});
     return () => controller.abort();
   }, [city, loadEvents, loadPeople]);
@@ -479,7 +481,8 @@ function HomeScreen() {
           ))}
           {/* «Что ещё в городе»: события из открытых источников (после одобрения). */}
           {cityEv.map((c) => (
-            <Link key={c.id} className="k-hc k-pr" href={`/city/${c.id}`} style={bg(c.photoUrl, 600)}>
+            <Link key={c.id} className="k-hc k-pr" prefetch={false} href={`/city/${c.id}`}>
+              <EventCardCover url={c.photoUrl} />
               <span className="k-chip k-gw k-tg">{KIND_LABEL[c.kind ?? ""] ?? "В городе"}</span>
               <span className="k-bt">
                 <span className="k-tt">

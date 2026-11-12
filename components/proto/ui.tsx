@@ -82,7 +82,7 @@ function RecoveringCover({ photoUrl, icon, cls, thumb }: { photoUrl: string; ico
   if (!src) return <CoverPlaceholder cls={cls} icon={icon} />;
   // One failure advances to a different source; there is no retry loop.
   // eslint-disable-next-line @next/next/no-img-element
-  return <img key={src} className={cls} src={src} alt="" onError={() => setAttempt(attempt + 1)} />;
+  return <img key={src} className={cls} src={src} alt="" loading={cls === "th" ? "lazy" : "eager"} decoding="async" onError={() => setAttempt(attempt + 1)} />;
 }
 
 function CoverPlaceholder({ cls, icon }: { cls: string; icon: string }) {
@@ -250,7 +250,7 @@ export function RowCard({
   const max = e.seatsTotal + 1;
   const isFull = e.seatsTaken >= e.seatsTotal;
   return (
-    <Link href={`/events/${e.id}`} className={`row gl ${e.isBusiness ? "bz" : ""}`}>
+    <Link href={`/events/${e.id}`} prefetch={false} className={`row gl ${e.isBusiness ? "bz" : ""}`}>
       <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} cls="th" thumb={160} />
       <div className="i">
         <b>{e.title}</b>

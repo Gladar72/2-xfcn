@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
  * Один обработчик на весь документ — ничего не добавляет в сами экраны.
  */
 const PRESS = ".k-pr, .P .btn, .P .rb, .P .chip, .P .cat, .P .row, .P .ci, .P .mcard, .P .nav26 .ntab";
-const PHOTO_CARD = ".k-mt, .k-hc, .pcard";
+const PHOTO_CARD = ".k-mt, .k-hc, .pcard, .row.gl, .k-afr";
 
 export function Motion26() {
   const [heart, setHeart] = useState(0);

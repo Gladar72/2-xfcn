@@ -238,6 +238,10 @@ cleanup() {
     echo "раздел растянут на весь диск"
   fi
   df -h / | tail -1 | awk '{print "диск до чистки: занято "$3" из "$2" ("$5")"}'
+  # Drop obsolete image derivatives only; the volume contains no uploaded originals.
+  if sudo docker volume inspect mesto_image_cache >/dev/null 2>&1; then
+    sudo python3 "$APP/deploy/yandex/prune-image-cache.py" /var/lib/docker/volumes/mesto_image_cache/_data
+  fi
   sudo docker image prune -af >/dev/null 2>&1 || true
   sudo docker builder prune -af --filter until=48h >/dev/null 2>&1 || true
   sudo journalctl --vacuum-size=200M >/dev/null 2>&1 || true

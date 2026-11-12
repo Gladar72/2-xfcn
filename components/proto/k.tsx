@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { K_ICONS } from "@/components/proto/k-icons";
 import { photoThumb } from "@/lib/photos/thumb";
 import { dayShort, costShort, type HeroEvent } from "@/components/proto/ui";
+import { EventCardCover } from "@/components/events/EventCardCover";
 import { FireChip } from "@/components/proto/Fire";
 
 /**
@@ -115,7 +116,8 @@ export function KHc({ e, cta, tag }: { e: HeroEvent & { myApplicationStatus?: st
   const status =
     e.isMine ? "Моя встреча" : e.myApplicationStatus === "accepted" ? "Ты идёшь" : e.myApplicationStatus === "pending" ? "Заявка отправлена" : null;
   return (
-    <Link href={`/events/${e.id}`} className="k-hc k-pr" style={bg(e.photoUrl, 600)}>
+    <Link href={`/events/${e.id}`} prefetch={false} className="k-hc k-pr">
+      <EventCardCover url={e.photoUrl} />
       <span className="k-chip k-gw k-tg">{tag ?? defTag}</span>
       <span className="k-bt">
         <span className="k-tt">
