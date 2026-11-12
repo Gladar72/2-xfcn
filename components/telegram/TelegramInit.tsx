@@ -31,17 +31,28 @@ export function TelegramInit() {
     } catch {
       /* old Telegram clients do not expose this option */
     }
-    // Do not reopen/expand a WebView the user already minimized during startup.
-    const active = webApp.isActive !== false;
-    if (active) webApp.expand();
-    // Как в прототипе: на телефоне сразу на весь экран, без шапки Telegram
-    // (Bot API 8.0+). Отступы сверху берутся из --tg-content-safe-area-inset-top,
-    // поэтому кнопки «закрыть / меню» Telegram ничего не перекрывают.
+    // На весь экран, без шапки Telegram (Bot API 8.0+): кнопки «Закрыть / ⋯»
+    // лежат поверх афиши, отступы берутся из --tg-content-safe-area-inset-top.
+    // Telegram иногда стартует с isActive=false и лишь потом шлёт «activated» —
+    // раньше в этом случае полноэкранный режим не включался вовсе, и сверху
+    // оставалась чёрная шапка Telegram. Теперь просим ещё раз при активации.
+    const mobile = webApp.platform === "ios" || webApp.platform === "android";
+    const goFull = () => {
+      try {
+        if (webApp.isActive === false) return;
+        webApp.expand();
+        if (mobile && webApp.isVersionAtLeast?.("8.0") && !webApp.isFullscreen) webApp.requestFullscreen?.();
+      } catch {
+        /* старый клиент — остаёмся в обычном раскрытом окне */
+      }
+    };
+    goFull();
+    const t1 = setTimeout(goFull, 400);
+    const t2 = setTimeout(goFull, 1500);
     try {
-      const mobile = webApp.platform === "ios" || webApp.platform === "android";
-      if (active && mobile && webApp.isVersionAtLeast?.("8.0") && !webApp.isFullscreen) webApp.requestFullscreen?.();
+      webApp.onEvent("activated", goFull);
     } catch {
-      /* старый клиент — остаёмся в обычном раскрытом окне */
+      /* нет событий */
     }
     // Экраны редизайна прокручиваются внутри себя (.scroll), а не всей
     // страницей. Без этого Telegram принимает свайп вниз/вверх за жест
@@ -51,6 +62,15 @@ export function TelegramInit() {
     } catch {
       /* старый клиент Telegram — метода нет */
     }
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      try {
+        webApp.offEvent("activated", goFull);
+      } catch {
+        /* нет событий */
+      }
+    };
   }, []);
 
   return null;
