@@ -16,6 +16,7 @@ import { manageErrorText, tapOk, tapWarn } from "@/lib/feedback";
 import { api, type ApiError } from "@/lib/api";
 import { costShort, formatEventDate, seatsLeft } from "@/lib/format";
 import { openRoute } from "@/lib/route";
+import { FireButton } from "@/components/Fire";
 import { CATEGORY_SHORT, colors, eventIcon, FONT, f } from "@/lib/theme";
 import { anonymousTag, type EventDetail } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
@@ -28,6 +29,8 @@ const APPLY_ERRORS: Record<string, string> = {
 };
 
 type Detail = EventDetail & {
+  fireCount?: number;
+  myFire?: boolean;
   isAnonymous?: boolean;
   organizerHidden?: boolean;
   isBusiness: boolean;
@@ -449,6 +452,7 @@ export default function EventScreen() {
         <Pressable onPress={share} style={styles.shareBtn} accessibilityLabel="Поделиться">
           <Icon name="share" color="#fff" size={20} />
         </Pressable>
+        <FireButton eventId={event.id} count={event.fireCount} mine={event.myFire} />
         <View style={{ flex: 1 }}>{action}</View>
       </View>
     </View>

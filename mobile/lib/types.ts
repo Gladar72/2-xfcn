@@ -21,6 +21,8 @@ export function anonymousTag(g: string | null | undefined): string {
 
 export interface FeedEvent {
   id: string;
+  fireCount?: number;
+  myFire?: boolean;
   title: string;
   description: string | null;
   category: Category | null;

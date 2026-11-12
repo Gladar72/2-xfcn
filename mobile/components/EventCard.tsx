@@ -6,6 +6,7 @@ import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { router } from "expo-router";
 import { Icon } from "./Icon";
+import { FireChip } from "./Fire";
 import { CATEGORY_SHORT, colors, eventIcon, FONT, f } from "@/lib/theme";
 import { dayShort } from "@/lib/format";
 import { distanceShort } from "@/lib/interests";
@@ -53,6 +54,7 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
             <Icon name="up" size={14} color="#fff" />
           </View>
         ) : null}
+        <FireChip eventId={e.id} count={e.fireCount} mine={e.myFire} style={e.isBoosted && !e.isLive ? null : { marginLeft: "auto" }} />
       </View>
 
       <View style={styles.bottom}>
@@ -96,7 +98,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(23,20,31,0.38)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.35)",
-    maxWidth: "86%",
+    maxWidth: "70%",
   },
   tagText: { color: "#fff", fontSize: 11.5, ...f("500") },
   live: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.ok },

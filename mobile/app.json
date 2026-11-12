@@ -27,13 +27,13 @@
         "NSPhotoLibraryUsageDescription": "Чтобы выбрать фото для профиля и встречи.",
         "NSCameraUsageDescription": "Чтобы сделать фото для профиля."
       },
-      "buildNumber": "8",
+      "buildNumber": "9",
       "config": {
         "usesNonExemptEncryption": false
       }
     },
     "android": {
-      "versionCode": 8,
+      "versionCode": 9,
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
