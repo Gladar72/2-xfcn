@@ -14,6 +14,10 @@ export interface PlanLimits {
    */
   priceStars: number;
   rankingCoefficient: number; // используется в lib/scoring/rank-events.ts
+  /** «Пойдём вместе»: скольких людей можно позвать на чужие события за сутки. null — без ограничений. */
+  companionInvitesPerDay: number | null;
+  /** Позвать людей на СВОЮ встречу (из подписок) за сутки. null — без ограничений. */
+  hostInvitesPerDay: number | null;
 }
 
 /**
@@ -36,6 +40,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     priceRub: 299,
     priceStars: 150,
     rankingCoefficient: 0,
+    companionInvitesPerDay: 5,
+    hostInvitesPerDay: 40,
   },
   medium: {
     eventsLimit: 15,
@@ -46,6 +52,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     priceRub: 599,
     priceStars: 300,
     rankingCoefficient: 3,
+    companionInvitesPerDay: 15,
+    hostInvitesPerDay: 80,
   },
   premium: {
     eventsLimit: null,
@@ -56,6 +64,8 @@ export const PLAN_LIMITS: Record<Plan, PlanLimits> = {
     priceRub: 999,
     priceStars: 500,
     rankingCoefficient: 6,
+    companionInvitesPerDay: null,
+    hostInvitesPerDay: null,
   },
 };
 

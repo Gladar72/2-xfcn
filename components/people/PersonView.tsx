@@ -359,7 +359,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
           event_full: "На этой встрече не осталось мест",
           already_invited: `${person.name} уже приглашён на эту встречу — позвать можно один раз`,
           already_member: `${person.name} уже идёт на эту встречу`,
-          invite_limit: `За сутки можно позвать не больше ${d.limit ?? 5} человек. Попробуй завтра`,
+          invite_limit: `За сутки можно позвать не больше ${d.limit ?? 5} человек. Попробуй завтра — или перейди на тариф выше: на «Медиум» 15 в сутки, на «Премиум» без ограничений`,
           blocked: "Приглашение недоступно",
           no_shared_event: NO_MEET_TEXT,
         };

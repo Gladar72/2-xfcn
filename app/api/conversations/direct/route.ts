@@ -10,6 +10,8 @@ import { shortTitle } from "@/lib/notify/user";
 import { eventTiming } from "@/lib/events/timing";
 import { invitationBlocked } from "@/lib/invites/access";
 import { INVITES_PER_DAY } from "@/lib/invites/respond";
+import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
+import { PLAN_LIMITS, type Plan } from "@/lib/subscriptions/limits";
 
 /**
  * POST /api/conversations/direct
@@ -74,14 +76,18 @@ export async function POST(req: NextRequest) {
       const { data: member } = await admin.from("event_members").select("user_id").eq("event_id", eventId).eq("user_id", otherId).maybeSingle();
       if (member) return NextResponse.json({ error: "already_member" }, { status: 422 });
     }
+    // Лимит приглашений в сутки зависит от тарифа (lib/subscriptions/limits.ts):
+    // Старт — 5 «пойдём вместе», Медиум — 15, Премиум — без ограничений (0 = безлимит).
+    const sub = await getActiveSubscriptionInfo(admin, currentUser.userId).catch(() => null);
+    const planLimits = PLAN_LIMITS[(sub?.plan as Plan | undefined) ?? "start"];
+    const dayLimit = companion ? planLimits.companionInvitesPerDay : planLimits.hostInvitesPerDay;
     const { data: reservation, error } = await admin.rpc("reserve_event_invite", {
       p_event_id: eventId, p_inviter_id: currentUser.userId, p_invitee_id: otherId, p_message: inviteMessage || null,
-      // На свою встречу организатор зовёт людей из подписок — до 40 в сутки; «пойдём вместе» — как раньше.
-      p_limit: companion ? INVITES_PER_DAY : 40,
+      p_limit: dayLimit ?? 0,
     });
     if (error || !reservation?.id) {
       const code = reservation?.error ?? (error?.code === "23505" ? "already_invited" : "create_failed");
-      return NextResponse.json({ error: code, ...(code === "invite_limit" ? { limit: INVITES_PER_DAY } : {}) }, { status: code === "invite_limit" ? 429 : code === "already_invited" ? 422 : 500 });
+      return NextResponse.json({ error: code, ...(code === "invite_limit" ? { limit: dayLimit ?? INVITES_PER_DAY } : {}) }, { status: code === "invite_limit" ? 429 : code === "already_invited" ? 422 : 500 });
     }
     inviteId = reservation.id as string;
     event = ev;

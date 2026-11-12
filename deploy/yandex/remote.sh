@@ -225,6 +225,9 @@ deploy() {
   # Лимит приглашений: организатор на свою встречу — больше.
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
     < "$APP/supabase/migrations/0084_host_invite_limit.sql"
+  # Лимит приглашений по тарифу; 0 — без ограничений (Премиум). Строго после 0084.
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
+    < "$APP/supabase/migrations/0085_invite_limit_unlimited.sql"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
   cleanup
