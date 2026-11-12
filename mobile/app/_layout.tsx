@@ -48,7 +48,7 @@ function useSmokeHold() {
   const [hold, setHold] = useState(process.env.EXPO_PUBLIC_MAP_SMOKE === "1" || process.env.EXPO_PUBLIC_AUTH_SMOKE === "1" || UI_SMOKE);
   useEffect(() => {
     if (!hold) return;
-    const t = setTimeout(() => setHold(false), 8000);
+    const t = setTimeout(() => setHold(false), UI_SMOKE ? 24000 : 8000);
     return () => clearTimeout(t);
   }, [hold]);
   return hold;
