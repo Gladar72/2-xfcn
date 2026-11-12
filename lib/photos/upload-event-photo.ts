@@ -1,5 +1,6 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { moderateImage } from "@/lib/photos/moderate-image";
+import { trimBlackBars } from "@/lib/photos/trim-bars";
 
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5 МБ
 
@@ -18,11 +19,11 @@ export async function uploadEventPhoto(
   dataUrl: string
 ): Promise<UploadEventPhotoResult> {
   const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
-  const mimeType = match?.[1];
+  let mimeType = match?.[1];
   const base64Content = match?.[2];
   if (!mimeType || !base64Content) return { ok: false, error: "photo_invalid" };
 
-  const buffer = Buffer.from(base64Content, "base64");
+  let buffer = Buffer.from(base64Content, "base64");
 
   if (buffer.byteLength > MAX_PHOTO_BYTES) {
     return { ok: false, error: "photo_too_large" };
@@ -32,6 +33,13 @@ export async function uploadEventPhoto(
   const moderation = await moderateImage(buffer, mimeType);
   if (!moderation.safe) {
     return { ok: false, error: "photo_rejected" };
+  }
+
+  // Чёрные поля сверху/снизу (или по бокам) срезаем — афиша растягивается на весь экран.
+  const trimmed = await trimBlackBars(buffer);
+  if (trimmed) {
+    buffer = trimmed.buffer;
+    mimeType = trimmed.mimeType;
   }
 
   const extension = mimeType.split("/")[1]?.replace("jpeg", "jpg") ?? "jpg";

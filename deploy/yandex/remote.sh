@@ -479,6 +479,13 @@ bizmove() {
   $Q "update events e set is_business = true, is_anonymous = false, category_id = (select id from categories where slug='custom'), business_pricing_type = coalesce(e.business_pricing_type, 'custom'), business_pricing_details = coalesce(e.business_pricing_details, 'Подробности у организатора') where $W returning e.id, e.title;" || true
 }
 
+phototrim() {
+  # Разово: срезать чёрные поля у уже загруженных афиш предстоящих событий.
+  update_code
+  sudo docker run --rm --network host -v "$APP/deploy/yandex:/w:ro" -e SERVICE_ROLE_KEY="$(envget SUPABASE_SERVICE_ROLE_KEY)" node:20-bookworm-slim \
+    sh -c 'cd /tmp && npm i --silent --no-audit --no-fund sharp@0.33.5 >/dev/null 2>&1 && cp /w/phototrim.mjs . && node phototrim.mjs http://127.0.0.1:8000'
+}
+
 osupdate() {
   # Только обновления безопасности Ubuntu (unattended-upgrade), без смены версии системы.
   sudo apt-get update -qq || true
@@ -593,6 +600,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | keytest | health | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
