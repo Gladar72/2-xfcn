@@ -93,7 +93,7 @@ export function ShareSheet({
     return () => { session.current = current + 1; };
   }, [open, eventId]);
   // Change the image URL after a layout or event edit so old CDN images expire.
-  const v = hashKey(`s7|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
+  const v = hashKey(`s8|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
   const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
   const igUrl = `${storyUrl}&ig=1`;
   // Картинку для сторис рисуем заранее, пока человек смотрит событие: к нажатию
@@ -239,7 +239,7 @@ export function ShareSheet({
                 {title && <p className="k-sdescription k-stitle">{title}</p>}
                 {meta && <span className="k-sme">{meta}</span>}
               </div>
-              <span className="k-scta">Пойти со мной</span>
+              <span className="k-slink" aria-hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg></span>
             </div>
             <div className="k-shr2">
               {TARGETS.map((t) => (

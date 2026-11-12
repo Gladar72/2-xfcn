@@ -33,7 +33,10 @@ export function CardStory(d: CardStoryData) {
   // В сторис — только заголовок встречи (описание бывает длинным и не помещается).
   const heading = d.title.replace(/\s+/g, " ").trim();
   const headingSize = heading.length <= 24 ? 76 : heading.length <= 48 ? 64 : 54;
-  const ctaTop = d.ig ? 1450 : 1560;
+  // Кнопки «Пойти» на картинке нет: в Instagram её заменяет стикер «Ссылка» (значок ниже),
+  // в Telegram — кнопка «Я иду» самой сторис. Текст опущен к низу, над значком ссылки.
+  const linkTop = 1560;
+  const textBottom = d.ig ? linkTop - 24 : 1720;
 
   return (
     <div style={{ width: W, height: H, display: "flex", position: "relative", background: INK, color: "#fff", fontFamily: "Inter" }}>
@@ -73,29 +76,9 @@ export function CardStory(d: CardStoryData) {
         </div>
       </div>
 
-      <div style={{ position: "absolute", left: L, width: W - 2 * L, bottom: H - ctaTop + 40, display: "flex", flexDirection: "column", gap: 26, fontSize: 38, fontWeight: 400, lineHeight: 1.4 }}>
+      <div style={{ position: "absolute", left: L, width: W - 2 * L, bottom: H - textBottom, display: "flex", flexDirection: "column", gap: 26, fontSize: 38, fontWeight: 400, lineHeight: 1.4 }}>
         {heading && <div style={{ display: "flex", overflow: "hidden", maxHeight: headingSize * 3.3, wordBreak: "break-word", fontSize: headingSize, fontWeight: 600, lineHeight: 1.08, letterSpacing: -1.5 }}>{heading}</div>}
         {d.meta && <div style={{ display: "flex", color: "rgba(255,255,255,0.86)", wordBreak: "break-word" }}>{d.meta}</div>}
-      </div>
-
-      <div
-        style={{
-          position: "absolute",
-          left: L,
-          width: W - 2 * L,
-          top: ctaTop,
-          height: 108,
-          borderRadius: 54,
-          background: "#fff",
-          color: INK,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 38,
-          fontWeight: 600,
-        }}
-      >
-        {d.cta}
       </div>
 
       {d.ig ? (
@@ -103,7 +86,7 @@ export function CardStory(d: CardStoryData) {
           style={{
             position: "absolute",
             left: (W - 360) / 2,
-            top: ctaTop + 108 + 36,
+            top: linkTop,
             width: 360,
             height: 100,
             display: "flex",

@@ -453,3 +453,6 @@
 .K .k-sw.on{background:#17141F}
 .K .k-sw.on::after{transform:translateX(20px)}
 .K .k-story .k-sdescription.k-stitle{font-size:18px;font-weight:600;line-height:1.1;letter-spacing:-.3px;-webkit-line-clamp:3}
+.K .k-story .k-sdetails{bottom:34px}
+.K .k-story .k-slink{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:16px;height:16px;color:#fff;opacity:.9}
+.K .k-story .k-slink svg{width:16px;height:16px;display:block}
