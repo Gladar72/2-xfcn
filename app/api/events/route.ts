@@ -444,6 +444,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // «Огонёк»: какие из событий на странице я уже отметил.
+  const myFires = new Set<string>();
+  if (currentUser && pageItems.length) {
+    const { data: fr } = await admin
+      .from("event_fires")
+      .select("event_id")
+      .eq("user_id", currentUser.userId)
+      .in("event_id", pageItems.map((i) => i.id));
+    for (const f of fr ?? []) myFires.add(f.event_id as string);
+  }
+
   return NextResponse.json({
     items: pageItems.map((item) => {
       // Только принятые организатором участники — сам организатор не считается.
@@ -468,6 +479,7 @@ export async function GET(req: NextRequest) {
         ...visible,
         organizerHidden: !revealed,
         myApplicationStatus: statusByEventId.get(item.id) ?? null,
+        myFire: myFires.has(item.id),
         goingCount: participants.length,
         // Кружки «кто идёт»: сначала создатель встречи, потом одобренные участники
         // (как в прототипе: «1 из 4» — это создатель).

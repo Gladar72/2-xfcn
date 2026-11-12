@@ -135,6 +135,7 @@ export interface HeroEvent {
   id: string;
   /** «Огонёк»: сколько людей отметили событие. */
   fireCount?: number;
+  myFire?: boolean;
   title: string;
   eventDate: string;
   eventTime: string;
