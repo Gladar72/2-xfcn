@@ -1,5 +1,6 @@
 "use client";
 
+import { InviteFollowingPicker } from "@/components/create-event/InviteFollowingPicker";
 import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -147,6 +148,10 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const inviteUserId = searchParams.get("invite");
   const inviteName = searchParams.get("inviteName");
   const [invited, setInvited] = useState(false);
+  // «Кого позвать»: люди из моих подписок — приглашения уходят после публикации.
+  const [inviteIds, setInviteIds] = useState<string[]>([]);
+  const [notifyFollowers, setNotifyFollowers] = useState(true);
+  const [invitedCount, setInvitedCount] = useState(0);
   const [shareOpen, setShareOpen] = useState(false);
   // «Что создаём?» — открытая, анонимная или событие для бизнеса. Пропускаем при правке,
   // «Найти компанию» из городской афиши и приглашении конкретного человека.
@@ -594,6 +599,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             .join(". "),
           isBusiness: business,
           isAnonymous: business ? false : isAnonymous,
+          notifyFollowers,
           // при правке фото отправляем, только если его поменяли (новый data:URL)
           photoBase64: editId ? (photo?.startsWith("data:") || isPresetCover(photo) ? photo : undefined) : photo,
         }),
@@ -644,6 +650,19 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
           .catch(() => false);
         setInvited(ok);
       }
+      // Приглашения людям из подписок — по очереди, чтобы не упереться в лимиты.
+      let sent = 0;
+      for (const uid of inviteIds.filter((x) => x !== inviteUserId)) {
+        const ok = await fetch("/api/conversations/direct", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: uid, eventId: data.eventId }),
+        })
+          .then((r) => r.ok)
+          .catch(() => false);
+        if (ok) sent++;
+      }
+      setInvitedCount(sent);
     } catch {
       flash("Проблема с соединением.");
       setSubmitting(false);
@@ -676,6 +695,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             </h1>
             <p className="k-sub2" style={{ maxWidth: 320, textAlign: "center" }}>
               {invited && inviteName ? `Приглашение для ${inviteName} уже отправлено. ` : ""}
+              {invitedCount ? `Приглашения отправлены: ${invitedCount}. ` : ""}
               {isAnonymous
                 ? "Встреча анонимная: имя, фото и адрес увидят только те, кого ты примешь."
                 : "Подписчики и люди рядом увидят её первыми. Заявки придут в «Мои встречи»."}
@@ -1335,6 +1355,15 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               <p className="k-sub2" style={{ marginTop: 8 }}>
                 {isAnonymous ? "На карте — Мося вместо фото, точный адрес скрыт" : "На карте — твоё фото на метке"}
               </p>
+              {!editId && (
+                <InviteFollowingPicker
+                  selected={inviteIds}
+                  onChange={setInviteIds}
+                  notify={notifyFollowers}
+                  onNotify={setNotifyFollowers}
+                  followersHidden={!business && isAnonymous}
+                />
+              )}
             </>
           )}
         </div>
@@ -1347,7 +1376,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
             </button>
           ) : (
             <button className="k-btn k-d k-pr" onClick={next} disabled={submitting}>
-              {editId ? "Готово" : step === 4 ? (submitting ? "Публикуем…" : "Опубликовать") : "Далее"}
+              {editId ? "Готово" : step === 4 ? (submitting ? "Публикуем…" : inviteIds.length ? `Опубликовать и позвать ${inviteIds.length}` : "Опубликовать") : "Далее"}
             </button>
           )}
         </div>

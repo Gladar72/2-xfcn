@@ -85,7 +85,7 @@
 .P .prog i{width:36px;height:4px;border-radius:2px;background:rgba(23,20,31,.12)}
 .P .prog i.on{background:var(--ink)}
 .P .phs{aspect-ratio:3/4;border-radius:20px}
-.P .igroup{background:rgba(255,255,255,.58);box-shadow:inset 0 0 0 1px rgba(255,255,255,.95);border-radius:26px;padding:14px 12px 12px;margin-top:12px}
+.P .igroup{background:rgba(255,255,255,.58);box-shadow:inset 0 0 0 1px rgba(255,255,255,.95);border-radius:26px;padding:14px 12px 12px;margin-top:10px}
 .P .igroup h3{font:500 16px var(--disp);margin:0 4px 10px}
 .P .igroup h3 span{min-width:22px;height:22px;border-radius:11px;background:var(--ink);color:#fff;font:600 11px/22px var(--disp);text-align:center;padding:0 6px;margin-left:8px}
 .P .igroup h3 span:empty{display:none}
@@ -401,3 +401,54 @@
 .K .k-hc{-webkit-mask-image:-webkit-radial-gradient(white,black);mask-image:radial-gradient(white,black)}
 .K .k-hc .k-card-cover{inset:-1px}
 .K .k-hc .k-fc::before{inset:-8px}
+
+/* Профиль: «Мои подписки». Карточки ровно в сетку, стрелка в углу — открывает список. */
+.K .k-subs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.K .k-subc{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;padding:14px 14px 12px;border-radius:22px;text-align:left;color:var(--ink,#17141F)}
+.K .k-subc b{font-weight:300;font-size:30px;line-height:1.05;letter-spacing:-.8px}
+.K .k-subc small{font-size:12.5px;color:rgba(23,20,31,.55)}
+.K .k-subx{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(23,20,31,.06)}
+.K .k-subx svg{width:15px;height:15px}
+.K .k-ava{display:flex;align-items:center;height:30px;margin-top:8px}
+.K .k-ava img{width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid #fff;margin-left:-9px}
+.K .k-ava img:first-child{margin-left:0}
+.K .k-ava0{font-size:12px;color:rgba(23,20,31,.45)}
+.K .k-subn{margin:8px 4px 0;font-size:12.5px;line-height:1.35;color:rgba(23,20,31,.55)}
+.P .subs-sheet{top:max(96px,calc(var(--top,0px) + 56px));display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.P .subs-sheet .seg{margin-top:0}
+.P .subs-sheet .subs-q{display:flex;align-items:center;gap:10px;height:46px;padding:0 16px;border-radius:23px;flex:none}
+.P .subs-sheet .subs-q svg{width:18px;height:18px;opacity:.5;flex:none}
+.P .subs-sheet .subs-q input{flex:1;min-width:0;border:0;background:none;outline:none;font:inherit;font-size:15px}
+.P .subs-sheet .subs-list{flex:1;min-height:0;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding-bottom:8px;overscroll-behavior:contain}
+.P .subs-sheet .subs-empty{padding:18px 4px;font-size:14px;text-align:center}
+.P .subrow{display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:20px}
+.P .subrow-l{display:flex;align-items:center;gap:12px;flex:1;min-width:0;color:inherit;text-decoration:none}
+.P .subrow img{width:48px;height:48px;border-radius:50%;object-fit:cover;flex:none}
+.P .subrow .d{flex:1;min-width:0}
+.P .subrow .d b{display:block;font-weight:500;font-size:15.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .subrow .d span{display:block;font-size:12.5px;color:var(--grey);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.P .subrow .sbtn{flex:none;height:34px;padding:0 14px;border-radius:17px;font-size:13px;font-weight:500;display:flex;align-items:center}
+.P .subrow .sbtn.dk{background:var(--ink);color:#fff}
+.P .subrow .sbtn.lt{background:rgba(23,20,31,.07);color:var(--ink)}
+
+/* Создание встречи: «Кого позвать» из подписок. */
+.K .k-invf{display:flex;flex-direction:column;gap:10px;margin-top:22px}
+.K .k-invh{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.K .k-invall{height:30px;padding:0 12px;border-radius:15px;font-size:12.5px;font-weight:500;flex:none}
+.K .k-pick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));row-gap:14px;column-gap:4px;padding:16px 8px;border-radius:24px}
+.K .k-pk{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;background:none;border:0;padding:0;color:inherit}
+.K .k-pkav{position:relative;width:60px;height:60px;flex:none}
+.K .k-pkav img{width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid #fff;display:block;transition:box-shadow .2s}
+.K .k-pk.on .k-pkav img{box-shadow:0 0 0 3px #9B5CFF}
+.K .k-pkav .ck{position:absolute;right:-2px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:#9B5CFF;border:2px solid #fff;color:#fff;font-size:11px;font-weight:600;display:grid;place-items:center}
+.K .k-pkav .more{width:60px;height:60px;border-radius:50%;background:rgba(23,20,31,.06);display:grid;place-items:center;font-weight:500;font-size:14px}
+.K .k-pk .nm{max-width:100%;font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.K .k-pk .nm.mut{color:rgba(23,20,31,.55)}
+.K .k-tgl{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 16px;border-radius:22px;text-align:left;width:100%}
+.K .k-tgl .tx{min-width:0}
+.K .k-tgl b{display:block;font-weight:500;font-size:14.5px}
+.K .k-tgl small{display:block;font-size:12.5px;line-height:1.35;color:rgba(23,20,31,.55)}
+.K .k-sw{position:relative;flex:none;width:50px;height:30px;border-radius:15px;background:rgba(23,20,31,.15);transition:background .2s}
+.K .k-sw::after{content:"";position:absolute;left:3px;top:3px;width:24px;height:24px;border-radius:12px;background:#fff;transition:transform .25s var(--spring,ease)}
+.K .k-sw.on{background:#17141F}
+.K .k-sw.on::after{transform:translateX(20px)}

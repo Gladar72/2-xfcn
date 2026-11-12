@@ -76,6 +76,8 @@ export async function POST(req: NextRequest) {
     }
     const { data: reservation, error } = await admin.rpc("reserve_event_invite", {
       p_event_id: eventId, p_inviter_id: currentUser.userId, p_invitee_id: otherId, p_message: inviteMessage || null,
+      // На свою встречу организатор зовёт людей из подписок — до 40 в сутки; «пойдём вместе» — как раньше.
+      p_limit: companion ? INVITES_PER_DAY : 40,
     });
     if (error || !reservation?.id) {
       const code = reservation?.error ?? (error?.code === "23505" ? "already_invited" : "create_failed");

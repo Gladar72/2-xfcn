@@ -10,6 +10,7 @@ import { KI, bg } from "@/components/proto/k";
 import { interestIcon } from "@/lib/data/interests";
 import { useProfilePhoto } from "@/components/profile/useProfilePhoto";
 import { HeartsSheet } from "@/components/people/HeartsSheet";
+import { FollowsBlock } from "@/components/profile/FollowsBlock";
 import type { IconName } from "@/components/brand/Icon";
 
 interface Profile {
@@ -43,7 +44,6 @@ export default function ProfilePage() {
   const [sub, setSub] = useState<SubscriptionStatus | null>(null);
   const [counts, setCounts] = useState([0, 0, 0]);
   const [toast, setToast] = useState<string | null>(null);
-  const [followers, setFollowers] = useState<number | null>(null);
   useGuide("profile", { when: profile !== null });
 
   useEffect(() => {
@@ -58,14 +58,6 @@ export default function ProfilePage() {
   }, []);
 
   // Счётчики «докручиваются» от нуля, как в прототипе.
-  useEffect(() => {
-    if (!profile?.id) return;
-    fetch(`/api/follows?userId=${profile.id}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => typeof d?.followers === "number" && setFollowers(d.followers))
-      .catch(() => {});
-  }, [profile?.id]);
-
   useEffect(() => {
     if (!profile) return;
     const target = [profile.eventsOrganizedCount, profile.eventsAttendedCount, profile.completedMeetingsCount];
@@ -150,13 +142,6 @@ export default function ProfilePage() {
                 .filter(Boolean)
                 .join(" · ")}
             </div>
-            {followers !== null && followers > 0 && (
-              <div className="k-tags">
-                <span className="k-chip k-g" style={{ height: 32, fontSize: 13 }}>
-                  {followers} {plural(followers, "подписчик", "подписчика", "подписчиков")}
-                </span>
-              </div>
-            )}
             {(profile.interests ?? []).length > 0 && (
               <div className="k-tags">
                 {(profile.interests ?? []).slice(0, 6).map((i) => (
@@ -195,6 +180,8 @@ export default function ProfilePage() {
                 Редактировать профиль
               </Link>
             </div>
+
+            <FollowsBlock />
 
             <div className="k-sec">
               <div>

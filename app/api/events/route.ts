@@ -791,7 +791,7 @@ export async function POST(req: NextRequest) {
   // Анонса каждой новой встречи больше нет — раз в день приходит подборка по интересам
   // (lib/telegram/event-digest.ts).
   // Подписчикам организатора — сразу (анонимные встречи не рассылаются).
-  void notifyFollowers(admin, {
+  if (body?.notifyFollowers !== false) void notifyFollowers(admin, {
     eventId: createdEvent.id,
     organizerId: currentUser.userId,
     title: input.title ?? "",

@@ -222,6 +222,9 @@ deploy() {
   # Приглашения пойти вместе на любое событие.
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
     < "$APP/supabase/migrations/0083_companion_invites.sql"
+  # Лимит приглашений: организатор на свою встречу — больше.
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
+    < "$APP/supabase/migrations/0084_host_invite_limit.sql"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
   cleanup
