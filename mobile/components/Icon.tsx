@@ -59,6 +59,13 @@ const IC = {
       <Path d="M15 5l-7 7 7 7" />
     </>
   ),
+  more: (
+    <>
+      <Circle cx="5.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+      <Circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none" />
+      <Circle cx="18.5" cy="12" r="1.6" fill="currentColor" stroke="none" />
+    </>
+  ),
   close: (
     <>
       <Path d="M6.5 6.5l11 11M17.5 6.5l-11 11" />
@@ -268,7 +275,7 @@ export type IconName = keyof typeof IC;
 
 export function Icon({ name, size = 22, color = "#16121F", strokeWidth = 1.75 }: { name: IconName; size?: number; color?: string; strokeWidth?: number }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" color={color} stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
       {IC[name]}
     </Svg>
   );
