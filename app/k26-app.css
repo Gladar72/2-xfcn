@@ -395,6 +395,9 @@
 .K .k-hc .k-card-cover{position:absolute;inset:0;z-index:0;background:linear-gradient(160deg,#3A3646,#17141F);pointer-events:none}
 .K .k-hc .k-card-cover img{width:100%;height:100%;object-fit:cover;display:block}
 .K .k-hc::after{z-index:1}
-.K .k-hc .k-gw,.K .k-hc .k-fc,.K .k-afr .k-gw{-webkit-backdrop-filter:none;backdrop-filter:none;background:rgba(35,29,48,.78)}
-.K .k-hc .k-fc.on{background:rgba(132,65,28,.9)}
+/* Плашки на карточках — снова «стекло», как в прототипе (непрозрачный тёмный фон убран). */
+.K .k-hc .k-fc.on{background:rgba(255,106,31,.35)}
+/* Скругление обрезает и обложку: без этого на iPhone по краям карточки видна рамка фона. */
+.K .k-hc{-webkit-mask-image:-webkit-radial-gradient(white,black);mask-image:radial-gradient(white,black)}
+.K .k-hc .k-card-cover{inset:-1px}
 .K .k-hc .k-fc::before{inset:-8px}
