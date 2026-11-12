@@ -2,12 +2,14 @@
 -- Один огонёк от человека на событие. Счётчик хранится в events.fire_count. Идемпотентно.
 create table if not exists public.event_fires (
   event_id uuid not null references public.events(id) on delete cascade,
-  user_id uuid not null references public.users(id) on delete cascade,
+  -- Без внешнего ключа на users: иначе API базы видит второй путь events↔users и ломает «organizer:users(...)».
+  user_id uuid not null,
   created_at timestamptz not null default now(),
   primary key (event_id, user_id)
 );
 create index if not exists event_fires_user_idx on public.event_fires (user_id);
 alter table public.event_fires enable row level security;
+alter table public.event_fires drop constraint if exists event_fires_user_id_fkey;
 
 alter table public.events add column if not exists fire_count integer not null default 0;
 
