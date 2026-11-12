@@ -18,6 +18,8 @@ interface ProfileSummary {
   name: string;
   city: string;
   morningRemindersEnabled: boolean;
+  profileHidden: boolean;
+  canHideProfile: boolean;
 }
 interface Sub {
   active: boolean;
@@ -51,7 +53,7 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch("/api/me/profile")
       .then((r) => r.json())
-      .then((d) => !d.error && setP({ name: d.name, city: d.city, morningRemindersEnabled: d.morningRemindersEnabled ?? true }))
+      .then((d) => !d.error && setP({ name: d.name, city: d.city, morningRemindersEnabled: d.morningRemindersEnabled ?? true, profileHidden: !!d.profileHidden, canHideProfile: !!d.canHideProfile }))
       .catch(() => {});
     fetch("/api/subscriptions")
       .then((r) => r.json())
@@ -70,6 +72,22 @@ export default function SettingsPage() {
     setP({ ...p, morningRemindersEnabled: next });
     const res = await fetch("/api/me/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ morningRemindersEnabled: next }) }).catch(() => null);
     if (!res?.ok) setP({ ...p, morningRemindersEnabled: !next });
+  }
+
+  async function toggleHidden() {
+    if (!p) return;
+    if (!p.canHideProfile && !p.profileHidden) {
+      flash("Скрытие профиля — на тарифах Медиум и Премиум");
+      setTimeout(() => router.push("/subscriptions"), 900);
+      return;
+    }
+    const next = !p.profileHidden;
+    setP({ ...p, profileHidden: next });
+    const res = await fetch("/api/me/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileHidden: next }) }).catch(() => null);
+    if (!res?.ok) {
+      setP({ ...p, profileHidden: !next });
+      flash(res?.status === 403 ? "Скрытие профиля — на тарифах Медиум и Премиум" : "Не получилось, попробуй ещё раз");
+    } else flash(next ? "Тебя больше не видно в «Людях рядом»" : "Ты снова виден в «Людях рядом»");
   }
 
   async function saveCity(city: string) {
@@ -140,6 +158,14 @@ export default function SettingsPage() {
             <small>Раз в неделю, в пятницу утром, предлагаем идею на день</small>
           </span>
           <span className={`sw-t ${p?.morningRemindersEnabled ? "on" : ""}`} role="switch" aria-checked={!!p?.morningRemindersEnabled} onClick={toggleMorning} />
+        </div>
+        <div className="mrow">
+          <Ic n="eye" />
+          <span>
+            Скрыть меня из «Людей рядом»
+            <small>{p && !p.canHideProfile && !p.profileHidden ? "На тарифах Медиум и Премиум" : "Тебя не найдут в ленте людей и на карте. Встречи и чаты работают как обычно"}</small>
+          </span>
+          <span className={`sw-t ${p?.profileHidden ? "on" : ""}`} role="switch" aria-checked={!!p?.profileHidden} onClick={toggleHidden} />
         </div>
         <Row i="pin" t="Город" s={p?.city} onClick={() => setCityOpen(true)} />
         <Row i="lock" t="Приватность и анонимность" href="/settings/privacy" />

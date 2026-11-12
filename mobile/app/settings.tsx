@@ -25,6 +25,7 @@ export default function SettingsScreen() {
   const [me, setMe] = useState<MyProfile | null>(null);
   const [sub, setSub] = useState<Subscription | null>(null);
   const [morning, setMorning] = useState(true);
+  const [hidden, setHidden] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
   const [refOpen, setRefOpen] = useState(false);
   const [refCode, setRefCode] = useState("");
@@ -51,6 +52,7 @@ export default function SettingsScreen() {
         .then((r) => {
           setMe(r);
           setMorning(r.morningRemindersEnabled !== false);
+          setHidden(!!r.profileHidden);
         })
         .catch(() => {});
       api<Subscription>("/api/subscriptions").then(setSub).catch(() => {});
@@ -64,6 +66,25 @@ export default function SettingsScreen() {
       await api("/api/me/profile", { method: "PATCH", body: { morningRemindersEnabled: v } });
     } catch {
       setMorning(!v);
+      Alert.alert("Не получилось", "Попробуй ещё раз");
+    }
+  }
+
+  async function toggleHidden(v: boolean) {
+    if (v && !me?.canHideProfile) {
+      tapWarn();
+      Alert.alert("Скрытие профиля", "Доступно на тарифах Медиум и Премиум", [
+        { text: "Не сейчас", style: "cancel" },
+        { text: "Тарифы", onPress: () => router.push("/subscription") },
+      ]);
+      return;
+    }
+    tapLight();
+    setHidden(v);
+    try {
+      await api("/api/me/profile", { method: "PATCH", body: { profileHidden: v } });
+    } catch {
+      setHidden(!v);
       Alert.alert("Не получилось", "Попробуй ещё раз");
     }
   }
@@ -147,6 +168,18 @@ export default function SettingsScreen() {
               <Text style={styles.sub}>Иногда предлагаем идею на день — не чаще пары раз в неделю</Text>
             </View>
             <Switch value={morning} onValueChange={toggleMorning} trackColor={{ true: colors.violet, false: "rgba(22,18,31,0.15)" }} thumbColor="#fff" />
+          </View>
+          <View style={[styles.row, styles.sep]}>
+            <View style={styles.ic}>
+              <Icon name="eye" size={18} color={colors.violet} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>Скрыть меня из «Людей рядом»</Text>
+              <Text style={styles.sub}>
+                {me && !me.canHideProfile && !hidden ? "На тарифах Медиум и Премиум" : "Тебя не найдут в ленте людей и на карте. Встречи и чаты работают как обычно"}
+              </Text>
+            </View>
+            <Switch value={hidden} onValueChange={toggleHidden} trackColor={{ true: colors.violet, false: "rgba(22,18,31,0.15)" }} thumbColor="#fff" />
           </View>
           <Row icon="bell" label="Уведомления" onPress={() => router.push("/notifications")} />
           <Row icon="mask" label="Приватность и анонимность" onPress={() => router.push("/privacy")} last />

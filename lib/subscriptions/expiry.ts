@@ -138,6 +138,16 @@ export async function processSubscriptionExpiry(
       .select("id");
     if (!updated || updated.length === 0) continue;
     expired++;
+    // Скрытие профиля — опция Медиума и Премиума: без активного тарифа снимаем.
+    const { data: still } = await admin
+      .from("subscriptions")
+      .select("id")
+      .eq("user_id", sub.user_id)
+      .eq("status", "active")
+      .in("plan", ["medium", "premium"])
+      .gt("current_period_end", now.toISOString())
+      .limit(1);
+    if (!still || still.length === 0) await admin.from("users").update({ is_profile_hidden: false }).eq("id", sub.user_id);
     await admin.from("notifications").insert({
       user_id: sub.user_id,
       type: "subscription_expired",

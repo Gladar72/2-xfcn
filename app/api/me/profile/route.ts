@@ -3,6 +3,13 @@ import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserPhotos } from "@/lib/photos/user-photos";
 import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
+import { getActiveSubscriptionInfo } from "@/lib/subscriptions/server";
+
+/** Скрыть себя из «Людей рядом» можно на Медиуме и Премиуме. */
+async function canHideProfile(admin: ReturnType<typeof createAdminClient>, userId: string): Promise<boolean> {
+  const sub = await getActiveSubscriptionInfo(admin, userId).catch(() => null);
+  return sub?.plan === "medium" || sub?.plan === "premium";
+}
 
 /**
  * GET /api/me/profile
@@ -28,7 +35,7 @@ export async function GET(req: Request) {
   const { data: user, error } = await admin
     .from("users")
     .select(
-      "id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at, receipt_contact, last_active_at, morning_reminders_enabled, phone, email"
+      "id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at, receipt_contact, last_active_at, morning_reminders_enabled, phone, email, is_profile_hidden"
     )
     .eq("id", currentUser.userId)
     .maybeSingle();
@@ -55,6 +62,14 @@ export async function GET(req: Request) {
       .eq("role", "participant"),
   ]);
 
+  // Подписка закончилась или сменилась на Старт — скрытие снимаем.
+  let profileHidden = !!user.is_profile_hidden;
+  const canHide = await canHideProfile(admin, currentUser.userId);
+  if (profileHidden && !canHide) {
+    await admin.from("users").update({ is_profile_hidden: false }).eq("id", currentUser.userId);
+    profileHidden = false;
+  }
+
   const photos = await getUserPhotos(admin, user.id as string, user.avatar_url as string | null);
   const { data: interestRows } = await admin.from("user_interests").select("interest_id, interests(name)").eq("user_id", currentUser.userId);
   const interests = (interestRows ?? [])
@@ -76,6 +91,8 @@ export async function GET(req: Request) {
     completedMeetingsCount: user.completed_meetings_count,
     receiptContact: user.receipt_contact,
     morningRemindersEnabled: user.morning_reminders_enabled,
+    profileHidden,
+    canHideProfile: canHide,
     phone: user.phone ?? null,
     email: user.email ?? null,
     eventsOrganizedCount: eventsOrganizedCount ?? 0,
@@ -155,6 +172,14 @@ export async function PATCH(req: Request) {
     update.morning_reminders_enabled = body.morningRemindersEnabled;
   }
 
+  const admin = createAdminClient();
+  if (typeof body?.profileHidden === "boolean") {
+    if (body.profileHidden && !(await canHideProfile(admin, currentUser.userId))) {
+      return NextResponse.json({ error: "plan_required" }, { status: 403 });
+    }
+    update.is_profile_hidden = body.profileHidden;
+  }
+
   // Интересы (как в прототипе: «Изменить» в редактировании профиля) — заменяем список целиком.
   const interestIds: string[] | null = Array.isArray(body?.interestIds)
     ? (body.interestIds as unknown[]).filter((x): x is string => typeof x === "string" && /^[0-9a-f-]{36}$/.test(x)).slice(0, 15)
@@ -164,7 +189,6 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "nothing_to_update" }, { status: 400 });
   }
 
-  const admin = createAdminClient();
   if (interestIds) {
     if (interestIds.length < 3) return NextResponse.json({ error: "too_few_interests" }, { status: 422 });
     await admin.from("user_interests").delete().eq("user_id", currentUser.userId);

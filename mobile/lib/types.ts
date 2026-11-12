@@ -115,6 +115,8 @@ export interface MyProfile {
   photos?: string[];
   interests?: { id: string; name: string }[];
   morningRemindersEnabled?: boolean;
+  profileHidden?: boolean;
+  canHideProfile?: boolean;
   receiptContact?: string | null;
   memberSince?: string;
 }
