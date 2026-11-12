@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { getJson } from "@/lib/http/get-json";
+import { getAllItems } from "@/lib/http/get-items";
 import { JoinFlow } from "@/components/events/JoinFlow";
 import { useGuide } from "@/lib/mosya/guide";
 import Link from "next/link";
@@ -47,6 +47,7 @@ function SearchPageContent() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [events, setEvents] = useState<EventCardData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingPages, setLoadingPages] = useState(true);
   useGuide("search");
   const [error, setError] = useState<string | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -78,12 +79,13 @@ function SearchPageContent() {
   }, [openFilters]);
 
   useEffect(() => {
-    fetch("/api/me/profile")
+    fetch("/api/me/profile?summary=1")
       .then((r) => r.json())
       .then((data) => {
-        if (!data.error && data.city) {
-          setCity(data.city);
-          setCityInput(data.city);
+        const selectedCity = new URLSearchParams(window.location.search).get("city") || data.city;
+        if (!data.error && selectedCity) {
+          setCity(selectedCity);
+          setCityInput(selectedCity);
         }
       }).catch(() => {});
     fetch("/api/categories")
@@ -117,22 +119,27 @@ function SearchPageContent() {
   }
 
   const request = useRef<AbortController | null>(null);
+  const loadedQuery = useRef<string | null>(null);
   useEffect(() => () => request.current?.abort(), []);
 
   function load() {
     request.current?.abort();
     const controller = new AbortController();
     request.current = controller;
-    setLoading(true);
     setError(null);
+    setLoadingPages(true);
     const params = buildFilterParams();
-
-    getJson<{ items: EventCardData[] }>(`/api/events?${params.toString()}`, controller.signal)
-      .then((data) => {
-        if (!controller.signal.aborted) setEvents(data.items ?? []);
-      })
+    const key = params.toString();
+    if (loadedQuery.current !== key) { setEvents([]); setLoading(true); }
+    loadedQuery.current = key;
+    getAllItems<EventCardData>(`/api/events?${key}`, controller.signal, items => {
+      if (!controller.signal.aborted) {
+        setEvents(previous => [...new Map([...previous, ...items].map(event => [event.id, event])).values()]);
+        setLoading(false);
+      }
+    }).then(items => { if (!controller.signal.aborted) setEvents(items); })
       .catch(() => { if (!controller.signal.aborted) setError("Не удалось загрузить встречи."); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .finally(() => { if (!controller.signal.aborted) { setLoading(false); setLoadingPages(false); } });
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -317,11 +324,12 @@ function SearchPageContent() {
       <div className="list">
         {loading && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
         {error && <div className="note gl" role="alert">{error} <button className="btn v" onClick={load}>Попробовать снова</button></div>}
-        {!loading && !error &&
+        {!loading &&
           list.map((e) => (
             <RowCard key={e.id} e={e} status={appliedEventIds.has(e.id) ? "pending" : e.myApplicationStatus ?? null} onJoin={openJoin} />
           ))}
-        {!loading && !error && list.length === 0 && (
+        {!loading && loadingPages && <p className="muted" role="status">Загружаем остальные события…</p>}
+        {!loading && !loadingPages && !error && list.length === 0 && (
           <div className="empty">
             <EmptyIll />
             <b>Ничего не нашлось</b>

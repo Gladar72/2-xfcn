@@ -14,30 +14,26 @@ export async function GET(req: NextRequest) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const admin = createAdminClient();
-
-  const { data: memberRows } = await admin
-    .from("event_members")
-    .select("event_id, role")
-    .eq("user_id", currentUser.userId);
-
-  // Заявки, на которые ещё ждём ответа, — тоже показываем в «Моих встречах»
-  // (статус «Ждём ответа», как в прототипе). Только для предстоящих.
-  const { data: pendingRows } =
-    scope === "archive"
-      ? { data: [] as { event_id: string }[] }
-      : await admin.from("applications").select("event_id").eq("user_id", currentUser.userId).eq("status", "pending");
-  const pendingIds = new Set((pendingRows ?? []).map((r) => r.event_id as string));
-
-  const eventIds = [...new Set([...(memberRows ?? []).map((m) => m.event_id), ...pendingIds])];
-  if (eventIds.length === 0) return NextResponse.json({ items: [] });
-
-  const roleByEventId = new Map((memberRows ?? []).map((m) => [m.event_id, m.role]));
-
-  // Предстоящие: published и closed (заполненные — организатор/участники
-  // всё ещё должны их видеть и пользоваться чатом). Архив: completed и
-  // cancelled. Статус completed ставит cron /api/cron/complete-events.
+  const admin = createAdminClient({ noStore: true });
   const statuses = scope === "archive" ? ["completed", "cancelled"] : ["published", "closed"];
+  // Ownership is authoritative even if a separate membership write once failed.
+  // Accepted applications also keep the participant's event discoverable.
+  const [membership, applications, owned] = await Promise.all([
+    admin.from("event_members").select("event_id, role").eq("user_id", currentUser.userId),
+    admin.from("applications").select("event_id, status").eq("user_id", currentUser.userId)
+      .in("status", scope === "archive" ? ["accepted"] : ["pending", "accepted"]),
+    admin.from("events").select("id").eq("organizer_id", currentUser.userId).in("status", statuses),
+  ]);
+  if (membership.error || applications.error || owned.error) {
+    return NextResponse.json({ error: "fetch_failed" }, { status: 503 });
+  }
+  const pendingIds = new Set((applications.data ?? []).filter(row => row.status === "pending").map(row => row.event_id));
+  const roleByEventId = new Map((membership.data ?? []).map(row => [row.event_id, row.role]));
+  for (const row of applications.data ?? []) if (row.status === "accepted" && !roleByEventId.has(row.event_id)) roleByEventId.set(row.event_id, "participant");
+  for (const row of owned.data ?? []) roleByEventId.set(row.id, "organizer");
+  const eventIds = [...new Set([...roleByEventId.keys(), ...pendingIds])];
+  if (!eventIds.length) return NextResponse.json({ items: [] });
+
   const ascending = scope !== "archive";
 
   const { data: events, error } = await admin

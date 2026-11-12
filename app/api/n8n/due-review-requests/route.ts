@@ -17,7 +17,7 @@ import { completeDueEvents } from "@/lib/reviews/complete-due-events";
 export async function GET(req: NextRequest) {
   if (!isValidN8nRequest(req)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
   const items = await completeDueEvents(admin);
 
   return NextResponse.json({ items });

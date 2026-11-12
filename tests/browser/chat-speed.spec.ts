@@ -137,7 +137,7 @@ test("messages received during slow connection setup appear when connected", asy
 test("returning home keeps its cards while slow requests refresh in the background", async ({ page }) => {
   await fixture(page);
   const event = { id: "coffee", title: "Кофе после работы", city: "Тюмень", eventDate: "2026-11-02", eventTime: "18:00", seatsTotal: 5, seatsTaken: 0, category: { slug: "coffee", name: "Кофе" }, organizer: { id: "other", name: "Алексей", age: 30, ratingAvg: 5 } };
-  await page.route("**/api/events?**", (r) => r.fulfill({ json: { items: new URL(r.request().url()).searchParams.has("business") ? [] : [event] } }));
+  await page.route("**/api/events?**", (r) => r.fulfill({ json: { items: new URL(r.request().url()).searchParams.get("business") === "true" ? [] : [event] } }));
   await page.goto("/feed");
   await expect(page.getByText(event.title, { exact: true }).first()).toBeVisible();
   await page.getByRole("link", { name: "Встречи", exact: true }).click();

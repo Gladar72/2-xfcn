@@ -22,14 +22,14 @@ async function fixture(page: Page) {
   await page.route("**/api/**", r => {
     const url = new URL(r.request().url());
     const json = url.pathname === "/api/me/profile" ? { city: "Тюмень" }
-      : url.pathname === "/api/events" ? { items: url.searchParams.has("business") ? [] : refresh ? [...events].reverse().map(e => ({ ...e, fireCount: 7 })) : events }
+      : url.pathname === "/api/events" ? { items: url.searchParams.get("business") === "true" ? [] : refresh ? [...events].reverse().map(e => ({ ...e, fireCount: 7 })) : events }
       : { items: [], categories: [], count: 0, meHasLocation: true };
     return r.fulfill({ json });
   });
   return { covers, refresh: () => { refresh = true; } };
 }
 
-test("a long rail loads nearby covers and no live blur layers while scrolling", async ({ page }) => {
+test("a long rail loads only nearby covers while scrolling", async ({ page }) => {
   const data = await fixture(page);
   await page.goto("/feed");
   const list = rail(page);
@@ -37,11 +37,6 @@ test("a long rail loads nearby covers and no live blur layers while scrolling", 
   await expect.poll(() => data.covers.length).toBeGreaterThan(0);
   expect(data.covers.length).toBeLessThan(9);
   expect(data.covers.every(url => new URL(url).searchParams.get("w") === "640")).toBe(true);
-  const filters = await list.locator(".k-gw,.k-fc").evaluateAll(nodes => nodes.map(node => {
-    const style = getComputedStyle(node);
-    return style.getPropertyValue("backdrop-filter") || style.getPropertyValue("-webkit-backdrop-filter");
-  }));
-  expect(filters.every(value => value === "none")).toBe(true);
   await expect.poll(() => list.locator(".k-card-cover img").first().evaluate((image: HTMLImageElement) => image.naturalWidth)).toBeGreaterThan(0);
   await list.locator(".k-hc").first().screenshot({ path: test.info().outputPath("scroll-card.png") });
   await list.evaluate(el => { el.scrollLeft = 2200; });

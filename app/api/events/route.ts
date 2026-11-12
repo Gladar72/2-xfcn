@@ -57,12 +57,13 @@ export async function GET(req: NextRequest) {
   // "Для бизнеса" — отдельный раздел (/business), НЕ показывается в обычной
   // ленте/поиске и наоборот: businesss=true показывает ТОЛЬКО такие события.
   const businessOnly = searchParams.get("business") === "true";
+  const personalOnly = searchParams.get("business") === "false";
   // Главная просит ?shuffle=1 — верх ленты немного перемешивается при каждом заходе,
   // чтобы «Популярное» не было одним и тем же (сильные встречи всё равно наверху).
   const shuffle = searchParams.get("shuffle") === "1" && page === 0;
 
   const currentUser = await getCurrentUser();
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
 
   // Автозавершение просроченных встреч теперь на Vercel Cron (раз в 5
   // минут, см. /api/cron/complete-events + vercel.json) — раньше эта
@@ -114,11 +115,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "city_required" }, { status: 400 });
   }
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  // Overnight events can start yesterday and still be running after UTC midnight.
+  // The exact end-time filter below determines whether they remain visible.
+  const todayIso = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
   const feedCity = city;
 
   // Общая для всех часть ленты (встречи города по фильтрам + тарифы их
-  // организаторов) берётся из 15-секундного кэша — см. lib/data/feed-cache.ts.
+  // организаторов) берётся из 45-секундного кэша — см. lib/data/feed-cache.ts.
   // Всё личное (блокировки, возраст/пол, интересы, «Ваша встреча», заявки)
   // считается ниже для каждого человека отдельно.
   const loadFeed = async () => {
@@ -139,6 +142,8 @@ export async function GET(req: NextRequest) {
       .eq("city", feedCity)
       .gte("event_date", todayIso)
       .order("event_date", { ascending: true })
+      .order("event_time", { ascending: true })
+      .order("id", { ascending: true })
       .limit(CANDIDATE_POOL_SIZE);
 
     // "Для бизнеса" (?business=true, сам раздел /business) — показываем
@@ -150,6 +155,8 @@ export async function GET(req: NextRequest) {
     // категория "custom", а не выбранная пользователем).
     if (businessOnly) {
       query = query.eq("is_business", true);
+    } else if (personalOnly) {
+      query = query.or("is_business.eq.false,is_business.is.null");
     }
 
     if (categorySlugsParam) {
@@ -231,6 +238,7 @@ export async function GET(req: NextRequest) {
     feedCity,
     todayIso,
     businessOnly,
+    personalOnly,
     categorySlugsParam,
     categorySlug,
     typeSlug,

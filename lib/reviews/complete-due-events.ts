@@ -1,6 +1,7 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushPersonal } from "@/lib/push/expo";
 import { shortTitle } from "@/lib/notify/user";
+import { clearFeedCache } from "@/lib/data/feed-cache";
 import { eventTiming } from "@/lib/events/timing";
 
 export interface DueReviewItem {
@@ -20,8 +21,8 @@ export interface DueReviewItem {
  * Раньше это работало ТОЛЬКО через внешний n8n-опрос (см.
  * app/api/n8n/due-review-requests/route.ts), и если n8n не настроен —
  * встречи никогда не завершались и окно с отзывом не появлялось.
- * Теперь эта же функция вызывается лениво прямо из приложения
- * (GET /api/reviews/reviewable) при каждом заходе — работает без n8n.
+ * На сервере функция запускается кроном раз в 5 минут; чтение экрана
+ * отзывов не запускает завершение встреч и рассылку.
  */
 export async function completeDueEvents(
   admin: ReturnType<typeof createAdminClient>
@@ -35,14 +36,16 @@ export async function completeDueEvents(
   const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
   const tomorrowIso = tomorrow.toISOString().slice(0, 10);
 
-  const { data: candidates } = await admin
+  const { data: candidates, error } = await admin
     .from("events")
-    .select("id, title, event_date, event_time, event_end_time, longitude, city")
+    .select("id, title, event_date, event_time, event_end_time, longitude, city, updated_at")
     // "closed" (заполнена целиком) тоже нужно проверять — иначе заполненная
     // встреча, у которой уже прошло время, никогда не завершается, и её
     // чат остаётся открытым навсегда (реальный найденный случай).
     .in("status", ["published", "closed"])
     .lte("event_date", tomorrowIso);
+
+  if (error) throw error;
 
   // Встреча идёт ровно до времени окончания и ещё 30 минут после него
   // (COMPLETION_GRACE_MINUTES) — только потом закрывается автоматически.
@@ -50,7 +53,7 @@ export async function completeDueEvents(
   const finished = (candidates ?? []).filter((e) => eventTiming(e).autoCompleteAt <= now);
 
   if (finished.length === 0) return [];
-  return finalizeCompletedEvents(admin, finished);
+  return finalizeCompletedEvents(admin, finished, new Map(finished.map(event => [event.id, event.updated_at as string])));
 }
 
 /**
@@ -61,22 +64,29 @@ export async function completeDueEvents(
  */
 export async function finalizeCompletedEvents(
   admin: ReturnType<typeof createAdminClient>,
-  events: { id: string; title: string }[]
+  events: { id: string; title: string }[],
+  observedUpdates?: ReadonlyMap<string, string>
 ): Promise<DueReviewItem[]> {
   if (events.length === 0) return [];
 
-  const { data: updatedRows } = await admin
-    .from("events")
-    .update({ status: "completed" })
-    .in(
-      "id",
-      events.map((e) => e.id)
-    )
-    .in("status", ["published", "closed"])
-    .select("id");
+  // A meeting may have been rescheduled after the cron read it. Only finish
+  // the exact revision we evaluated, never a newer date/time from its author.
+  let updatedRows: { id: string }[];
+  if (observedUpdates) {
+    const updates = await Promise.all(events.map(event => admin.from("events")
+      .update({ status: "completed" }).eq("id", event.id)
+      .eq("updated_at", observedUpdates.get(event.id)!)
+      .in("status", ["published", "closed"]).select("id")));
+    updatedRows = updates.flatMap(result => result.data ?? []);
+  } else {
+    const result = await admin.from("events").update({ status: "completed" })
+      .in("id", events.map(event => event.id)).in("status", ["published", "closed"]).select("id");
+    updatedRows = result.data ?? [];
+  }
   const updatedIds = new Set((updatedRows ?? []).map((r) => r.id));
   const finished = events.filter((e) => updatedIds.has(e.id));
   if (finished.length === 0) return [];
+  clearFeedCache();
   const finishedIds = finished.map((e) => e.id);
 
   const { data: allFinishedMembers } = await admin

@@ -52,7 +52,7 @@ export function mapCityEvent(r: Record<string, unknown>): CityEvent {
 export async function upcomingCityEvents(admin: Admin, city: string, limit = 20): Promise<CityEvent[]> {
   const today = new Date().toISOString().slice(0, 10);
   const until = new Date(Date.now() + 21 * 864e5).toISOString().slice(0, 10);
-  const { data } = await admin
+  const { data, error } = await admin
     .from("city_events")
     .select(CITY_EVENT_COLS)
     .eq("city", city)
@@ -61,6 +61,7 @@ export async function upcomingCityEvents(admin: Admin, city: string, limit = 20)
     .or(`event_date.gte.${today},end_date.gte.${today}`)
     .order("event_date", { ascending: true })
     .limit(limit);
+  if (error) throw error;
   return (data ?? []).map(mapCityEvent);
 }
 

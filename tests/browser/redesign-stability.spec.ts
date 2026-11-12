@@ -27,7 +27,7 @@ async function fixture(page: Page) {
       : u.pathname.startsWith("/api/users/") ? people.find(p => u.pathname.endsWith(p.id))
       : u.pathname === "/api/me/profile" ? { ...people[0], id: "me" }
       : u.pathname === "/api/categories" ? { categories: [{ id: "c", slug: "coffee", name: "Кофе" }, { id: "k", slug: "cinema", name: "Кино" }], trainingTypes: [] }
-      : u.pathname === "/api/events" ? { items: u.searchParams.has("business") ? [] : [event] }
+      : u.pathname === "/api/events" ? { items: u.searchParams.get("business") === "true" ? [] : [event] }
       : { items: [], events: [], people: [], count: 0 };
     return r.fulfill({ json });
   });

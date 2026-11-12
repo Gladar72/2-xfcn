@@ -11,6 +11,8 @@ import { CalendarSheet } from "@/components/proto/pickers";
 import { cityDates } from "@/lib/events/local-dates";
 import { goBack } from "@/lib/nav/back";
 import { KIND_LABEL, type CityEvent } from "@/lib/city-events";
+import { getAllItems, getItems } from "@/lib/http/get-items";
+import { stableRefresh } from "@/lib/events/stable-refresh";
 import { bizCategoryCounts, bizCategoryIcon, matchesBizCategory } from "@/lib/events/biz-categories";
 
 /** Фильтр «Когда». */
@@ -51,6 +53,10 @@ export default function BusinessPage() {
   const router = useRouter();
   const [events, setEvents] = useState<(HeroEvent & { city?: string | null })[] | null>(null);
   const [cityEv, setCityEv] = useState<CityEvent[]>([]);
+  const [loadError, setLoadError] = useState(false);
+  const [loadingPages, setLoadingPages] = useState(true);
+  const [cityError, setCityError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   // Раздел (кафе, бары, концерты…) — фильтрует и события заведений, и «Что ещё в городе».
   const [cat, setCat] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -62,27 +68,35 @@ export default function BusinessPage() {
   useGuide("business");
 
   useEffect(() => {
-    // Все страницы ленты заведений (раньше грузилась только первая — 20 событий).
-    let cancelled = false;
-    (async () => {
-      const all: (HeroEvent & { city?: string | null })[] = [];
-      for (let page = 0; page < 10; page++) {
-        const d = await fetch(`/api/events?business=true&page=${page}`)
-          .then((r) => r.json())
-          .catch(() => null);
-        if (!d) break;
-        all.push(...(d.items ?? []).filter((e: HeroEvent) => e.isBusiness));
-        if (!d.hasMore) break;
-      }
-      if (!cancelled) setEvents(all);
-    })();
-    fetch("/api/city-events")
-      .then((r) => r.json())
-      .then((d) => !cancelled && setCityEv(d.items ?? []))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    const controller = new AbortController();
+    const selectedCity = new URLSearchParams(window.location.search).get("city");
+    const cityQuery = selectedCity ? `&city=${encodeURIComponent(selectedCity)}` : "";
+    setLoadError(false);
+    setLoadingPages(true);
+    setCityError(false);
+    getAllItems<HeroEvent & { city?: string | null }>(`/api/events?business=true${cityQuery}`, controller.signal, loaded => {
+      if (controller.signal.aborted) return;
+      // Show the first page immediately; retain previously visible events until
+      // every page has loaded successfully, including during retries.
+      setEvents(previous => {
+        const byId = new Map((previous ?? []).map(event => [event.id, event]));
+        loaded.filter(event => event.isBusiness).forEach(event => byId.set(event.id, event));
+        return [...byId.values()];
+      });
+    }).then(all => { if (!controller.signal.aborted) setEvents(previous => stableRefresh(previous ?? [], all.filter(event => event.isBusiness))); })
+      .catch(() => { if (!controller.signal.aborted) setLoadError(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingPages(false); });
+    getItems<CityEvent>(`/api/city-events${selectedCity ? `?city=${encodeURIComponent(selectedCity)}` : ""}`, controller.signal)
+      .then(d => { if (!controller.signal.aborted) setCityEv(previous => stableRefresh(previous, d.items)); })
+      .catch(() => { if (!controller.signal.aborted) setCityError(true); });
+    return () => controller.abort();
+  }, [attempt]);
+  useEffect(() => {
+    const refresh = () => setAttempt(n => n + 1);
+    const visible = () => { if (document.visibilityState === "visible") refresh(); };
+    window.addEventListener("online", refresh);
+    document.addEventListener("visibilitychange", visible);
+    return () => { window.removeEventListener("online", refresh); document.removeEventListener("visibilitychange", visible); };
   }, []);
 
   const days = useMemo(() => cityDates(events?.[0]?.city ?? cityEv[0]?.city ?? null), [events, cityEv]);
@@ -215,7 +229,9 @@ export default function BusinessPage() {
         </div>
       )}
 
-      {events === null && (
+      {(loadError || cityError) && <div className="note gl" role="alert">Не удалось загрузить всю афишу. <button className="btn s" onClick={() => setAttempt(n => n + 1)}>Попробовать снова</button></div>}
+      {events !== null && loadingPages && <p className="muted" role="status">Загружаем остальные события…</p>}
+      {events === null && !loadError && (
         <div style={{ display: "grid", gap: 8, marginTop: 16 }}>
           {[0, 1, 2].map((i) => (
             <div key={i} className="sk" style={{ height: 136, borderRadius: 26 }} />
@@ -234,7 +250,7 @@ export default function BusinessPage() {
           ))}
         </div>
       </div>
-      {events !== null && events.length > 0 && shownEvents?.length === 0 && shownCity.length === 0 && (
+      {!loadingPages && !loadError && !cityError && events !== null && events.length > 0 && shownEvents?.length === 0 && shownCity.length === 0 && (
         <div className="empty" style={{ marginTop: 16 }}>
           <b>Ничего не нашли</b>
           <span>Попробуй другой день или раздел.</span>
@@ -243,7 +259,7 @@ export default function BusinessPage() {
           </button>
         </div>
       )}
-      {events?.length === 0 && shownCity.length === 0 && (
+      {!loadingPages && !loadError && !cityError && events?.length === 0 && shownCity.length === 0 && (
         <div className="empty">
           <EmptyIll />
           <b>Заведения {city ? `в ${cityIn(city)}` : "рядом"} пока не публиковали события</b>
@@ -255,7 +271,7 @@ export default function BusinessPage() {
           <div className="k-dgrp">
             <h4 className="k-dayh">Что ещё в городе</h4>
             {shownCity.map((c) => (
-              <Link key={c.id} href={`/city/${c.id}`} className="k-afr k-g k-pr">
+              <Link prefetch={false} key={c.id} href={`/city/${c.id}`} className="k-afr k-g k-pr">
                 <i style={bg(c.photoUrl, 240)}>{c.priceText && <span className="k-chip k-gw">{c.priceText}</span>}</i>
                 <span className="k-x">
                   <b>{c.title}</b>
@@ -298,7 +314,7 @@ function BizRow({ e }: { e: HeroEvent }) {
   const left = Math.max(0, e.seatsTotal - e.seatsTaken);
   const price = e.businessPricingType === "free" ? "Бесплатно" : costShort(e);
   return (
-    <Link href={`/events/${e.id}`} className="k-afr k-g k-pr">
+    <Link prefetch={false} href={`/events/${e.id}`} className="k-afr k-g k-pr">
       <i style={bg(e.photoUrl, 240)}>{price && <span className="k-chip k-gw">{left > 0 ? price : "Мест нет"}</span>}</i>
       <span className="k-x">
         <b>{e.title}</b>

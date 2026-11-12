@@ -23,6 +23,8 @@ import { usePeopleVisitSeed } from "@/lib/people/use-visit-seed";
 import { EventCardCover } from "@/components/events/EventCardCover";
 import { stableRefresh } from "@/lib/events/stable-refresh";
 import { observeEventFire } from "@/lib/events/use-fire";
+import { getAllItems, getItems } from "@/lib/http/get-items";
+import { getJson } from "@/lib/http/get-json";
 import { rememberSelectedPerson } from "@/lib/people/selected-preview";
 
 interface Category {
@@ -107,6 +109,12 @@ function HomeScreen() {
   }, []);
   const [city, setCity] = useState<string | null>(initial?.city ?? null);
   const [cityOpen, setCityOpen] = useState(false);
+  const [cityError, setCityError] = useState(false);
+  const [eventsError, setEventsError] = useState(false);
+  const [bizError, setBizError] = useState(false);
+  const [cityEvError, setCityEvError] = useState(false);
+  const cityPicked = useRef(false);
+  const previousCity = useRef(initial?.city ?? null);
   const [categories, setCategories] = useState<Category[]>(initial?.categories ?? []);
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>(initial?.trainingTypes ?? []);
   const [events, setEvents] = useState<FeedEvent[] | null>(initial?.events ?? null);
@@ -127,7 +135,7 @@ function HomeScreen() {
   const [trainOpen, setTrainOpen] = useState(false);
   useGuide("feed", { when: events !== null });
   useEffect(() => {
-    if (events) homeSnapshot = { at: Date.now(), city, categories, trainingTypes, events, biz, cityEv, people };
+    if (events && previousCity.current === city) homeSnapshot = { at: Date.now(), city, categories, trainingTypes, events, biz, cityEv, people };
   }, [city, categories, trainingTypes, events, biz, cityEv, people]);
 
   // A new location request supersedes old results from the previous area.
@@ -155,32 +163,72 @@ function HomeScreen() {
   useEffect(() => {
     if (previousSeed.current !== peopleSeed) { previousSeed.current = peopleSeed; void loadPeople(); }
   }, [peopleSeed, loadPeople]);
+  const eventRequest = useRef<AbortController | null>(null);
+  const bizRequest = useRef<AbortController | null>(null);
+  const cityEventRequest = useRef<AbortController | null>(null);
+  useEffect(() => () => { eventRequest.current?.abort(); bizRequest.current?.abort(); cityEventRequest.current?.abort(); }, []);
   const loadEvents = useCallback((c: string) => {
+    eventRequest.current?.abort();
+    const controller = new AbortController();
+    eventRequest.current = controller;
     const requestedAt = Date.now();
-    return fetch(`/api/events?page=0&shuffle=1&city=${encodeURIComponent(c)}`, { signal: requestController.current?.signal })
-      .then((r) => r.json())
-      .then((d) => {
-        if (requestController.current?.signal.aborted || cityRef.current !== c) return;
-        (d.items ?? []).forEach((e: FeedEvent) => observeEventFire(e, requestedAt));
-        setEvents(previous => stableRefresh(previous ?? [], d.items ?? []));
+    setEventsError(false);
+    return getItems<FeedEvent>(`/api/events?page=0&business=false&city=${encodeURIComponent(c)}`, controller.signal)
+      .then(d => {
+        if (controller.signal.aborted || cityRef.current !== c) return;
+        d.items.forEach(e => observeEventFire(e, requestedAt));
+        setEvents(previous => stableRefresh(previous ?? [], d.items));
       })
-      .catch(() => { if (!requestController.current?.signal.aborted && cityRef.current === c) setEvents((prev) => prev ?? []); });
+      .catch(() => { if (!controller.signal.aborted && cityRef.current === c) setEventsError(true); });
   }, []);
-
-  useEffect(() => watchMyLocation(() => {
-    loadPeople();
-    if (cityRef.current) loadEvents(cityRef.current);
-  }), [loadPeople, loadEvents]);
-
-  // Пока главная открыта — раз в 2 минуты подтягиваем новые подборки.
+  const loadBiz = useCallback((c: string) => {
+    bizRequest.current?.abort();
+    const controller = new AbortController();
+    bizRequest.current = controller;
+    const requestedAt = Date.now();
+    setBizError(false);
+    return getItems<FeedEvent>(`/api/events?business=true&city=${encodeURIComponent(c)}`, controller.signal)
+      .then(d => {
+        if (controller.signal.aborted || cityRef.current !== c) return;
+        d.items.forEach(e => observeEventFire(e, requestedAt));
+        setBiz(previous => stableRefresh(previous, d.items.filter(e => e.isBusiness)));
+      })
+      .catch(() => { if (!controller.signal.aborted && cityRef.current === c) setBizError(true); });
+  }, []);
+  const loadCityEvents = useCallback((c: string) => {
+    cityEventRequest.current?.abort();
+    const controller = new AbortController();
+    cityEventRequest.current = controller;
+    setCityEvError(false);
+    return getItems<CityEvent>(`/api/city-events?city=${encodeURIComponent(c)}`, controller.signal)
+      .then(d => { if (!controller.signal.aborted && cityRef.current === c) setCityEv(previous => stableRefresh(previous, d.items)); })
+      .catch(() => { if (!controller.signal.aborted && cityRef.current === c) setCityEvError(true); });
+  }, []);
+  const refresh = useCallback(() => {
+    void loadPeople();
+    const c = cityRef.current;
+    if (c) { void loadEvents(c); void loadBiz(c); void loadCityEvents(c); }
+  }, [loadPeople, loadEvents, loadBiz, loadCityEvents]);
+  useEffect(() => watchMyLocation(refresh), [refresh]);
   useEffect(() => {
-    const t = setInterval(() => {
-      if (document.visibilityState !== "visible") return;
-      loadPeople();
-      if (cityRef.current) loadEvents(cityRef.current);
-    }, 120e3);
-    return () => clearInterval(t);
-  }, [loadPeople, loadEvents]);
+    const visible = () => { if (document.visibilityState === "visible") refresh(); };
+    const timer = setInterval(visible, 120e3);
+    window.addEventListener("online", refresh);
+    return () => { clearInterval(timer); window.removeEventListener("online", refresh); };
+  }, [refresh]);
+
+  const loadCity = useCallback(() => {
+    setCityError(false);
+    const signal = requestController.current?.signal;
+    return getJson<{ city?: string }>("/api/me/profile?summary=1", signal)
+      .then(d => {
+        if (signal?.aborted || cityPicked.current) return;
+        if (!d.city) throw new Error("city_unavailable");
+        setCityError(false);
+        setCity(d.city);
+      })
+      .catch(() => { if (!signal?.aborted && !cityPicked.current) setCityError(true); });
+  }, []);
 
   // Счётчик «увидели» у продвинутых встреч — один раз за заход (и при смене набора).
   const seenRef = useRef("");
@@ -205,10 +253,7 @@ function HomeScreen() {
   }
 
   useEffect(() => {
-    fetch("/api/me/profile?summary=1", { signal: requestController.current?.signal })
-      .then((r) => r.json())
-      .then((d) => setCity(d.city || "Тюмень"))
-      .catch(() => setCity("Тюмень"));
+    void loadCity();
     fetch("/api/categories", { signal: requestController.current?.signal })
       .then((r) => r.json())
       .then((d) => {
@@ -233,9 +278,7 @@ function HomeScreen() {
         if (mine[0]) setPlan({ ev: mine[0], label: "Ты в деле" });
       })
       .catch(() => {});
-  }, [loadPeople]);
-
-  const previousCity = useRef(initial?.city ?? null);
+  }, [loadCity]);
   useEffect(() => {
     if (!city) return;
     // Returning home paints its existing mosaic while fresh data arrives.
@@ -247,24 +290,12 @@ function HomeScreen() {
       setCityEv([]);
     }
     previousCity.current = city;
-    const requestedAt = Date.now();
-    const controller = new AbortController();
-    loadPeople();
-    loadEvents(city);
-    fetch(`/api/events?business=true&city=${encodeURIComponent(city)}`, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((d) => {
-        if (controller.signal.aborted) return;
-        (d.items ?? []).forEach((e: FeedEvent) => observeEventFire(e, requestedAt));
-        setBiz(previous => stableRefresh(previous, (d.items ?? []).filter((e: FeedEvent) => e.isBusiness)));
-      })
-      .catch(() => {});
-    fetch(`/api/city-events?city=${encodeURIComponent(city)}`, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((d) => { if (!controller.signal.aborted) setCityEv(previous => stableRefresh(previous, d.items ?? [])); })
-      .catch(() => {});
-    return () => controller.abort();
-  }, [city, loadEvents, loadPeople]);
+    void loadPeople();
+    void loadEvents(city);
+    void loadBiz(city);
+    void loadCityEvents(city);
+    return () => { eventRequest.current?.abort(); bizRequest.current?.abort(); cityEventRequest.current?.abort(); };
+  }, [city, loadEvents, loadPeople, loadBiz, loadCityEvents]);
 
   // Заявка «ждём ответа» тоже показывается плашкой сверху (если нет подтверждённой).
   useEffect(() => {
@@ -344,6 +375,7 @@ function HomeScreen() {
         </Link>
       </div>
 
+      {cityError && <div className="note gl" role="alert">Не удалось определить город. <button className="btn s" onClick={loadCity}>Повторить загрузку города</button></div>}
       {/* Плашка с Мосей: новая заявка → «ты в деле» → кто свободен рядом. */}
       {req ? (
         <Link className="k-mos k-g k-pr" href={`/events/${req.latest.eventId}`} aria-label="Открыть новую заявку">
@@ -390,15 +422,16 @@ function HomeScreen() {
           </h3>
           <p>Планы людей рядом — присоединяйся</p>
         </div>
-        <Link className="k-all k-g k-pr" href="/search">
+        <Link className="k-all k-g k-pr" href={city ? `/search?city=${encodeURIComponent(city)}` : "/search"}>
           Все
         </Link>
       </div>
+      {eventsError && <div className="note gl" role="alert">Не удалось обновить личные встречи. <button className="btn s" onClick={() => city && loadEvents(city)}>Повторить загрузку встреч</button></div>}
       <div className="k-hs">
-        {events === null
+        {events === null && !eventsError
           ? [0, 1, 2].map((i) => <div key={i} className="k-hc k-sk" />)
           : pop.map((e) => <KHc key={e.id} e={e} />)}
-        {events !== null && pop.length === 0 && (
+        {events !== null && !eventsError && pop.length === 0 && (
           <Link href="/create" className="k-inv k-g k-pr">
             <i>+</i>Сегодня пока тихо — создай первую встречу
           </Link>
@@ -471,10 +504,11 @@ function HomeScreen() {
             </h3>
             <p>События кафе, баров и площадок</p>
           </div>
-          <Link className="k-all k-g k-pr" href="/business">
+          <Link className="k-all k-g k-pr" href={city ? `/business?city=${encodeURIComponent(city)}` : "/business"}>
             Все
           </Link>
         </div>
+        {(bizError || cityEvError) && <div className="note gl" role="alert">Не удалось обновить афишу. <button className="btn s" onClick={() => { if (city) { void loadBiz(city); void loadCityEvents(city); } }}>Повторить загрузку афиши</button></div>}
         <div className="k-hs">
           {bizSorted.map((e) => (
             <KHc key={e.id} e={e} />
@@ -529,6 +563,8 @@ function HomeScreen() {
             value={city ?? ""}
             cities={RUSSIAN_CITIES}
             onPick={(selected) => {
+              cityPicked.current = true;
+              setCityError(false);
               setCity(selected);
               setCityOpen(false);
               fetch("/api/me/profile", {
@@ -554,20 +590,21 @@ function CategoryScreen({ slug, type, city }: { slug: string; type: string | nul
   const [joinPhase, setJoinPhase] = useState<"confirm" | "sending" | "done" | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [loadingPages, setLoadingPages] = useState(true);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
     setEvents(null);
     setLoadError(false);
+    setLoadingPages(true);
     setTitle(SHORT[slug] ?? "Встречи");
     const q = new URLSearchParams({ category: slug, page: "0" });
     if (type) q.set("type", type);
     if (city) q.set("city", city);
-    fetch(`/api/events?${q}`, { signal: controller.signal })
-      .then((r) => { if (!r.ok) throw new Error("events_unavailable"); return r.json(); })
-      .then((d) => { if (!controller.signal.aborted) setEvents(d.items ?? []); })
-      .catch(() => { if (!controller.signal.aborted) { setLoadError(true); setEvents(null); } });
+    getAllItems<FeedEvent>(`/api/events?${q}`, controller.signal, items => { if (!controller.signal.aborted) setEvents(items); })
+      .catch(() => { if (!controller.signal.aborted) setLoadError(true); })
+      .finally(() => { if (!controller.signal.aborted) setLoadingPages(false); });
     if (type)
       fetch("/api/categories", { signal: controller.signal })
         .then((r) => r.json())
@@ -629,6 +666,7 @@ function CategoryScreen({ slug, type, city }: { slug: string; type: string | nul
           <button className="btn o" onClick={() => setAttempt(n => n + 1)}>Попробовать снова</button>
         </div>}
         {events === null && !loadError && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ height: 76 }} />)}
+        {events !== null && loadingPages && <p className="muted" role="status">Загружаем остальные события…</p>}
         {events?.map((e) => (
           <RowCard
             key={e.id}
@@ -640,7 +678,7 @@ function CategoryScreen({ slug, type, city }: { slug: string; type: string | nul
             }}
           />
         ))}
-        {events?.length === 0 && (
+        {!loadingPages && !loadError && events?.length === 0 && (
           <div className="empty">
             <EmptyIll />
             <b>Пока пусто</b>

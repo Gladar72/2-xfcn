@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { completeDueEvents } from "@/lib/reviews/complete-due-events";
 
 /**
  * GET /api/reviews/reviewable
@@ -10,16 +9,13 @@ import { completeDueEvents } from "@/lib/reviews/complete-due-events";
  * со списком остальных участников, которых ещё МОЖНО оценить (п.20 ТЗ:
  * "только реальные участники завершённой встречи могут оценивать друг друга").
  *
- * Сначала лениво запускаем перевод просроченных встреч в 'completed' —
- * раньше это происходило ТОЛЬКО через внешний n8n-таймер, и если он не
- * настроен, встречи никогда не завершались и отзыв нельзя было оставить.
+ * Завершение встреч выполняет серверный cron; этот GET только читает отзывы.
  */
 export async function GET() {
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const admin = createAdminClient();
-  await completeDueEvents(admin);
+  const admin = createAdminClient({ noStore: true });
 
   const { data: myMemberships } = await admin
     .from("event_members")

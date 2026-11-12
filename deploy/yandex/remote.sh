@@ -230,6 +230,7 @@ deploy() {
   cleanup
   sleep 5
   curl -fsS -o /dev/null -w "local app: %{http_code}\n" http://127.0.0.1:3000/ || true
+  eventvisibilitydiag || true
 }
 
 # Чистка Docker: старые образы и кэш сборки съедают диск (каждый деплой — +1–2 ГБ).
@@ -406,6 +407,19 @@ reauthnotify() {
 restoreevents() {
   update_code
   sudo docker exec -i supabase-db psql -U postgres -d postgres -P pager=off -v ON_ERROR_STOP=1 < "$APP/deploy/yandex/restore-events.sql"
+}
+
+# Aggregate visibility checks only: no names, titles, session tokens or user IDs.
+eventvisibilitydiag() {
+  log "event visibility counts (read only)"
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -tA -v ON_ERROR_STOP=1 -c "
+    select json_build_object('kind', case when is_business then 'business' else 'personal' end,
+      'status', status, 'count', count(*))
+    from events where event_date >= (now() at time zone 'Asia/Yekaterinburg')::date
+    group by is_business, status order by is_business, status;
+    select json_build_object('active_events_without_organizer_membership', count(*))
+    from events e where e.status in ('published','closed') and not exists
+      (select 1 from event_members m where m.event_id=e.id and m.user_id=e.organizer_id and m.role='organizer');"
 }
 
 # Диагностика встреч (только чтение): последние встречи в базе сервера и ошибки API при создании.

@@ -270,7 +270,7 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
 
   const body = await req.json().catch(() => null);
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
 
   const { data: event } = await admin
     .from("events")

@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
   const result = await completeDueEvents(admin);
   const businessResults = await sendDueEventResults(admin).catch((err) => {
     console.error("sendDueEventResults:", err);

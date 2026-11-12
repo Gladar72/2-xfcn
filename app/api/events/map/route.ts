@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
   const ageMax = searchParams.get("ageMax") ? Number(searchParams.get("ageMax")) : null;
 
   const currentUser = await getCurrentUser();
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
 
   // Автозавершение — теперь на Vercel Cron, см. пояснение в /api/events.
 
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 
   if (!city) return NextResponse.json({ error: "city_required" }, { status: 400 });
 
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const todayIso = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
 
   let query = admin
     .from("events")

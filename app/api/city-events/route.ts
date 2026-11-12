@@ -7,12 +7,16 @@ import { upcomingCityEvents } from "@/lib/city-events";
 export async function GET(req: NextRequest) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
   let city = req.nextUrl.searchParams.get("city");
   if (!city) {
     const { data: me } = await admin.from("users").select("city").eq("id", currentUser.userId).maybeSingle();
     city = (me?.city as string | undefined) ?? null;
   }
   if (!city) return NextResponse.json({ items: [] });
-  return NextResponse.json({ items: await upcomingCityEvents(admin, city) });
+  try {
+    return NextResponse.json({ items: await upcomingCityEvents(admin, city) });
+  } catch {
+    return NextResponse.json({ error: "fetch_failed" }, { status: 503 });
+  }
 }
