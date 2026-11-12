@@ -47,6 +47,7 @@ const MEETING_TYPES = new Set([
   "heart",
   "heart_mutual",
   "meet_hint",
+  "new_follower",
 ]);
 
 const TYPE_ICON: Record<string, string> = {
@@ -63,6 +64,7 @@ const TYPE_ICON: Record<string, string> = {
   heart: "/brand/mosya/mosya_wave.webp",
   heart_mutual: "/brand/mosya/mosya_jump.webp",
   meet_hint: "/brand/mosya/mosya_wave.webp",
+  new_follower: "/brand/mosya/mosya_wave.webp",
   new_message: "/brand/mosya/mosya_phone.webp",
 };
 
@@ -112,7 +114,7 @@ export default function NotificationsPage() {
   function handlePress(item: NotificationItem) {
     if (item.type === "heart") {
       router.push("/profile");
-    } else if ((item.type === "heart_mutual" || item.type === "meet_hint") && item.linkUserId) {
+    } else if ((item.type === "heart_mutual" || item.type === "meet_hint" || item.type === "new_follower") && item.linkUserId) {
       router.push(`/people/${item.linkUserId}`);
     } else if (item.type === "subscription_expiring" || item.type === "subscription_expired") {
       router.push("/subscriptions");

@@ -65,8 +65,27 @@ export async function POST(req: NextRequest) {
   if (!UUID.test(userId) || userId === me.userId) return NextResponse.json({ error: "bad_request" }, { status: 400 });
   const admin = createAdminClient();
   if (await isBlocked(admin, me.userId, userId)) return NextResponse.json({ error: "blocked" }, { status: 403 });
-  const { error } = await admin.from("follows").upsert({ follower_id: me.userId, organizer_id: userId }, { onConflict: "follower_id,organizer_id", ignoreDuplicates: true });
+  const { error, data: added } = await admin
+    .from("follows")
+    .upsert({ follower_id: me.userId, organizer_id: userId }, { onConflict: "follower_id,organizer_id", ignoreDuplicates: true })
+    .select("follower_id");
   if (error) return NextResponse.json({ error: "follow_failed" }, { status: 500 });
+  // В колокольчик: «… подписался на тебя». Не чаще раза в сутки от одного человека
+  // (чтобы «подписался–отписался–подписался» не засыпало уведомлениями).
+  if ((added?.length ?? 0) > 0) {
+    const since = new Date(Date.now() - 86400_000).toISOString();
+    const { data: recent } = await admin
+      .from("notifications")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("type", "new_follower")
+      .eq("payload->>fromUserId", me.userId)
+      .gte("created_at", since)
+      .limit(1);
+    if (!recent?.length) {
+      await admin.from("notifications").insert({ user_id: userId, type: "new_follower", payload: { fromUserId: me.userId } });
+    }
+  }
   const { count } = await admin.from("follows").select("follower_id", { count: "exact", head: true }).eq("organizer_id", userId);
   return NextResponse.json({ following: true, followers: count ?? 0 });
 }

@@ -26,6 +26,8 @@ export function buildNotificationText(type: string, eventTitle: string | undefin
       return `${who} поставил(а) тебе сердечко ❤️ Ответь или позови на встречу`;
     case "heart_mutual":
       return `Взаимное сердечко: ${who} 💜 Самое время позвать на встречу`;
+    case "new_follower":
+      return `${who} подписался(ась) на тебя 🔔 Подпишись в ответ — будете видеть встречи друг друга`;
     case "meet_hint":
       return `${who} намекает: хочет с тобой на встречу 👋`;
     case "boost_suggestion":
