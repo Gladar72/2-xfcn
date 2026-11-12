@@ -403,17 +403,17 @@
 .K .k-hc .k-fc::before{inset:-8px}
 
 /* Профиль: «Мои подписки». Карточки ровно в сетку, стрелка в углу — открывает список. */
-.K .k-subs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-.K .k-subc{position:relative;display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;padding:14px 14px 12px;border-radius:22px;text-align:left;color:var(--ink,#17141F)}
-.K .k-subc b{font-weight:300;font-size:30px;line-height:1.05;letter-spacing:-.8px}
-.K .k-subc small{font-size:12.5px;color:rgba(23,20,31,.55)}
-.K .k-subx{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:rgba(23,20,31,.06)}
-.K .k-subx svg{width:15px;height:15px}
-.K .k-ava{display:flex;align-items:center;height:30px;margin-top:8px}
-.K .k-ava img{width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid #fff;margin-left:-9px}
+.K .k-subs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.K .k-subc{position:relative;display:flex;flex-direction:column;align-items:flex-start;min-width:0;padding:14px 16px;border-radius:24px;text-align:left;color:var(--ink,#17141F)}
+.K .k-subc small{font-size:11px;line-height:1.3;letter-spacing:.66px;text-transform:uppercase;color:rgba(23,20,31,.38);padding-right:36px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.K .k-subc b{font-weight:400;font-size:28px;line-height:1.1;letter-spacing:-.6px;margin-top:4px}
+.K .k-subx{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:rgba(255,255,255,.7);box-shadow:inset 0 0 0 1px rgba(255,255,255,.95)}
+.K .k-subx svg{width:16px;height:16px}
+.K .k-ava{display:flex;align-items:center;height:30px;margin-top:10px}
+.K .k-ava img{width:30px;height:30px;border-radius:50%;object-fit:cover;border:2px solid #fff;margin-left:-8px;flex:none}
 .K .k-ava img:first-child{margin-left:0}
-.K .k-ava0{font-size:12px;color:rgba(23,20,31,.45)}
-.K .k-subn{margin:8px 4px 0;font-size:12.5px;line-height:1.35;color:rgba(23,20,31,.55)}
+.K .k-ava0{font-size:12.5px;color:rgba(23,20,31,.45)}
+.K .k-subn{margin:10px 2px 0;font-size:12.5px;line-height:1.35;color:rgba(23,20,31,.55)}
 .P .subs-sheet{top:max(96px,calc(var(--top,0px) + 56px));display:flex;flex-direction:column;gap:10px;overflow:hidden}
 .P .subs-sheet .seg{margin-top:0}
 .P .subs-sheet .subs-q{display:flex;align-items:center;gap:10px;height:46px;padding:0 16px;border-radius:23px;flex:none}

@@ -32,9 +32,11 @@ export function FollowsBlock() {
 
   const card = (tab: Tab, n: number, label: string, prev: { id: string; avatarUrl: string }[]) => (
     <button type="button" className="k-subc k-g k-pr" onClick={() => setOpen(tab)} aria-label={`${label}: ${n}. Открыть список`}>
-      <span className="k-subx" aria-hidden><KI n="chev" /></span>
-      <b>{n}</b>
+      <span className="k-subx" aria-hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 17L17 7M9 7h8v8" /></svg>
+      </span>
       <small>{label}</small>
+      <b>{n}</b>
       <span className="k-ava">
         {prev.length
           ? prev.map((p) => (
