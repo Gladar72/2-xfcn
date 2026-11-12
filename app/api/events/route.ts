@@ -128,7 +128,7 @@ export async function GET(req: NextRequest) {
         `
         id, title, description, city, latitude, longitude, place_name, address,
         event_date, event_time, event_end_time, seats_total, seats_taken, boosted_at, created_at, cost_type,
-        is_business, biz_category, has_chat, business_pricing_type, business_pricing_details, photo_url, is_anonymous,
+        is_business, biz_category, has_chat, business_pricing_type, business_pricing_details, photo_url, is_anonymous, fire_count,
         category:categories(slug, name, emoji),
         training_type:training_types(slug, name, emoji),
         organizer:users(id, name, avatar_url, birth_date, gender, rating_avg, completed_meetings_count, telegram_id)
@@ -368,6 +368,7 @@ export async function GET(req: NextRequest) {
       businessPricingDetails: _row.business_pricing_details,
       photoUrl: _row.photo_url,
       isAnonymous: !!_row.is_anonymous,
+      fireCount: Number((_row as { fire_count?: number }).fire_count ?? 0),
       isLive: liveIds.has(_row.id),
       // Сколько до места встречи от моей примерной точки. У анонимных место скрыто — не показываем.
       distanceM:

@@ -20,12 +20,15 @@ import { ShareSheet } from "@/components/proto/ShareSheet";
 import { storyMeta } from "@/lib/events/story-text";
 import { KI, bg } from "@/components/proto/k";
 import { goBack } from "@/lib/nav/back";
+import { FireIcon } from "@/components/proto/Fire";
 import { shareNudgeDue } from "@/lib/events/share-nudge";
 import { PromoDone, PromoteSheet, loadPromoInfo, type PromoStatus } from "@/components/promotions/Promote";
 import { promoClock } from "@/lib/promotions/config";
 
 interface EventDetails {
   id: string;
+  fireCount?: number;
+  myFire?: boolean;
   title: string;
   description: string | null;
   category: { slug: string; name: string; emoji: string | null } | null;
@@ -293,6 +296,27 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   }, [event?.viewerStatus, eventId]);
 
   const [shareOpen, setShareOpen] = useState(false);
+  // «Огонёк»: отметить, что событие классное (даже если не идёшь). Оптимистично, без ожидания сервера.
+  const [fire, setFire] = useState<{ count: number; mine: boolean; pop: boolean } | null>(null);
+  useEffect(() => {
+    if (event) setFire((f) => f ?? { count: event.fireCount ?? 0, mine: !!event.myFire, pop: false });
+  }, [event]);
+  const toggleFire = () => {
+    if (!fire) return;
+    const mine = !fire.mine;
+    try {
+      (window as unknown as { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (s: string) => void } } } }).Telegram?.WebApp?.HapticFeedback?.impactOccurred?.(mine ? "medium" : "light");
+    } catch {
+      /* нет вибро */
+    }
+    setFire({ count: Math.max(0, fire.count + (mine ? 1 : -1)), mine, pop: mine });
+    fetch(`/api/events/${eventId}/fire`, { method: mine ? "POST" : "DELETE" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { count?: number; fired?: boolean } | null) => {
+        if (d && typeof d.count === "number") setFire((f) => (f ? { ...f, count: d.count!, mine: !!d.fired } : f));
+      })
+      .catch(() => {});
+  };
   // Кнопка «Сторис» в напоминании бота открывает событие с ?share=1 — сразу показываем «Поделиться».
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("share") === "1") setShareOpen(true);
@@ -926,6 +950,17 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         <button className="k-rb k-gw k-pr" onClick={() => setShareOpen(true)} aria-label="Поделиться">
           <KI n="share" />
         </button>
+        {fire && (
+          <button
+            className={`k-fire k-pr${fire.mine ? " on" : ""}${fire.pop ? " pop" : ""}`}
+            onClick={toggleFire}
+            aria-pressed={fire.mine}
+            aria-label={fire.mine ? "Убрать огонёк" : "Поставить огонёк"}
+          >
+            <FireIcon size={24} off={!fire.mine} />
+            {fire.count > 0 ? fire.count : null}
+          </button>
+        )}
         <div className="k-ctab">{ctaBtn}</div>
       </div></>}
 

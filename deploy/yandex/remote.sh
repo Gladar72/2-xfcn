@@ -216,6 +216,9 @@ deploy() {
   log "build & start app"
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
     < "$APP/supabase/migrations/0081_support_reply_delivery.sql"
+  # «Огонёк» на событиях (идемпотентно; нужен новой версии API).
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
+    < "$APP/supabase/migrations/0082_event_fires.sql"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
   cleanup

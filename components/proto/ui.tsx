@@ -133,6 +133,8 @@ export function dayLong(dateIso: string) {
 
 export interface HeroEvent {
   id: string;
+  /** «Огонёк»: сколько людей отметили событие. */
+  fireCount?: number;
   title: string;
   eventDate: string;
   eventTime: string;

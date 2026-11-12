@@ -5,6 +5,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { K_ICONS } from "@/components/proto/k-icons";
 import { photoThumb } from "@/lib/photos/thumb";
 import { dayShort, costShort, type HeroEvent } from "@/components/proto/ui";
+import { FireIcon } from "@/components/proto/Fire";
 
 /**
  * Элементы экранов брендбука 2026 (классы k-* из app/k26.css, сгенерированного
@@ -116,6 +117,12 @@ export function KHc({ e, cta, tag }: { e: HeroEvent & { myApplicationStatus?: st
   return (
     <Link href={`/events/${e.id}`} className="k-hc k-pr" style={bg(e.photoUrl, 600)}>
       <span className="k-chip k-gw k-tg">{tag ?? defTag}</span>
+      {e.fireCount ? (
+        <span className="k-fc" aria-label={`Огоньков: ${e.fireCount}`}>
+          <FireIcon size={15} />
+          {e.fireCount}
+        </span>
+      ) : null}
       <span className="k-bt">
         <span className="k-tt">
           <TwoLine text={e.title} />
