@@ -54,7 +54,7 @@ export function CardStory(d: CardStoryData) {
           width: W,
           height: H,
           display: "flex",
-          backgroundImage: "linear-gradient(180deg, rgba(23,20,31,0.62) 0%, rgba(23,20,31,0.12) 24%, rgba(23,20,31,0.08) 40%, rgba(23,20,31,0.7) 62%, rgba(23,20,31,0.94) 84%, rgba(23,20,31,0.97) 100%)",
+          backgroundImage: "linear-gradient(180deg, rgba(23,20,31,0.62) 0%, rgba(23,20,31,0.12) 24%, rgba(23,20,31,0.06) 38%, rgba(23,20,31,0.84) 60%, rgba(23,20,31,0.96) 76%, rgba(23,20,31,0.98) 100%)",
         }}
       />
 

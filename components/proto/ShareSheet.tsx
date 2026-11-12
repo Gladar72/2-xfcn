@@ -93,7 +93,7 @@ export function ShareSheet({
     return () => { session.current = current + 1; };
   }, [open, eventId]);
   // Change the image URL after a layout or event edit so old CDN images expire.
-  const v = hashKey(`s8|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
+  const v = hashKey(`s9|${version}|${title}|${when}|${description ?? ""}|${chip ?? ""}|${meta ?? ""}`);
   const storyUrl = `${origin}/api/events/${eventId}/story.png?v=${v}`;
   const igUrl = `${storyUrl}&ig=1`;
   // Картинку для сторис рисуем заранее, пока человек смотрит событие: к нажатию
