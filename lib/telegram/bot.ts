@@ -685,7 +685,7 @@ export function getBot(): Bot {
   // (см. app/api/conversations/direct/route.ts).
   bot.callbackQuery(/^inv:(y|n):([0-9a-f-]{36})$/, async (ctx) => {
     const match = ctx.match as RegExpMatchArray;
-    const result = await respondToInvite(createAdminClient(), {
+    const result = await respondToInvite(createAdminClient({ noStore: true }), {
       inviteId: match[2] ?? "",
       answer: match[1] === "y" ? "accept" : "decline",
       telegramId: ctx.from.id,
@@ -698,6 +698,7 @@ export function getBot(): Bot {
       result.ok && result.status === "accepted" && appUrl
         ? new InlineKeyboard().webApp("Открыть встречу", `${appUrl}?goto=event_${result.eventId}`)
         : undefined;
+    if (keyboard && result.ok && result.conversationId && appUrl) keyboard.row().webApp("Обсудить в чате", `${appUrl}?goto=chat_${result.conversationId}`);
     const sourceMessage = ctx.callbackQuery.message;
     const originalText = sourceMessage && "text" in sourceMessage ? sourceMessage.text ?? "" : "";
     await ctx

@@ -15,7 +15,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   const action = body?.action;
   if (action !== "accept" && action !== "decline") return NextResponse.json({ error: "invalid_action" }, { status: 400 });
 
-  const result = await respondToInvite(createAdminClient(), { inviteId: params.id, answer: action, userId: currentUser.userId });
+  const result = await respondToInvite(createAdminClient({ noStore: true }), { inviteId: params.id, answer: action, userId: currentUser.userId });
   if (!result.ok) return NextResponse.json({ error: result.error, message: result.text }, { status: 422 });
-  return NextResponse.json({ status: result.status, message: result.text });
+  return NextResponse.json({ status: result.status, message: result.text, conversationId: result.conversationId });
 }

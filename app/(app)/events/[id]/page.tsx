@@ -72,6 +72,7 @@ interface EventDetails {
   viewerStatus: "organizer" | "accepted" | "pending" | "rejected" | "none";
   /** Приглашение от организатора (для гостя). */
   myInvite?: { id: string; status: "pending" | "accepted" | "declined"; message: string | null } | null;
+  companionInvites?: { id: string; message: string | null; inviter: { id: string; name: string } }[];
   /** Кого позвал организатор (только для организатора). */
   invites?: { id: string; status: "pending" | "accepted" | "declined"; user: { id: string; name: string; avatarUrl: string | null } }[];
 }
@@ -327,16 +328,19 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const [anonOpen, setAnonOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [answering, setAnswering] = useState(false);
-  async function answerInvite(action: "accept" | "decline") {
-    if (!event?.myInvite) return;
+  const [companionChat, setCompanionChat] = useState<string | null>(null);
+  async function answerInvite(action: "accept" | "decline", companionId?: string) {
+    const invitationId = companionId ?? event?.myInvite?.id;
+    if (!invitationId || answering) return;
     setAnswering(true);
     try {
-      const res = await fetch(`/api/invites/${event.myInvite.id}`, {
+      const res = await fetch(`/api/invites/${invitationId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
       });
       const d = await res.json().catch(() => ({}));
+      if (res.ok && companionId && action === "accept" && d.conversationId) setCompanionChat(d.conversationId);
       flash(d.message ?? (res.ok ? "Готово" : "Не получилось — попробуй ещё раз"));
       const fresh = await fetch(`/api/events/${eventId}`).then((r) => r.json()).catch(() => null);
       if (fresh && !fresh.error) setEvent(fresh);
@@ -772,6 +776,23 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               </>
             )}
           </div>
+
+          {companionChat && <div className="evnote gl" style={{ display: "grid", gap: 10 }}>
+            <b>Вы договорились пойти вместе</b>
+            <span className="muted">Запись на событие и билеты оформляются отдельно.</span>
+            <Link className="btn v" href={`/chats/${companionChat}`}>Обсудить в чате</Link>
+          </div>}
+          {active && event.companionInvites?.map(invitation => (
+            <div key={invitation.id} className="evnote gl" style={{ display: "grid", gap: 10 }}>
+              <b style={{ fontWeight: 500, color: "var(--violet)" }}>{invitation.inviter.name} предлагает пойти вместе</b>
+              {invitation.message && <span>«{invitation.message}»</span>}
+              <span className="muted" style={{ fontSize: 13 }}>Запись на событие и билеты оформляются отдельно. Договориться о встрече можно в личном чате.</span>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn v" disabled={answering} onClick={() => answerInvite("accept", invitation.id)}>Пойдём вместе</button>
+                <button className="btn s" disabled={answering} onClick={() => answerInvite("decline", invitation.id)}>Не смогу</button>
+              </div>
+            </div>
+          ))}
 
           {invitePending && (
             <div className="evnote gl" style={{ display: "grid", gap: 6 }}>

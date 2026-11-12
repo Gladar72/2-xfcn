@@ -1,15 +1,19 @@
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser, shortTitle } from "@/lib/notify/user";
 
+import { invitationBlocked } from "@/lib/invites/access";
+import { findDirectConversation } from "@/lib/chat/can-direct";
+import { eventTiming } from "@/lib/events/timing";
+
 type Admin = ReturnType<typeof createAdminClient>;
 
 export type InviteAnswer = "accept" | "decline";
 
 export type RespondResult =
-  | { ok: true; status: "accepted" | "declined"; eventId: string; text: string }
+  | { ok: true; status: "accepted" | "declined"; eventId: string; text: string; conversationId?: string }
   | { ok: false; error: string; text: string };
 
-/** Сколько приглашений организатор может отправить за сутки. */
+/** Сколько приглашений человек может отправить за сутки. */
 export const INVITES_PER_DAY = 5;
 
 /**
@@ -44,10 +48,43 @@ export async function respondToInvite(
 
   const { data: event } = await admin
     .from("events")
-    .select("id, title, organizer_id, status, has_chat, seats_total, seats_taken")
+    .select("id, title, organizer_id, status, has_chat, seats_total, seats_taken, event_date, event_time, event_end_time, city, longitude")
     .eq("id", invite.event_id)
     .maybeSingle();
   if (!event) return { ok: false, error: "event_not_found", text: "Встреча не найдена" };
+
+  if (await invitationBlocked(admin, invite.inviter_id, invite.invitee_id)) {
+    return { ok: false, error: "blocked", text: "Приглашение недоступно" };
+  }
+
+  // A companion can agree to go together, but only the host may grant a seat.
+  // No application, ticket, event membership or event chat is changed here.
+  if (invite.inviter_id !== event.organizer_id) {
+    if (params.answer === "accept" && (!["published", "closed"].includes(event.status) || eventTiming(event).end <= new Date())) {
+      return { ok: false, error: "event_unavailable", text: "Событие уже недоступно" };
+    }
+    const status = params.answer === "accept" ? "accepted" : "declined";
+    const { data: updated, error } = await admin.from("event_invites")
+      .update({ status, responded_at: new Date().toISOString() })
+      .eq("id", invite.id).eq("status", "pending").select("id").maybeSingle();
+    if (error) return { ok: false, error: "update_failed", text: "Не получилось сохранить ответ. Попробуй ещё раз" };
+    if (!updated) return { ok: false, error: "already_answered", text: "Ответ на это приглашение уже сохранён" };
+    const conversationId = await findDirectConversation(admin, invite.inviter_id, invite.invitee_id);
+    const { data: inviter } = await admin.from("users").select("telegram_id").eq("id", invite.inviter_id).maybeSingle();
+    const name = invitee?.name?.trim() || "Человек";
+    const accepted = status === "accepted";
+    const body = accepted ? `${name} согласился пойти с тобой на «${shortTitle(event.title)}». Обсудите детали в чате` : `${name} не сможет пойти с тобой на «${shortTitle(event.title)}»`;
+    await notifyUser(admin, invite.inviter_id, {
+      title: accepted ? "Пойдёте вместе 🎉" : "Ответ на приглашение",
+      body,
+      url: conversationId ? `/chat/${conversationId}` : `/event/${event.id}`,
+      data: { type: accepted ? "invite_accepted" : "invite_declined", eventId: event.id, ...(conversationId ? { conversationId } : {}) },
+      telegramText: body,
+      telegramId: inviter?.telegram_id ?? null,
+    });
+    return { ok: true, status, eventId: event.id, ...(conversationId ? { conversationId } : {}),
+      text: accepted ? "Договорились пойти вместе! Запись на событие и билеты оформляются отдельно. Детали можно обсудить в личном чате." : "Ответ передан тому, кто тебя пригласил." };
+  }
 
   const { data: organizer } = await admin.from("users").select("telegram_id").eq("id", event.organizer_id).maybeSingle();
   const name = invitee?.name?.trim() || "Человек";

@@ -22,7 +22,7 @@ import { anonAlias, anonGender, anonymousOrganizerName, canSeeAnonymousDetails, 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const { id: eventId } = params;
   const currentUser = await getCurrentUser();
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
 
   const { data: event, error } = await admin
     .from("events")
@@ -90,6 +90,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       .from("event_invites")
       .select("id, status, invitee:users!event_invites_invitee_id_fkey(id, name, avatar_url)")
       .eq("event_id", eventId)
+      .eq("inviter_id", event.organizer_id)
       .order("created_at", { ascending: false });
     invites = (rows ?? []).map((r) => {
       const u = r.invitee as unknown as { id: string; name: string; avatar_url: string | null };
@@ -100,9 +101,24 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
       .from("event_invites")
       .select("id, status, message")
       .eq("event_id", eventId)
+      .eq("inviter_id", event.organizer_id)
       .eq("invitee_id", currentUser.userId)
       .maybeSingle();
     if (row) myInvite = { id: row.id as string, status: row.status as string, message: (row.message as string | null) ?? null };
+  }
+
+  // Peer invitations are separate from host invitations (including for older clients).
+  let companionInvites: { id: string; message: string | null; inviter: { id: string; name: string } }[] = [];
+  if (currentUser) {
+    const { data: rows } = await admin.from("event_invites")
+      .select("id, message, inviter:users!event_invites_inviter_id_fkey(id, name)")
+      .eq("event_id", eventId).eq("invitee_id", currentUser.userId)
+      .neq("inviter_id", event.organizer_id).eq("status", "pending")
+      .order("created_at", { ascending: false }).limit(20);
+    companionInvites = (rows ?? []).flatMap(row => {
+      const inviter = row.inviter as unknown as { id: string; name: string } | null;
+      return inviter ? [{ id: row.id, message: row.message, inviter }] : [];
+    });
   }
 
   // Напоминание за 2 часа «Идёшь?» — чтобы приложение могло показать
@@ -220,6 +236,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     participants,
     viewerStatus,
     myInvite,
+    companionInvites,
     myRsvp,
     invites,
     myApplicationId: viewerStatus === "pending" ? myApplicationId : null,

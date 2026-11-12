@@ -13,7 +13,8 @@ import { goBack } from "@/lib/nav/back";
 import { PresenceLabel } from "@/components/people/PresenceLabel";
 import { PersonPhoto } from "@/components/people/PersonPhoto";
 import { distanceLabel, personDistanceLabel } from "@/lib/geo/approx-distance";
-import { suggestMeet } from "@/lib/mosya/suggest";
+import { InviteEventPicker } from "@/components/people/InviteEventPicker";
+import { ownsInviteEvent, type InviteEvent } from "@/lib/invites/events";
 
 /** Разлёт маленьких сердечек при «сердечке» (фиксированный — одинаково каждый раз). */
 const BURST = [
@@ -55,16 +56,6 @@ export interface Person {
   /** "female" | "male" — для «поставил/поставила» на экране взаимности. */
   gender?: string | null;
 }
-interface MyEvent {
-  id: string;
-  title: string;
-  eventDate: string;
-  eventTime: string;
-  role: "organizer" | "participant";
-  category: { slug: string } | null;
-  photoUrl: string | null;
-}
-
 /** Режим колоды «Люди рядом»: свайп в любую сторону — следующий человек. */
 export interface DeckCtl {
   onSwipe: (dir: 1 | -1) => void;
@@ -89,7 +80,6 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
   const [person, setPerson] = useState<Person | null>(initial ?? null);
   const [error, setError] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [myEvents, setMyEvents] = useState<MyEvent[] | null>(null);
   const [busy, setBusy] = useState(false);
   const directRequest = useRef<AbortController | null>(null);
   useEffect(() => () => directRequest.current?.abort(), []);
@@ -133,7 +123,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
   const bodyRef = useRef<HTMLDivElement>(null);
   const [moreOpen, setMoreOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [pick, setPick] = useState<string | null>(null);
+  const [pick, setPick] = useState<InviteEvent | null>(null);
   const [inviteNote, setInviteNote] = useState("");
   // «Сердечко»: поставил ли я, взаимно ли; вспышка сердца и экран «Это взаимно!».
   const [liked, setLiked] = useState(false);
@@ -370,7 +360,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
           already_invited: `${person.name} уже приглашён на эту встречу — позвать можно один раз`,
           already_member: `${person.name} уже идёт на эту встречу`,
           invite_limit: `За сутки можно позвать не больше ${d.limit ?? 5} человек. Попробуй завтра`,
-          not_your_event: "Позвать можно только на свою встречу",
+          blocked: "Приглашение недоступно",
           no_shared_event: NO_MEET_TEXT,
         };
         say(INVITE_ERR[d.error as string] ?? "Не получилось — попробуй ещё раз");
@@ -380,7 +370,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
         setInviteOpen(false);
         setPick(null);
         setInviteNote("");
-        peek({ pose: "jump", text: `Позвал! ${person.name} получит приглашение в Telegram`, quick: true, low: true });
+        peek({ pose: "jump", text: `Приглашение для ${person.name} отправлено`, quick: true, low: true });
       } else router.push(`/chats/${d.conversationId}`);
     } catch {
       if (!controller.signal.aborted) say("Не получилось открыть чат — попробуй ещё раз");
@@ -393,15 +383,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
   function openInvite() {
     if (pending) return;
     setInviteOpen(true);
-    if (myEvents === null)
-      fetch("/api/me/events?scope=upcoming")
-        .then((r) => r.json())
-        .then((d) => {
-          const list = (d.items ?? []) as MyEvent[];
-          setMyEvents(list);
-          setPick(list[0]?.id ?? null);
-        })
-        .catch(() => setMyEvents([]));
+
   }
 
   // /people/<id>?invite=1 — пришли из карточки «Хочет на встречу»: сразу открываем «Позвать».
@@ -785,57 +767,8 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
         }}
       />
 
-      <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)}>
-        <h2 className="t">
-          Позвать <em>{person.name}</em>
-        </h2>
-        {suggestMeet(person.interests, common) && (
-          <>
-            <p className="muted" style={{ margin: "-6px 0 0", fontSize: 14 }}>
-              Мося советует по интересам
-            </p>
-            <div style={{ display: "grid", gap: 10, marginTop: 4 }}>
-          {suggestMeet(person.interests, common)?.ideas.map((idea) => (
-            <button
-              key={idea.title}
-              className="opt gl idea"
-              onClick={() =>
-                router.push(
-                  `/create?category=${idea.category}${idea.type ? `&type=${idea.type}` : ""}&invite=${person.id}&inviteName=${encodeURIComponent(person.name)}`
-                )
-              }
-            >
-              <span className="idea-ic">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={idea.icon} alt="" />
-              </span>
-              <div className="d">
-                <b>{idea.title}</b>
-                <span>{idea.common ? "ваш общий интерес" : `любит: ${idea.interest.toLowerCase()}`} · создать и позвать</span>
-              </div>
-              <span className="mosya-tag">Совет Моси</span>
-            </button>
-          ))}
-            </div>
-          </>
-        )}
-        <p className="muted" style={{ margin: "4px 0 0", fontSize: 14 }}>
-          {myEvents?.length ? "Или позови на свою встречу" : "У тебя пока нет ближайших встреч"}
-        </p>
-        <div style={{ display: "grid", gap: 8 }}>
-          {myEvents === null && <div className="sk" style={{ height: 70 }} />}
-          {myEvents?.map((e) => (
-            <button key={e.id} className={`opt gl ${pick === e.id ? "on" : ""}`} onClick={() => setPick(e.id)}>
-              <Cover photoUrl={e.photoUrl} icon={eventIcon(e)} cls="ivth" thumb={100} />
-              <div className="d">
-                <b>{e.title}</b>
-                <span>
-                  {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}
-                </span>
-              </div>
-              <span className="radio" />
-            </button>
-          ))}
+      <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)} cls="invite-sheet" label="Приглашение на встречу">
+        <h2 className="t">Куда пойдём?</h2>
           <button
             className="opt gl"
             onClick={() => router.push(`/create?invite=${person.id}&inviteName=${encodeURIComponent(person.name)}`)}
@@ -844,12 +777,12 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
               <Ic n="plus" />
             </span>
             <div className="d">
-              <b>Новая встреча</b>
+              <b>Создать свою встречу</b>
               <span>создать — приглашение уйдёт само</span>
             </div>
           </button>
-        </div>
-        {(myEvents?.length ?? 0) > 0 && (
+        {inviteOpen && <InviteEventPicker value={pick} onSelect={setPick} />}
+        {pick && (
           <label className="field gl ta">
             <textarea
               rows={2}
@@ -860,16 +793,19 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
             />
           </label>
         )}
+        {pick && !ownsInviteEvent(pick) && <p className="muted" style={{ margin: 0, fontSize: 13 }}>Предложишь пойти вместе. Запись на событие и билеты оформляются отдельно.</p>}
         <p className="muted" style={{ margin: 0, fontSize: 12.5 }}>
           Одного человека на встречу можно позвать один раз, всего — до 5 приглашений в сутки.
         </p>
         <p className="safe">
           <Ic n="shield" c="xs" />
-          Для безопасности первая встреча — в людном месте. Написать лично можно после общей встречи.
+          Для безопасности выбирай людное место. Детали приглашения можно обсудить в чате.
         </p>
-        <button className="btn v" disabled={!pick || busy} onClick={() => pick && openDirect(pick)}>
-          {busy ? "Отправляем…" : "Отправить приглашение"}
-        </button>
+        <div className="invite-send">
+          <button className="btn v" disabled={!pick || busy} onClick={() => pick && openDirect(pick.id)}>
+            {busy ? "Отправляем…" : "Отправить приглашение"}
+          </button>
+        </div>
       </Sheet>
 
       <Sheet open={moreOpen} onClose={() => setMoreOpen(false)}>

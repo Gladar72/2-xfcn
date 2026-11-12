@@ -219,6 +219,9 @@ deploy() {
   # «Огонёк» на событиях (идемпотентно; нужен новой версии API).
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
     < "$APP/supabase/migrations/0082_event_fires.sql"
+  # Приглашения пойти вместе на любое событие.
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
+    < "$APP/supabase/migrations/0083_companion_invites.sql"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
   cleanup
