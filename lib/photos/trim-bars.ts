@@ -43,7 +43,36 @@ function edges(px: Uint8Array, w: number, h: number) {
   // Мелочь (1–2 % — тонкая рамка) не трогаем; если «поле» больше половины — это не поле, а тёмное фото.
   const keepV = top + bottom >= h * 0.03 && h - top - bottom >= h * 0.5;
   const keepH = left + right >= w * 0.03 && w - left - right >= w * 0.5;
-  return { top: keepV ? top : 0, bottom: keepV ? bottom : 0, left: keepH ? left : 0, right: keepH ? right : 0 };
+  let t = keepV ? top : 0;
+  let b = keepV ? bottom : 0;
+  // Волосок по самому краю (1–3 строки однотонного серого/чёрного — след от полей или рамки):
+  // на скруглённой карточке он виден как полоска. Срезаем, если он заметно отличается от картинки под ним.
+  const rowStat = (y: number) => {
+    let s = 0;
+    let s2 = 0;
+    for (let x = 0; x < w; x++) {
+      const v = px[y * w + x]!;
+      s += v;
+      s2 += v * v;
+    }
+    const m = s / w;
+    return { m, sd: Math.sqrt(Math.max(0, s2 / w - m * m)) };
+  };
+  const hair = (from: number, dir: 1 | -1) => {
+    const ref = rowStat(from + dir * 4).m;
+    let k = 0;
+    while (k < 3) {
+      const r = rowStat(from + dir * k);
+      if (r.sd < 8 && Math.abs(r.m - ref) > 25) k++;
+      else break;
+    }
+    return k;
+  };
+  if (h - t - b > 20) {
+    t += hair(t, 1);
+    b += hair(h - 1 - b, -1);
+  }
+  return { top: t, bottom: b, left: keepH ? left : 0, right: keepH ? right : 0 };
 }
 
 export async function trimBlackBars(buffer: Buffer): Promise<{ buffer: Buffer; mimeType: string } | null> {
