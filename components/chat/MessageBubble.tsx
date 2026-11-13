@@ -63,6 +63,8 @@ interface MessageBubbleProps {
   onOwnPress?: () => void;
   /** Нажатие / долгое нажатие на сообщение — меню (реакции, ответить, изменить…). */
   onMenu?: () => void;
+  /** Swipe left to quote this message in the composer. */
+  onReply?: () => void;
   /** Нажатие на реакцию под сообщением — поставить/снять такую же. */
   onReact?: (emoji: string) => void;
   /** Имя автора цитируемого сообщения. */
@@ -77,15 +79,24 @@ interface MessageBubbleProps {
 }
 
 /** Сообщение (.m/.bb прототипа): свои — градиент справа, чужие — стекло слева с аватаром. */
-export function MessageBubble({ message, isOwn, sender, showSender, onSenderPress, readStatus, readCaption, onOwnPress, onMenu, onReact, replyName, onReplyPress, onRetry, highlighted, animate = true }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, sender, showSender, onSenderPress, readStatus, readCaption, onOwnPress, onMenu, onReply, onReact, replyName, onReplyPress, onRetry, highlighted, animate = true }: MessageBubbleProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const inviteId = parseInvite(message.content);
   const sticker = message.deleted ? null : parseSticker(message.content);
   const hasImage = !!message.imageUrl;
   const reactions = message.reactions ?? [];
   // Долгое нажатие (как в Telegram) — меню; короткое тоже открывает меню, если не прокрутка.
-  const press = useRef<{ t: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean; active: boolean }>({ t: null, x: 0, y: 0, fired: false, active: false });
+  const press = useRef<{ t: ReturnType<typeof setTimeout> | null; x: number; y: number; fired: boolean; active: boolean; nested: boolean; axis: "pending" | "vertical" | "reply"; distance: number }>({ t: null, x: 0, y: 0, fired: false, active: false, nested: false, axis: "pending", distance: 0 });
   const openMenu = onMenu && !message.deleted && !message.pending && !message.failed ? onMenu : undefined;
+  const reply = onReply && !message.deleted && !message.pending && !message.failed ? onReply : undefined;
+  function resetSwipe(bubble: HTMLElement) {
+    bubble.style.removeProperty("transition");
+    bubble.style.removeProperty("transform");
+    bubble.style.removeProperty("--reply-progress");
+    bubble.classList.remove("reply-dragging", "reply-ready");
+    press.current.axis = "pending";
+    press.current.distance = 0;
+  }
   useEffect(() => {
     const gesture = press.current;
     return () => { if (gesture.t) clearTimeout(gesture.t); };
@@ -104,7 +115,13 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
             </span>
           ))}
         <div
-          className={clsx("bb", hasImage && "img", sticker && "stk", highlighted && "hl")}
+          className={clsx("bb", hasImage && "img", sticker && "stk", highlighted && "hl", reply && "replyable")}
+          onClickCapture={(e) => {
+            if (!press.current.fired) return;
+            press.current.fired = false;
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           onClick={() => {
             if (press.current.fired) { press.current.fired = false; return; }
             if (openMenu) openMenu();
@@ -120,7 +137,11 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
             // Reactions, quotes and photos own their taps; holding them must
             // not also open the parent message's menu.
             press.current.active = false;
-            if ((e.target as HTMLElement).closest("button, a")) return;
+            if (press.current.t) clearTimeout(press.current.t);
+            press.current.t = null;
+            resetSwipe(e.currentTarget);
+            if (e.touches.length !== 1) { press.current.fired = true; return; }
+            press.current.nested = !!(e.target as HTMLElement).closest("button, a");
             const t = e.touches[0];
             if (!t) return;
             press.current.active = true;
@@ -128,9 +149,10 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
             press.current.x = t.clientX;
             press.current.y = t.clientY;
             if (press.current.t) clearTimeout(press.current.t);
-            if (openMenu)
+            if (openMenu && !press.current.nested)
               press.current.t = setTimeout(() => {
                 press.current.fired = true;
+                press.current.axis = "vertical";
                 try {
                   (window as unknown as { Telegram?: { WebApp?: { HapticFeedback?: { impactOccurred?: (s: string) => void } } } }).Telegram?.WebApp?.HapticFeedback?.impactOccurred?.("medium");
                 } catch {}
@@ -139,11 +161,33 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
           }}
           onTouchMove={(e) => {
             const t = e.touches[0];
-            if (!t) return;
-            if (Math.abs(t.clientX - press.current.x) + Math.abs(t.clientY - press.current.y) > 10) {
+            if (!t || !press.current.active) return;
+            if (e.touches.length !== 1) {
+              if (press.current.t) clearTimeout(press.current.t);
+              press.current.active = false;
+              press.current.fired = true;
+              resetSwipe(e.currentTarget);
+              return;
+            }
+            const dx = t.clientX - press.current.x;
+            const dy = t.clientY - press.current.y;
+            if (Math.abs(dx) + Math.abs(dy) > 10) {
               if (press.current.t) clearTimeout(press.current.t);
               press.current.t = null;
               press.current.fired = true; // A swipe must not also open the menu.
+              if (press.current.axis === "pending") {
+                press.current.axis = reply && dx < -10 && -dx > Math.abs(dy) * 1.4 ? "reply" : "vertical";
+              }
+              if (press.current.axis === "reply") {
+                const distance = Math.max(0, -dx);
+                press.current.distance = distance;
+                const offset = Math.min(distance, 64) + Math.min(20, Math.max(0, distance - 64) * 0.2);
+                e.currentTarget.style.transition = "none";
+                e.currentTarget.style.transform = `translateX(${-offset}px)`;
+                e.currentTarget.style.setProperty("--reply-progress", String(Math.min(1, distance / 64)));
+                e.currentTarget.classList.add("reply-dragging");
+                e.currentTarget.classList.toggle("reply-ready", distance >= 64);
+              }
             }
           }}
           onTouchEnd={(e) => {
@@ -151,7 +195,15 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
             press.current.t = null;
             if (!press.current.active) return;
             press.current.active = false;
+            const shouldReply = press.current.axis === "reply" && press.current.distance >= 64;
+            resetSwipe(e.currentTarget);
+            if (shouldReply && reply) {
+              press.current.fired = true;
+              reply();
+              return;
+            }
             if (press.current.fired) return;
+            if (press.current.nested) return;
             // Safari can consume the synthetic click while dismissing the
             // keyboard. Complete a genuine tap here; the later click is ignored.
             if (openMenu || (isOwn && onOwnPress && !message.uploading)) {
@@ -161,15 +213,17 @@ export function MessageBubble({ message, isOwn, sender, showSender, onSenderPres
               else onOwnPress?.();
             }
           }}
-          onTouchCancel={() => {
+          onTouchCancel={(e) => {
             // Safari cancels the touch when its native scroller takes over.
             if (press.current.t) clearTimeout(press.current.t);
             press.current.t = null;
             press.current.active = false;
             press.current.fired = true;
+            resetSwipe(e.currentTarget);
           }}
           style={openMenu || (isOwn && onOwnPress) ? { cursor: "pointer" } : undefined}
         >
+          {reply && <span className="chat-reply-cue" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 5-6 6 6 6M3 11h11a7 7 0 0 1 7 7" /></svg></span>}
           {!isOwn && showSender && sender && <small>{sender.name}</small>}
           {message.replyTo && !message.deleted && (
             <button

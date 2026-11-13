@@ -11,7 +11,7 @@ const message = (n: number) => ({
   createdAt: new Date(START + n * 60_000).toISOString(), reactions: [],
 });
 
-async function openChat(page: Page, options: { older?: boolean; failOlder?: boolean; empty?: boolean; messages?: MessageData[] } = {}) {
+async function openChat(page: Page, options: { older?: boolean; failOlder?: boolean; empty?: boolean; event?: boolean; messages?: MessageData[] } = {}) {
   const sockets = new Map<WebSocketRoute, string>();
   let historyRequests = 0;
   let readWrites = 0;
@@ -58,6 +58,7 @@ async function openChat(page: Page, options: { older?: boolean; failOlder?: bool
         data = { messages: Array.from({ length: 50 }, (_, i) => message(i)), hasMore: false };
       } else data = {
         messages: initial, hasMore: !!options.older,
+        ...(options.event ? { eventTitle: "Совместная тренировка", eventId: "training", eventDate: "2026-11-20", eventTime: "18:00:00", eventPlace: "Арена", eventAddress: "Центральная, 1" } : {}),
         members: [{ id: "other", name: "Алексей", avatarUrl: null, lastReadAt: null }],
       };
     } else if (url.pathname.endsWith("/reactions") && request.method() === "POST") {
@@ -69,7 +70,7 @@ async function openChat(page: Page, options: { older?: boolean; failOlder?: bool
   });
   await page.goto("/chats/test-chat");
   if (initial.length) await expect(page.locator(`#m-${initial[initial.length - 1]!.id}`)).toBeVisible();
-  else await expect(page.getByText("Начни с приветствия или сразу позови на встречу")).toBeVisible();
+  else await expect(page.getByText(options.event ? "Напиши первым — поздоровайся с компанией" : "Начни с приветствия или сразу позови на встречу")).toBeVisible();
   await expect.poll(() => sockets.size).toBeGreaterThan(0);
   return {
     releaseHistory,
@@ -295,6 +296,18 @@ test("native touch gestures scroll both ways immediately after opening", async (
   await expect(page.locator(".mpop")).toHaveCount(0);
 });
 
+test("a history scroll during a content resize is not pulled back to the latest message", async ({ page }) => {
+  await openChat(page);
+  await page.locator(".msgs").evaluate(list => {
+    const content = list.querySelector<HTMLElement>(".msgsin")!;
+    content.style.paddingBottom = "80px";
+    list.scrollTop = 1000;
+    list.dispatchEvent(new Event("scroll"));
+  });
+  await expect.poll(() => page.locator(".msgs").evaluate(el => el.scrollTop)).toBeCloseTo(1000, 0);
+  await expect(page.getByRole("button", { name: "К последним сообщениям" })).toBeVisible();
+});
+
 test("incoming messages preserve reading position and the down button clears the counter", async ({ page }) => {
   const chat = await openChat(page);
   await scrollTo(page, 1000);
@@ -492,7 +505,7 @@ test("an image caption can be cleared without sending a separate message", async
     await route.fulfill({ json: { status: "ok", editedAt: new Date().toISOString() } });
   });
   // Tap the caption: the full-sized photo now correctly owns its own tap.
-  await page.locator("#m-message-100 .bb > span:not(.mt)").tap();
+  await page.locator("#m-message-100 .bb > span:not(.mt):not([aria-hidden])").tap();
   await page.getByRole("dialog", { name: "Меню сообщения", exact: true }).getByRole("button", { name: "Изменить", exact: true }).tap();
   await page.getByRole("textbox", { name: "Сообщение", exact: true }).fill("");
   const save = page.getByRole("button", { name: "Сохранить", exact: true });
@@ -580,6 +593,170 @@ test("cancelled touch scrolling never opens the message menu", async ({ page }) 
   await bubble.dispatchEvent("touchstart", { touches: [{ identifier: 0, clientX: 150, clientY: 400 }] });
   await expect(page.locator(".mpop")).toBeVisible();
   await bubble.dispatchEvent("touchend");
+});
+
+const elasticOffset = (page: Page) => page.locator(".msgs").evaluate(el => {
+  const transform = getComputedStyle(el).transform;
+  return transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m42;
+});
+const panShortChat = async (page: Page, dy: number, selector = ".msgs") => {
+  const target = page.locator(selector);
+  const box = (await target.boundingBox())!;
+  const touch = { identifier: 1, clientX: box.x + box.width / 2, clientY: box.y + box.height / 2 };
+  await target.dispatchEvent("touchstart", { touches: [touch] });
+  await target.dispatchEvent("touchmove", { touches: [{ ...touch, clientY: touch.clientY + dy }], cancelable: true });
+};
+
+for (const event of [false, true]) {
+  test(`empty ${event ? "event" : "personal"} chat pans both ways without moving the header or composer`, async ({ page }, testInfo) => {
+    await openChat(page, { empty: true, event });
+    const header = (await page.locator(".chat > .hd").boundingBox())!;
+    const composer = (await page.locator(".compose").boundingBox())!;
+    for (const direction of [1, -1]) {
+      await panShortChat(page, direction * 130);
+      await expect.poll(async () => (await elasticOffset(page)) * direction).toBeGreaterThan(15);
+      expect(Math.abs(await elasticOffset(page))).toBeLessThan(73);
+      expect((await page.locator(".chat > .hd").boundingBox())!.y).toBe(header.y);
+      expect((await page.locator(".compose").boundingBox())!.y).toBe(composer.y);
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+      await expect(page.getByRole("scrollbar")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "К последним сообщениям" })).toHaveCount(0);
+      await page.screenshot({ path: testInfo.outputPath(`empty-chat-pan-${direction}.png`) });
+      await page.locator(".msgs").dispatchEvent("touchend", { touches: [] });
+      await expect.poll(async () => Math.abs(await elasticOffset(page))).toBeLessThan(0.5);
+    }
+  });
+}
+
+test("short-chat pans never open message actions and a following tap still works", async ({ page }) => {
+  await openChat(page, { messages: [message(1)] });
+  await panShortChat(page, -130, "#m-message-1 .bb");
+  await expect.poll(() => elasticOffset(page)).toBeLessThan(-15);
+  await page.locator("#m-message-1 .bb").dispatchEvent("touchend", { touches: [] });
+  await expect.poll(async () => Math.abs(await elasticOffset(page))).toBeLessThan(0.5);
+  await expect(page.getByRole("dialog", { name: "Меню сообщения", exact: true })).toHaveCount(0);
+  await page.locator("#m-message-1 .bb").tap();
+  await expect(page.getByRole("dialog", { name: "Меню сообщения", exact: true })).toBeVisible();
+});
+
+test("incoming history and a keyboard resize reset a short-chat pan", async ({ page }) => {
+  const chat = await openChat(page, { empty: true });
+  await panShortChat(page, 130);
+  await expect.poll(() => elasticOffset(page)).toBeGreaterThan(15);
+  await page.setViewportSize({ width: 390, height: 560 });
+  await expect.poll(async () => Math.abs(await elasticOffset(page))).toBeLessThan(0.5);
+  await page.locator(".msgs").dispatchEvent("touchend", { touches: [] });
+  await panShortChat(page, -130);
+  await expect.poll(() => elasticOffset(page)).toBeLessThan(-15);
+  await chat.broadcast("message", { ...message(200), content: "Новое сообщение\n".repeat(100) });
+  await expect(page.getByRole("scrollbar")).toBeVisible();
+  await expect.poll(async () => Math.abs(await elasticOffset(page))).toBeLessThan(0.5);
+  await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);
+  await page.locator(".msgs").dispatchEvent("touchend", { touches: [] });
+  await scrollTo(page, 300);
+  expect(await distanceFromBottom(page)).toBeGreaterThan(200);
+});
+
+test("empty-chat wheel and cancelled gestures settle without leaving an offset", async ({ page }) => {
+  await openChat(page, { empty: true });
+  await page.locator(".msgs").dispatchEvent("wheel", { deltaY: 140, cancelable: true });
+  await expect.poll(() => elasticOffset(page)).toBeLessThan(-15);
+  await expect.poll(async () => Math.abs(await elasticOffset(page))).toBeLessThan(0.5);
+  await panShortChat(page, 130);
+  await page.locator(".msgs").dispatchEvent("touchcancel", { touches: [] });
+  expect(await elasticOffset(page)).toBe(0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect.poll(() => page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
+  await panShortChat(page, -130);
+  await page.locator(".msgs").dispatchEvent("touchend", { touches: [] });
+  expect(await page.locator(".msgs").evaluate(el => el.getAnimations().filter(animation => animation.playState === "running").length)).toBe(0);
+  await expect.poll(async () => Math.abs(await elasticOffset(page))).toBeLessThan(0.5);
+});
+
+test("native touch moves an empty chat in both directions", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "CDP touch injection is only available in Chromium");
+  await openChat(page, { empty: true });
+  const client = await page.context().newCDPSession(page);
+  const box = (await page.locator(".msgs").boundingBox())!;
+  for (const direction of [1, -1]) {
+    const start = box.y + box.height / 2;
+    const points = (y: number) => [{ x: box.x + box.width / 2, y, id: 0 }];
+    await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points(start) });
+    for (let step = 1; step <= 8; step++) {
+      await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: points(start + direction * step * 16) });
+    }
+    await expect.poll(async () => (await elasticOffset(page)) * direction).toBeGreaterThan(15);
+    await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    await expect.poll(async () => Math.abs(await elasticOffset(page))).toBeLessThan(0.5);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  }
+});
+
+const swipeMessage = async (page: Page, id: string, dx: number, end = "touchend") => {
+  const bubble = page.locator(`#m-${id} .bb`);
+  const box = (await bubble.boundingBox())!;
+  const touch = { identifier: 2, clientX: box.x + box.width * 0.8, clientY: box.y + box.height / 2 };
+  await bubble.dispatchEvent("touchstart", { touches: [touch] });
+  await bubble.dispatchEvent("touchmove", { touches: [{ ...touch, clientX: touch.clientX + dx }], cancelable: true });
+  await bubble.dispatchEvent(end, { touches: [] });
+};
+
+for (const id of [1, 3]) {
+  test(`swiping ${id === 3 ? "own" : "incoming"} message left focuses a reply and sends its quote once`, async ({ page }) => {
+    const chat = await openChat(page, { messages: [message(id)] });
+    await swipeMessage(page, `message-${id}`, -100);
+    await expect(page.locator(".rbar")).toContainText(`Ответ: ${id === 3 ? "Ты" : "Алексей"}`);
+    await expect(page.getByPlaceholder("Сообщение")).toBeFocused();
+    await expect(page.getByRole("dialog", { name: "Меню сообщения", exact: true })).toHaveCount(0);
+    await page.getByPlaceholder("Сообщение").fill("Отвечаю свайпом");
+    await page.getByRole("button", { name: "Отправить", exact: true }).tap();
+    await expect.poll(() => chat.sent.length).toBe(1);
+    expect(chat.sent[0]).toMatchObject({ content: "Отвечаю свайпом", replyToId: `message-${id}` });
+    await expect(page.getByPlaceholder("Сообщение")).toBeFocused();
+    await expect(page.locator(".rbar")).toHaveCount(0);
+  });
+}
+
+test("short, reversed and cancelled swipes do not accidentally select a reply", async ({ page }) => {
+  await openChat(page, { messages: [message(1)] });
+  for (const [distance, end] of [[-25, "touchend"], [100, "touchend"], [-100, "touchcancel"]] as const) {
+    await swipeMessage(page, "message-1", distance, end);
+    await expect(page.locator(".rbar")).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Меню сообщения", exact: true })).toHaveCount(0);
+  }
+  await page.locator("#m-message-1 .bb").tap();
+  await expect(page.getByRole("dialog", { name: "Меню сообщения", exact: true })).toBeVisible();
+});
+
+test("a downward history gesture dismisses the keyboard without losing the draft", async ({ page }) => {
+  await openChat(page);
+  const input = page.getByPlaceholder("Сообщение");
+  await input.fill("Неотправленный текст");
+  await input.focus();
+  await panShortChat(page, 120);
+  await page.locator(".msgs").dispatchEvent("touchend", { touches: [] });
+  await expect(input).not.toBeFocused();
+  await expect(input).toHaveValue("Неотправленный текст");
+  await expect(page.locator(".mpop")).toHaveCount(0);
+  expect(await elasticOffset(page)).toBe(0);
+});
+
+test("native horizontal message swipe selects reply while vertical gestures keep scrolling", async ({ page, browserName }) => {
+  test.skip(browserName !== "chromium", "CDP touch injection is only available in Chromium");
+  await openChat(page);
+  const client = await page.context().newCDPSession(page);
+  const box = (await page.locator("#m-message-99 .bb").boundingBox())!;
+  const start = box.x + box.width * 0.8;
+  const points = (x: number) => [{ x, y: box.y + box.height / 2, id: 0 }];
+  await client.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: points(start) });
+  for (let step = 1; step <= 8; step++) {
+    await client.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: points(start - step * 12) });
+  }
+  await client.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  await expect(page.locator(".rbar")).toContainText("Ответ: Ты");
+  await expect(page.getByPlaceholder("Сообщение")).toBeFocused();
+  await expect(page.locator(".mpop")).toHaveCount(0);
+  await expect.poll(() => distanceFromBottom(page)).toBeLessThan(2);
 });
 
 test("an empty conversation follows the first incoming message", async ({ page }) => {

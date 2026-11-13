@@ -13,6 +13,7 @@ import { useTelegramViewportHeight } from "@/lib/telegram/webapp-client";
 import { useVisualViewportHeight } from "@/lib/hooks/use-visual-viewport-height";
 import { useLockBodyScroll } from "@/lib/hooks/use-lock-body-scroll";
 import { useChatScroll } from "@/lib/hooks/use-chat-scroll";
+import { useChatElasticScroll } from "@/lib/hooks/use-chat-elastic-scroll";
 import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Sheet } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
@@ -136,6 +137,14 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
     setStickersOpen(false);
     setMenuFor(message);
   }
+  function replyToMessage(message: MessageData) {
+    if (savingEditRef.current || message.deleted || message.pending || message.failed) return;
+    setReplyTo(message);
+    setEditing(null);
+    setMenuFor(null);
+    setStickersOpen(false);
+    inputRef.current?.focus({ preventScroll: true });
+  }
   useEffect(() => {
     if (!menuFor && !stickersOpen) return;
     const closeOnEscape = (e: KeyboardEvent) => {
@@ -151,6 +160,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
     listRef, contentRef, atBottom, unseen, handleScroll: updateScrollPosition,
     interruptScroll, scrollToBottom, followOutput, preservePosition,
   } = useChatScroll(messages, myUserId, !loading && myUserId !== null && !accessBlocked);
+  useChatElasticScroll(listRef, contentRef, !loading && myUserId !== null && !accessBlocked);
   const loadingOlderRef = useRef(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
@@ -828,6 +838,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
                   readCaption={readCaption}
                   onOwnPress={isOwn && isGroup && !message.id.startsWith("temp-") ? () => setReadersFor(message) : undefined}
                   onMenu={!message.id.startsWith("temp-") ? () => openMessageMenu(message) : undefined}
+                  onReply={!isEventClosed && !message.id.startsWith("temp-") ? () => replyToMessage(message) : undefined}
                   onReact={(emoji) => toggleReaction(message, emoji)}
                   replyName={message.replyTo ? nameOf(message.replyTo.senderId) : undefined}
                   onReplyPress={message.replyTo ? () => jumpTo(message.replyTo!.id) : undefined}
@@ -983,12 +994,7 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
               <div className="mmenu">
                 {!isEventClosed && (
                   <button
-                    onClick={() => {
-                      setReplyTo(menuFor);
-                      setEditing(null);
-                      setMenuFor(null);
-                      inputRef.current?.focus({ preventScroll: true });
-                    }}
+                    onClick={() => replyToMessage(menuFor)}
                   >
                     <Ic n="chat" c="s" />
                     Ответить

@@ -16,14 +16,14 @@ export function useChatScroll(messages: Message[], userId: string | null, ready:
   const anchorRef = useRef<Anchor | null>(null);
   const previousRef = useRef<Message[]>([]);
   const preserveRef = useRef(false);
-  const geometryRef = useRef({ height: 0, viewport: 0 });
+  const geometryRef = useRef({ height: 0, viewport: 0, top: 0 });
   const [atBottom, setAtBottom] = useState(true);
   const [unseen, setUnseen] = useState(0);
 
   const captureAnchor = useCallback(() => {
     const list = listRef.current;
     if (!list) return;
-    geometryRef.current = { height: list.scrollHeight, viewport: list.clientHeight };
+    geometryRef.current = { height: list.scrollHeight, viewport: list.clientHeight, top: list.scrollTop };
     const top = list.getBoundingClientRect().top;
     const rows = list.querySelectorAll<HTMLElement>("[data-message-id] .m");
     // Choose a row intersecting the viewport, not a loader or a changing date label.
@@ -76,7 +76,12 @@ export function useChatScroll(messages: Message[], userId: string | null, ready:
     // when the keyboard/composer changes). Keep the previous follow intent
     // until the observer has reconciled that layout.
     const geometry = geometryRef.current;
-    if (geometry.height !== list.scrollHeight || geometry.viewport !== list.clientHeight) return;
+    if (geometry.height !== list.scrollHeight || geometry.viewport !== list.clientHeight) {
+      const clampedPreviousTop = Math.min(geometry.top, Math.max(0, list.scrollHeight - list.clientHeight));
+      // A real scroll can arrive in the same frame as a font/photo resize.
+      // Only defer layout-driven clamping; never pull a reader back to the end.
+      if (Math.abs(list.scrollTop - clampedPreviousTop) <= 1) return;
+    }
     const distance = Math.max(0, list.scrollHeight - list.clientHeight - list.scrollTop);
     if (smoothRef.current && distance > 1) return;
     smoothRef.current = false;
@@ -128,6 +133,38 @@ export function useChatScroll(messages: Message[], userId: string | null, ready:
     observer.observe(content);
     return () => observer.disconnect();
   }, [reconcileLayout]);
+
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    if (!ready || !list) return;
+    let drag: { x: number; y: number; input: HTMLTextAreaElement } | null = null;
+    const clear = () => { drag = null; };
+    const start = (event: TouchEvent) => {
+      const input = document.activeElement;
+      const touch = event.touches[0];
+      drag = event.touches.length === 1 && touch && input instanceof HTMLTextAreaElement && input.closest(".compose")
+        ? { x: touch.clientX, y: touch.clientY, input } : null;
+    };
+    const move = (event: TouchEvent) => {
+      if (!drag) return;
+      if (event.touches.length !== 1) { clear(); return; }
+      const touch = event.touches[0]!;
+      const dx = touch.clientX - drag.x;
+      const dy = touch.clientY - drag.y;
+      if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) { clear(); return; }
+      if (dy > 36 && dy > Math.abs(dx) * 1.4) { drag.input.blur(); clear(); }
+    };
+    list.addEventListener("touchstart", start, { passive: true });
+    list.addEventListener("touchmove", move, { passive: true });
+    list.addEventListener("touchend", clear, { passive: true });
+    list.addEventListener("touchcancel", clear, { passive: true });
+    return () => {
+      list.removeEventListener("touchstart", start);
+      list.removeEventListener("touchmove", move);
+      list.removeEventListener("touchend", clear);
+      list.removeEventListener("touchcancel", clear);
+    };
+  }, [ready]);
 
   return { listRef, contentRef, atBottom, unseen, handleScroll, interruptScroll, scrollToBottom, followOutput, preservePosition };
 }
