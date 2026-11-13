@@ -608,6 +608,18 @@ health() {
   bash "$APP/deploy/yandex/health.sh"
 }
 
+# Почему не пришла сводка: журнал cron за сутки, хвост cron.log, время сервера. Ничего не меняет.
+crondiag() {
+  echo "сейчас: $(date -u +%FT%TZ) (UTC), аптайм: $(uptime -p), cron: $(systemctl is-active cron)"
+  echo "--- crontab"; crontab -l 2>/dev/null | grep -v '^#' | grep health || echo "health в crontab нет"
+  echo "--- запуски health.sh за сутки"
+  sudo journalctl -u cron --since "-30 hours" --no-pager 2>/dev/null | grep -i "health" | tail -40 || true
+  sudo grep -h "health" /var/log/syslog /var/log/syslog.1 2>/dev/null | tail -20 || true
+  echo "--- cron.log"; tail -30 /opt/mesto/cron.log 2>/dev/null || true
+  echo "--- health.log"; tail -30 /opt/mesto/health.log 2>/dev/null || true
+  echo "--- перезагрузки"; last -x reboot 2>/dev/null | head -5 || true
+}
+
 # Ежечасный присмотр (GitHub по расписанию): самолечение + обезличенный отчёт в ветку watchlog.
 watch() {
   prepare_env
@@ -654,6 +666,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | photowarm | adminpremium | keytest | health | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | photowarm | adminpremium | keytest | health | crondiag | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
