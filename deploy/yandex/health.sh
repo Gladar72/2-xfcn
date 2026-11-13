@@ -238,7 +238,13 @@ fi
 # Логи GitHub публичные — сам текст (цифры по людям) туда не печатаем, только итог.
 echo "сводка: проблем ${#BAD[@]}, предупреждений ${#WARN[@]}"
 [ -n "$TOKEN" ] && [ -n "$ADMINS" ] || { echo "нет TELEGRAM_BOT_TOKEN или ADMIN_TELEGRAM_IDS — в бота не отправлено"; exit 0; }
+# Прокладка к Telegram иногда не отвечает — пробуем до 5 раз с паузой в минуту.
 for id in ${ADMINS//,/ }; do
-  curl -sS -m 20 -o /dev/null -w "отправлено админу: %{http_code}\n" "$ROOT_API/bot$TOKEN/sendMessage" \
-    --data-urlencode "chat_id=$id" --data-urlencode "text@/tmp/mesto-health.txt" || echo "не отправлено"
+  for try in 1 2 3 4 5; do
+    code=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "$ROOT_API/bot$TOKEN/sendMessage" \
+      --data-urlencode "chat_id=$id" --data-urlencode "text@/tmp/mesto-health.txt" 2>/dev/null || true)
+    echo "$(date -u +%FT%TZ) отправлено админу: ${code:-000} (попытка $try)"
+    [ "${code:-000}" = 200 ] && break
+    sleep 60
+  done
 done
