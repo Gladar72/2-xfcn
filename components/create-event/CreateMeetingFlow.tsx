@@ -686,7 +686,12 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
     return (
       <section className="scr aurora up" data-id="published">
         <div className="scroll" style={{ paddingBottom: 200 }}>
-          <div className="k-done" style={{ display: "grid", justifyItems: "center", textAlign: "center", paddingTop: "12vh" }}>
+          <div className="k-top">
+            <button className="k-rb k-g k-pr" onClick={() => goBack(router, "/feed")} aria-label="Назад">
+              <KI n="back" />
+            </button>
+          </div>
+          <div className="k-done" style={{ display: "grid", justifyItems: "center", textAlign: "center", paddingTop: "6vh" }}>
             <Creature size={220} variant="e" />
             <h1 className="k-h1" style={{ marginTop: 26, textAlign: "center" }}>
               Встреча

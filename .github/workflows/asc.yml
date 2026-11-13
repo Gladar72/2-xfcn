@@ -8,6 +8,10 @@ on:
       build:
         description: "Номер сборки (пусто — самая свежая)"
         required: false
+      status:
+        description: "Только показать статус версий"
+        type: boolean
+        default: false
 
 jobs:
   update:
@@ -26,5 +30,5 @@ jobs:
           export KEY="$RUNNER_TEMP/AuthKey.p8"
           printf '%s\n' "$P8" > "$KEY"
           pip install -q pyjwt cryptography
-          python3 .github/scripts/asc.py
+          if [ "${{ inputs.status }}" = "true" ]; then python3 .github/scripts/asc_status.py; else python3 .github/scripts/asc.py; fi
           rm -f "$KEY"

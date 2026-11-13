@@ -88,6 +88,7 @@ export async function finalizeCompletedEvents(
   if (finished.length === 0) return [];
   clearFeedCache();
   const finishedIds = finished.map((e) => e.id);
+  await expireStaleApplications(admin, finishedIds).catch((err) => console.error("expireStaleApplications:", err));
 
   const { data: allFinishedMembers } = await admin
     .from("event_members")
@@ -157,4 +158,39 @@ export async function finalizeCompletedEvents(
       return { eventId: event.id, title: event.title, recipients };
     })
     .filter((item) => item.recipients.length > 0);
+}
+
+/**
+ * Встреча прошла, а заявку так и не приняли — отклоняем её автоматически
+ * и гасим у организатора уведомление «новая заявка», чтобы оно не висело.
+ * Без eventIds — подметает все прошедшие/отменённые встречи (старые хвосты).
+ */
+export async function expireStaleApplications(
+  admin: ReturnType<typeof createAdminClient>,
+  eventIds?: string[]
+): Promise<number> {
+  let ids = eventIds;
+  if (!ids) {
+    const { data } = await admin
+      .from("applications")
+      .select("event_id, events!inner(status)")
+      .eq("status", "pending")
+      .in("events.status", ["completed", "cancelled"])
+      .limit(1000);
+    ids = Array.from(new Set((data ?? []).map((r) => r.event_id as string)));
+  }
+  if (ids.length === 0) return 0;
+  const { data: rejected } = await admin
+    .from("applications")
+    .update({ status: "rejected", updated_at: new Date().toISOString() })
+    .in("event_id", ids)
+    .eq("status", "pending")
+    .select("id");
+  await admin
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("type", "new_application")
+    .eq("is_read", false)
+    .in("payload->>eventId", ids);
+  return rejected?.length ?? 0;
 }

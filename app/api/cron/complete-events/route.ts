@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { completeDueEvents } from "@/lib/reviews/complete-due-events";
+import { completeDueEvents, expireStaleApplications } from "@/lib/reviews/complete-due-events";
 import { sendDueEventResults } from "@/lib/reviews/send-event-results";
 
 /**
@@ -30,5 +30,10 @@ export async function GET(req: NextRequest) {
     return 0;
   });
 
-  return NextResponse.json({ completed: result.length, businessResults });
+  const expiredApplications = await expireStaleApplications(admin).catch((err) => {
+    console.error("expireStaleApplications:", err);
+    return 0;
+  });
+
+  return NextResponse.json({ completed: result.length, businessResults, expiredApplications });
 }
