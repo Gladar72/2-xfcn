@@ -33,3 +33,22 @@ try:
         print("REVIEW", r["attributes"])
 except Exception as e:
     print("reviewSubmissions error", e)
+
+# Скриншоты, превью и тексты у каждой версии.
+for v in vs["data"]:
+    locs = api(f"/v1/appStoreVersions/{v['id']}/appStoreVersionLocalizations")
+    for l in locs["data"]:
+        la = l["attributes"]
+        print("LOC", v["attributes"]["versionString"], la.get("locale"), "desc", len(la.get("description") or ""), "kw", la.get("keywords"), "whatsNew", len(la.get("whatsNew") or ""))
+        sets = api(f"/v1/appStoreVersionLocalizations/{l['id']}/appScreenshotSets?include=appScreenshots")
+        shots = {s["id"]: s["attributes"] for s in sets.get("included", []) if s["type"] == "appScreenshots"}
+        for s in sets["data"]:
+            ids = [x["id"] for x in (s["relationships"]["appScreenshots"].get("data") or [])]
+            states = [((shots.get(i) or {}).get("assetDeliveryState") or {}).get("state") for i in ids]
+            print("  SHOTS", s["attributes"]["screenshotDisplayType"], len(ids), states)
+        try:
+            ps = api(f"/v1/appStoreVersionLocalizations/{l['id']}/appPreviewSets")
+            for p in ps["data"]:
+                print("  PREVIEW", p["attributes"])
+        except Exception as e:
+            print("  preview err", e)
