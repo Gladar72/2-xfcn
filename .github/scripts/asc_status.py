@@ -52,3 +52,21 @@ for v in vs["data"]:
                 print("  PREVIEW", p["attributes"])
         except Exception as e:
             print("  preview err", e)
+
+# Подписки (IAP): группы, продукты, статусы, пробный период.
+try:
+    gs = api(f"/v1/apps/{APP}/subscriptionGroups?include=subscriptions&limit=10")
+    for g in gs["data"]:
+        print("SUBGROUP", g["attributes"].get("referenceName"))
+    for s in gs.get("included", []):
+        if s["type"] != "subscriptions": continue
+        a = s["attributes"]
+        print("SUB", a.get("productId"), a.get("name"), a.get("state"), a.get("subscriptionPeriod"))
+        try:
+            io = api(f"/v1/subscriptions/{s['id']}/introductoryOffers?limit=5")
+            for o in io["data"]:
+                print("  INTRO", o["attributes"])
+        except Exception as e:
+            print("  intro err", e)
+except Exception as e:
+    print("subs err", e)
