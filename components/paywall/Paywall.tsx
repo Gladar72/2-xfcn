@@ -143,6 +143,9 @@ export function Paywall({ onActivated, current }: PaywallProps) {
             ? `Сейчас — ${PLAN_NAME[current.plan]}${until ? ` до ${until}` : ""}. Сменить можно в любой момент.`
             : `Чтобы создавать встречи, нужна подписка. Без неё можно откликаться — до ${FREE_APPLICATIONS_LIMIT} раз за период.`}
         </p>
+        <p className="note gl" style={{ marginTop: 12, fontSize: 13.5, lineHeight: 1.45 }}>
+          📱 Тариф действует везде: здесь, в Telegram, и в приложениях «Место» для iPhone и Android — просто войди под тем же аккаунтом.
+        </p>
         {error && !contactPromptPlan && (
           <p className="note gl" style={{ marginTop: 12, color: "#E0569B" }}>
             {error}

@@ -542,9 +542,23 @@ export function getBot(): Bot {
   });
 
   bot.command("subscribe", async (ctx) => {
-    await ctx.reply("Оформить или продлить подписку — картой, СБП или Telegram Stars:", {
-      reply_markup: new InlineKeyboard().webApp("Купить подписку", `${validatedAppUrl}?goto=subscriptions`),
-    });
+    await ctx.reply(
+      "💳 Оформи или продли тариф здесь — картой, СБП или Telegram Stars.\n\n" +
+        "📱 Тариф действует везде: в Telegram и в приложениях «Место» для iPhone и Android. Войди в приложении под тем же аккаунтом — всё уже включено.",
+      { reply_markup: new InlineKeyboard().webApp("💳 Оформить тариф", `${validatedAppUrl}?goto=subscriptions`) }
+    );
+  });
+
+  bot.command("download", async (ctx) => {
+    await ctx.reply(
+      "📱 «Место» в App Store и RuStore. Вход тот же — встречи, чаты и тариф уже на месте.\n🎁 Первый вход из приложения — 30 дней «Старта» бесплатно.",
+      {
+        reply_markup: new InlineKeyboard()
+          .url("📱 Скачать в App Store", "https://apps.apple.com/ru/app/id6833348222")
+          .row()
+          .url("🤖 Скачать в RuStore", "https://www.rustore.ru/catalog/app/ru.mesto.app"),
+      }
+    );
   });
 
   bot.command("help", async (ctx) => {
@@ -1113,7 +1127,8 @@ export function getBot(): Bot {
     .setMyCommands([
       { command: "start", description: "Запустить бота" },
       { command: "app", description: "Открыть приложение" },
-      { command: "subscribe", description: "Купить подписку" },
+      { command: "subscribe", description: "💳 Оплатить тариф — работает и в приложении" },
+      { command: "download", description: "📱 Скачать приложение (App Store, RuStore)" },
       { command: "help", description: "Как это работает" },
       { command: "support", description: "Написать в поддержку" },
       { command: "partner", description: "Партнёрская программа" },

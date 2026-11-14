@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { InlineKeyboard } from "grammy";
+import { InlineKeyboard, InputFile } from "grammy";
+import path from "node:path";
+import { existsSync } from "node:fs";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
 import { sendInBatches } from "@/lib/server/background";
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest) {
     for (const r of data ?? []) lastBlock.set(Number(r.telegram_id), r.status as string);
     if (!data || data.length < 1000) break;
   }
-  const { data: done } = await admin.from("broadcast_sends").select("telegram_id").eq("key", key).limit(100000);
+  const { data: done } = await admin.from("broadcast_sends").select("telegram_id").eq("key", key).eq("ok", true).limit(100000);
   const already = new Set((done ?? []).map((r) => Number(r.telegram_id)));
 
   let ids = Array.from(new Set(users.map((u) => Number(u.telegram_id))));
@@ -83,21 +85,38 @@ export async function POST(req: NextRequest) {
     for (const l of links) markup.url(l.text.slice(0, 40), l.url).row();
     if (appUrl && body?.button !== false) markup.webApp(button, appUrl);
   }
-  const photo = typeof body?.photo === "string" && /^https:\/\//.test(body.photo) ? body.photo : null;
+  // photo: https-ссылка или путь внутри public/ ("/promo/x.jpg") — тогда грузим файлом.
+  let photo: string | InputFile | null = null;
+  if (typeof body?.photo === "string") {
+    if (/^https:\/\//.test(body.photo)) photo = body.photo;
+    else if (/^\/[a-z0-9/_.-]+$/i.test(body.photo) && !body.photo.includes("..")) {
+      const file = path.join(process.cwd(), "public", body.photo);
+      if (existsSync(file)) photo = file;
+      else return NextResponse.json({ error: "photo_not_found" }, { status: 400 });
+    }
+  }
   if (photo && text.length > 1024) return NextResponse.json({ error: "caption_too_long" }, { status: 400 });
   const api = getBot().api;
   let ok = 0;
   let failed = 0;
+  let lastError: string | null = null;
   await sendInBatches(todo, async (id) => {
     try {
-      if (photo) await api.sendPhoto(id, photo, { caption: text, reply_markup: markup });
+      if (photo) {
+        // Файл грузим один раз, дальше шлём по file_id.
+        const sent = await api.sendPhoto(id, typeof photo === "string" && !photo.startsWith("/") ? photo : new InputFile(photo as string), { caption: text, reply_markup: markup });
+        const fid = sent.photo?.[sent.photo.length - 1]?.file_id;
+        if (fid) photo = fid;
+      }
       else await api.sendMessage(id, text, { reply_markup: markup });
       ok += 1;
       await admin.from("broadcast_sends").upsert({ key, telegram_id: id, ok: true });
     } catch (err) {
       failed += 1;
-      await admin.from("broadcast_sends").upsert({ key, telegram_id: id, ok: false, error: String((err as Error)?.message ?? err).slice(0, 200) });
+      const msg = String((err as Error)?.message ?? err).slice(0, 200);
+      lastError = msg;
+      await admin.from("broadcast_sends").upsert({ key, telegram_id: id, ok: false, error: msg });
     }
   });
-  return NextResponse.json({ sent: ok, failed, ...summary });
+  return NextResponse.json({ sent: ok, failed, lastError, ...summary });
 }
