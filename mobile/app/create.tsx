@@ -21,6 +21,7 @@ import { qs } from "@/lib/format";
 import { businessProblem, descriptionProblem, titleProblem } from "@/lib/eventQuality";
 import { hasOrganizerPhoto } from "@/lib/photos";
 import { OrganizerPhotoGate } from "@/components/create/OrganizerPhotoGate";
+import { maybeAskReview } from "@/lib/review";
 
 /**
  * Создание (и правка) встречи в 4 шага — как CreateMeetingFlow в мини-приложении.
@@ -303,6 +304,8 @@ export default function CreateScreen() {
         );
       }
       router.replace(`/event/${res.eventId}`);
+      // Опубликовал встречу — удачный момент попросить оценку (не чаще раза в 3 месяца).
+      if (!editId) maybeAskReview().catch(() => {});
     } catch (e) {
       const err = e as ApiError;
       const data = (err.data ?? {}) as { field?: unknown };

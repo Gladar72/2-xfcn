@@ -6,6 +6,7 @@ import { AppState, Platform, StyleSheet, Text, View } from "react-native";
 import * as Font from "expo-font";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { registerForPush, useNotificationTaps } from "@/lib/push";
+import { noteLaunch } from "@/lib/review";
 import { startAppleWatcher, stopAppleWatcher } from "@/lib/iap";
 import { CAN_PAY } from "@/lib/store";
 import { MosyaPeekHost } from "@/components/MosyaPeek";
@@ -132,6 +133,8 @@ function Gate() {
       return;
     }
     registerForPush().catch(() => {});
+    // Счётчик запусков для просьбы оценить приложение (lib/review.ts).
+    noteLaunch().catch(() => {});
     // iPhone: продления и прерванные покупки App Store — на сервер и закрыть.
     if (CAN_PAY) startAppleWatcher();
     // iPhone без оплаты: сервер держит «Старт» бесплатным — спрашиваем тариф при входе.
