@@ -11,7 +11,7 @@ on:
         required: true
         default: status
         type: choice
-        options: [status, capacitydiag, assetdiag, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, crondiag, appletest, storagefix, eventsdiag, bizdiag, storyshot, promodiag, promofix, bizmove, osupdate, giftdiag, statsdiag, notifydiag, watch, broadcast, restoreevents, reauthnotify, blockedcount, blocksreport, phototrim, photowarm, adminpremium, cleanup]
+        options: [status, capacitydiag, assetdiag, bootstrap, supabase, migrate, deploy, logs, webhook, tgcheck, envcheck, keytest, health, crondiag, appletest, apperr, storagefix, eventsdiag, bizdiag, storyshot, promodiag, promofix, bizmove, osupdate, giftdiag, statsdiag, notifydiag, watch, broadcast, restoreevents, reauthnotify, blockedcount, blocksreport, phototrim, photowarm, adminpremium, cleanup]
   push:
     branches: [main]
   # Ежечасный присмотр за сервером: самолечение и отчёт в ветку watchlog.
@@ -78,7 +78,7 @@ jobs:
           ssh deploy@"$HOST" 'python3 /opt/mesto/app/deploy/yandex/support-webhook.py /opt/mesto/.env'
 
       - name: Publish failure log to branch
-        if: failure() || endsWith(env.TASK, 'diag') || env.TASK == 'promofix' || env.TASK == 'bizmove' || env.TASK == 'status' || env.TASK == 'osupdate' || env.TASK == 'broadcast' || env.TASK == 'appletest' || env.TASK == 'blocksreport'
+        if: failure() || endsWith(env.TASK, 'diag') || env.TASK == 'promofix' || env.TASK == 'bizmove' || env.TASK == 'status' || env.TASK == 'osupdate' || env.TASK == 'broadcast' || env.TASK == 'appletest' || env.TASK == 'apperr' || env.TASK == 'blocksreport'
         run: |
           mkdir -p failog && tail -c 200000 run.log > failog/run.log || true
           cd failog && git init -q && git checkout -q -b deploylog

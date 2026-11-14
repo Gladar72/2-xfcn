@@ -626,6 +626,15 @@ appletest() {
   echo "--- журнал приложения (apple)"; sudo docker logs --since 3h mesto-app-1 2>&1 | grep -i -A3 "apple" | tail -40 || true
 }
 
+# Ошибки приложения за последний час (без персональных данных) + сколько раз перезапускался.
+apperr() {
+  echo "--- перезапуски"; sudo docker inspect -f '{{.State.StartedAt}} restarts={{.RestartCount}}' mesto-app-1
+  echo "--- ошибки приложения за 2 часа"
+  sudo docker logs --since 2h mesto-app-1 2>&1 | grep -iE "error|exception|unhandled|fail" | grep -v "bot was blocked" | cut -c1-220 | sort | uniq -c | sort -rn | head -30
+  echo "--- caddy: ошибки за 2 часа"
+  sudo docker logs --since 2h mesto-caddy-1 2>&1 | grep '"level":"error"' | grep -o '"msg":"[^"]*"\|"ts":[0-9]*' | paste - - | tail -20
+}
+
 # Почему не пришла сводка: журнал cron за сутки, хвост cron.log, время сервера. Ничего не меняет.
 crondiag() {
   echo "сейчас: $(date -u +%FT%TZ) (UTC), аптайм: $(uptime -p), cron: $(systemctl is-active cron)"
@@ -684,6 +693,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | photowarm | adminpremium | keytest | health | crondiag | appletest | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | photowarm | adminpremium | keytest | health | crondiag | appletest | apperr | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
