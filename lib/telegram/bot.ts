@@ -168,8 +168,17 @@ export function getBot(): Bot {
   // message:text до ответа поддержки.
   const PARTNER_BUTTON = "🤝 Партнёрская программа";
   const ADMIN_BUTTON = "📊 Админ-панель";
+  const PAY_BUTTON = "💳 Оплатить подписку";
+  const PAY_TEXT =
+    "💳 Оплата разовая — на 30 дней, без автопродления: деньги сами не спишутся.\n" +
+    "Когда срок подойдёт к концу, напомним, — продлишь, только если захочешь.\n\n" +
+    "📱 Тариф действует везде: в Telegram и в приложениях «Место» для iPhone и Android (тот же аккаунт).\n" +
+    "Оплата картой, СБП или Telegram Stars.";
+  function payKeyboard() {
+    return new InlineKeyboard().webApp("💳 Выбрать тариф и оплатить", `${validatedAppUrl}?goto=subscriptions`);
+  }
   function pinnedKeyboard(isAdmin: boolean) {
-    const kb = new Keyboard().text(PARTNER_BUTTON);
+    const kb = new Keyboard().text(PAY_BUTTON).row().text(PARTNER_BUTTON);
     if (isAdmin) kb.row().text(ADMIN_BUTTON);
     return kb.resized().persistent();
   }
@@ -244,6 +253,8 @@ export function getBot(): Bot {
     // Одно понятное сообщение: что это и зачем бот (раньше после «Кнопки закреплены внизу» многие блокировали бота).
     await sendWelcomeNotes(ctx);
     await ctx.reply(WELCOME_TEXT, { parse_mode: "HTML", reply_markup: startKeyboard(isAdmin, ctx.me?.username) });
+    // Закреплённая кнопка «💳 Оплатить подписку» под полем ввода — всегда под рукой.
+    await ctx.reply("Кнопка оплаты всегда внизу 👇", { reply_markup: pinnedKeyboard(isAdmin) }).catch(() => {});
   });
 
   async function sendEventCard(ctx: Context, eventId: string) {
@@ -567,11 +578,8 @@ export function getBot(): Bot {
   });
 
   bot.command("subscribe", async (ctx) => {
-    await ctx.reply(
-      "💳 Оформи или продли тариф здесь — картой, СБП или Telegram Stars.\n\n" +
-        "📱 Тариф действует везде: в Telegram и в приложениях «Место» для iPhone и Android. Войди в приложении под тем же аккаунтом — всё уже включено.",
-      { reply_markup: new InlineKeyboard().webApp("💳 Оформить тариф", `${validatedAppUrl}?goto=subscriptions`) }
-    );
+    await ctx.reply(PAY_TEXT, { reply_markup: payKeyboard() });
+    await ctx.reply("Кнопка оплаты всегда внизу 👇", { reply_markup: pinnedKeyboard(isAdminTelegramId(ctx.from?.id ?? 0)) }).catch(() => {});
   });
 
   bot.command("download", async (ctx) => {
@@ -1060,6 +1068,10 @@ export function getBot(): Bot {
       return;
     }
 
+    if (userMessage === PAY_BUTTON) {
+      await ctx.reply(PAY_TEXT, { reply_markup: payKeyboard() });
+      return;
+    }
     if (userMessage === PARTNER_BUTTON) {
       await sendPartnerMenu(ctx);
       return;
@@ -1152,7 +1164,7 @@ export function getBot(): Bot {
     .setMyCommands([
       { command: "start", description: "Запустить бота" },
       { command: "app", description: "Открыть приложение" },
-      { command: "subscribe", description: "💳 Оплатить тариф — работает и в приложении" },
+      { command: "subscribe", description: "💳 Оплатить подписку — разово, без автосписаний" },
       { command: "help", description: "Как это работает" },
       { command: "support", description: "Написать в поддержку" },
       { command: "partner", description: "Партнёрская программа" },
