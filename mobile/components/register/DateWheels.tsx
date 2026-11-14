@@ -1,7 +1,7 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import { Animated, Platform, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native";
 import * as Haptics from "expo-haptics";
-import { colors, FONT, f } from "@/lib/theme";
+import { colors, f } from "@/lib/theme";
 
 /**
  * Дата рождения барабанами, как в iPhone: день · месяц · год.
@@ -39,8 +39,14 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex, rows, row: ROW
   const y = useRef(new Animated.Value(index * ROW)).current;
   const ref = useRef<ScrollView>(null);
   const last = useRef(index);
+  // Строка под пальцем во время прокрутки (для вибрации) — значение наружу отдаём только в конце,
+  // чтобы экран не перестраивался на каждом щелчке (из-за этого барабан подтормаживал).
+  const tick = useRef(index);
   // Меняем значение только от пальца: прокрутка при перестройке экрана не должна сбивать дату.
   const touching = useRef(false);
+  // Начальное положение задаём один раз: если менять contentOffset при каждом рендере,
+  // iOS заново прыгает к нему — барабан «подбрасывало» при касании.
+  const initialOffset = useRef({ x: 0, y: index * ROW }).current;
 
   // Значение поменялось снаружи (например, 31 → 30 при смене месяца) — докручиваем.
   useEffect(() => {
@@ -56,15 +62,23 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex, rows, row: ROW
         useNativeDriver: true,
         listener: (e: NativeSyntheticEvent<NativeScrollEvent>) => {
           const i = Math.max(0, Math.min(items.length - 1, Math.round(e.nativeEvent.contentOffset.y / ROW)));
-          if (touching.current && i !== last.current) {
-            last.current = i;
+          if (touching.current && i !== tick.current) {
+            tick.current = i;
             Haptics.selectionAsync().catch(() => {});
-            onChange(i);
           }
         },
       }),
-    [y, items.length, onChange]
+    [y, items.length]
   );
+
+  const settle = (offsetY: number) => {
+    const i = Math.max(0, Math.min(items.length - 1, Math.round(offsetY / ROW)));
+    tick.current = i;
+    if (i !== last.current) {
+      last.current = i;
+      onChange(i);
+    }
+  };
 
   return (
     <View style={{ flex, height: ROW * rows }}>
@@ -73,14 +87,20 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex, rows, row: ROW
         showsVerticalScrollIndicator={false}
         snapToInterval={ROW}
         decelerationRate={Platform.OS === "ios" ? "fast" : 0.985}
-        contentOffset={{ x: 0, y: index * ROW }}
+        contentOffset={initialOffset}
         contentContainerStyle={{ paddingVertical: ROW * ((rows - 1) / 2) }}
         onScroll={onScroll}
         onScrollBeginDrag={() => {
           touching.current = true;
         }}
-        onMomentumScrollEnd={() => {
+        onScrollEndDrag={(e) => {
+          // Отпустили без разгона — прокрутка уже закончилась.
+          const v = e.nativeEvent.velocity?.y ?? 0;
+          if (Math.abs(v) < 0.05) settle(e.nativeEvent.contentOffset.y);
+        }}
+        onMomentumScrollEnd={(e) => {
           touching.current = false;
+          settle(e.nativeEvent.contentOffset.y);
         }}
         scrollEventThrottle={16}
         nestedScrollEnabled
@@ -103,7 +123,7 @@ const Wheel = memo(function Wheel({ items, index, onChange, flex, rows, row: ROW
                 },
               ]}
             >
-              <Text style={[styles.text, i === index && styles.cur]} numberOfLines={1}>
+              <Text style={styles.text} numberOfLines={1}>
                 {t}
               </Text>
             </Animated.View>
@@ -146,6 +166,6 @@ const styles = StyleSheet.create({
   box: { flexDirection: "row", borderRadius: 22, backgroundColor: "#fff", paddingHorizontal: 8, overflow: "hidden" },
   sel: { position: "absolute", left: 8, right: 8, borderRadius: 12, backgroundColor: colors.lav },
   row: { alignItems: "center", justifyContent: "center" },
-  text: { fontFamily: FONT, fontSize: 18, color: colors.ink, fontVariant: ["tabular-nums"] },
-  cur: { ...f("600"), fontSize: 20 },
+  // Один размер и вес у всех строк: выделение даёт плашка и яркость, текст не «прыгает».
+  text: { ...f("500"), fontSize: 19, color: colors.ink, fontVariant: ["tabular-nums"] },
 });

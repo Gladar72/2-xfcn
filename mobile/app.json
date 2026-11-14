@@ -27,7 +27,9 @@
         "NSPhotoLibraryUsageDescription": "Чтобы выбрать фото для профиля и встречи.",
         "NSCameraUsageDescription": "Чтобы сделать фото для профиля.",
         "CFBundleDevelopmentRegion": "ru",
-        "CFBundleLocalizations": ["ru"]
+        "CFBundleLocalizations": [
+          "ru"
+        ]
       },
       "buildNumber": "10",
       "config": {
@@ -89,6 +91,11 @@
             {
               "scheme": "https",
               "host": "www.mesto-go.ru"
+            },
+            {
+              "scheme": "https",
+              "host": "mesto-go.ru",
+              "pathPrefix": "/app-login"
             }
           ],
           "category": [

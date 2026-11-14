@@ -15,6 +15,7 @@ export const APP_LINK_PATHS = [
   "/city/*",
   "/my-events",
   "/notifications",
+  "/app-login",
 ];
 
 export const APP_BUNDLE_ID = process.env.APPLE_BUNDLE_ID?.split(",")[0]?.trim() || "ru.mesto.app";

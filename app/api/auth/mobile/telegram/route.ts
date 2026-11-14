@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { issueRegistrationTicket, verifyRegistrationTicket, verifyTelegramLogin } from "@/lib/mobile/auth";
-import { attachAppleId, attachEmail, attachPhone } from "@/lib/mobile/otp";
-import { mobileSessionPayload } from "@/lib/mobile/session-response";
+import { verifyTelegramLogin } from "@/lib/mobile/auth";
+import { telegramSignIn } from "@/lib/mobile/telegram-signin";
 
 /**
  * POST /api/auth/mobile/telegram  { authData }  — данные Telegram Login Widget
@@ -23,49 +22,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_telegram_login", message: "Не удалось подтвердить вход через Telegram" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
-  const { data: user } = await admin
-    .from("users")
-    .select("id, telegram_id, moderation_status")
-    .eq("telegram_id", data.id)
-    .maybeSingle();
-
-  if (!user) {
-    return NextResponse.json({
-      status: "needs_registration",
-      ticket: issueRegistrationTicket({ kind: "telegram", telegramId: data.id, username: data.username ?? null }),
-      telegramProfile: { firstName: data.first_name ?? null, photoUrl: data.photo_url ?? null },
-    });
-  }
-  if (user.moderation_status === "banned") {
-    return NextResponse.json({ error: "user_banned" }, { status: 403 });
-  }
-
-  let phoneLinked: string | null = null;
-  let phoneError: string | null = null;
-  const phoneTicket = typeof body?.phoneTicket === "string" ? verifyRegistrationTicket(body.phoneTicket) : null;
-  if (phoneTicket?.kind === "phone") {
-    const attached = await attachPhone(admin, user.id, phoneTicket.phone);
-    if (attached.ok) phoneLinked = phoneTicket.phone;
-    else phoneError = attached.message;
-  }
-  // Так же — почта, подтверждённая кодом из письма (передаётся в том же поле phoneTicket или в emailTicket).
-  let emailLinked: string | null = null;
-  const emailTicketRaw = typeof body?.emailTicket === "string" ? body.emailTicket : body?.phoneTicket;
-  const emailTicket = typeof emailTicketRaw === "string" ? verifyRegistrationTicket(emailTicketRaw) : null;
-  if (emailTicket?.kind === "email") {
-    const attached = await attachEmail(admin, user.id, emailTicket.email);
-    if (attached.ok) emailLinked = emailTicket.email;
-    else phoneError = attached.message;
-  }
-
-  // Вошёл через Apple, но профиль уже есть в Telegram-версии — привязываем Apple ID к нему.
-  let appleLinked = false;
-  if (emailTicket?.kind === "apple") {
-    const attached = await attachAppleId(admin, user.id, emailTicket.sub);
-    if (attached.ok) appleLinked = true;
-    else phoneError = attached.message;
-  }
-
-  return NextResponse.json({ ...(await mobileSessionPayload(admin, user)), phoneLinked, emailLinked, appleLinked, phoneError });
+  const [payload, status] = await telegramSignIn(createAdminClient(), data, {
+    phoneTicket: body?.phoneTicket,
+    emailTicket: body?.emailTicket,
+  });
+  return NextResponse.json(payload, { status });
 }

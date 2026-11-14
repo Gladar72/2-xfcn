@@ -231,6 +231,9 @@ deploy() {
   # Подарок за установку приложения: «Старт» на 30 дней один раз.
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
     < "$APP/supabase/migrations/0086_app_install_gift.sql"
+  # Вход в приложение через бота (одноразовые токены).
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
+    < "$APP/supabase/migrations/0087_mobile_tg_login.sql"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
   cleanup

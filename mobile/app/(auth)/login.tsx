@@ -9,7 +9,7 @@ import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { appleLoginAvailable, loginWithApple } from "@/lib/appleLogin";
-import { loginWithTelegram } from "@/lib/telegramLogin";
+import { loginWithTelegram, resumeTelegramLogin } from "@/lib/telegramLogin";
 import { colors, FONT, f } from "@/lib/theme";
 
 // Вход через Apple (app.json → extra.appleLogin). App Store требует его, если есть вход через Telegram.
@@ -23,6 +23,16 @@ export default function LoginScreen() {
   const [appleReady, setAppleReady] = useState(false);
   useEffect(() => {
     if (APPLE_ENABLED) appleLoginAvailable().then(setAppleReady);
+  }, []);
+  // Вернулись из Telegram по кнопке бота — экран мог пересоздаться: подхватываем начатый вход.
+  useEffect(() => {
+    const p = resumeTelegramLogin();
+    if (!p) return;
+    setLoading("tg");
+    p.then((r) => (r ? handleAuthResult(r, "telegram") : undefined))
+      .catch((e) => setError((e as Error).message))
+      .finally(() => setLoading(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [error, setError] = useState<string | null>(null);
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());

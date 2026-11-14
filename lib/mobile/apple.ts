@@ -61,7 +61,12 @@ export async function verifyAppleIdentityToken(token: string, nonce: string): Pr
       audience: audiences() as [string, ...string[]],
     });
     if (typeof p === "string" || typeof p.sub !== "string" || !p.sub) return null;
-    if (!nonce || p.nonce !== nonce) return null;
+    // Apple кладёт в токен либо сам nonce, либо его SHA-256 (зависит от версии iOS/библиотеки).
+    const hashed = createHash("sha256").update(nonce).digest("hex");
+    if (!nonce || (p.nonce !== nonce && p.nonce !== hashed)) {
+      console.error("auth/apple: nonce mismatch");
+      return null;
+    }
     const email = typeof p.email === "string" ? p.email.trim().toLowerCase() : null;
     return {
       sub: p.sub,
@@ -69,7 +74,8 @@ export async function verifyAppleIdentityToken(token: string, nonce: string): Pr
       emailVerified: truthy(p.email_verified),
       privateEmail: truthy(p.is_private_email),
     };
-  } catch {
+  } catch (e) {
+    console.error("auth/apple: verify failed:", (e as Error).message, "aud:", (decoded?.payload as { aud?: unknown } | undefined)?.aud);
     return null;
   }
 }

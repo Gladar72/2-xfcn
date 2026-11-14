@@ -16,6 +16,8 @@ const RULES: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^\/city\/([^/?#]+)\/?$/, (m) => `/city/${m[1]}`],
   [/^\/r\/([a-zA-Z0-9]{4,32})\/?$/, (m) => `/r/${m[1].toLowerCase()}`],
   [/^\/(people|chats|my-events|notifications)\/?$/, (m) => `/${m[1]}`],
+  // Кнопка «Вернуться в «Место»» после подтверждения входа в боте — экран входа заберёт результат.
+  [/^\/app-login\/?$/, () => "/(auth)/login"],
 ];
 
 function mapSitePath(pathname: string): string | null {

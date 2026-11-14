@@ -181,6 +181,31 @@ export function getBot(): Bot {
     // Переход по партнёрской ссылке t.me/<bot>?start=ref_<code> —
     // закрепляем человека за блогером (первый переход решает).
     const payload = typeof ctx.match === "string" ? ctx.match.trim() : "";
+    // Вход в мобильное приложение: t.me/<bot>?start=login_<token> — подтверждаем Telegram-аккаунт.
+    if (ctx.from && payload.startsWith("login_")) {
+      const token = payload.slice(6);
+      const admin = createAdminClient();
+      const { data: updated } = await admin
+        .from("mobile_tg_logins")
+        .update({
+          telegram_id: ctx.from.id,
+          first_name: ctx.from.first_name ?? null,
+          username: ctx.from.username ?? null,
+          confirmed_at: new Date().toISOString(),
+        })
+        .eq("token", token)
+        .is("confirmed_at", null)
+        .gt("created_at", new Date(Date.now() - 10 * 60 * 1000).toISOString())
+        .select("token");
+      if (updated && updated.length) {
+        await ctx.reply("✅ Вход подтверждён. Возвращайся в приложение «Место» — ты уже вошёл.", {
+          reply_markup: new InlineKeyboard().url("↩️ Вернуться в «Место»", `https://mesto-go.ru/app-login?t=${token}`),
+        });
+      } else {
+        await ctx.reply("Ссылка для входа устарела. Открой приложение «Место» и нажми «Войти через Telegram» ещё раз.");
+      }
+      return;
+    }
     // Ссылка на встречу t.me/<bot>?start=e_<id> — карточка встречи с кнопкой «Открыть».
     if (ctx.from && payload.startsWith(EVENT_START_PREFIX)) {
       await sendEventCard(ctx, payload.slice(EVENT_START_PREFIX.length));

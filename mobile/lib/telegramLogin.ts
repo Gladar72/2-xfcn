@@ -1,27 +1,59 @@
-import * as Linking from "expo-linking";
-import * as WebBrowser from "expo-web-browser";
+import { AppState, Linking } from "react-native";
 import { api } from "./api";
 import type { AuthResult } from "./auth";
-import { API_URL } from "./config";
 
 export type TelegramLoginResult = AuthResult & { phoneLinked?: string | null; phoneError?: string | null };
 
 /**
- * Вход через Telegram: открываем страницу с виджетом Telegram во встроенном
- * браузере, она возвращает подписанные данные ссылкой mesto://auth, сервер
- * проверяет подпись. null — если человек закрыл окно.
+ * Вход через Telegram — через нашего бота, без окна браузера:
+ * 1) сервер выдаёт одноразовый токен и ссылку t.me/<бот>?start=login_<токен>;
+ * 2) открываем Telegram, человек жмёт «Старт» — бот подтверждает аккаунт и даёт кнопку
+ *    «Вернуться в «Место»» (или назад кнопкой «◀ Место» вверху экрана);
+ * 3) приложение опрашивает сервер и входит, как только вход подтверждён.
+ * Ожидание хранится на уровне модуля: если экран входа пересоздастся при возврате
+ * по ссылке, он подхватит то же ожидание (resumeTelegramLogin).
  * phoneTicket — привязать к Telegram-профилю почту (или номер), только что подтверждённые кодом.
  */
-export async function loginWithTelegram(phoneTicket?: string | null): Promise<TelegramLoginResult | null> {
-  const redirect = Linking.createURL("auth");
-  const result = await WebBrowser.openAuthSessionAsync(
-    `${API_URL}/auth/telegram-mobile?redirect=${encodeURIComponent(redirect)}`,
-    redirect
-  );
-  if (result.type !== "success") return null;
-  const { queryParams } = Linking.parse(result.url);
-  return api<TelegramLoginResult>("/api/auth/mobile/telegram", {
-    body: { authData: queryParams ?? {}, phoneTicket: phoneTicket ?? undefined },
-    auth: false,
-  });
+let pending: Promise<TelegramLoginResult | null> | null = null;
+let cancelFlag = false;
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export function resumeTelegramLogin(): Promise<TelegramLoginResult | null> | null {
+  return pending;
+}
+export function cancelTelegramLogin() {
+  cancelFlag = true;
+}
+
+export function loginWithTelegram(phoneTicket?: string | null): Promise<TelegramLoginResult | null> {
+  if (pending) return pending;
+  cancelFlag = false;
+  pending = (async () => {
+    try {
+      const start = await api<{ token: string; botUrl: string }>("/api/auth/mobile/telegram/start", { body: {}, auth: false });
+      await Linking.openURL(start.botUrl);
+      const deadline = Date.now() + 10 * 60 * 1000;
+      let wake: (() => void) | null = null;
+      // Вернулись в приложение — проверяем сразу, не дожидаясь паузы.
+      const sub = AppState.addEventListener("change", (st) => st === "active" && wake?.());
+      try {
+        while (Date.now() < deadline && !cancelFlag) {
+          const r = await api<TelegramLoginResult & { status?: string }>("/api/auth/mobile/telegram/poll", {
+            body: { token: start.token, phoneTicket: phoneTicket ?? undefined },
+            auth: false,
+          });
+          if (r.status !== "pending") return r;
+          await Promise.race([sleep(2000), new Promise<void>((res) => (wake = res))]);
+          wake = null;
+        }
+        return null;
+      } finally {
+        sub.remove();
+      }
+    } finally {
+      pending = null;
+    }
+  })();
+  return pending;
 }
