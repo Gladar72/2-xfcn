@@ -34,11 +34,17 @@ function write(k: string, v: string) {
 /** Ссылка на «Место» в App Store. На iPhone вместо ярлыка предлагаем скачать приложение. */
 export const APP_STORE_URL = "https://apps.apple.com/ru/app/id6833348222";
 export const RUSTORE_URL = "https://www.rustore.ru/catalog/app/ru.mesto.app";
+/**
+ * Предлагать скачать приложение вместо ярлыка. Выключено, пока в магазинах нет версии
+ * с новым входом через Telegram (0.4.1): в старой вход через Telegram не возвращает в приложение.
+ * Включить: STORE_PROMPT = true.
+ */
+export const STORE_PROMPT = false;
 export function isTelegramIos(): boolean {
-  return getTelegramWebApp()?.platform === "ios";
+  return STORE_PROMPT && getTelegramWebApp()?.platform === "ios";
 }
 export function isTelegramAndroid(): boolean {
-  return getTelegramWebApp()?.platform === "android";
+  return STORE_PROMPT && getTelegramWebApp()?.platform === "android";
 }
 function openExternal(url: string) {
   const w = getTelegramWebApp();
@@ -88,7 +94,7 @@ export function HomeScreenAsk() {
       }
       const n = Number(read(LAUNCHES) ?? "0") + 1;
       write(LAUNCHES, String(n));
-      if (w.platform === "ios" || w.platform === "android") {
+      if (STORE_PROMPT && (w.platform === "ios" || w.platform === "android")) {
         // Телефон: предлагаем скачать приложение. Ярлык не проверяем.
         setStore(w.platform === "ios" ? "ios" : "android");
         const IOS_KEY = "mesto_appstore_ask";

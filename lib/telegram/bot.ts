@@ -1153,7 +1153,6 @@ export function getBot(): Bot {
       { command: "start", description: "Запустить бота" },
       { command: "app", description: "Открыть приложение" },
       { command: "subscribe", description: "💳 Оплатить тариф — работает и в приложении" },
-      { command: "download", description: "📱 Скачать приложение (App Store, RuStore)" },
       { command: "help", description: "Как это работает" },
       { command: "support", description: "Написать в поддержку" },
       { command: "partner", description: "Партнёрская программа" },
