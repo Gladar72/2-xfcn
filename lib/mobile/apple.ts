@@ -1,4 +1,4 @@
-import { createPublicKey, type JsonWebKey, type KeyObject } from "node:crypto";
+import { createHash, createPublicKey, type JsonWebKey, type KeyObject } from "node:crypto";
 import jwt from "jsonwebtoken";
 
 /**
