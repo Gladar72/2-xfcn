@@ -214,6 +214,18 @@ export async function keepIphoneStart(admin: Admin, userId: string): Promise<boo
   return true;
 }
 
+/**
+ * Подарок за установку приложения: первый вход из приложения App Store или RuStore —
+ * «Старт» на 30 дней (если тариф уже есть — его срок продлевается). Один раз на аккаунт:
+ * строку в app_install_gifts вставляем первой, повторная вставка не проходит.
+ */
+export async function grantAppInstallGift(admin: Admin, userId: string, platform: "ios" | "android"): Promise<boolean> {
+  const { error } = await admin.from("app_install_gifts").insert({ user_id: userId, platform });
+  if (error) return false; // уже получал (или таблицы ещё нет)
+  await grantGiftSubscription(admin, userId, "start", FIRST_MONTH_DAYS);
+  return true;
+}
+
 export function formatUntil(date: Date): string {
   return date.toLocaleDateString("ru-RU", { day: "numeric", month: "long", timeZone: "Europe/Moscow" });
 }

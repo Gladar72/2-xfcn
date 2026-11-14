@@ -2,11 +2,17 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SESSION_COOKIE } from "@/lib/telegram/session";
+import { grantAppInstallGift } from "@/lib/gifts/channel-gift";
 
 /** GET /api/me — используется клиентом, чтобы узнать свой userId (uuid). */
-export async function GET() {
+export async function GET(req: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // Первый вход из приложения App Store / RuStore — «Старт» на 30 дней (один раз).
+  const platform = req.headers.get("x-app-platform");
+  if (platform === "ios" || platform === "android") {
+    await grantAppInstallGift(createAdminClient(), user.userId, platform).catch(() => false);
+  }
   return NextResponse.json({ userId: user.userId });
 }
 

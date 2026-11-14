@@ -228,6 +228,9 @@ deploy() {
   # Лимит приглашений по тарифу; 0 — без ограничений (Премиум). Строго после 0084.
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
     < "$APP/supabase/migrations/0085_invite_limit_unlimited.sql"
+  # Подарок за установку приложения: «Старт» на 30 дней один раз.
+  sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 \
+    < "$APP/supabase/migrations/0086_app_install_gift.sql"
   DC --env-file "$ROOT/.env" -f docker-compose.yml up -d --build
   crontab "$APP/deploy/yandex/crontab"
   cleanup
@@ -598,9 +601,13 @@ broadcast() {
   # Рассылка от бота: текст и dry (только посчитать) — в deploy/yandex/broadcast/current.json.
   update_code
   sudo docker exec -i supabase-db psql -U postgres -d postgres -q -v ON_ERROR_STOP=0 < "$APP/supabase/migrations/0072_broadcasts.sql" || true
-  curl -sS -m 900 -X POST "http://127.0.0.1:3000/api/cron/broadcast" \
+  # "only": ["ADMIN"] — пробная отправка только админам (ADMIN_TELEGRAM_IDS).
+  local body; body="$(cat "$APP/deploy/yandex/broadcast/current.json")"
+  local adm; adm="$(envget ADMIN_TELEGRAM_IDS | tr -cd '0-9,')"
+  body="${body//\"ADMIN\"/$adm}"
+  printf '%s' "$body" | curl -sS -m 900 -X POST "http://127.0.0.1:3000/api/cron/broadcast" \
     -H "Authorization: Bearer $(envget CRON_SECRET)" -H "Content-Type: application/json" \
-    --data @"$APP/deploy/yandex/broadcast/current.json"; echo
+    --data @-; echo
 }
 
 health() {

@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveSubscriptionInfo, type ActiveSubscriptionInfo } from "@/lib/subscriptions/server";
 import { PLAN_LIMITS } from "@/lib/subscriptions/limits";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
-import { keepIphoneStart } from "@/lib/gifts/channel-gift";
+import { grantAppInstallGift, keepIphoneStart } from "@/lib/gifts/channel-gift";
 
 /**
  * GET /api/subscriptions
@@ -18,7 +18,10 @@ export async function GET(req: Request) {
 
   const admin = createAdminClient();
   // iPhone-приложение: «Старт» бесплатно, пока в App Store нет оплаты (lib/gifts/channel-gift.ts).
-  if (req.headers.get("x-app-platform") === "ios") await keepIphoneStart(admin, user.userId).catch(() => false);
+  const platform = req.headers.get("x-app-platform");
+  // Установил приложение из App Store / RuStore — «Старт» на 30 дней, один раз.
+  if (platform === "ios" || platform === "android") await grantAppInstallGift(admin, user.userId, platform).catch(() => false);
+  if (platform === "ios") await keepIphoneStart(admin, user.userId).catch(() => false);
   let info: ActiveSubscriptionInfo | null;
   try {
     info = await getActiveSubscriptionInfo(admin, user.userId);
