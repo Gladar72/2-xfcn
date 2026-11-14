@@ -33,18 +33,24 @@ function write(k: string, v: string) {
 
 /** Ссылка на «Место» в App Store. На iPhone вместо ярлыка предлагаем скачать приложение. */
 export const APP_STORE_URL = "https://apps.apple.com/ru/app/id6833348222";
+export const RUSTORE_URL = "https://www.rustore.ru/catalog/app/ru.mesto.app";
 export function isTelegramIos(): boolean {
   return getTelegramWebApp()?.platform === "ios";
 }
-export function openAppStore() {
+export function isTelegramAndroid(): boolean {
+  return getTelegramWebApp()?.platform === "android";
+}
+function openExternal(url: string) {
   const w = getTelegramWebApp();
   try {
-    if (w?.openLink) w.openLink(APP_STORE_URL);
-    else window.open(APP_STORE_URL, "_blank");
+    if (w?.openLink) w.openLink(url);
+    else window.open(url, "_blank");
   } catch {
-    window.location.href = APP_STORE_URL;
+    window.location.href = url;
   }
 }
+export function openAppStore() { openExternal(APP_STORE_URL); }
+export function openRuStore() { openExternal(RUSTORE_URL); }
 
 /** Вызвать вручную (кнопка в настройках). true — Telegram открыл окно добавления. */
 export function addToHome(): boolean {
@@ -60,8 +66,9 @@ export function HomeScreenAsk() {
 
   // Умеет ли Telegram сам поставить значок (иначе — подсказка, где это в меню «⋯»).
   const [native, setNative] = useState(false);
-  // На iPhone вместо ярлыка — приложение из App Store.
-  const [ios, setIos] = useState(false);
+  // На телефоне вместо ярлыка — приложение: iPhone → App Store, Android → RuStore.
+  const [store, setStore] = useState<"ios" | "android" | null>(null);
+  const ios = store !== null;
 
   useEffect(() => {
     let disposed = false;
@@ -81,9 +88,9 @@ export function HomeScreenAsk() {
       }
       const n = Number(read(LAUNCHES) ?? "0") + 1;
       write(LAUNCHES, String(n));
-      if (w.platform === "ios") {
-        // iPhone: предлагаем скачать приложение. Ярлык не проверяем.
-        setIos(true);
+      if (w.platform === "ios" || w.platform === "android") {
+        // Телефон: предлагаем скачать приложение. Ярлык не проверяем.
+        setStore(w.platform === "ios" ? "ios" : "android");
         const IOS_KEY = "mesto_appstore_ask";
         const last = Number(read(IOS_KEY) ?? "0") || 0;
         if (read(IOS_KEY) === "done") return;
@@ -178,19 +185,19 @@ export function HomeScreenAsk() {
 
   if (ios) {
     return (
-      <Sheet open={open && !busy} onClose={later} label="Приложение для iPhone">
+      <Sheet open={open && !busy} onClose={later} label="Приложение «Место»">
         <h2 className="t">
-          «Место» для <em>iPhone</em>
+          «Место» для <em>{store === "ios" ? "iPhone" : "Android"}</em>
         </h2>
         <p className="muted" style={{ margin: "-4px 0 0", fontSize: 14.5, lineHeight: 1.5 }}>
-          Скачай приложение из App Store — быстрее, с уведомлениями о заявках и сообщениях. Вход тот же, все встречи и чаты на месте.
+          Скачай приложение из {store === "ios" ? "App Store" : "RuStore"} — быстрее, с уведомлениями о заявках и сообщениях. Вход тот же, все встречи и чаты на месте.
         </p>
         <div className="gl" style={{ display: "flex", alignItems: "center", gap: 14, padding: 12, borderRadius: 24 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/logo/appicon-new.webp" alt="" width={56} height={56} style={{ borderRadius: 14, flex: "none" }} />
           <span style={{ display: "grid", gap: 2 }}>
             <b style={{ fontWeight: 600, fontSize: 16 }}>Место — найди компанию</b>
-            <small className="muted" style={{ fontSize: 13 }}>Бесплатно в App Store</small>
+            <small className="muted" style={{ fontSize: 13 }}>Бесплатно в {store === "ios" ? "App Store" : "RuStore"}</small>
           </span>
         </div>
         <div style={{ display: "grid", gap: 10 }}>
@@ -199,10 +206,11 @@ export function HomeScreenAsk() {
             onClick={() => {
               write("mesto_appstore_ask", "done");
               setOpen(false);
-              openAppStore();
+              if (store === "ios") openAppStore();
+              else openRuStore();
             }}
           >
-            Скачать в App Store
+            Скачать в {store === "ios" ? "App Store" : "RuStore"}
           </button>
           <button className="btn o" onClick={later}>
             Позже

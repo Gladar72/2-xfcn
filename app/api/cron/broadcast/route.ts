@@ -9,7 +9,9 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/cron/broadcast  (Authorization: Bearer CRON_SECRET)
- * Body: { key, text, button?, city?, dry? }  (button: false — без кнопки)
+ * Body: { key, text, button?, city?, dry?, photo?, links? }  (button: false — без кнопки)
+ *   photo — ссылка на картинку (текст уходит подписью, до 1024 символов);
+ *   links — [{ text, url }] — кнопки-ссылки (по одной в ряд) над кнопкой приложения.
  *
  * Разовая рассылка от бота всем, у кого есть Telegram (или только городу `city`).
  * Пропускает тех, кто сейчас заблокировал бота, и тех, кому эта рассылка (`key`) уже ушла —
@@ -57,7 +59,12 @@ export async function POST(req: NextRequest) {
   const { data: done } = await admin.from("broadcast_sends").select("telegram_id").eq("key", key).limit(100000);
   const already = new Set((done ?? []).map((r) => Number(r.telegram_id)));
 
-  const ids = Array.from(new Set(users.map((u) => Number(u.telegram_id))));
+  let ids = Array.from(new Set(users.map((u) => Number(u.telegram_id))));
+  // Пробная отправка: { only: [telegram_id, …] } — только этим людям (например, себе на проверку).
+  if (Array.isArray(body?.only) && body.only.length) {
+    const only = new Set<number>(body.only.map((x: unknown) => Number(x)));
+    ids = ids.filter((id) => only.has(id));
+  }
   const blocked = ids.filter((id) => lastBlock.get(id) === "blocked");
   const todo = ids.filter((id) => lastBlock.get(id) !== "blocked" && !already.has(id));
   const byCity: Record<string, number> = {};
@@ -67,13 +74,24 @@ export async function POST(req: NextRequest) {
 
   const appUrl = process.env.APP_URL;
   const button = typeof body?.button === "string" && body.button.trim() ? body.button.trim().slice(0, 40) : "Открыть «Место»";
-  const markup = appUrl && body?.button !== false ? new InlineKeyboard().webApp(button, appUrl) : undefined;
+  const links: { text: string; url: string }[] = Array.isArray(body?.links)
+    ? body.links.filter((l: { text?: unknown; url?: unknown }) => typeof l?.text === "string" && typeof l?.url === "string" && /^https:\/\//.test(l.url as string)).slice(0, 4)
+    : [];
+  let markup: InlineKeyboard | undefined;
+  if (links.length || (appUrl && body?.button !== false)) {
+    markup = new InlineKeyboard();
+    for (const l of links) markup.url(l.text.slice(0, 40), l.url).row();
+    if (appUrl && body?.button !== false) markup.webApp(button, appUrl);
+  }
+  const photo = typeof body?.photo === "string" && /^https:\/\//.test(body.photo) ? body.photo : null;
+  if (photo && text.length > 1024) return NextResponse.json({ error: "caption_too_long" }, { status: 400 });
   const api = getBot().api;
   let ok = 0;
   let failed = 0;
   await sendInBatches(todo, async (id) => {
     try {
-      await api.sendMessage(id, text, { reply_markup: markup });
+      if (photo) await api.sendPhoto(id, photo, { caption: text, reply_markup: markup });
+      else await api.sendMessage(id, text, { reply_markup: markup });
       ok += 1;
       await admin.from("broadcast_sends").upsert({ key, telegram_id: id, ok: true });
     } catch (err) {
