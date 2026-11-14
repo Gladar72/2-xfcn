@@ -70,3 +70,11 @@ try:
             print("  intro err", e)
 except Exception as e:
     print("subs err", e)
+
+# Возможности bundle id (Sign in with Apple и т. п.).
+try:
+    b = api("/v1/bundleIds?filter[identifier]=ru.mesto.app&include=bundleIdCapabilities")
+    for c in b.get("included", []):
+        print("CAP", c["attributes"].get("capabilityType"))
+except Exception as e:
+    print("cap err", e)
