@@ -8,6 +8,10 @@ on:
       build:
         description: "Номер сборки (пусто — самая свежая)"
         required: false
+      submit:
+        description: "Отправить на проверку"
+        type: boolean
+        default: false
       status:
         description: "Только показать статус версий"
         type: boolean
@@ -26,9 +30,12 @@ jobs:
           P8: ${{ secrets.ASC_KEY_P8 }}
           BUILD: ${{ inputs.build }}
           NOTES_FILE: .github/review-notes.txt
+          WHATS_NEW_FILE: .github/whats-new.txt
+          SUBMIT: ${{ inputs.submit }}
         run: |
           export KEY="$RUNNER_TEMP/AuthKey.p8"
           printf '%s\n' "$P8" > "$KEY"
           pip install -q pyjwt cryptography
+          export NEW_VERSION="$(python3 -c "import json;print(json.load(open('mobile/app.json'))['expo']['version'])")"
           if [ "${{ inputs.status }}" = "true" ]; then python3 .github/scripts/asc_status.py; else python3 .github/scripts/asc.py; fi
           rm -f "$KEY"

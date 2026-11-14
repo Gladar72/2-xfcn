@@ -31,6 +31,16 @@ def api(method, path, body=None):
 
 ver = api("GET", f"/v1/apps/{APP}/appStoreVersions?filter[platform]=IOS&filter[appStoreState]=PREPARE_FOR_SUBMISSION,DEVELOPER_REJECTED,REJECTED,METADATA_REJECTED&limit=5")
 ver = (ver or {}).get("data") or []
+NEW_VERSION = os.environ.get("NEW_VERSION", "").strip()
+if not ver and NEW_VERSION:
+    # Новой версии ещё нет — создаём (номер из mobile/app.json).
+    c = api("POST", "/v1/appStoreVersions", {"data": {"type": "appStoreVersions",
+        "attributes": {"platform": "IOS", "versionString": NEW_VERSION, "releaseType": "AFTER_APPROVAL"},
+        "relationships": {"app": {"data": {"type": "apps", "id": APP}}}}})
+    if not c:
+        sys.exit("Не удалось создать версию " + NEW_VERSION)
+    ver = [c["data"]]
+    print("Создана версия", NEW_VERSION)
 if not ver:
     sys.exit("Нет версии в подготовке")
 v = ver[0]
@@ -67,3 +77,30 @@ if NOTES and os.path.exists(NOTES):
     if rid:
         api("PATCH", f"/v1/appStoreReviewDetails/{rid}", {"data": {"type": "appStoreReviewDetails", "id": rid, "attributes": {"notes": notes}}})
         print("Заметки обновлены")
+
+
+# «Что нового» (ru) из .github/whats-new.txt.
+WN = os.environ.get("WHATS_NEW_FILE")
+if WN and os.path.exists(WN):
+    text = open(WN).read().strip()
+    locs = api("GET", f"/v1/appStoreVersions/{v['id']}/appStoreVersionLocalizations") or {}
+    for l in locs.get("data", []):
+        api("PATCH", f"/v1/appStoreVersionLocalizations/{l['id']}", {"data": {"type": "appStoreVersionLocalizations", "id": l["id"], "attributes": {"whatsNew": text}}})
+        print("Что нового:", l["attributes"].get("locale"))
+
+# Отправить на проверку (только если SUBMIT=true).
+if os.environ.get("SUBMIT") == "true":
+    rs = api("POST", "/v1/reviewSubmissions", {"data": {"type": "reviewSubmissions", "attributes": {"platform": "IOS"},
+        "relationships": {"app": {"data": {"type": "apps", "id": APP}}}}})
+    if not rs:
+        # Возможно, черновик отправки уже есть — берём его.
+        ex = api("GET", f"/v1/reviewSubmissions?filter[app]={APP}&filter[state]=READY_FOR_REVIEW&limit=1") or {}
+        rs = {"data": (ex.get("data") or [None])[0]}
+    rid = (rs.get("data") or {}).get("id")
+    if not rid:
+        sys.exit("Не удалось создать отправку на проверку")
+    api("POST", "/v1/reviewSubmissionItems", {"data": {"type": "reviewSubmissionItems",
+        "relationships": {"reviewSubmission": {"data": {"type": "reviewSubmissions", "id": rid}},
+                          "appStoreVersion": {"data": {"type": "appStoreVersions", "id": v["id"]}}}}})
+    r = api("PATCH", f"/v1/reviewSubmissions/{rid}", {"data": {"type": "reviewSubmissions", "id": rid, "attributes": {"submitted": True}}})
+    print("Отправлено на проверку:", bool(r))
