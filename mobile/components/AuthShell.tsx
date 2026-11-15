@@ -120,5 +120,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.35)",
   },
-  glassText: { fontSize: 16, ...f("600"), color: "#fff" },
+  glassText: { fontSize: 16, ...f("500"), color: "#fff" },
 });
