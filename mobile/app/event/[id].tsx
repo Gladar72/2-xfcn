@@ -20,6 +20,7 @@ import { FireButton } from "@/components/Fire";
 import { CATEGORY_SHORT, colors, eventIcon, FONT, SERIF, f } from "@/lib/theme";
 import { anonymousTag, type EventDetail } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
+import { Creature } from "@/components/k/Creature";
 
 const APPLY_ERRORS: Record<string, string> = {
   event_full: "Мест больше нет",
@@ -338,76 +339,96 @@ export default function EventScreen() {
               <View style={styles.tileHead}><Icon name="wallet" size={13} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>{event.isBusiness ? "Билет" : "Расходы"}</Text></View>
               <Text style={styles.tileVal} numberOfLines={2}>{costShort(event)}</Text>
             </View>
-            {event.hasChat && event.conversationId && (event.viewerStatus === "organizer" || event.viewerStatus === "accepted") ? (
-              <Pressable onPress={openChat} style={[styles.tile, styles.tileChat]}>
-                <Icon name="chat" size={20} color="#fff" />
-                <Text style={styles.tileLabel}>Чат</Text>
-              </Pressable>
-            ) : null}
-          </View>
-          <View style={[styles.card, { paddingVertical: 4 }]}>
-            <InfoRow
-              icon="pin"
-              text={event.organizerHidden ? "Место откроется после одобрения заявки" : (event.address && event.placeName && event.address.toLowerCase().startsWith(event.placeName.toLowerCase()) ? event.address : [event.placeName, event.address].filter(Boolean).join(", ")) || "Место уточняется"}
-              last
-            />
-          </View>
-
-          {event.description ? (
-            <View style={styles.card}>
-              <Text style={styles.cardH}>О встрече</Text>
-              <Text style={styles.desc}>{event.description}</Text>
-            </View>
-          ) : null}
-
-          {event.organizer ? (
-            <Pressable disabled={event.organizerHidden} onPress={() => router.push(`/person/${event.organizer!.id}` as Href)} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}>
-            <View style={[styles.card, styles.org]}>
-              {event.organizerHidden ? (
-                <View style={styles.maskAva}>
-                  <Icon name="mask" color={colors.violet} />
-                </View>
-              ) : (
-                <Avatar uri={event.organizer.avatarUrl} name={event.organizer.name} size={52} />
-              )}
-              <View style={{ flex: 1 }}>
-                <Text style={styles.orgName}>
-                  {event.organizerHidden ? "Анонимный организатор" : `${event.organizer.name}${event.organizer.age ? `, ${event.organizer.age}` : ""}`}
-                </Text>
-                <Text style={styles.muted}>
-                  Организатор · ★ {event.organizer.ratingAvg ? event.organizer.ratingAvg.toFixed(1) : "—"} · встреч: {event.organizer.completedMeetingsCount}
-                </Text>
-              </View>
-            </View>
+            {/* Как в мини-аппе: значок чата всегда, до одобрения — подсказка. */}
+            <Pressable
+              onPress={() => (event.hasChat && event.conversationId && (event.viewerStatus === "organizer" || event.viewerStatus === "accepted") ? openChat() : Alert.alert("", event.isBusiness && event.seatsTotal > 20 ? "У больших событий общего чата нет — вопросы организатору в Telegram" : "Чат откроется после одобрения заявки"))}
+              style={[styles.tile, styles.tileChat]}
+              accessibilityLabel="Чат встречи"
+            >
+              <Icon name="chat" size={20} color="#fff" />
+              <Text style={styles.tileLabel}>{event.isBusiness ? "Чат события" : "Чат"}</Text>
             </Pressable>
-          ) : null}
-
-          {event.isAnonymous && event.viewerStatus !== "organizer" && event.viewerStatus !== "accepted" ? (
-            <View style={styles.card}>
-              <Text style={styles.muted}>
-                Организатор увидит твоё фото и профиль сразу после отправки заявки. Его профиль и точный адрес откроются тебе после одобрения.
-              </Text>
-            </View>
+          </View>
+          {/* .k-orgc: организатор (анонимно — капля Моси и «Почему?») */}
+          {event.organizer ? (
+            event.organizerHidden ? (
+              <Pressable onPress={() => Alert.alert("Анонимная встреча", "Организатор увидит твоё фото и профиль сразу после отправки заявки. Его профиль и точный адрес откроются тебе после одобрения.")} style={({ pressed }) => [styles.blk, styles.org, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
+                <View style={styles.orgAnon}><Creature size={44} variant="p" /></View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.orgName}>{`${anonymousTag(event.organizer.gender)} · анонимно`}</Text>
+                  <Text style={styles.muted}>{event.organizer.ratingAvg ? `${event.organizer.ratingAvg.toFixed(1).replace(".", ",")} ★ · ` : ""}откроется после одобрения заявки</Text>
+                </View>
+                <View style={styles.why}><Text style={styles.whyText}>Почему?</Text></View>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => router.push(`/person/${event.organizer!.id}` as Href)} style={({ pressed }) => [styles.blk, styles.org, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
+                <Avatar uri={event.organizer.avatarUrl} name={event.organizer.name} size={46} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.orgName} numberOfLines={1}>{`${event.isBusiness ? event.organizer.name : event.organizer.name.trim().split(/\s+/)[0]}${event.viewerStatus === "organizer" ? " · это ты" : ""} · организатор`}</Text>
+                  <Text style={styles.muted}>
+                    {[event.organizer.ratingAvg ? `${event.organizer.ratingAvg.toFixed(1).replace(".", ",")} ★` : null, `${event.organizer.completedMeetingsCount} ${event.organizer.completedMeetingsCount % 10 === 1 && event.organizer.completedMeetingsCount % 100 !== 11 ? "встреча" : [2, 3, 4].includes(event.organizer.completedMeetingsCount % 10) && ![12, 13, 14].includes(event.organizer.completedMeetingsCount % 100) ? "встречи" : "встреч"}`, event.isBusiness ? "заведение" : null].filter(Boolean).join(" · ")}
+                  </Text>
+                </View>
+                <Icon name="chev" size={18} color="rgba(255,255,255,0.6)" />
+              </Pressable>
+            )
           ) : null}
 
           {event.viewerStatus === "organizer" ? (
             <OrganizerPanel event={event} onChanged={load} />
-          ) : event.participants.length > 0 ? (
-            <View style={{ gap: 10 }}>
-              <Text style={styles.section}>Идут · {event.participants.length + 1}</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
+          ) : (
+            <View style={styles.blk}>
+              <Text style={styles.cardH}>{`${live ? "Уже на месте" : "Идут"} · ${event.seatsTaken + 1}`}</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 10 }}>
+                {event.organizer ? (
+                  event.organizerHidden ? (
+                    <View style={styles.anonAva}><Creature size={46} variant="p" /></View>
+                  ) : (
+                    <Pressable onPress={() => router.push(`/person/${event.organizer!.id}` as Href)}><Avatar uri={event.organizer.avatarUrl} name={event.organizer.name} size={52} /></Pressable>
+                  )
+                ) : null}
                 {event.participants.map((p, i) => (
-                  // Анонимная встреча: других участников видно только условно — профиль не открывается.
-                  <Pressable key={p.anonymous ? `anon-${i}` : p.id} disabled={!!p.anonymous} onPress={() => router.push(`/person/${p.id}` as Href)} style={{ alignItems: "center", width: 62, gap: 4 }}>
-                    <Avatar uri={p.avatarUrl} name={p.name} size={52} />
-                    <Text numberOfLines={1} style={styles.pName}>
-                      {p.name}
-                    </Text>
+                  <Pressable key={p.anonymous ? `anon-${i}` : p.id} disabled={!!p.anonymous} onPress={() => router.push(`/person/${p.id}` as Href)}>
+                    {p.anonymous ? <View style={styles.anonAva}><Creature size={46} variant="p" /></View> : <Avatar uri={p.avatarUrl} name={p.name} size={52} />}
                   </Pressable>
                 ))}
               </View>
+              {!full && (event.viewerStatus === "none" || !event.viewerStatus) && open ? (
+                <Pressable onPress={apply} style={({ pressed }) => [styles.freeChip, { transform: [{ scale: pressed ? 0.95 : 1 }] }]}>
+                  <Text style={styles.freeText}>Свободных мест: {Math.max(0, event.seatsTotal - event.seatsTaken)}</Text>
+                </Pressable>
+              ) : null}
+            </View>
+          )}
+
+          {event.description ? (
+            <View style={styles.blk}>
+              <Text style={styles.cardH}>{event.isBusiness ? "О событии" : "О встрече"}</Text>
+              <Text style={[styles.desc, { marginTop: 6 }]}>{event.description}</Text>
             </View>
           ) : null}
+
+          {/* Место: до одобрения анонимной — скрыто */}
+          <View style={styles.blk}>
+            {event.organizerHidden ? (
+              <>
+                <Text style={styles.cardH}>Место откроется после одобрения</Text>
+                <Text style={[styles.desc, { marginTop: 4, color: "rgba(255,255,255,0.72)" }]}>Организатор и точный адрес видны только принятым участникам</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.cardH}>Место</Text>
+                <Text style={[styles.desc, { marginTop: 4 }]}>
+                  {(event.address && event.placeName && event.address.toLowerCase().startsWith(event.placeName.toLowerCase()) ? event.address : [event.placeName, event.address].filter(Boolean).join(", ")) || "Место уточняется"}
+                </Text>
+                {hasCoords ? (
+                  <Pressable onPress={() => openRoute(event.latitude!, event.longitude!)} style={[styles.freeChip, { marginTop: 10 }]}>
+                    <Text style={styles.freeText}>Маршрут</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+          </View>
 
           {event.viewerStatus === "pending" && open && event.myApplicationId ? (
             <Pressable onPress={() => setConfirm("withdraw")} style={styles.quietLink} hitSlop={6}>
@@ -511,6 +532,14 @@ const styles = StyleSheet.create({
   cardH: { fontSize: 15, ...f("500"), color: W, marginBottom: 6 },
   desc: { fontFamily: FONT, fontSize: 15, lineHeight: 22, color: "rgba(255,255,255,0.82)" },
   org: { flexDirection: "row", alignItems: "center", gap: 12 },
+  // .k-blk.k-gd из мини-аппа
+  blk: { borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: "rgba(20,16,30,0.42)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+  orgAnon: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  anonAva: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 2, borderColor: "rgba(255,255,255,0.6)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  why: { height: 32, paddingHorizontal: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.45)", justifyContent: "center" },
+  whyText: { color: "#fff", fontSize: 13, ...f("500") },
+  freeChip: { alignSelf: "flex-start", marginTop: 12, height: 36, paddingHorizontal: 14, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.45)", justifyContent: "center" },
+  freeText: { color: "#fff", fontSize: 14, ...f("500") },
   maskAva: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center" },
   orgName: { fontSize: 16, ...f("500"), color: W },
   muted: { fontFamily: FONT, fontSize: 13, color: W60, marginTop: 2 },
