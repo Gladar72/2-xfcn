@@ -16,7 +16,7 @@ import { coverUri } from "@/lib/covers";
 import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { MAP_STYLE, TYUMEN_CENTER } from "@/lib/map";
-import Supercluster from "supercluster";
+import { clusterize } from "@/lib/cluster";
 import { Linking } from "react-native";
 import { K, KGlass, KI, Press, kf } from "@/components/k";
 import { catIcon } from "@/lib/theme";
@@ -158,28 +158,23 @@ export default function MapScreen() {
   const word = bizOnly ? plural(shown.length, "событие", "события", "событий") : plural(events.length, "встреча", "встречи", "встреч");
   const shownCount = shown.length;
 
-  const index = useMemo(() => {
-    const sc = new Supercluster<{ i: number }>({ radius: 72, maxZoom: 21 });
-    sc.load(shown.map((e, i) => ({ type: "Feature" as const, properties: { i }, geometry: { type: "Point" as const, coordinates: [e.longitude, e.latitude] } })));
-    return sc;
-  }, [shown]);
-  const clusters = useMemo(() => index.getClusters([-180, -85, 180, 85], Math.round(zoom)), [index, zoom]);
+  const clusters = useMemo(() => clusterize(shown.map((e) => ({ ...e, lng: e.longitude, lat: e.latitude })), Math.round(zoom)), [shown, zoom]);
   useEffect(() => setSelected(null), [shown]);
   const carousel = (selected ?? shown).slice(0, 30);
 
-  function openCluster(id: number) {
+  function openCluster(leaves: (MapEvent & { isCity?: boolean })[]) {
     tapLight();
-    const leaves = index.getLeaves(id, Infinity).map((f) => shown[f.properties.i]!).filter(Boolean);
     setSelected(leaves);
-    const z = Math.min(index.getClusterExpansionZoom(id), 17);
     const lngs = leaves.map((e) => e.longitude);
     const lats = leaves.map((e) => e.latitude);
-    if (z >= 17 || leaves.length < 2) {
-      camera.current?.flyTo({ center: [lngs[0]!, lats[0]!], zoom: z, duration: 500 });
+    const spread = Math.max(...lngs) - Math.min(...lngs) + Math.max(...lats) - Math.min(...lats);
+    if (spread < 0.0005) {
+      camera.current?.flyTo({ center: [lngs[0]!, lats[0]!], zoom: 17, duration: 500 });
     } else {
       camera.current?.fitBounds([Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)], { padding: { top: 220, right: 60, bottom: 260, left: 60 }, duration: 500 });
     }
   }
+
 
   return (
     <View style={{ flex: 1 }}>
@@ -198,22 +193,20 @@ export default function MapScreen() {
         <Camera ref={camera} initialViewState={{ center: TYUMEN_CENTER, zoom: 11 }} />
         {located ? <UserLocation /> : null}
         {clusters.map((c) => {
-          const [lng, lat] = c.geometry.coordinates as [number, number];
-          const props = c.properties as { cluster?: boolean; cluster_id?: number; point_count?: number; i?: number };
-          if (props.cluster) {
-            const n = props.point_count ?? 0;
+          if (c.items.length > 1) {
+            const n = c.items.length;
             const label = n > 99 ? "99+" : String(n);
             const size = (label.length >= 3 ? 50 : 42) + 4;
             return (
-              <Marker key={`c${props.cluster_id}`} id={`c${props.cluster_id}`} lngLat={[lng, lat]} anchor="center">
-                <Pressable onPress={() => openCluster(props.cluster_id!)} accessibilityLabel={`Показать встречи: ${n}`}
+              <Marker key={c.id} id={c.id} lngLat={[c.lng, c.lat]} anchor="center">
+                <Pressable onPress={() => openCluster(c.items)} accessibilityLabel={`Показать встречи: ${n}`}
                   style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 3, borderColor: "#fff", backgroundColor: "#17141F", alignItems: "center", justifyContent: "center", shadowColor: "#17141F", shadowOpacity: 0.55, shadowRadius: 11, shadowOffset: { width: 0, height: 10 } }}>
                   <Text style={{ color: "#fff", fontSize: label.length >= 3 ? 16 : 17, ...f("600") }}>{label}</Text>
                 </Pressable>
               </Marker>
             );
           }
-          const e = shown[props.i!];
+          const e = c.items[0];
           if (!e) return null;
           const cityEv = e.isCity || e.id.startsWith("city:");
           const full = !cityEv && e.seatsLeft <= 0;

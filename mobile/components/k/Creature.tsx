@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { AppState, PixelRatio, View, type StyleProp, type ViewStyle } from "react-native";
+import { Animated, AppState, Easing, PixelRatio, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
 import { GLView, type ExpoWebGLRenderingContext } from "expo-gl";
 import { Image } from "expo-image";
 import { CREATURE_FS, CREATURE_VS } from "./creature-shader";
@@ -16,7 +16,33 @@ const NO_GL = process.env.EXPO_PUBLIC_UI_SMOKE === "1";
  */
 type Variant = "p" | "e";
 const t0 = Date.now();
-const FALLBACK: Record<Variant, string> = { p: `${SITE}/brand/creature/blobw.webp`, e: `${SITE}/brand/creature/blobe.webp` };
+// Запасной вариант — 12 кадров того же шейдера (как в мини-аппе), плавно перетекают друг в друга.
+const FRAMES = 12;
+const frameUri = (v: Variant, k: number) => `${SITE}/brand/creature/m${v}${String(k * 2).padStart(2, "0")}.webp`;
+
+/** Мося из готовых кадров: перетекание прозрачностью на видеочипе (native driver) — 60 кадров, без рывков. */
+function FrameBlob({ size, variant, style }: { size: number; variant: Variant; style?: StyleProp<ViewStyle> }) {
+  const t = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const a = Animated.loop(Animated.timing(t, { toValue: FRAMES, duration: FRAMES * 1000, easing: Easing.linear, useNativeDriver: true }));
+    a.start();
+    return () => a.stop();
+  }, [t]);
+  return (
+    <View style={[{ width: size, height: size }, style]} pointerEvents="none">
+      {Array.from({ length: FRAMES }, (_, k) => {
+        // Кадр k виден около момента k: плавно появляется и уходит (треугольник прозрачности), по кругу.
+        const input = k === 0 ? [0, 1, FRAMES - 1, FRAMES] : [k - 1, k, k + 1];
+        const output = k === 0 ? [1, 0, 0, 1] : [0, 1, 0];
+        return (
+          <Animated.View key={k} style={[StyleSheet.absoluteFill, { opacity: t.interpolate({ inputRange: input, outputRange: output, extrapolate: "clamp" }) }]}>
+            <Image source={{ uri: frameUri(variant, k) }} style={{ width: size, height: size }} contentFit="contain" cachePolicy="memory-disk" />
+          </Animated.View>
+        );
+      })}
+    </View>
+  );
+}
 
 export function Creature({ size = 58, variant = "e", style }: { size?: number; variant?: Variant; style?: StyleProp<ViewStyle> }) {
   const [failed, setFailed] = useState(NO_GL);
@@ -28,9 +54,15 @@ export function Creature({ size = 58, variant = "e", style }: { size?: number; v
     return () => { sub.remove(); cancelAnimationFrame(raf.current); };
   }, []);
 
-  if (failed) {
-    return <Image source={{ uri: FALLBACK[variant] }} style={[{ width: size, height: size }, style as object]} contentFit="contain" cachePolicy="disk" />;
-  }
+  // Живой шейдер не показал кадр за 1.5 с (видеочип не дал контекст) — переходим на кадры.
+  const drawn = useRef(false);
+  useEffect(() => {
+    if (failed) return;
+    const tm = setTimeout(() => { if (!drawn.current) setFailed(true); }, 1500);
+    return () => clearTimeout(tm);
+  }, [failed]);
+
+  if (failed) return <FrameBlob size={size} variant={variant} style={style} />;
 
   const onContextCreate = (gl: ExpoWebGLRenderingContext) => {
     try {
@@ -74,6 +106,7 @@ export function Creature({ size = 58, variant = "e", style }: { size?: number; v
         gl.drawArrays(gl.TRIANGLES, 0, 3);
         gl.flush();
         gl.endFrameEXP();
+        drawn.current = true;
       };
       frame();
     } catch {

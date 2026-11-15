@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import MaskedView from "@react-native-masked-view/masked-view";
 import { api } from "@/lib/api";
 import { API_URL } from "@/lib/config";
 import { plural } from "@/lib/format";
@@ -92,16 +91,13 @@ export default function ProfileScreen() {
       <PearlBg />
       {/* .k-hero2: фото с маской — снизу растворяется (78% → прозрачно) */}
       <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, height: HERO_H, transform: [{ translateY: heroShift }, { scale: heroScale }] }}>
-        <MaskedView
-          style={StyleSheet.absoluteFill}
-          maskElement={<LinearGradient colors={["#000", "#000", "transparent"]} locations={[0, 0.78, 1]} style={StyleSheet.absoluteFill} />}
-        >
-          {main ? (
-            <Image source={{ uri: main }} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition={{ top: "25%" }} transition={150} cachePolicy="memory-disk" />
-          ) : (
-            <LinearGradient colors={["#D9D3E6", "#F4F2F8"]} style={StyleSheet.absoluteFill} />
-          )}
-        </MaskedView>
+        {main ? (
+          <Image source={{ uri: main }} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition={{ top: "25%" }} transition={150} cachePolicy="memory-disk" />
+        ) : (
+          <LinearGradient colors={["#D9D3E6", "#F4F2F8"]} style={StyleSheet.absoluteFill} />
+        )}
+        {/* Низ фото растворяется в перламутре (как маска 78% → прозрачно в мини-аппе). */}
+        <LinearGradient colors={["rgba(244,242,248,0)", "rgba(244,242,248,0)", "rgba(244,242,248,0.85)", K.pearl]} locations={[0, 0.7, 0.9, 1]} style={StyleSheet.absoluteFill} />
       </Animated.View>
 
       <Animated.ScrollView
