@@ -17,7 +17,7 @@ import { api, type ApiError } from "@/lib/api";
 import { costShort, formatEventDate, seatsLeft } from "@/lib/format";
 import { openRoute } from "@/lib/route";
 import { FireButton } from "@/components/Fire";
-import { CATEGORY_SHORT, colors, eventIcon, FONT, f } from "@/lib/theme";
+import { CATEGORY_SHORT, colors, eventIcon, FONT, SERIF, f } from "@/lib/theme";
 import { anonymousTag, type EventDetail } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 
@@ -257,7 +257,19 @@ export default function EventScreen() {
                 </Text>
               </View>
             </View>
-            <Text style={styles.title}>{event.title}</Text>
+            {(() => {
+              // Как в мини-аппе: последнее слово — второй строкой, Lora Italic; длинные — мельче (.k-tl2/.k-tl3).
+              const t = event.title.trim();
+              const i = t.lastIndexOf(" ");
+              const parts = i > 2 && t.length <= 40 ? [t.slice(0, i), t.slice(i + 1)] : [t, ""];
+              const size = t.length > 60 ? 26 : t.length > 30 ? 32 : 40;
+              return (
+                <Text style={[styles.title, { fontSize: size, lineHeight: Math.round(size * 1.08), letterSpacing: -0.035 * size, textShadowColor: "rgba(0,0,0,0.25)", textShadowRadius: 20 }]}>
+                  {parts[0]}
+                  {parts[1] ? <Text style={{ fontFamily: SERIF, fontSize: size * 1.08, letterSpacing: -0.01 * size }}>{"\n"}{parts[1]}</Text> : null}
+                </Text>
+              );
+            })()}
           </View>
           <View style={[styles.heroTop, { top: insets.top + 8 }]}>
             <RoundBtn onPress={() => router.back()}>
