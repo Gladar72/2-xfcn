@@ -1,8 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Image } from "expo-image";
+import { Creature } from "@/components/k/Creature";
 import { Glass } from "@/components/brand";
 import { tapLight } from "@/lib/feedback";
-import { stickerUrl } from "@/lib/stickers";
 import { colors, FONT, f } from "@/lib/theme";
 import { StepTitle } from "./parts";
 
@@ -37,7 +36,7 @@ export function StepKind({ value, onPick }: { value: Kind | null; onPick: (k: Ki
           >
             {on ? (
               <View style={[s.card, s.cardOn]}>
-              <Image source={{ uri: stickerUrl(k.sticker) }} style={s.img} contentFit="contain" cachePolicy="disk" />
+              <Creature size={64} variant={k.kind === "anon" ? "p" : "e"} hue={k.kind === "anon" ? 40 : k.kind === "business" ? -50 : 0} />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={[s.title, on && { color: "#fff" }]}>{k.title}</Text>
                 <Text style={[s.text, on && { color: "rgba(255,255,255,0.72)" }]}>{k.text}</Text>
@@ -45,7 +44,7 @@ export function StepKind({ value, onPick }: { value: Kind | null; onPick: (k: Ki
               </View>
             ) : (
               <Glass strong style={s.card}>
-              <Image source={{ uri: stickerUrl(k.sticker) }} style={s.img} contentFit="contain" cachePolicy="disk" />
+              <Creature size={64} variant={k.kind === "anon" ? "p" : "e"} hue={k.kind === "anon" ? 40 : k.kind === "business" ? -50 : 0} />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={[s.title, on && { color: "#fff" }]}>{k.title}</Text>
                 <Text style={[s.text, on && { color: "rgba(255,255,255,0.72)" }]}>{k.text}</Text>

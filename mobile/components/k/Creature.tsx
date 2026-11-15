@@ -44,7 +44,7 @@ function FrameBlob({ size, variant, style }: { size: number; variant: Variant; s
   );
 }
 
-export function Creature({ size = 58, variant = "e", style }: { size?: number; variant?: Variant; style?: StyleProp<ViewStyle> }) {
+export function Creature({ size = 58, variant = "e", style, hue = 0 }: { size?: number; variant?: Variant; style?: StyleProp<ViewStyle>; hue?: number }) {
   const [failed, setFailed] = useState(NO_GL);
   const raf = useRef(0);
   const active = useRef(AppState.currentState === "active");
@@ -92,6 +92,7 @@ export function Creature({ size = 58, variant = "e", style }: { size?: number; v
       gl.viewport(0, 0, w, h);
       gl.uniform2f(uR, w, h);
       gl.uniform1f(uV, variant === "e" ? 1 : 0);
+      gl.uniform1f(U("hue"), hue);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
       const frame = () => {

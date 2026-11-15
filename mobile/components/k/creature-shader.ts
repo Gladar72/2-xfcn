@@ -1,5 +1,5 @@
 // Сгенерировано из components/brand/Creature.tsx — тот же шейдер Моси, что в мини-аппе.
-export const CREATURE_FS = `precision highp float;uniform float t;uniform vec2 r;uniform float V;uniform float blink;uniform vec3 pk;
+export const CREATURE_FS = `precision highp float;uniform float t;uniform vec2 r;uniform float V;uniform float blink;uniform vec3 pk;uniform float hue;
 float h(vec3 p){p=fract(p*.3183+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float n(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
 return mix(mix(mix(h(i),h(i+vec3(1,0,0)),f.x),mix(h(i+vec3(0,1,0)),h(i+vec3(1,1,0)),f.x),f.y),
@@ -58,5 +58,11 @@ vec4 shade(vec2 uv){
 void main(){
  vec2 uv=(gl_FragCoord.xy-.5*r)/r.y;
  vec4 s=shade(uv);
- gl_FragColor=vec4(pow(s.rgb,vec3(.95))*s.a,s.a);}`;
+ vec3 c=pow(s.rgb,vec3(.95));
+ if(hue!=0.){float a=hue*.0174533,co=cos(a),si=sin(a);
+  mat3 m=mat3(.213+.787*co-.213*si,.213-.213*co+.143*si,.213-.213*co-.787*si,
+              .715-.715*co-.715*si,.715+.285*co+.140*si,.715-.715*co+.715*si,
+              .072-.072*co+.928*si,.072-.072*co-.283*si,.072+.928*co+.072*si);
+  c=clamp(m*c,0.,1.);}
+ gl_FragColor=vec4(c*s.a,s.a);}`;
 export const CREATURE_VS = `attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;

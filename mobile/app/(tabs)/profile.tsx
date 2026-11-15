@@ -84,7 +84,7 @@ export default function ProfileScreen() {
 
   // Фото не прокручивается вместе с текстом: при потягивании вниз чуть увеличивается, при прокрутке вверх — уходит медленнее.
   const heroScale = scrollY.interpolate({ inputRange: [-200, 0], outputRange: [1.25, 1], extrapolateRight: "clamp" });
-  const heroShift = scrollY.interpolate({ inputRange: [-200, 0, 400], outputRange: [0, 0, -120], extrapolate: "clamp" });
+  const heroShift = 0; // как в мини-аппе: фото стоит на месте, страница едет поверх него
 
   return (
     <View style={{ flex: 1, backgroundColor: K.pearl }}>
