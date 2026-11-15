@@ -2,7 +2,10 @@ name: Mobile typecheck
 
 # Быстрая проверка типов мобильного приложения (без сборки). Печатает ошибки TypeScript.
 on:
-  workflow_dispatch:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths: ["mobile/**", ".github/workflows/mobile-check.yml"]
 
 jobs:
   tsc:
