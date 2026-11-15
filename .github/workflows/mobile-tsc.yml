@@ -5,7 +5,7 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main]
-    paths: ["mobile/**", ".github/workflows/mobile-check.yml"]
+    paths: ["mobile/**", ".github/workflows/mobile-tsc.yml"]
 
 jobs:
   tsc:
