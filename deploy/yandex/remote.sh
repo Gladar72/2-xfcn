@@ -647,6 +647,21 @@ crondiag() {
   echo "--- перезагрузки"; last -x reboot 2>/dev/null | head -5 || true
 }
 
+# Вход в мобильном приложении: живы ли новые адреса Telegram-входа и таблица. Создаёт один пустой токен, больше ничего.
+logincheck() {
+  echo "--- таблица mobile_tg_logins"; sudo docker exec supabase-db psql -U postgres -d postgres -tAc "select count(*) from mobile_tg_logins" 2>&1 | head -2
+  echo "--- POST /api/auth/mobile/telegram/start"
+  local r; r=$(curl -sS -m 20 -X POST http://127.0.0.1:3000/api/auth/mobile/telegram/start -H "Content-Type: application/json" --data '{}')
+  echo "$r" | sed -E 's/"token":"[^"]{6}[^"]*"/"token":"…"/' | cut -c1-200
+  local t; t=$(echo "$r" | grep -o '"token":"[^"]*"' | cut -d'"' -f4)
+  echo "--- POST /api/auth/mobile/telegram/poll (ждём pending)"
+  curl -sS -m 20 -X POST http://127.0.0.1:3000/api/auth/mobile/telegram/poll -H "Content-Type: application/json" --data "{\"token\":\"$t\"}" -w "  http=%{http_code}\n"
+  echo "--- POST /api/auth/mobile/apple без токена (ждём 400)"
+  curl -sS -m 20 -o /dev/null -w "http=%{http_code}\n" -X POST http://127.0.0.1:3000/api/auth/mobile/apple -H "Content-Type: application/json" --data '{}'
+  echo "--- /app-login"; curl -sS -m 20 -o /dev/null -w "http=%{http_code}\n" http://127.0.0.1:3000/app-login?t=x
+  echo "--- apple-app-site-association"; curl -sS -m 20 http://127.0.0.1:3000/.well-known/apple-app-site-association | grep -o 'app-login' | head -1
+}
+
 # Ежечасный присмотр (GitHub по расписанию): самолечение + обезличенный отчёт в ветку watchlog.
 watch() {
   prepare_env
@@ -693,6 +708,6 @@ webhook() {
 }
 
 case "$TASK" in
-  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | photowarm | adminpremium | keytest | health | crondiag | appletest | apperr | storagefix | cleanup) "$TASK" ;;
+  bootstrap | supabase | migrate | deploy | status | capacitydiag | assetdiag | logs | webhook | tgcheck | envcheck | eventsdiag | bizdiag | storyshot | promodiag | promofix | bizmove | osupdate | giftdiag | statsdiag | notifydiag | watch | broadcast | restoreevents | reauthnotify | blockedcount | blocksreport | phototrim | photowarm | adminpremium | keytest | health | crondiag | appletest | apperr | logincheck | storagefix | cleanup) "$TASK" ;;
   *) echo "unknown task $TASK"; exit 1 ;;
 esac
