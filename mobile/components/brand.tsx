@@ -10,6 +10,7 @@ import Svg, { Defs, LinearGradient as SvgLinear, Path, RadialGradient, Rect, Sto
 import { brand, brandGradient, colors, fonts, gradientEnd, gradientStart, f, SERIF } from "@/lib/theme";
 import { LOGO_LETTERS, LOGO_M, LOGO_VIEWBOX } from "@/lib/logo-paths";
 import { textWidth } from "@/lib/textWidth";
+import { Creature } from "@/components/k/Creature";
 
 export { textWidth };
 
@@ -208,9 +209,9 @@ export function Wordmark({ height = 28, color = colors.ink, gradientM }: { heigh
 
 export type MosyaPose = Parameters<typeof brand.mosya>[0];
 
-/** Маскот Мося. */
-export function Mosya({ pose = "wave", size = 120, style }: { pose?: MosyaPose; size?: number; style?: StyleProp<ViewStyle> }) {
-  return <Image source={{ uri: brand.mosya(pose) }} style={[{ width: size, height: size }, style as object]} contentFit="contain" cachePolicy="disk" />;
+/** Маскот Мося — живая капля, как в мини-аппе (components/k/Creature). pose оставлен для совместимости. */
+export function Mosya({ size = 120, style }: { pose?: MosyaPose; size?: number; style?: StyleProp<ViewStyle> }) {
+  return <Creature size={size} variant="e" style={style} />;
 }
 
 /** Плашка-чип: lav — сиреневая, glass — на фото, live — «Идёт сейчас», dark — чёрная. */

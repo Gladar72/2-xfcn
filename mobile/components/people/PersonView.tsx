@@ -4,6 +4,7 @@ import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { Creature } from "@/components/k/Creature";
 import { Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { InviteSheet } from "@/components/people/InviteSheet";
@@ -165,14 +166,25 @@ export function PersonView({
 
   // Фото слегка увеличивается при оттягивании вниз и уезжает медленнее текста — «параллакс».
   const photoScale = scrollY.interpolate({ inputRange: [-200, 0], outputRange: [1.4, 1], extrapolateRight: "clamp" });
-  const photoShift = scrollY.interpolate({ inputRange: [0, PHOTO_H], outputRange: [0, PHOTO_H * 0.45], extrapolateLeft: "clamp" });
 
   const common = p?.commonInterests ?? [];
   const other = (p?.interests ?? []).filter((i) => !common.includes(i));
   const dist = distanceLabel(p?.distanceKm);
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.ink }}>
+    <View style={{ flex: 1, backgroundColor: "#17141F" }}>
+      {/* Фото стоит на месте (как .gal в мини-аппе), карточка с «О себе» едет поверх него. */}
+        <Animated.View pointerEvents="none" style={[styles.photoBox, StyleSheet.absoluteFillObject, { height: PHOTO_H, transform: [{ scale: photoScale }] }]}>
+        {photos.length ? (
+          <Image source={{ uri: photos[photo] ?? photos[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />
+        ) : (
+          <LinearGradient colors={["#3F3A4E", "#AAA0FF", colors.milk]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
+            <Creature size={170} variant="e" />
+          </LinearGradient>
+        )}
+        <LinearGradient colors={["rgba(23,20,31,0.32)", "rgba(23,20,31,0)", "rgba(23,20,31,0)", "rgba(23,20,31,0.88)", "#17141F"]} locations={[0, 0.22, 0.5, 0.9, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+      </Animated.View>
+
       <Animated.ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
@@ -180,21 +192,13 @@ export function PersonView({
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         contentContainerStyle={{ paddingBottom: insets.bottom + (isMe ? 40 : 120) }}
       >
-        <Animated.View style={[styles.photoBox, { transform: [{ translateY: photoShift }, { scale: photoScale }] }]}>
-          {photos.length ? (
-            <Image source={{ uri: photos[photo] ?? photos[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />
-          ) : (
-            <LinearGradient colors={["#3F3A4E", "#AAA0FF", colors.milk]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
-              <Mosya pose="wave" size={170} />
-            </LinearGradient>
-          )}
-          <LinearGradient colors={["rgba(23,20,31,0.32)", "rgba(23,20,31,0)", "rgba(23,20,31,0)", "rgba(23,20,31,0.88)", "#17141F"]} locations={[0, 0.22, 0.5, 0.9, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+        {/* Первый экран — прозрачный: нажатия слева/справа листают фото. */}
+        <View style={{ height: PHOTO_H }}>
           <View style={styles.zones}>
             <Pressable style={{ flex: 1 }} onPress={() => flip(-1)} />
             <Pressable style={{ flex: 1 }} onPress={() => flip(1)} />
           </View>
-        </Animated.View>
-
+        </View>
         {/* Как в действующем приложении: имя, «в сети» и плашки фактов внизу фото, справа — стрелка к «О себе». */}
         <View style={[styles.overlay, { marginTop: -(OVERLAY_H + insets.bottom), height: OVERLAY_H + insets.bottom, paddingBottom: (isMe ? 24 : 92) + insets.bottom }]}>
           <Text style={styles.name} numberOfLines={2}>
@@ -233,6 +237,7 @@ export function PersonView({
           </Pressable>
         </View>
 
+        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "#17141F"]} style={{ height: 40, marginTop: -40 }} />
         <View style={styles.body}>
           {!p ? (
             error ? <Text style={styles.muted}>{error}</Text> : <ActivityIndicator color="#fff" style={{ marginTop: 30 }} />
