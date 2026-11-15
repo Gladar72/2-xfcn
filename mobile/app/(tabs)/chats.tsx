@@ -124,7 +124,7 @@ export default function ChatsScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 16, paddingBottom: insets.bottom + 120, gap: 10 }}
         ListHeaderComponent={
           <View>
-            <Title plain="Твои " em="чаты" size={30} style={{ marginBottom: 12, marginLeft: 4 }} />
+            <Title plain="Чаты" size={36} style={{ marginBottom: 12, marginLeft: 4 }} />
             <Glass strong style={styles.tabs}>
               {TABS.map((t) => {
                 const on = t.key === tab;
