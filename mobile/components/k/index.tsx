@@ -234,3 +234,15 @@ export function KBiz({ children, style }: { children: ReactNode; style?: StylePr
     </KGlass>
   );
 }
+
+/** Полоса под часами и батареей: контент уходит под неё плавно и не наезжает на статус-бар. */
+export function StatusShade({ top }: { top: number }) {
+  return (
+    <LinearGradient
+      pointerEvents="none"
+      colors={["rgba(244,242,248,0.96)", "rgba(244,242,248,0.85)", "rgba(244,242,248,0)"]}
+      locations={[0, 0.6, 1]}
+      style={{ position: "absolute", left: 0, right: 0, top: 0, height: top + 18 }}
+    />
+  );
+}

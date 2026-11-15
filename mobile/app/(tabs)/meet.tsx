@@ -11,7 +11,7 @@ import { plural } from "@/lib/format";
 import { fetchReviewable, toTargets, type ReviewTarget } from "@/lib/reviews";
 import { ReviewSheet } from "@/components/reviews/ReviewSheet";
 import { useGuide } from "@/lib/guide";
-import { B, Creature, K, KGlass, KMos, KPressGlass, KRb, KTitle, PearlBg, Press, kf } from "@/components/k";
+import { B, Creature, K, KGlass, KMos, KPressGlass, KRb, KTitle, PearlBg, Press, kf, StatusShade } from "@/components/k";
 
 interface MyEvent {
   id: string;
@@ -162,6 +162,7 @@ export default function MeetTab() {
           </KGlass>
         ) : null}
       </ScrollView>
+      <StatusShade top={insets.top} />
       <ReviewSheet
         target={rating}
         onDone={(t) => {

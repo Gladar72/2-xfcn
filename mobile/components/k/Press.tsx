@@ -35,7 +35,7 @@ export function Press({
   accessibilityLabel?: string;
 }) {
   const scale = useRef(new Animated.Value(1)).current;
-  const glow = useRef(new Animated.Value(0)).current;
+  const glow = useRef(new Animated.Value(1)).current; // 1 = свечение погасло (в покое не видно)
   const pos = useRef({ x: 0, y: 0 });
   const glowXY = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);

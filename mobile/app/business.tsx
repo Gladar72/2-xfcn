@@ -12,7 +12,7 @@ import { coverUri } from "@/lib/covers";
 import { costShort } from "@/lib/format";
 import type { FeedEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
-import { K, KChip, KGlass, KI, KPressGlass, KRb, KTitle, PearlBg, Press, kf } from "@/components/k";
+import { K, KChip, KGlass, KI, KPressGlass, KRb, KTitle, PearlBg, Press, kf, StatusShade } from "@/components/k";
 
 type When = "all" | "today" | "tomorrow" | "weekend";
 const WD = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
@@ -198,6 +198,7 @@ export default function BusinessScreen() {
         ) : null}
       </ScrollView>
 
+      <StatusShade top={insets.top} />
       {/* .mapfab: «Создать событие» внизу по центру */}
       <View pointerEvents="box-none" style={{ position: "absolute", left: 0, right: 0, bottom: insets.bottom + 18, alignItems: "center" }}>
         <Press dark onPress={() => router.push({ pathname: "/create", params: { business: "true" } })} style={{ height: 50, paddingHorizontal: 22, borderRadius: 25, backgroundColor: "rgba(22,18,31,0.86)", flexDirection: "row", alignItems: "center", gap: 8 }}>

@@ -190,7 +190,7 @@ export function PersonView({
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        contentContainerStyle={{ paddingBottom: insets.bottom + (isMe ? 40 : 120) }}
+        contentContainerStyle={{ flexGrow: 1 }}
       >
         {/* Первый экран — прозрачный: нажатия слева/справа листают фото. */}
         <View style={{ height: PHOTO_H }}>
@@ -237,7 +237,7 @@ export function PersonView({
           </Pressable>
         </View>
 
-        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "#17141F"]} style={{ height: 40, marginTop: -40 }} />
+        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.75)", "#17141F"]} locations={[0, 0.5, 1]} style={{ height: 90, marginTop: -90 }} />
         <View style={styles.body}>
           {!p ? (
             error ? <Text style={styles.muted}>{error}</Text> : <ActivityIndicator color="#fff" style={{ marginTop: 30 }} />
@@ -274,6 +274,8 @@ export function PersonView({
             </>
           )}
         </View>
+        {/* Тёмный низ до конца экрана — фото под карточкой не просвечивает */}
+        <View style={{ flexGrow: 1, minHeight: insets.bottom + (isMe ? 40 : 120), backgroundColor: "#17141F" }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}

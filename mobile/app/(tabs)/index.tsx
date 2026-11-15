@@ -14,7 +14,7 @@ import type { Category, FeedEvent, MyProfile, PersonCard } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { fetchPendingApplications, type PendingApplications } from "@/lib/pending";
 import { refreshLocationSilently, shareLocation } from "@/lib/location";
-import { B, K, KBiz, KChip, KGlass, KI, KMos, KPressGlass, KRb, KSec, KTitle, PearlBg, PhotoShade, Press, kf } from "@/components/k";
+import { B, K, KBiz, KChip, KGlass, KI, KMos, KPressGlass, KRb, KSec, KTitle, PearlBg, PhotoShade, Press, kf, StatusShade } from "@/components/k";
 import { HC_H, HC_W, KHc, KHcSkeleton, KInv, KMosaic, TwoLine } from "@/components/k/cards";
 
 interface MyEvent { id: string; title: string; eventDate: string; eventTime: string; role?: string }
@@ -245,6 +245,7 @@ export default function HomeScreen() {
           </ScrollView>
         </KBiz>
       </ScrollView>
+      <StatusShade top={insets.top} />
       <CitySheet visible={cityOpen} value={city} onPick={changeCity} onClose={() => setCityOpen(false)} />
     </View>
   );
