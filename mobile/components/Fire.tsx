@@ -58,7 +58,7 @@ export function FireChip({ eventId, count, mine, style }: { eventId: string; cou
   return (
     <Pressable onPress={fire.toggle} hitSlop={10} style={[styles.chip, fire.count > 0 ? null : styles.chip0, fire.mine && styles.on, style]} accessibilityLabel={fire.mine ? "Убрать огонёк" : "Поставить огонёк"}>
       <Animated.View style={{ transform: [{ scale: fire.scale }] }}>
-        <FireIcon size={14} off={!fire.mine} />
+        <FireIcon size={15} off={!fire.mine} />
       </Animated.View>
       {fire.count > 0 ? <Text style={styles.chipText}>{fire.count}</Text> : null}
     </Pressable>
@@ -79,10 +79,11 @@ export function FireButton({ eventId, count, mine }: { eventId: string; count?: 
 }
 
 const styles = StyleSheet.create({
-  chip: { flexDirection: "row", alignItems: "center", gap: 4, height: 26, paddingLeft: 7, paddingRight: 9, borderRadius: 13, backgroundColor: "rgba(23,20,31,0.45)", borderWidth: 1, borderColor: "rgba(255,255,255,0.35)" },
-  chip0: { width: 26, paddingLeft: 0, paddingRight: 0, justifyContent: "center" },
-  chipText: { color: "#fff", fontSize: 12, ...f("600") },
-  on: { backgroundColor: "rgba(255,106,31,0.3)", borderColor: "rgba(255,170,100,0.7)" },
+  // .k-hc .k-fc из мини-аппа
+  chip: { flexDirection: "row", alignItems: "center", gap: 4, height: 28, paddingLeft: 7, paddingRight: 10, borderRadius: 14, backgroundColor: "rgba(23,20,31,0.55)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
+  chip0: { width: 28, paddingLeft: 0, paddingRight: 0, justifyContent: "center" },
+  chipText: { color: "#fff", fontSize: 12.5, ...f("600") },
+  on: { backgroundColor: "rgba(255,106,31,0.35)", borderColor: "rgba(255,170,100,0.7)" },
   btn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, height: 56, minWidth: 56, paddingHorizontal: 14, borderRadius: 28, backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1, borderColor: "rgba(255,255,255,0.22)" },
   btnText: { color: "#fff", fontSize: 17, ...f("600") },
 });

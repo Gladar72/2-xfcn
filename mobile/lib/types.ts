@@ -43,6 +43,7 @@ export interface FeedEvent {
   organizer: Organizer | null;
   myApplicationStatus: "pending" | "accepted" | "rejected" | null;
   isLive?: boolean;
+  isPromoted?: boolean;
   isBoosted?: boolean;
   isAnonymous?: boolean;
   organizerHidden?: boolean;

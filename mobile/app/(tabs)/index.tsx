@@ -1,27 +1,23 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Animated, AppState, Dimensions, Easing, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { Image } from "expo-image";
-import { LinearGradient } from "expo-linear-gradient";
-import { Aurora, Glass, Grad, Mosya, Pill, RoundBtn, SectionHead, Title } from "@/components/brand";
-import { EventCard } from "@/components/EventCard";
-import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
-import { API_URL } from "@/lib/config";
 import { CitySheet } from "@/components/CitySheet";
-import { cityEventIcon, cityWhen, KIND_LABEL, type CityEvent } from "@/lib/cityEvents";
+import { cityWhen, KIND_LABEL, type CityEvent } from "@/lib/cityEvents";
 import { tapOk } from "@/lib/feedback";
-import { catIcon, CATEGORY_SHORT, colors, eventIcon, FONT, f } from "@/lib/theme";
-import { costShort, dayShort, plural } from "@/lib/format";
+import { catIcon, CATEGORY_SHORT } from "@/lib/theme";
+import { plural } from "@/lib/format";
+import { coverUri } from "@/lib/covers";
 import type { Category, FeedEvent, MyProfile, PersonCard } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { fetchPendingApplications, type PendingApplications } from "@/lib/pending";
-import { distanceShort } from "@/lib/interests";
 import { refreshLocationSilently, shareLocation } from "@/lib/location";
+import { B, K, KBiz, KChip, KGlass, KI, KMos, KPressGlass, KRb, KSec, KTitle, PearlBg, PhotoShade, Press, kf } from "@/components/k";
+import { HC_H, HC_W, KHc, KHcSkeleton, KInv, KMosaic, TwoLine } from "@/components/k/cards";
 
-// Как в прототипе: на экране две карточки встреч, обложка 3:4.
-const CARD_W = Math.floor((Dimensions.get("window").width - 52) / 2);
+interface MyEvent { id: string; title: string; eventDate: string; eventTime: string; role?: string }
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -35,6 +31,9 @@ export default function HomeScreen() {
   const [cityEvents, setCityEvents] = useState<CityEvent[]>([]);
   const [cityOpen, setCityOpen] = useState(false);
   const [people, setPeople] = useState<PersonCard[]>([]);
+  const [peopleLoaded, setPeopleLoaded] = useState(false);
+  // «Ты в деле» / «Заявка отправлена» — плашка с Мосей, как в мини-аппе.
+  const [plan, setPlan] = useState<{ ev: MyEvent; label: string } | null>(null);
   // Есть ли у меня свежая примерная точка — иначе предлагаем «Показать, кто рядом».
   const [meHasLoc, setMeHasLoc] = useState(true);
   const [geoBusy, setGeoBusy] = useState(false);
@@ -52,7 +51,8 @@ export default function HomeScreen() {
         setPeople(r.items ?? []);
         setMeHasLoc(r.meHasLocation !== false);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setPeopleLoaded(true));
   }, []);
 
   const load = useCallback(async () => {
@@ -94,6 +94,12 @@ export default function HomeScreen() {
         .then((r) => setNotifUnread((r.items ?? []).filter((n) => !n.isRead).length))
         .catch(() => {});
       fetchPendingApplications().then((r) => setReq(r.latest ? r : null));
+      api<{ items?: MyEvent[]; events?: MyEvent[] }>("/api/me/events?scope=upcoming")
+        .then((d) => {
+          const mine = (d.items ?? d.events ?? []).filter((e) => e.role !== "organizer");
+          setPlan(mine[0] ? { ev: mine[0], label: "Ты в деле" } : null);
+        })
+        .catch(() => {});
     }, [])
   );
 
@@ -142,410 +148,133 @@ export default function HomeScreen() {
     }
   }
 
-  // «Популярное сегодня»: только встречи людей, продвинутые первыми.
-  // Все бизнес-события — в «Афише заведений» (тоже продвинутые первыми).
-  const list = useMemo(() => {
-    const all = (events ?? []).filter((e) => !e.isBusiness);
-    return [...all.filter((e) => e.isBoosted), ...all.filter((e) => !e.isBoosted)];
+  // «Личные встречи» — только встречи людей, продвинутые первыми; бизнес — в «Афише заведений».
+  const popular = useMemo(() => {
+    const personal = (events ?? []).filter((e) => !e.isBusiness);
+    return [...personal.filter((e) => e.isPromoted), ...personal.filter((e) => !e.isPromoted)];
   }, [events]);
-  const bizSorted = useMemo(() => [...biz.filter((e) => e.isBoosted), ...biz.filter((e) => !e.isBoosted)], [biz]);
-  const promotedN = list.filter((e) => e.isBoosted).length;
-  const popular = list.slice(0, Math.max(4, promotedN));
-  const rest = list.slice(popular.length);
+  const bizSorted = useMemo(() => [...biz.filter((e) => e.isPromoted || e.isBoosted), ...biz.filter((e) => !(e.isPromoted || e.isBoosted))], [biz]);
+  // Заявка «ждём ответа» тоже показывается плашкой (если нет подтверждённой).
+  const shownPlan = plan ?? (() => {
+    const p = (events ?? []).find((e) => e.myApplicationStatus === "pending");
+    return p ? { ev: { id: p.id, title: p.title, eventDate: p.eventDate, eventTime: p.eventTime }, label: "Заявка отправлена" } : null;
+  })();
 
   return (
-    <View style={{ flex: 1 }}>
-      <Aurora />
+    <View style={{ flex: 1, backgroundColor: K.pearl }}>
+      <PearlBg />
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 120 }}
+        contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 130 }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.violet} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={K.ink} />}
       >
-        <View style={styles.top}>
-          <Pressable onPress={() => setCityOpen(true)} hitSlop={8} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
-            <Glass strong style={styles.cityPill}>
-              <Icon name="pin" size={17} />
-              <Text style={styles.locCity}>{city ?? "…"}</Text>
-              <Icon name="down" size={16} />
-            </Glass>
-          </Pressable>
-          <View style={styles.topBtns}>
-            <RoundBtn onPress={() => router.push("/notifications")}>
-              <Icon name="bell" />
-              {notifUnread > 0 ? (
-                <View style={styles.cnt}>
-                  <Text style={styles.cntText}>{notifUnread > 9 ? "9+" : notifUnread}</Text>
-                </View>
-              ) : null}
-            </RoundBtn>
-            <RoundBtn onPress={() => router.navigate("/(tabs)/chats")}>
-              <Icon name="chat" />
-              {unread > 0 ? <PulseCount n={unread} /> : null}
-            </RoundBtn>
-          </View>
+        {/* .k-top: город и колокольчик */}
+        <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+          <KPressGlass onPress={() => setCityOpen(true)} style={{ height: 40, borderRadius: 20 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 7, height: 40, paddingHorizontal: 14 }}>
+              <View style={{ marginLeft: -4 }}><KI n="pin" size={22} /></View>
+              <Text style={kf("500", 14)}>{city ?? "…"}</Text>
+              <KI n="down" size={22} />
+            </View>
+          </KPressGlass>
+          <KRb icon="bell" dot={notifUnread > 0} onPress={() => router.push("/notifications")} accessibilityLabel="Уведомления" />
         </View>
 
-        <View style={styles.ttl}>
-          <Title plain="Найди " em="компанию" after={"\nна сегодня"} size={34} />
-        </View>
+        {/* .k-h1 38 px */}
+        <KTitle parts={["Найди ", { em: "компанию" }, "\nна сегодня"]} size={38} style={{ marginTop: 20 }} />
 
-        <View style={styles.search}>
-          <Pressable onPress={() => router.push("/search")} style={{ flex: 1 }}>
-            <Glass style={styles.sfield}>
-              <Icon name="search" size={18} color={colors.grey} />
-              <Text style={[styles.sinput, { color: colors.grey, lineHeight: 50 }]}>Кофе, пробежка, кино…</Text>
-            </Glass>
-          </Pressable>
-          <RoundBtn dark size={50} onPress={() => router.push({ pathname: "/search", params: { filters: "1" } })}>
-            <Icon name="filter" color="#fff" />
-          </RoundBtn>
-        </View>
-
-        {req?.latest ? (
-          <Pressable
-            onPress={() => router.push(`/applications/${req.latest!.eventId}` as Href)}
-            accessibilityLabel="Открыть новую заявку"
-            style={({ pressed }) => [styles.reqWrap, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
-          >
-            <Grad style={styles.req}>
-              <View>
-                {req.latest.avatarUrl ? (
-                  <Image source={{ uri: req.latest.avatarUrl }} style={styles.reqAva} contentFit="cover" />
-                ) : (
-                  <View style={[styles.reqAva, styles.reqAvaEmpty]}>
-                    <Text style={styles.reqAvaText}>{req.latest.name.slice(0, 1)}</Text>
-                  </View>
-                )}
-                <View style={styles.reqCnt}>
-                  <Text style={styles.reqCntText}>+{req.count}</Text>
-                </View>
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={styles.reqSmall} numberOfLines={1}>
-                  {`Новая заявка · «${req.latest.eventTitle}»`}
-                </Text>
-                <Text style={styles.reqBig} numberOfLines={1}>
-                  {`${req.latest.name}${req.latest.age ? `, ${req.latest.age}` : ""} хочет пойти`}
-                </Text>
-              </View>
-              <Icon name="chev" color="#fff" size={20} />
-            </Grad>
-          </Pressable>
-        ) : null}
-
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railOut} contentContainerStyle={styles.cats}>
-          {categories.map((c) => {
-            const on = cat === c.slug;
-            return (
-              <Pressable key={c.slug} onPress={() => router.push({ pathname: "/search", params: { categories: c.slug } })} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.93 : 1 }] })}>
-                {on ? (
-                  <View style={[styles.cat, { backgroundColor: colors.ink }]}>
-                    <Image source={{ uri: catIcon(c.slug) }} style={styles.catIcon} />
-                    <Text style={[styles.catText, { color: "#fff" }]}>{CATEGORY_SHORT[c.slug] ?? c.name}</Text>
-                  </View>
-                ) : (
-                  <Glass style={styles.cat}>
-                    <Image source={{ uri: catIcon(c.slug) }} style={styles.catIcon} />
-                    <Text style={styles.catText}>{CATEGORY_SHORT[c.slug] ?? c.name}</Text>
-                  </Glass>
-                )}
-              </Pressable>
-            );
-          })}
+        {/* Один ряд: лупа → «Все» → категории → «Фильтры» (.k-hs, gap 8) */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginTop: 14 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
+          <KChip icon="search" padH={11} onPress={() => router.push("/search")} />
+          <KChip label="Все" on />
+          {categories.map((c) => (
+            <KChip key={c.slug} label={CATEGORY_SHORT[c.slug] ?? c.name} iconUri={catIcon(c.slug)} onPress={() => router.push({ pathname: "/search", params: { categories: c.slug } })} />
+          ))}
+          <KChip icon="filter" label="Фильтры" onPress={() => router.push({ pathname: "/search", params: { filters: "1" } })} />
         </ScrollView>
 
-        <SectionHead title={cat ? CATEGORY_SHORT[cat] ?? "Встречи" : "Личные встречи"} action="Все" onAction={() => router.push("/search")} />
-        {events === null ? (
-          <ActivityIndicator color={colors.violet} style={{ marginVertical: 60 }} />
-        ) : popular.length === 0 ? (
-          <Glass strong style={styles.empty}>
-            <Mosya pose="think" size={120} />
-            <Text style={styles.emptyTitle}>Сегодня пока тихо</Text>
-            <Text style={styles.emptyText}>Создай первую встречу — к тебе присоединятся</Text>
-            <Pressable onPress={() => router.push("/create")} style={styles.emptyBtn}>
-              <Text style={styles.emptyBtnText}>Создать встречу</Text>
-            </Pressable>
-          </Glass>
+        {/* Плашка с Мосей: новая заявка → «ты в деле» → кто свободен рядом */}
+        {req?.latest ? (
+          <KMos go="Открыть" onPress={() => router.push(`/applications/${req.latest!.eventId}` as Href)}>
+            <B>{`${req.latest.name}${req.latest.age ? `, ${req.latest.age}` : ""}`}</B> хочет на «{req.latest.eventTitle}»{req.count > 1 ? ` · ещё ${req.count - 1}` : ""}
+          </KMos>
+        ) : shownPlan ? (
+          <KMos go="Открыть" onPress={() => router.push(`/event/${shownPlan.ev.id}` as Href)}>
+            <B>{shownPlan.label}</B> · {shownPlan.ev.title}, {whenText(shownPlan.ev.eventDate, shownPlan.ev.eventTime)}
+          </KMos>
         ) : (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railOut} contentContainerStyle={styles.rail} snapToInterval={CARD_W + 12} decelerationRate="fast">
-            {popular.map((e) => (
-              <EventCard key={e.id} event={e} width={CARD_W} height={Math.round(CARD_W * 4 / 3)} />
-            ))}
-          </ScrollView>
+          <KMos go="Найти" onPress={() => router.push("/people")}>
+            {people.length > 0 ? (
+              <>
+                <B>{people.length} {plural(people.length, "человек", "человека", "человек")}</B> рядом {people.length === 1 ? "свободен" : "свободны"} сегодня вечером
+              </>
+            ) : (
+              <>
+                <B>Найди компанию</B> — посмотри, кто рядом
+              </>
+            )}
+          </KMos>
         )}
 
-        {people.length > 0 && !cat ? (
-          <>
-            <SectionHead
-              title={people.some((p) => p.distanceM != null) ? "Люди рядом" : "Люди в твоём городе"}
-              action="Листать"
-              onAction={() => router.push("/people")}
-            />
-            {!meHasLoc ? (
-              <Pressable onPress={allowGeo} disabled={geoBusy} style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.97 : 1 }], marginBottom: 12 }]}>
-                <Glass style={styles.geo}>
-                  <View style={styles.geoIc}>
-                    {geoBusy ? <ActivityIndicator color="#fff" /> : <Icon name="pin" color="#fff" size={20} />}
-                  </View>
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={styles.geoTitle}>{geoBusy ? "Ищем, кто рядом…" : "Показать, кто рядом"}</Text>
-                    <Text style={styles.geoText}>Увидишь, сколько до людей и встреч — точный адрес никто не узнает</Text>
-                  </View>
-                  <Icon name="chev" size={18} color={colors.grey} />
-                </Glass>
-              </Pressable>
-            ) : null}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.railOut} contentContainerStyle={styles.rail}>
-              {people.map((p) => (
-                <Pressable
-                  key={p.id}
-                  onPress={() => router.push({ pathname: "/people", params: { start: p.id } })}
-                  style={({ pressed }) => [styles.pcard, { transform: [{ scale: pressed ? 0.96 : 1 }] }]}
-                >
-                  {p.avatarUrl ? (
-                    <Image source={{ uri: p.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                  ) : (
-                    <LinearGradient colors={["#17141F", "#AAA0FF"]} style={[StyleSheet.absoluteFill, styles.pInit]}>
-                      <Text style={styles.pInitText}>{p.name.charAt(0).toUpperCase()}</Text>
-                    </LinearGradient>
-                  )}
-                  <LinearGradient colors={["rgba(0,0,0,0)", "rgba(23,20,31,0.72)"]} locations={[0.45, 1]} style={StyleSheet.absoluteFill} />
-                  {p.sharedCount > 0 ? (
-                    <View style={styles.pTag}>
-                      <Text style={styles.pTagText}>
-                        {p.sharedCount} {plural(p.sharedCount, "общий", "общих", "общих")}
-                      </Text>
-                    </View>
-                  ) : null}
-                  <View style={styles.pInfo}>
-                    {p.distanceM != null ? (
-                      <View style={styles.pDist}>
-                        <Icon name="pin" size={12} color="#fff" />
-                        <Text style={styles.pDistText}>{distanceShort(p.distanceM)}</Text>
-                      </View>
-                    ) : null}
-                    <Text style={styles.pName} numberOfLines={2}>
-                      {p.name}, {p.age}
-                    </Text>
-                    <Text style={styles.pSub} numberOfLines={1}>
-                      {p.sharedInterests.slice(0, 2).join(" · ")}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </>
-        ) : null}
+        <KSec plain="Личные" em="встречи" sub="Планы людей рядом — присоединяйся" action="Все" onAction={() => router.push("/search")} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginTop: 12 }} contentContainerStyle={{ gap: 16, paddingHorizontal: 20 }} snapToInterval={HC_W + 16} decelerationRate="fast">
+          {events === null
+            ? [0, 1, 2].map((i) => <KHcSkeleton key={i} />)
+            : popular.length === 0
+              ? <KInv text="Сегодня пока тихо — создай первую встречу" onPress={() => router.push("/create")} />
+              : popular.map((e) => <KHc key={e.id} e={e} />)}
+        </ScrollView>
 
-        {!cat ? (
-          <View style={styles.afisha}>
-            <LinearGradient colors={["#17141F", "#2A2636", "#3F3A4E"]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-            <View style={styles.afHead}>
-              <View>
-                <Text style={styles.afSmall}>ДЛЯ БИЗНЕСА</Text>
-                <Text style={styles.afTitle}>Афиша заведений</Text>
-              </View>
-              <Pressable onPress={() => router.push("/business")} hitSlop={8}>
-                <Text style={styles.afAll}>Все ›</Text>
-              </Pressable>
-            </View>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.rail, { paddingHorizontal: 16 }]} style={{ marginHorizontal: -16, marginTop: 14 }}>
-              {bizSorted.map((e) => {
-                const left = Math.max(0, e.seatsTotal - e.seatsTaken);
-                return (
-                  <Pressable key={e.id} onPress={() => router.push(`/event/${e.id}`)} style={[styles.acard, styles.acardV]}>
-                    {e.photoUrl ? (
-                      <Image source={{ uri: e.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                    ) : (
-                      <LinearGradient colors={["#17141F", "#AAA0FF"]} style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
-                        <Image source={{ uri: eventIcon(e) }} style={{ width: 90, height: 90 }} />
-                      </LinearGradient>
-                    )}
-                    <LinearGradient colors={["rgba(23,20,31,0.15)", "rgba(0,0,0,0)", "rgba(23,20,31,0.85)"]} locations={[0, 0.35, 0.8]} style={StyleSheet.absoluteFill} />
-                    <View style={styles.acTop}>
-                      {e.isLive ? (
-                        <Pill kind="live" label="Идёт сейчас" />
-                      ) : e.isBoosted ? (
-                        <View style={styles.acBoost}>
-                          <Icon name="up" size={12} color="#fff" />
-                          <Text style={styles.acBoostText}>В топе</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <View style={styles.vb}>
-                      <Text style={styles.acTitle} numberOfLines={2}>{e.title}</Text>
-                      <View style={styles.vm}>
-                        <Icon name="cal" size={13} color="rgba(255,255,255,0.85)" />
-                        <Text style={styles.acMeta} numberOfLines={1}>{dayShort(e.eventDate)}, {e.eventTime.slice(0, 5)}</Text>
-                        <Text style={styles.acMeta}> • </Text>
-                        <Icon name="people" size={13} color="rgba(255,255,255,0.85)" />
-                        <Text style={styles.acMeta} numberOfLines={1}>{left > 0 ? `${left} ${plural(left, "место", "места", "мест")}` : "мест нет"}</Text>
-                      </View>
-                      <View style={styles.vr}>
-                        <View style={[styles.acPrice, { marginTop: 0, flexShrink: 1 }]}>
-                          <Text style={styles.acPriceText} numberOfLines={1}>{costShort(e)}</Text>
-                        </View>
-                        {e.organizer?.avatarUrl ? (
-                          <Image source={{ uri: e.organizer.avatarUrl }} style={styles.aava} contentFit="cover" />
-                        ) : (
-                          <LinearGradient colors={["#17141F", "#AAA0FF"]} style={[styles.aava, { alignItems: "center", justifyContent: "center" }]}>
-                            <Text style={styles.aavaText}>{(e.organizer?.name ?? "Б").charAt(0).toUpperCase()}</Text>
-                          </LinearGradient>
-                        )}
-                      </View>
-                    </View>
-                  </Pressable>
-                );
-              })}
-              {cityEvents.map((c) => (
-                <Pressable key={c.id} onPress={() => router.push(`/city/${c.id}` as Href)} style={styles.acard}>
-                  {c.photoUrl ? (
-                    <Image source={{ uri: c.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                  ) : (
-                    <LinearGradient colors={["#3F3A4E", "#17141F"]} style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }]}>
-                      <Image source={{ uri: cityEventIcon(c.kind) }} style={{ width: 90, height: 90 }} />
-                    </LinearGradient>
-                  )}
-                  <LinearGradient colors={["rgba(0,0,0,0)", "rgba(23,20,31,0.85)"]} locations={[0.35, 1]} style={StyleSheet.absoluteFill} />
-                  <View style={styles.acTop}>
-                    <View style={styles.acOrg}>
-                      <Text style={styles.acOrgText} numberOfLines={1}>{KIND_LABEL[c.kind ?? ""] ?? "В городе"}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.acBody}>
-                    <Text style={styles.acTitle} numberOfLines={2}>{c.title}</Text>
-                    <Text style={styles.acMeta} numberOfLines={1}>
-                      {cityWhen(c)}
-                      {c.placeName ? ` · ${c.placeName}` : ""}
-                    </Text>
-                    {c.priceText ? (
-                      <View style={styles.acPrice}>
-                        <Text style={styles.acPriceText} numberOfLines={1}>{c.priceText}</Text>
-                      </View>
-                    ) : null}
-                  </View>
-                </Pressable>
-              ))}
-              {biz.length < 4 ? (
-                <Pressable onPress={() => router.push("/business")} style={[styles.acard, styles.invite]}>
-                  <Image source={{ uri: `${API_URL}/brand/pi/biz.svg` }} style={{ width: 84, height: 84 }} />
-                  <Text style={styles.invTitle}>Здесь может быть ваше событие</Text>
-                  <Text style={styles.invText}>Бесплатно для заведений: концерты, квизы, дегустации</Text>
-                </Pressable>
-              ) : null}
-            </ScrollView>
-          </View>
+        <KSec plain="Люди" em="в твоём городе" sub="С общими интересами" action="Листать" onAction={() => router.push(people[0] ? { pathname: "/people", params: { start: people[0].id } } : "/people")} />
+        {!meHasLoc ? (
+          <KMos onPress={allowGeo} left={<View style={{ marginLeft: 8, width: 44, height: 44, borderRadius: 22, backgroundColor: K.ink, alignItems: "center", justifyContent: "center" }}>{geoBusy ? <ActivityIndicator color="#fff" /> : <KI n="pin" color="#fff" />}</View>}>
+            <B>{geoBusy ? "Ищем, кто рядом…" : "Показать, кто рядом"}</B> — точный адрес никто не узнает
+          </KMos>
         ) : null}
+        {peopleLoaded && people.length === 0 ? (
+          <Text style={[kf("400", 14, { lh: 1.45, color: K.ink2 }), { marginTop: 12 }]}>Пока нет анкет в выбранном городе. Можно сменить город или создать встречу.</Text>
+        ) : null}
+        <KMosaic people={people} city={city} onOpen={(q) => router.push({ pathname: "/people", params: { start: q.id } })} />
 
-        {rest.length > 0 ? (
-          <>
-            <SectionHead title="Все встречи" />
-            <View style={{ gap: 14 }}>
-              {rest.map((e) => (
-                <EventCard key={e.id} event={e} width="100%" height={340} />
-              ))}
-            </View>
-          </>
-        ) : null}
+        <KBiz>
+          <KSec plain="Афиша" em="заведений" sub="События кафе, баров и площадок" action="Все" onAction={() => router.push("/business")} style={{ marginTop: 0 }} />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -14, marginTop: 12 }} contentContainerStyle={{ gap: 16, paddingHorizontal: 14 }} snapToInterval={HC_W + 16} decelerationRate="fast">
+            {bizSorted.map((e) => <KHc key={e.id} e={e} />)}
+            {cityEvents.map((c) => <KCityCard key={c.id} c={c} />)}
+            <KInv text="Здесь может быть ваше бизнес‑событие" onPress={() => router.push({ pathname: "/create", params: { business: "true" } })} />
+          </ScrollView>
+        </KBiz>
       </ScrollView>
       <CitySheet visible={cityOpen} value={city} onPick={changeCity} onClose={() => setCityOpen(false)} />
     </View>
   );
 }
 
-/** Цифра непрочитанных в чатах: подпрыгивает и расходится розовым кольцом. */
-function PulseCount({ n }: { n: number }) {
-  const v = useMemo(() => new Animated.Value(0), []);
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.timing(v, { toValue: 1, duration: 1800, easing: Easing.out(Easing.quad), useNativeDriver: true })
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [v]);
-  const scale = v.interpolate({ inputRange: [0, 0.12, 0.26, 1], outputRange: [1, 1.28, 1, 1] });
-  const ring = v.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] });
-  const ringOp = v.interpolate({ inputRange: [0, 0.7, 1], outputRange: [0.5, 0, 0] });
+/** Карточка «Что ещё в городе» — та же .k-hc. */
+function KCityCard({ c }: { c: CityEvent }) {
+  const cover = coverUri(c.photoUrl);
   return (
-    <>
-      <Animated.View pointerEvents="none" style={[styles.cnt, { backgroundColor: colors.pink, opacity: ringOp, transform: [{ scale: ring }] }]} />
-      <Animated.View style={[styles.cnt, { transform: [{ scale }] }]}>
-        <Text style={styles.cntText}>{n > 9 ? "9+" : n}</Text>
-      </Animated.View>
-    </>
+    <Press photo onPress={() => router.push(`/city/${c.id}` as Href)} style={{ width: HC_W, height: HC_H, borderRadius: 26, backgroundColor: "#282330" }}>
+      {cover ? <Image source={{ uri: cover }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" /> : <View style={[StyleSheet.absoluteFill, { backgroundColor: "#2B2737" }]} />}
+      <PhotoShade from={0.38} to={0.78} />
+      <KGlass tone="gw" style={{ position: "absolute", top: 10, left: 10, maxWidth: HC_W - 20, height: 28, borderRadius: 14, justifyContent: "center", paddingHorizontal: 10 }}>
+        <Text style={kf("400", 12, { color: "#fff" })} numberOfLines={1}>{KIND_LABEL[c.kind ?? ""] ?? "В городе"}</Text>
+      </KGlass>
+      <View style={{ position: "absolute", left: 12, right: 12, bottom: 12 }}>
+        <TwoLine text={c.title} />
+        <Text style={[kf("400", 11.5, { color: "#fff" }), { opacity: 0.85, marginTop: 4 }]} numberOfLines={1}>{[cityWhen(c), c.placeName].filter(Boolean).join(" · ")}</Text>
+        <View style={{ alignSelf: "flex-start", marginTop: 8, height: 28, paddingHorizontal: 10, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.92)", justifyContent: "center" }}>
+          <Text style={kf("600", 12)} numberOfLines={1}>{c.priceText || "Подробнее"}</Text>
+        </View>
+      </View>
+    </Press>
   );
 }
 
-const styles = StyleSheet.create({
-  topBtns: { flexDirection: "row", gap: 8 },
-  top: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  locSmall: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
-  locRow: { flexDirection: "row", alignItems: "center", gap: 4 },
-  locCity: { fontSize: 15, ...f("500"), color: colors.ink },
-  cityPill: { flexDirection: "row", alignItems: "center", gap: 6, height: 44, paddingHorizontal: 14, borderRadius: 999 },
-  cnt: { position: "absolute", top: 3, right: 3, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: colors.pink, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
-  cntText: { color: "#fff", fontSize: 10.5, ...f("600") },
-  ttl: { marginTop: 18 },
-  reqWrap: { marginTop: 16 },
-  req: { borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, paddingLeft: 12, paddingRight: 14 },
-  reqAva: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, borderColor: "#fff" },
-  reqAvaEmpty: { backgroundColor: "rgba(255,255,255,0.25)", alignItems: "center", justifyContent: "center" },
-  reqAvaText: { color: "#fff", fontSize: 18, ...f("700") },
-  reqCnt: { position: "absolute", right: -7, bottom: -4, backgroundColor: "#fff", borderRadius: 99, paddingHorizontal: 5, paddingVertical: 1 },
-  reqCntText: { color: colors.violet, fontSize: 11, ...f("800") },
-  reqSmall: { fontFamily: FONT, color: "rgba(255,255,255,0.85)", fontSize: 12.5 },
-  reqBig: { color: "#fff", fontSize: 15.5, ...f("600") },
-  search: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
-  sfield: { flex: 1, height: 50, borderRadius: 999, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16 },
-  sinput: { flex: 1, fontFamily: FONT, fontSize: 15, color: colors.ink, height: 50 },
-  railOut: { marginHorizontal: -20 },
-  cats: { gap: 8, paddingHorizontal: 20, paddingVertical: 4, marginTop: 10 },
-  cat: { flexDirection: "row", alignItems: "center", gap: 6, height: 46, paddingLeft: 6, paddingRight: 16, borderRadius: 999 },
-  catIcon: { width: 38, height: 38 },
-  catText: { fontSize: 14, ...f("500"), color: colors.ink },
-  rail: { gap: 12, paddingHorizontal: 20, paddingTop: 4, paddingBottom: 14 },
-  empty: { borderRadius: 32, padding: 24, alignItems: "center", gap: 6 },
-  emptyTitle: { fontSize: 18, ...f("500"), color: colors.ink },
-  emptyText: { fontFamily: FONT, fontSize: 14, color: colors.grey, textAlign: "center" },
-  emptyBtn: { marginTop: 10, backgroundColor: colors.ink, borderRadius: 999, height: 44, paddingHorizontal: 20, justifyContent: "center" },
-  emptyBtnText: { color: "#fff", fontSize: 15, ...f("500") },
-  pcard: { width: CARD_W, height: Math.round(CARD_W * 4 / 3), borderRadius: 24, overflow: "hidden", backgroundColor: colors.lavender100 },
-  pInit: { alignItems: "center", justifyContent: "center" },
-  pInitText: { color: "#fff", fontSize: 48, ...f("500") },
-  pTag: { position: "absolute", top: 10, left: 10, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999, paddingHorizontal: 9, height: 26, justifyContent: "center" },
-  pTagText: { fontFamily: FONT, color: "#fff", fontSize: 11.5 },
-  pInfo: { position: "absolute", left: 12, right: 12, bottom: 10 },
-  pDist: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 999, paddingLeft: 6, paddingRight: 8, height: 22, marginBottom: 4 },
-  pDistText: { color: "#fff", fontSize: 11.5, ...f("600") },
-  geo: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 24, paddingVertical: 8, paddingLeft: 8, paddingRight: 14 },
-  geoIc: { width: 42, height: 42, borderRadius: 21, backgroundColor: colors.ink, alignItems: "center", justifyContent: "center" },
-  geoTitle: { fontSize: 15.5, ...f("500"), color: colors.ink },
-  geoText: { fontFamily: FONT, fontSize: 13, lineHeight: 17, color: colors.grey },
-  pName: { color: "#fff", fontSize: 17, ...f("500") },
-  pSub: { fontFamily: FONT, color: "rgba(255,255,255,0.9)", fontSize: 12 },
-  afisha: { marginTop: 26, borderRadius: 30, paddingHorizontal: 16, paddingTop: 18, paddingBottom: 16, overflow: "hidden" },
-  acardV: { width: 210, height: 290, borderRadius: 24 },
-  acBoost: { flexDirection: "row", alignItems: "center", gap: 4, height: 26, paddingHorizontal: 10, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.3)" },
-  acBoostText: { color: "#fff", fontSize: 11.5, ...f("600") },
-  vb: { position: "absolute", left: 8, right: 8, bottom: 8, padding: 11, borderRadius: 18, backgroundColor: "rgba(18,10,40,0.55)", gap: 6 },
-  vm: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: 3 },
-  vr: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 3 },
-  aava: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: "rgba(255,255,255,0.85)", overflow: "hidden" },
-  aavaText: { color: "#fff", fontSize: 13, ...f("700") },
-  afHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
-  afAll: { color: "rgba(255,255,255,0.85)", fontSize: 14.5, ...f("500") },
-  invite: { backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", padding: 18, gap: 8 },
-  invTitle: { color: "#fff", fontSize: 16, ...f("500"), textAlign: "center" },
-  invText: { fontFamily: FONT, color: "rgba(255,255,255,0.75)", fontSize: 12.5, textAlign: "center" },
-  afSmall: { fontFamily: FONT, color: "rgba(255,255,255,0.6)", fontSize: 11.5, letterSpacing: 0.8 },
-  afTitle: { color: "#fff", fontSize: 19, ...f("500"), letterSpacing: -0.4, marginTop: 2 },
-  acard: { width: 210, height: 290, borderRadius: 24, overflow: "hidden", backgroundColor: "#2A2636" },
-  acTop: { position: "absolute", top: 10, left: 10, right: 10, flexDirection: "row", gap: 6, flexWrap: "wrap" },
-  acOrg: { backgroundColor: "rgba(255,255,255,0.22)", borderRadius: 999, height: 28, paddingHorizontal: 10, justifyContent: "center", maxWidth: 140 },
-  acOrgText: { color: "#fff", fontSize: 12.5, ...f("500") },
-  acBody: { position: "absolute", left: 12, right: 12, bottom: 12, gap: 4 },
-  acTitle: { color: "#fff", fontSize: 16, lineHeight: 20, ...f("500") },
-  acMeta: { fontFamily: FONT, color: "rgba(255,255,255,0.85)", fontSize: 12.5 },
-  acPrice: { alignSelf: "flex-start", backgroundColor: "#fff", borderRadius: 999, height: 28, paddingHorizontal: 11, justifyContent: "center", marginTop: 4 },
-  acPriceText: { fontSize: 12.5, ...f("500"), color: colors.ink },
-});
+function whenText(dateIso: string, time: string) {
+  const d = new Date(dateIso);
+  const t = new Date();
+  const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) / 86400000);
+  const day = diff === 0 ? "сегодня" : diff === 1 ? "завтра" : d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  return `${day}, ${time.slice(0, 5)}`;
+}

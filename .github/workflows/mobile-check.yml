@@ -1,0 +1,21 @@
+name: Mobile typecheck
+
+# Быстрая проверка типов мобильного приложения (без сборки). Печатает ошибки TypeScript.
+on:
+  workflow_dispatch:
+
+jobs:
+  tsc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install --no-audit --no-fund
+      - name: TypeScript
+        run: npx tsc --noEmit -p . 2>&1 | tee tsc.log; echo "ошибок: $(grep -c 'error TS' tsc.log)"
