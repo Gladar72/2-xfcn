@@ -161,6 +161,21 @@ function MaskedBlur({ path, w }: { path: string; w: number }) {
   );
 }
 
+export default function TabsLayout() {
+  return (
+    <>
+      <Tabs screenOptions={{ headerShown: false }} tabBar={(p) => <TabBar {...p} />}>
+        <Tabs.Screen name="index" />
+        <Tabs.Screen name="map" />
+        <Tabs.Screen name="meet" />
+        <Tabs.Screen name="chats" />
+        <Tabs.Screen name="profile" />
+      </Tabs>
+      <PendingReviews />
+    </>
+  );
+}
+
 const styles = StyleSheet.create({
   label: { fontSize: 10, lineHeight: 12, ...f("500") },
   // .nbadge
