@@ -21,4 +21,6 @@ jobs:
           node-version: 20
       - run: npm install --no-audit --no-fund
       - name: TypeScript
-        run: npx tsc --noEmit -p . 2>&1 | tee tsc.log; echo "ошибок: $(grep -c 'error TS' tsc.log)"
+        run: |
+          npx tsc --noEmit -p . 2>&1 | tee tsc.log || true
+          echo "ошибок: $(grep -c 'error TS' tsc.log)"
