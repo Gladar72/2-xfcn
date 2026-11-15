@@ -290,6 +290,26 @@ export default function MapScreen() {
       ) : null}
 
       <BizCatSheet visible={catSheet} onClose={() => setCatSheet(false)} counts={bizCounts} value={bizCat} onChange={setBizCat} total={events.length} />
+      {/* .zm: приблизить / отдалить — справа посередине */}
+      <View style={{ position: "absolute", right: 16, top: insets.top + 200, gap: 10 }}>
+        <RoundBtn size={44} onPress={() => camera.current?.zoomTo(Math.min(20, zoom + 1), { duration: 250 })}><KI n="plus" size={18} /></RoundBtn>
+        <RoundBtn size={44} onPress={() => camera.current?.zoomTo(Math.max(3, zoom - 1), { duration: 250 })}><KI n="minus" size={18} /></RoundBtn>
+      </View>
+      {/* .locate2: создать встречу — тёмная круглая кнопка над «Где я» */}
+      <Press dark onPress={() => router.push("/create")} accessibilityLabel="Создать встречу" style={{ position: "absolute", right: 16, bottom: insets.bottom + (carousel.length ? 256 : 164), width: 50, height: 50, borderRadius: 25, backgroundColor: K.ink, alignItems: "center", justifyContent: "center" }}>
+        <KI n="plus" size={22} color="#fff" />
+      </Press>
+      {/* .listb: «Списком · N» / «Здесь N · показать все» — над карточками */}
+      <View pointerEvents="box-none" style={{ position: "absolute", left: 0, right: 0, bottom: insets.bottom + (carousel.length ? 206 : 104), alignItems: "center" }}>
+        <Press onPress={() => (selected ? setSelected(null) : router.push(bizOnly ? "/business" : "/search"))} style={{ height: 36, borderRadius: 18 }}>
+          <KGlass style={{ height: 36, borderRadius: 18 }}>
+            <View style={{ height: 36, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 14 }}>
+              <KI n={selected ? "x" : "filter"} size={14} />
+              <Text style={kf("500", 13.5)}>{selected ? (selected.length > 1 ? `Здесь ${selected.length} · показать все` : "Показать все") : `Списком · ${shown.length}`}</Text>
+            </View>
+          </KGlass>
+        </Press>
+      </View>
       <RoundBtn onPress={locate} size={50} style={[styles.locate, { bottom: insets.bottom + (carousel.length ? 196 : 104) }]}>
         <Icon name="nav" color={colors.violet} />
       </RoundBtn>
