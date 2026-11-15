@@ -16,6 +16,10 @@ on:
         description: "Только показать статус версий"
         type: boolean
         default: false
+      testflight:
+        description: "Выдать сборку в TestFlight (без отправки на проверку)"
+        type: boolean
+        default: false
 
 jobs:
   update:
@@ -37,5 +41,5 @@ jobs:
           printf '%s\n' "$P8" > "$KEY"
           pip install -q pyjwt cryptography
           export NEW_VERSION="$(python3 -c "import json;print(json.load(open('mobile/app.json'))['expo']['version'])")"
-          if [ "${{ inputs.status }}" = "true" ]; then python3 .github/scripts/asc_status.py; else python3 .github/scripts/asc.py; fi
+          if [ "${{ inputs.testflight }}" = "true" ]; then python3 .github/scripts/asc_tf.py; elif [ "${{ inputs.status }}" = "true" ]; then python3 .github/scripts/asc_status.py; else python3 .github/scripts/asc.py; fi
           rm -f "$KEY"
