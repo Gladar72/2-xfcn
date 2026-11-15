@@ -1,219 +1,330 @@
-import { useCallback, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+// Профиль — перенос app/(app)/profile/page.tsx мини-аппа один в один (.k-pp):
+// фото сверху стоит на месте и растворяется в перламутре, контент едет поверх него.
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Animated, Dimensions, Linking, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
-import { LinearGradient } from "expo-linear-gradient";
-import { Glass, RoundBtn } from "@/components/brand";
 import { Image } from "expo-image";
-import { Icon, type IconName } from "@/components/Icon";
+import { LinearGradient } from "expo-linear-gradient";
+import MaskedView from "@react-native-masked-view/masked-view";
 import { api } from "@/lib/api";
+import { API_URL } from "@/lib/config";
 import { plural } from "@/lib/format";
-import { PLAN_NAME, PLAN_PRICE_RUB, untilLabel, type Subscription } from "@/lib/subscription";
+import { PLAN_NAME, PLAN_PRICE_RUB, type Subscription } from "@/lib/subscription";
 import { interestIcon } from "@/lib/interests";
-import { CAN_PAY } from "@/lib/store";
-import { colors, FONT, SERIF, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
+import { Sheet } from "@/components/Sheet";
+import { K, KChip, KGlass, KI, KPressGlass, KRb, KSec, KTitle, PearlBg, Press, kf } from "@/components/k";
 
-/** Заполненность профиля — как в мини-приложении: 30 + 15 за фото (до 3) + 10 за «о себе» + 15 за 3+ интереса. */
-function completeness(me: MyProfile): { pct: number; tip: string } {
-  const photos = Math.min(3, me.photos?.length ?? (me.avatarUrl ? 1 : 0));
-  const bio = me.bio?.trim() ? 10 : 0;
-  const ints = (me.interests?.length ?? 0) >= 3 ? 15 : 0;
-  const pct = 30 + 15 * photos + bio + ints;
-  const tip = pct >= 100 ? "отлично!" : photos < 3 ? `добавь ещё ${3 - photos} фото` : !bio ? "добавь о себе" : "добавь интересы";
-  return { pct, tip };
-}
+const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
+// .k-hero2 height:min(600px,78vh), .k-spacer height:min(440px,56vh)
+const HERO_H = Math.min(600, SCREEN_H * 0.78);
+const SPACER = Math.min(440, SCREEN_H * 0.56);
+
+type Tab = "followers" | "following";
+interface FollowSummary { followers: number; following: number; followersPreview: { id: string; avatarUrl: string }[]; followingPreview: { id: string; avatarUrl: string }[] }
 
 export default function ProfileScreen() {
   useGuide("profile");
   const insets = useSafeAreaInsets();
   const [me, setMe] = useState<MyProfile | null>(null);
   const [sub, setSub] = useState<Subscription | null>(null);
+  const [follows, setFollows] = useState<FollowSummary | null>(null);
+  const [open, setOpen] = useState<Tab | null>(null);
+  const [counts, setCounts] = useState([0, 0, 0]);
+  const scrollY = useRef(new Animated.Value(0)).current;
 
+  const loadFollows = useCallback(() => {
+    api<FollowSummary>("/api/me/follows?summary=1").then(setFollows).catch(() => {});
+  }, []);
   useFocusEffect(
     useCallback(() => {
       api<MyProfile>("/api/me/profile").then(setMe).catch(() => {});
       api<Subscription>("/api/subscriptions").then(setSub).catch(() => {});
-    }, [])
+      loadFollows();
+    }, [loadFollows])
   );
 
-  const pct = me ? completeness(me).pct : 0;
-  const tip = me ? completeness(me).tip : "";
+  // Счётчики «докручиваются» от нуля за 0.9 с, как в мини-аппе.
+  useEffect(() => {
+    if (!me) return;
+    const target = [me.eventsOrganizedCount, me.eventsAttendedCount, me.completedMeetingsCount];
+    const st = Date.now();
+    let raf = 0;
+    const step = () => {
+      const k = Math.min(1, (Date.now() - st) / 900);
+      const e = 1 - Math.pow(1 - k, 3);
+      setCounts(target.map((t) => Math.round(t * e)));
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [me]);
 
-  const rating = me?.ratingAvg ? me.ratingAvg.toFixed(1).replace(".", ",") : null;
-
-  const photos = me ? (me.photos?.length ? me.photos : me.avatarUrl ? [me.avatarUrl] : []) : [];
-  const ints = me?.interests ?? [];
+  const photos = me?.photos ?? [];
+  const main = me?.avatarUrl ?? photos[0] ?? null;
+  const all = [main, ...photos.filter((u) => u !== main)].filter((u): u is string => !!u).slice(0, 6);
+  const [first, ...rest] = (me?.name ?? "").split(" ");
+  const meetings = me ? me.eventsOrganizedCount + me.eventsAttendedCount : 0;
+  const lim = sub?.events?.limit ?? null;
   const used = sub?.events?.used ?? 0;
-  const limit = sub?.events?.limit ?? null;
+  const pct = sub?.active ? (lim ? Math.min(100, Math.round((used / lim) * 100)) : 100) : 0;
+
+  async function shareProfile() {
+    if (!me) return;
+    await Share.share({ message: `${API_URL}/people/${me.id}` }).catch(() => {});
+  }
+
+  const MENU: [string, string][] = [
+    ["Уведомления", "/notifications"],
+    ["Отзывы после встреч", "/reviews"],
+    ["Партнёрская программа", "https://t.me/Mesto_people_bot?start=partner"],
+    ["Приватность и анонимность", "/privacy"],
+  ];
+
+  // Фото не прокручивается вместе с текстом: при потягивании вниз чуть увеличивается, при прокрутке вверх — уходит медленнее.
+  const heroScale = scrollY.interpolate({ inputRange: [-200, 0], outputRange: [1.25, 1], extrapolateRight: "clamp" });
+  const heroShift = scrollY.interpolate({ inputRange: [-200, 0, 400], outputRange: [0, 0, -120], extrapolate: "clamp" });
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.milk }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 120 }} showsVerticalScrollIndicator={false}>
-        {/* Как в прототипе: фото на весь верх растворяется в перламутре, имя по центру. */}
-        <View style={styles.hero}>
-          {me?.avatarUrl ? (
-            <Image source={{ uri: me.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} />
+    <View style={{ flex: 1, backgroundColor: K.pearl }}>
+      <PearlBg />
+      {/* .k-hero2: фото с маской — снизу растворяется (78% → прозрачно) */}
+      <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, height: HERO_H, transform: [{ translateY: heroShift }, { scale: heroScale }] }}>
+        <MaskedView
+          style={StyleSheet.absoluteFill}
+          maskElement={<LinearGradient colors={["#000", "#000", "transparent"]} locations={[0, 0.78, 1]} style={StyleSheet.absoluteFill} />}
+        >
+          {main ? (
+            <Image source={{ uri: main }} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition={{ top: "25%" }} transition={150} cachePolicy="memory-disk" />
           ) : (
-            <LinearGradient colors={["#3F3A4E", "#AAA0FF"]} style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={["#D9D3E6", "#F4F2F8"]} style={StyleSheet.absoluteFill} />
           )}
-          <LinearGradient
-            colors={["rgba(23,20,31,0.3)", "rgba(244,242,248,0)", "rgba(244,242,248,0)", "rgba(244,242,248,0.85)", colors.milk]}
-            locations={[0, 0.22, 0.55, 0.86, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-          <View style={[styles.heroTop, { top: insets.top + 8 }]}>
-            <RoundBtn onPress={() => me && router.push(`/person/${me.id}?self=1` as Href)}>
-              <Icon name="eye" />
-            </RoundBtn>
-            <RoundBtn onPress={() => router.push("/settings")}>
-              <Icon name="gear" />
-            </RoundBtn>
-          </View>
-        </View>
+        </MaskedView>
+      </Animated.View>
 
-        <View style={styles.head}>
-          <Text style={styles.name} numberOfLines={2}>
-            {me ? `${me.name}, ${me.age}` : " "}
-          </Text>
-          <Text style={styles.meta}>
-            {[me?.city, me ? `${me.completedMeetingsCount} ${plural(me.completedMeetingsCount, "встреча", "встречи", "встреч")}` : null, rating ? `${rating} ★` : null].filter(Boolean).join(" · ")}
-          </Text>
-          {ints.length ? (
-            <View style={styles.chips}>
-              {ints.slice(0, 6).map((i) => (
-                <View key={i.id} style={styles.chip}>
-                  <Image source={{ uri: interestIcon(i.name) }} style={{ width: 20, height: 20 }} contentFit="contain" />
-                  <Text style={styles.chipText}>{i.name}</Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-        </View>
-
-        <View style={styles.body}>
-          {sub ? (
-            <Pressable onPress={() => router.push("/subscription")}>
-              <Glass strong style={styles.plan}>
-                <View style={styles.planRow}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.planSmall}>ТВОЙ ТАРИФ</Text>
-                    <Text style={styles.planName}>
-                      {sub.active ? PLAN_NAME[sub.plan ?? ""] ?? "—" : "Нет подписки"}
-                      {sub.active && sub.plan && CAN_PAY ? <Text style={styles.planPrice}>{`  ${PLAN_PRICE_RUB[sub.plan]} ₽/мес`}</Text> : null}
-                    </Text>
-                  </View>
-                  <View style={styles.planBtn}>
-                    <Text style={styles.planBtnText}>{!CAN_PAY ? "Подробнее" : sub.active ? "Сменить" : "Выбрать"}</Text>
-                  </View>
-                </View>
-                {sub.active ? (
-                  <>
-                    <View style={styles.track}>
-                      <View style={[styles.trackOn, { width: `${limit ? Math.min(100, (used / limit) * 100) : 100}%` }]} />
-                    </View>
-                    <Text style={styles.muted}>
-                      {limit ? `Встречи ${used} из ${limit}` : "Встречи без ограничений"}
-                      {sub.periodEnd ? ` · до ${untilLabel(sub.periodEnd)}` : ""}
-                    </Text>
-                  </>
-                ) : (
-                  <Text style={styles.muted}>Подключи, чтобы создавать свои встречи</Text>
-                )}
-              </Glass>
-            </Pressable>
-          ) : null}
-
-          <Pressable onPress={() => router.push("/profile-edit")} style={({ pressed }) => [styles.editBtn, pressed && { opacity: 0.85 }]}>
-            <Text style={styles.editText}>Редактировать профиль</Text>
-          </Pressable>
-          {me && pct < 100 ? <Text style={[styles.muted, { textAlign: "center" }]}>Профиль заполнен на {pct}% — {tip}</Text> : null}
-
-          <View style={styles.sectionRow}>
-            <Text style={styles.section}>
-              Мои <Text style={styles.sectionEm}>фото</Text>
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 130 }}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+      >
+        <View style={{ height: SPACER }} />
+        {!me ? (
+          <View style={{ height: 220, borderRadius: 24, backgroundColor: "rgba(23,20,31,0.06)" }} />
+        ) : (
+          <>
+            <KTitle
+              parts={rest.length ? [first + " ", { em: rest.join(" ") }] : me.age ? [first + ", ", { em: String(me.age) }] : [first]}
+              size={38}
+              lh={1.14}
+              style={{ textAlign: "center" }}
+            />
+            <Text style={[kf("400", 13, { color: K.ink2 }), { textAlign: "center", marginTop: 4 }]}>
+              {[me.city, `${meetings} ${plural(meetings, "встреча", "встречи", "встреч")}`, me.ratingAvg > 0 ? `${me.ratingAvg.toFixed(1).replace(".", ",")} ★` : null].filter(Boolean).join(" · ")}
             </Text>
-            <Pressable onPress={() => router.push("/profile-edit")} style={styles.smallPill}>
-              <Text style={styles.smallPillText}>Изменить</Text>
-            </Pressable>
-          </View>
-          <View style={styles.grid}>
-            {[0, 1, 2].map((i) =>
-              photos[i] ? (
-                <View key={i} style={styles.gridCell}>
-                  <Image source={{ uri: photos[i] }} style={StyleSheet.absoluteFill} contentFit="cover" />
-                </View>
-              ) : (
-                <Pressable key={i} onPress={() => router.push("/profile-edit")} style={[styles.gridCell, styles.gridAdd]}>
-                  <Icon name="plus" size={22} color={colors.grey} />
-                </Pressable>
-              )
-            )}
-          </View>
+            {(me.interests ?? []).length > 0 ? (
+              <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6, marginTop: 12 }}>
+                {(me.interests ?? []).slice(0, 6).map((i) => (
+                  <KChip key={i.id} label={i.name} iconUri={interestIcon(i.name)} height={32} onPress={() => router.push("/interests")} />
+                ))}
+              </View>
+            ) : null}
 
-          <Glass strong style={styles.list}>
-            <Row icon="cal" label="Мои встречи" onPress={() => router.push("/my-events")} />
-            <Row icon="people" label="Люди рядом" onPress={() => router.push("/people")} />
-            <Row icon="bell" label="Уведомления" onPress={() => router.push("/notifications")} />
-            <Row icon="star" label="Отзывы после встреч" onPress={() => router.push("/reviews")} />
-            <Row icon="heart" label="Мои интересы" onPress={() => router.push("/interests")} />
-            <Row icon="gift" label="Партнёрская программа" onPress={() => router.push("/partner")} />
-            <Row icon="help" label="Помощь" onPress={() => router.push("/support")} last />
-          </Glass>
-        </View>
-      </ScrollView>
+            {/* .k-plan */}
+            <KPressGlass onPress={() => router.push("/subscription")} style={{ marginTop: 14, borderRadius: 24 }}>
+              <View style={{ paddingVertical: 14, paddingHorizontal: 16, gap: 8 }}>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+                  <View style={{ flex: 1, minWidth: 0 }}>
+                    <Text style={kf("500", 11, { ls: 0.06, color: K.ink3 })}>ТВОЙ ТАРИФ</Text>
+                    <Text style={[kf("500", 20), { marginTop: 2 }]}>
+                      {sub?.active && sub.plan ? PLAN_NAME[sub.plan] : "Без тарифа"}
+                      {sub?.active && sub.plan ? <Text style={kf("400", 13, { color: K.ink2 })}>{"  "}{PLAN_PRICE_RUB[sub.plan]} ₽/мес</Text> : null}
+                    </Text>
+                  </View>
+                  <View style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, backgroundColor: K.ink, justifyContent: "center" }}>
+                    <Text style={kf("500", 13, { color: "#fff" })}>{sub?.active ? "Сменить" : "Выбрать"}</Text>
+                  </View>
+                </View>
+                <View style={{ height: 5, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.08)", overflow: "hidden" }}>
+                  <View style={{ width: `${pct}%`, height: "100%", backgroundColor: K.ink, borderRadius: 3 }} />
+                </View>
+                <Text style={kf("400", 12, { color: K.ink2 })}>
+                  {sub?.active
+                    ? `Встречи ${used} из ${lim ?? "∞"}${sub.boosts ? ` · топ ${sub.boosts.used} из ${sub.boosts.limit ?? "∞"}` : ""}${sub.periodEnd ? ` · до ${new Date(sub.periodEnd).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}` : ""}`
+                    : "Подключи, чтобы создавать свои встречи"}
+                </Text>
+              </View>
+            </KPressGlass>
+
+            {/* .k-acts .k-btn.k-l */}
+            <Press onPress={() => router.push("/profile-edit")} style={{ marginTop: 16, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.65)", borderWidth: 1, borderColor: "#fff", alignItems: "center", justifyContent: "center" }}>
+              <Text style={kf("500", 15)}>Редактировать профиль</Text>
+            </Press>
+
+            {follows ? (
+              <>
+                <KSec plain="Мои" em="подписки" />
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 14 }}>
+                  <SubCard label={plural(follows.followers, "подписчик", "подписчика", "подписчиков")} n={follows.followers} prev={follows.followersPreview} onPress={() => setOpen("followers")} />
+                  <SubCard label={plural(follows.following, "подписка", "подписки", "подписок")} n={follows.following} prev={follows.followingPreview} onPress={() => setOpen("following")} />
+                </View>
+                <Text style={[kf("400", 12.5, { lh: 1.35, color: "rgba(23,20,31,0.55)" }), { marginTop: 10, marginHorizontal: 2 }]}>
+                  Новые встречи тех, на кого ты подписан, приходят в уведомления
+                </Text>
+              </>
+            ) : null}
+
+            <KSec plain="Мои" em="фото" action="Изменить" onAction={() => router.push("/profile-edit")} />
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
+              {all.slice(0, all.length < 6 ? 5 : 6).map((u) => (
+                <Press key={u} photo onPress={() => router.push("/profile-edit")} style={{ width: PH_W, height: (PH_W * 4) / 3, borderRadius: 18, backgroundColor: "#2B2737" }}>
+                  <Image source={{ uri: u }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+                </Press>
+              ))}
+              {all.length < 6 ? (
+                <KPressGlass onPress={() => router.push("/profile-edit")} style={{ width: PH_W, height: (PH_W * 4) / 3, borderRadius: 18, alignItems: "center", justifyContent: "center" }}>
+                  <Text style={kf("300", 30, { color: K.ink2 })}>+</Text>
+                </KPressGlass>
+              ) : null}
+            </View>
+
+            <KSec plain="Мои" em="встречи" sub={`${counts[0]} создано · ${counts[1]} посещено · ${counts[2]} состоялось`} action="Все" onAction={() => router.navigate("/(tabs)/meet")} />
+            <View style={{ gap: 10, marginTop: 14 }}>
+              {MENU.map(([t, href]) => (
+                <KRow key={t} label={t} onPress={() => (href.startsWith("http") ? Linking.openURL(href) : router.push(href as Href))} />
+              ))}
+              <KRow label="Как меня видят другие" onPress={() => router.push(`/person/${me.id}?self=1` as Href)} />
+            </View>
+          </>
+        )}
+      </Animated.ScrollView>
+
+      {/* .k-tbar: поделиться и настройки — стоят на месте поверх фото */}
+      <View style={{ position: "absolute", top: insets.top + 8, left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" }}>
+        <KRb icon="share" tone="gw" onPress={shareProfile} accessibilityLabel="Поделиться профилем" />
+        <KRb icon="more" tone="gw" onPress={() => router.push("/settings")} accessibilityLabel="Настройки" />
+      </View>
+
+      <FollowsSheet tab={open} counts={[follows?.followers ?? 0, follows?.following ?? 0]} onTab={setOpen} onClose={() => { setOpen(null); loadFollows(); }} />
     </View>
   );
 }
 
-function Row({ icon, label, onPress, last }: { icon: IconName; label: string; onPress: () => void; last?: boolean }) {
+const PH_W = Math.floor((SCREEN_W - 40 - 16) / 3);
+
+/** .k-row: строка меню (54 px, скругление 22, стрелка). */
+export function KRow({ label, onPress }: { label: string; onPress: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, !last && styles.rowSep, pressed && { opacity: 0.7 }]}>
-      <View style={styles.rowIc}>
-        <Icon name={icon} size={19} color={colors.ink} />
+    <KPressGlass onPress={onPress} style={{ minHeight: 54, borderRadius: 22 }}>
+      <View style={{ minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingLeft: 18, paddingRight: 16 }}>
+        <Text style={[kf("400", 15), { flex: 1 }]}>{label}</Text>
+        <KI n="chev" size={18} color={K.ink3} />
       </View>
-      <Text style={styles.rowText} numberOfLines={1}>
-        {label}
-      </Text>
-      <Icon name="chev" size={18} color={colors.grey} />
-    </Pressable>
+    </KPressGlass>
   );
 }
 
-const styles = StyleSheet.create({
-  hero: { height: 420, backgroundColor: colors.ink, overflow: "hidden" },
-  heroTop: { position: "absolute", left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" },
-  head: { alignItems: "center", paddingHorizontal: 20, marginTop: -110, gap: 8 },
-  name: { fontSize: 42, lineHeight: 46, ...f("300"), color: colors.ink, letterSpacing: -1.6, textAlign: "center" },
-  meta: { fontFamily: FONT, fontSize: 14, color: colors.grey },
-  chips: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6, marginTop: 4 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 8, paddingRight: 12, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(23,20,31,0.06)" },
-  chipText: { fontFamily: FONT, fontSize: 14, color: colors.ink },
-  body: { paddingHorizontal: 16, paddingTop: 18, gap: 12 },
-  plan: { borderRadius: 24, padding: 16, gap: 10 },
-  planRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  planSmall: { fontSize: 11, ...f("500"), color: colors.grey, letterSpacing: 1 },
-  planName: { fontSize: 26, ...f("300"), color: colors.ink, letterSpacing: -0.6, marginTop: 2 },
-  planPrice: { fontFamily: FONT, fontSize: 14, color: colors.grey, letterSpacing: 0 },
-  planBtn: { height: 38, paddingHorizontal: 16, borderRadius: 999, backgroundColor: colors.ink, justifyContent: "center" },
-  planBtnText: { color: "#fff", fontSize: 14, ...f("500") },
-  track: { height: 5, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.1)", overflow: "hidden" },
-  trackOn: { height: 5, borderRadius: 3, backgroundColor: colors.ink },
-  editBtn: { height: 54, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.85)", borderWidth: 1, borderColor: "rgba(23,20,31,0.08)", alignItems: "center", justifyContent: "center" },
-  editText: { fontSize: 16, ...f("500"), color: colors.ink },
-  sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 8 },
-  section: { fontSize: 26, ...f("300"), color: colors.ink, letterSpacing: -0.6 },
-  sectionEm: { fontFamily: SERIF, fontSize: 27 },
-  smallPill: { height: 34, paddingHorizontal: 14, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.85)", justifyContent: "center" },
-  smallPillText: { fontSize: 13.5, ...f("500"), color: colors.ink },
-  grid: { flexDirection: "row", gap: 8 },
-  gridCell: { flex: 1, aspectRatio: 0.78, borderRadius: 18, overflow: "hidden", backgroundColor: colors.pearl2 },
-  gridAdd: { alignItems: "center", justifyContent: "center", borderWidth: 1, borderStyle: "dashed", borderColor: "rgba(23,20,31,0.18)", backgroundColor: "rgba(255,255,255,0.5)" },
-  muted: { fontFamily: FONT, fontSize: 12.5, color: colors.grey },
-  list: { borderRadius: 26, paddingHorizontal: 12, marginTop: 6 },
-  row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 13 },
-  rowSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(23,20,31,0.15)" },
-  rowIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
-  rowText: { flex: 1, fontFamily: FONT, fontSize: 15, color: colors.ink },
-});
+/** .k-subc: карточка «подписчики / подписки». */
+function SubCard({ label, n, prev, onPress }: { label: string; n: number; prev: { id: string; avatarUrl: string }[]; onPress: () => void }) {
+  return (
+    <View style={{ flex: 1 }}>
+      <KPressGlass onPress={onPress} style={{ borderRadius: 24 }} accessibilityLabel={`${label}: ${n}. Открыть список`}>
+        <View style={{ paddingVertical: 14, paddingHorizontal: 16 }}>
+          <View style={{ position: "absolute", top: 10, right: 10, width: 30, height: 30, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.7)", borderWidth: 1, borderColor: "rgba(255,255,255,0.95)", alignItems: "center", justifyContent: "center" }}>
+            <KI n="arrowUpRight" size={16} sw={1.8} />
+          </View>
+          <Text style={[kf("400", 11, { ls: 0.06, color: K.ink3 }), { paddingRight: 36 }]} numberOfLines={1}>{label.toUpperCase()}</Text>
+          <Text style={[kf("400", 28, { color: K.ink }), { letterSpacing: -0.6, marginTop: 4 }]}>{n}</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", height: 30, marginTop: 10 }}>
+            {prev.length ? (
+              prev.map((p, i) => (
+                <Image key={p.id} source={{ uri: p.avatarUrl }} style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: "#fff", marginLeft: i ? -8 : 0 }} contentFit="cover" />
+              ))
+            ) : (
+              <Text style={kf("400", 12.5, { color: "rgba(23,20,31,0.45)" })}>пока никого</Text>
+            )}
+          </View>
+        </View>
+      </KPressGlass>
+    </View>
+  );
+}
+
+interface FollowPerson { id: string; name: string; age: number | null; city: string | null; avatarUrl: string | null; iFollow: boolean; followsMe: boolean }
+
+/** Шторка «Мои подписки»: переключатель, поиск, список с кнопкой подписки. */
+function FollowsSheet({ tab, counts, onTab, onClose }: { tab: Tab | null; counts: [number, number]; onTab: (t: Tab) => void; onClose: () => void }) {
+  const [items, setItems] = useState<FollowPerson[] | null>(null);
+  const [q, setQ] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
+  useEffect(() => {
+    if (!tab) return;
+    setItems(null);
+    const t = setTimeout(() => {
+      api<{ items: FollowPerson[] }>(`/api/me/follows?tab=${tab}&q=${encodeURIComponent(q)}`)
+        .then((d) => setItems(d.items ?? []))
+        .catch(() => setItems([]));
+    }, q ? 250 : 0);
+    return () => clearTimeout(t);
+  }, [tab, q]);
+
+  async function toggle(p: FollowPerson) {
+    if (busy) return;
+    setBusy(p.id);
+    const on = !p.iFollow;
+    setItems((list) => list?.map((x) => (x.id === p.id ? { ...x, iFollow: on } : x)) ?? null);
+    const ok = await api("/api/follows", { method: on ? "POST" : "DELETE", body: { userId: p.id } }).then(() => true).catch(() => false);
+    if (!ok) setItems((list) => list?.map((x) => (x.id === p.id ? { ...x, iFollow: !on } : x)) ?? null);
+    setBusy(null);
+  }
+
+  return (
+    <Sheet visible={!!tab} onClose={onClose}>
+      <KTitle parts={["Мои ", { em: "подписки" }]} size={26} />
+      {/* .seg: переключатель с плавающей подложкой */}
+      <KGlass style={{ marginTop: 12, height: 44, borderRadius: 22, padding: 4 }}>
+        <View style={{ flex: 1, flexDirection: "row" }}>
+          <View style={{ position: "absolute", top: 0, bottom: 0, width: "50%", left: tab === "following" ? "50%" : 0, borderRadius: 18, backgroundColor: K.ink }} />
+          {(["followers", "following"] as Tab[]).map((t, i) => (
+            <Press key={t} onPress={() => onTab(t)} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+              <Text style={kf("500", 13.5, { color: tab === t ? "#fff" : K.ink })}>{t === "followers" ? "Подписчики" : "Подписки"} · {counts[i]}</Text>
+            </Press>
+          ))}
+        </View>
+      </KGlass>
+      <KGlass style={{ marginTop: 10, height: 46, borderRadius: 23 }}>
+        <View style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16 }}>
+          <View style={{ opacity: 0.5 }}><KI n="search" size={18} /></View>
+          <TextInput value={q} onChangeText={setQ} placeholder="Найти по имени" placeholderTextColor={K.ink3} style={[kf("400", 15), { flex: 1 }]} />
+        </View>
+      </KGlass>
+      <ScrollView style={{ maxHeight: SCREEN_H * 0.5, marginTop: 10 }} contentContainerStyle={{ gap: 8, paddingBottom: 8 }}>
+        {items === null ? <Text style={[kf("400", 14, { color: K.ink2 }), { textAlign: "center", padding: 18 }]}>Загружаем…</Text> : null}
+        {items?.length === 0 ? (
+          <Text style={[kf("400", 14, { color: K.ink2 }), { textAlign: "center", padding: 18 }]}>
+            {q ? "Никого не нашли" : tab === "followers" ? "Пока на тебя никто не подписан — создавай встречи, и люди подтянутся" : "Ты пока ни на кого не подписан. Подписаться можно в профиле человека — колокольчик"}
+          </Text>
+        ) : null}
+        {items?.map((p) => (
+          <KGlass key={p.id} style={{ borderRadius: 20 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, paddingHorizontal: 12 }}>
+              <Press photo onPress={() => router.push(`/person/${p.id}` as Href)} style={{ flex: 1, flexDirection: "row", alignItems: "center", gap: 12 }}>
+                <Image source={{ uri: p.avatarUrl ?? `${API_URL}/brand/creature/blobe.webp` }} style={{ width: 48, height: 48, borderRadius: 24 }} contentFit="cover" />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={kf("500", 15.5)} numberOfLines={1}>{p.name}{p.age ? `, ${p.age}` : ""}</Text>
+                  <Text style={kf("400", 13, { color: K.ink2 })} numberOfLines={1}>{[p.city, p.followsMe && tab === "following" ? "подписан(а) на тебя" : null].filter(Boolean).join(" · ")}</Text>
+                </View>
+              </Press>
+              <Press onPress={() => toggle(p)} disabled={busy === p.id} dark={!p.iFollow} style={{ height: 34, paddingHorizontal: 14, borderRadius: 17, justifyContent: "center", backgroundColor: p.iFollow ? "rgba(23,20,31,0.06)" : K.ink }}>
+                <Text style={kf("500", 13, { color: p.iFollow ? K.ink : "#fff" })}>{p.iFollow ? (p.followsMe ? "Взаимно" : "Подписан") : p.followsMe ? "В ответ" : "Подписаться"}</Text>
+              </Press>
+            </View>
+          </KGlass>
+        ))}
+      </ScrollView>
+    </Sheet>
+  );
+}

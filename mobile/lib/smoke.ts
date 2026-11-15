@@ -147,5 +147,9 @@ export function smokeApi(path: string): unknown {
   if (p === "/api/notifications") return { items: [] };
   if (p === "/api/subscriptions") return { active: true, plan: "start", periodEnd: `${day(30)}T00:00:00Z`, currentPeriodEnd: day(30) };
   if (p === "/api/me/pending-applications") return { count: 0, latest: null };
+  if (p === "/api/me/follows") return path.includes("summary=1")
+    ? { followers: 12, following: 8, followersPreview: PEOPLE.map((x) => ({ id: x.id, avatarUrl: x.avatarUrl })), followingPreview: PEOPLE.slice(1).map((x) => ({ id: x.id, avatarUrl: x.avatarUrl })) }
+    : { items: PEOPLE.map((x, i) => ({ id: x.id, name: x.name, age: x.age, city: "Тюмень", avatarUrl: x.avatarUrl, iFollow: i > 0, followsMe: i < 2 })) };
+  if (p === "/api/me/events") return { items: [{ id: "e3", title: "Кофе и разговоры", eventDate: day(1), eventTime: "19:00:00", role: "participant" }] };
   return { items: [] };
 }
