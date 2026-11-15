@@ -16,6 +16,10 @@ import { coverUri } from "@/lib/covers";
 import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { MAP_STYLE, TYUMEN_CENTER } from "@/lib/map";
+import Supercluster from "supercluster";
+import { Linking } from "react-native";
+import { K, KGlass, KI, Press, kf } from "@/components/k";
+import { catIcon } from "@/lib/theme";
 import { BizCatRow, BizCatSheet } from "@/components/BizCategories";
 import { bizCategoryCounts, matchesBizCategory } from "@/lib/bizCategories";
 
@@ -86,6 +90,9 @@ export default function MapScreen() {
   const [bizOnly, setBizOnly] = useState(params.business === "only");
   const [bizCat, setBizCat] = useState<string | null>(null);
   const [catSheet, setCatSheet] = useState(false);
+  // Кластеры как в мини-аппе: при отдалении метки собираются в тёмные кружки с числом.
+  const [zoom, setZoom] = useState(11);
+  const [selected, setSelected] = useState<(MapEvent & { isCity?: boolean })[] | null>(null);
   useEffect(() => {
     Location.getForegroundPermissionsAsync()
       .then((p) => setLocated(p.status === "granted"))
@@ -151,6 +158,29 @@ export default function MapScreen() {
   const word = bizOnly ? plural(shown.length, "событие", "события", "событий") : plural(events.length, "встреча", "встречи", "встреч");
   const shownCount = shown.length;
 
+  const index = useMemo(() => {
+    const sc = new Supercluster<{ i: number }>({ radius: 72, maxZoom: 21 });
+    sc.load(shown.map((e, i) => ({ type: "Feature" as const, properties: { i }, geometry: { type: "Point" as const, coordinates: [e.longitude, e.latitude] } })));
+    return sc;
+  }, [shown]);
+  const clusters = useMemo(() => index.getClusters([-180, -85, 180, 85], Math.round(zoom)), [index, zoom]);
+  useEffect(() => setSelected(null), [shown]);
+  const carousel = (selected ?? shown).slice(0, 30);
+
+  function openCluster(id: number) {
+    tapLight();
+    const leaves = index.getLeaves(id, Infinity).map((f) => shown[f.properties.i]!).filter(Boolean);
+    setSelected(leaves);
+    const z = Math.min(index.getClusterExpansionZoom(id), 17);
+    const lngs = leaves.map((e) => e.longitude);
+    const lats = leaves.map((e) => e.latitude);
+    if (z >= 17 || leaves.length < 2) {
+      camera.current?.flyTo({ center: [lngs[0]!, lats[0]!], zoom: z, duration: 500 });
+    } else {
+      camera.current?.fitBounds([Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)], { padding: { top: 220, right: 60, bottom: 260, left: 60 }, duration: 500 });
+    }
+  }
+
   return (
     <View style={{ flex: 1 }}>
       <Map
@@ -159,10 +189,32 @@ export default function MapScreen() {
         logo={false}
         compass={false}
         attributionPosition={{ bottom: insets.bottom + 96, left: 10 }}
+        onRegionDidChange={(e: unknown) => {
+          const ev = e as { nativeEvent?: { zoom?: number }; properties?: { zoomLevel?: number } };
+          const z = ev?.nativeEvent?.zoom ?? ev?.properties?.zoomLevel;
+          if (typeof z === "number") setZoom(z);
+        }}
       >
         <Camera ref={camera} initialViewState={{ center: TYUMEN_CENTER, zoom: 11 }} />
         {located ? <UserLocation /> : null}
-        {shown.map((e) => {
+        {clusters.map((c) => {
+          const [lng, lat] = c.geometry.coordinates as [number, number];
+          const props = c.properties as { cluster?: boolean; cluster_id?: number; point_count?: number; i?: number };
+          if (props.cluster) {
+            const n = props.point_count ?? 0;
+            const label = n > 99 ? "99+" : String(n);
+            const size = (label.length >= 3 ? 50 : 42) + 4;
+            return (
+              <Marker key={`c${props.cluster_id}`} id={`c${props.cluster_id}`} lngLat={[lng, lat]} anchor="center">
+                <Pressable onPress={() => openCluster(props.cluster_id!)} accessibilityLabel={`Показать встречи: ${n}`}
+                  style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 3, borderColor: "#fff", backgroundColor: "#17141F", alignItems: "center", justifyContent: "center", shadowColor: "#17141F", shadowOpacity: 0.55, shadowRadius: 11, shadowOffset: { width: 0, height: 10 } }}>
+                  <Text style={{ color: "#fff", fontSize: label.length >= 3 ? 16 : 17, ...f("600") }}>{label}</Text>
+                </Pressable>
+              </Marker>
+            );
+          }
+          const e = shown[props.i!];
+          if (!e) return null;
           const cityEv = e.isCity || e.id.startsWith("city:");
           const full = !cityEv && e.seatsLeft <= 0;
           const label = cityEv ? "в городе" : full ? "мест нет" : timePill(e.startsAt, e.endsAt);
@@ -174,9 +226,9 @@ export default function MapScreen() {
                     <Text style={styles.pillText}>сейчас</Text>
                   </View>
                 ) : (
-                  <Grad style={styles.pill}>
+                  <View style={[styles.pill, { backgroundColor: "#17141F" }]}>
                     <Text style={styles.pillText}>{label}</Text>
-                  </Grad>
+                  </View>
                 )}
                 <PinPhoto e={e} />
               </Pressable>
@@ -230,8 +282,22 @@ export default function MapScreen() {
         ) : null}
       </View>
 
+      {/* .mcar: карточки встреч внизу карты (по кластеру — только его встречи) */}
+      {carousel.length ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={310}
+          decelerationRate="fast"
+          style={{ position: "absolute", left: 0, right: 0, bottom: insets.bottom + 92 }}
+          contentContainerStyle={{ gap: 10, paddingHorizontal: 20, paddingBottom: 6 }}
+        >
+          {carousel.map((e) => <MapCard key={e.id} e={e} onPress={() => open(e)} />)}
+        </ScrollView>
+      ) : null}
+
       <BizCatSheet visible={catSheet} onClose={() => setCatSheet(false)} counts={bizCounts} value={bizCat} onChange={setBizCat} total={events.length} />
-      <RoundBtn onPress={locate} size={50} style={[styles.locate, { bottom: insets.bottom + 104 }]}>
+      <RoundBtn onPress={locate} size={50} style={[styles.locate, { bottom: insets.bottom + (carousel.length ? 196 : 104) }]}>
         <Icon name="nav" color={colors.violet} />
       </RoundBtn>
     </View>
@@ -287,3 +353,46 @@ const styles = StyleSheet.create({
   },
   locate: { position: "absolute", right: 16 },
 });
+
+function dayShortMap(dateIso: string) {
+  const d = new Date(dateIso);
+  const t = new Date();
+  const diff = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - new Date(t.getFullYear(), t.getMonth(), t.getDate()).getTime()) / 864e5);
+  if (diff === 0) return "сегодня";
+  if (diff === 1) return "завтра";
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "");
+}
+
+/** .mcard: карточка встречи внизу карты — фото организатора, название, когда · где, мест, маршрут. */
+function MapCard({ e, onPress }: { e: MapEvent & { isCity?: boolean }; onPress: () => void }) {
+  const cityEv = e.isCity || e.id.startsWith("city:");
+  const live = Date.now() >= new Date(e.startsAt).getTime() && Date.now() < new Date(e.endsAt).getTime();
+  const ava = e.organizer?.avatarUrl && !e.organizerHidden ? e.organizer.avatarUrl : null;
+  return (
+    <Press onPress={onPress} style={{ width: 300, borderRadius: 24 }}>
+      <KGlass style={{ borderRadius: 24 }}>
+        <View style={{ flexDirection: "row", gap: 12, alignItems: "center", padding: 10, backgroundColor: "rgba(255,255,255,0.2)" }}>
+          {ava ? (
+            <Image source={{ uri: ava }} style={{ width: 72, height: 72, borderRadius: 17 }} contentFit="cover" />
+          ) : (
+            <View style={{ width: 72, height: 72, borderRadius: 17, backgroundColor: "#F3EFFF", alignItems: "center", justifyContent: "center" }}>
+              <Image source={{ uri: e.isBusiness ? catIcon("business") : catIcon(e.category?.slug) }} style={{ width: 50, height: 50 }} contentFit="contain" />
+            </View>
+          )}
+          <View style={{ flex: 1, minWidth: 0, gap: 3 }}>
+            <Text style={kf("500", 15)} numberOfLines={1}>{e.title}</Text>
+            <Text style={kf("400", 12.5, { color: colors.grey })} numberOfLines={1}>
+              {live ? "идёт сейчас" : `${dayShortMap(e.startsAt.slice(0, 10))}, ${new Date(e.startsAt).toTimeString().slice(0, 5)}`} · {e.organizerHidden ? "анонимно · место после одобрения" : e.placeName ?? ""}
+            </Text>
+            <Text style={kf("400", 12.5, { color: colors.grey })}>{cityEv ? "событие города" : e.seatsLeft > 0 ? `свободно ${e.seatsLeft}` : "мест нет"}</Text>
+          </View>
+          {!e.organizerHidden ? (
+            <Press onPress={() => Linking.openURL(`https://yandex.ru/maps/?rtext=~${e.latitude},${e.longitude}&rtt=auto`)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(23,20,31,0.06)", alignItems: "center", justifyContent: "center" }} accessibilityLabel="Маршрут">
+              <KI n="route" size={18} color={K.ink} />
+            </Press>
+          ) : null}
+        </View>
+      </KGlass>
+    </Press>
+  );
+}
