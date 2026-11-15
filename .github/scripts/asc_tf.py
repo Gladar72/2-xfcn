@@ -82,7 +82,7 @@ for t in ts:
     a = t["attributes"]
     print("TESTER", a.get("inviteType"), a.get("state"), "почта на", (a.get("email") or "")[:3] + "…")
     # Повторно отправить приглашение в TestFlight — только если ещё не принято.
-    if a.get("state") not in ("INVITED", None):
+    if os.environ.get("RESEND") != "1":
         continue
     try:
         api("/v1/betaTesterInvitations", "POST", {"data": {"type": "betaTesterInvitations", "relationships": {
