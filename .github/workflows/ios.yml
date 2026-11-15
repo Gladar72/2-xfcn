@@ -102,6 +102,10 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/ishots"
           xcrun simctl launch "$UDID" ru.mesto.app
           for i in $(seq -w 0 32); do xcrun simctl io "$UDID" screenshot "$GITHUB_WORKSPACE/ishots/t$i.png" >/dev/null 2>&1; sleep 6; done
+          # Журнал приложения: причины вылета (JS-ошибки и нативные исключения).
+          xcrun simctl spawn "$UDID" log show --last 6m --style compact --predicate 'process CONTAINS "Mesto" OR eventMessage CONTAINS "Unhandled JS Exception" OR eventMessage CONTAINS "RCTFatal"' 2>/dev/null | grep -iE "exception|error|fatal|crash|terminat|invariant" | tail -n 120 > "$GITHUB_WORKSPACE/ishots/log.txt" || true
+          ls ~/Library/Logs/DiagnosticReports/ 2>/dev/null | tail -5 >> "$GITHUB_WORKSPACE/ishots/log.txt" || true
+          for f in $(ls -t ~/Library/Logs/DiagnosticReports/*Mesto* 2>/dev/null | head -1); do head -c 6000 "$f" >> "$GITHUB_WORKSPACE/ishots/log.txt"; done
           # Ссылка возврата после входа в боте: должна открыть приложение (экран входа).
           xcrun simctl openurl "$UDID" "mesto://app-login" || true; sleep 6
           xcrun simctl io "$UDID" screenshot "$GITHUB_WORKSPACE/ishots/u-applogin.png" >/dev/null 2>&1 || true
