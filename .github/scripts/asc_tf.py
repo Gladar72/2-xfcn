@@ -55,7 +55,7 @@ if b["attributes"].get("usesNonExemptEncryption") is None:
 
 groups = api(f"/v1/apps/{APP}/betaGroups?limit=50")["data"]
 for g in groups:
-    print("GROUP", g["attributes"]["name"], "internal", g["attributes"].get("isInternalGroup"), "all", g["attributes"].get("hasAccessToAllBuilds"))
+    print("GROUP", g["id"][:6], g["attributes"]["name"], "internal", g["attributes"].get("isInternalGroup"), "all", g["attributes"].get("hasAccessToAllBuilds"))
 internal = [g for g in groups if g["attributes"].get("isInternalGroup")]
 if not internal:
     g = api("/v1/betaGroups", "POST", {"data": {"type": "betaGroups", "attributes": {"name": "Команда", "isInternalGroup": True, "hasAccessToAllBuilds": True},
@@ -76,12 +76,28 @@ for u in users:
             print("тестировщик добавлен")
         except Exception:
             print("тестировщика добавить не удалось")
-print("тестировщиков в группе:", len(api(f"/v1/betaGroups/{g['id']}/betaTesters?limit=200")["data"]))
+ts = api(f"/v1/betaGroups/{g['id']}/betaTesters?limit=200")["data"]
+print("тестировщиков в группе:", len(ts))
+for t in ts:
+    a = t["attributes"]
+    print("TESTER", a.get("inviteType"), a.get("state"), "почта на", (a.get("email") or "")[:3] + "…")
+    # Повторно отправить приглашение в TestFlight.
+    try:
+        api("/v1/betaTesterInvitations", "POST", {"data": {"type": "betaTesterInvitations", "relationships": {
+            "app": {"data": {"type": "apps", "id": APP}}, "betaTester": {"data": {"type": "betaTesters", "id": t["id"]}}}}})
+        print("приглашение отправлено повторно")
+    except Exception:
+        print("повторное приглашение не ушло")
 if not g["attributes"].get("hasAccessToAllBuilds"):
     try:
         api(f"/v1/betaGroups/{g['id']}/relationships/builds", "POST", {"data": [{"type": "builds", "id": bid}]})
         print("сборка выдана группе")
     except Exception:
         pass
+try:
+    bg = api(f"/v1/builds/{bid}/betaGroups")["data"]
+    print("сборка в группах:", [x["attributes"]["name"] for x in bg])
+except Exception:
+    pass
 st = api(f"/v1/builds/{bid}/buildBetaDetail")["data"]["attributes"]
 print("TESTFLIGHT", json.dumps(st))
