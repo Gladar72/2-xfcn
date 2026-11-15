@@ -5,6 +5,9 @@ import { Image } from "expo-image";
 import { CREATURE_FS, CREATURE_VS } from "./creature-shader";
 import { API_URL as SITE } from "@/lib/config";
 
+// Тестовая сборка для снимков на виртуальном iPhone (без видеочипа) — картинка вместо живого шейдера.
+const NO_GL = process.env.EXPO_PUBLIC_UI_SMOKE === "1";
+
 /**
  * Мося-«капля» из брендбука 2026 — тот же шейдер, что в мини-аппе (components/brand/Creature.tsx),
  * но в приложении он считается живьём на видеочипе телефона, 60 кадров в секунду —
@@ -16,7 +19,7 @@ const t0 = Date.now();
 const FALLBACK: Record<Variant, string> = { p: `${SITE}/brand/creature/blobw.webp`, e: `${SITE}/brand/creature/blobe.webp` };
 
 export function Creature({ size = 58, variant = "e", style }: { size?: number; variant?: Variant; style?: StyleProp<ViewStyle> }) {
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState(NO_GL);
   const raf = useRef(0);
   const active = useRef(AppState.currentState === "active");
 
@@ -78,8 +81,8 @@ export function Creature({ size = 58, variant = "e", style }: { size?: number; v
     }
   };
 
-  // Буфер — в пикселях экрана, но не больше 2× (качество то же, видеочипу легче).
-  const scale = Math.min(PixelRatio.get(), 2);
+  // Буфер — не больше 1.5× пикселей экрана: капля мягкая, разницы не видно, а видеочипу в 2 раза легче.
+  const scale = Math.min(PixelRatio.get(), 1.5);
   return (
     <View style={[{ width: size, height: size }, style]} pointerEvents="none">
       <GLView
