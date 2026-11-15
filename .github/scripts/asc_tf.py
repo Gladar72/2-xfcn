@@ -81,7 +81,9 @@ print("тестировщиков в группе:", len(ts))
 for t in ts:
     a = t["attributes"]
     print("TESTER", a.get("inviteType"), a.get("state"), "почта на", (a.get("email") or "")[:3] + "…")
-    # Повторно отправить приглашение в TestFlight.
+    # Повторно отправить приглашение в TestFlight — только если ещё не принято.
+    if a.get("state") not in ("INVITED", None):
+        continue
     try:
         api("/v1/betaTesterInvitations", "POST", {"data": {"type": "betaTesterInvitations", "relationships": {
             "app": {"data": {"type": "apps", "id": APP}}, "betaTester": {"data": {"type": "betaTesters", "id": t["id"]}}}}})
