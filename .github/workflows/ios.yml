@@ -102,6 +102,9 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/ishots"
           xcrun simctl launch "$UDID" ru.mesto.app
           for i in $(seq -w 0 32); do xcrun simctl io "$UDID" screenshot "$GITHUB_WORKSPACE/ishots/t$i.png" >/dev/null 2>&1; sleep 6; done
+          # Ссылка возврата после входа в боте: должна открыть приложение (экран входа).
+          xcrun simctl openurl "$UDID" "mesto://app-login" || true; sleep 6
+          xcrun simctl io "$UDID" screenshot "$GITHUB_WORKSPACE/ishots/u-applogin.png" >/dev/null 2>&1 || true
           cd "$GITHUB_WORKSPACE/ishots" && git init -q && git config user.name github-actions && git config user.email actions@users.noreply.github.com
           git add -A && git commit -qm "Снимки iPhone" && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" HEAD:ios-shots
 
