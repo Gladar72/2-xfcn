@@ -13,7 +13,7 @@ import { MosyaPeekHost } from "@/components/MosyaPeek";
 import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
 import { LoadingScenes } from "@/components/LoadingScenes";
-import { tapOk } from "@/lib/feedback";
+import { tapLight } from "@/lib/feedback";
 import { colors, fonts, FONT } from "@/lib/theme";
 import { UI_SMOKE } from "@/lib/smoke";
 
@@ -149,9 +149,15 @@ function Gate() {
   useNotificationTaps(ready && fontReady && signedIn);
 
   const loaded = ready && fontReady && !smokeHold;
-  // Приложение загрузилось — короткая вибрация «готово» (один раз за запуск).
+  // Лёгкая вибрация при запуске: в момент появления заставки и когда сервис открылся.
   useEffect(() => {
-    if (loaded) tapOk();
+    const t = setTimeout(tapLight, 250);
+    return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(tapLight, 120);
+    return () => clearTimeout(t);
   }, [loaded]);
 
   if (!loaded) return <Splash fontReady={fontReady} />;
