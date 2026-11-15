@@ -43,7 +43,7 @@ export function loginWithTelegram(phoneTicket?: string | null): Promise<Telegram
             body: { token: start.token, phoneTicket: phoneTicket ?? undefined },
             auth: false,
           });
-          if (r.status !== "pending") return r;
+          if ((r.status as string) !== "pending") return r;
           await Promise.race([sleep(2000), new Promise<void>((res) => (wake = res))]);
           wake = null;
         }
