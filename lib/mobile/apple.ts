@@ -38,7 +38,7 @@ async function keyFor(kid: string): Promise<KeyObject | null> {
 }
 
 function audiences(): string[] {
-  const raw = process.env.APPLE_BUNDLE_ID ?? "ru.mesto.app";
+  const raw = process.env.APPLE_BUNDLE_ID?.trim() || "ru.mesto.app";
   return raw
     .split(",")
     .map((s) => s.trim())
