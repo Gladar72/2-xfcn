@@ -55,9 +55,11 @@ jobs:
           CRON_ENABLED: ${{ vars.YC_CRON_ENABLED }}
           # Постоянный код для служебной почты проверяющих App Store / RuStore (lib/mobile/review-login.ts).
           REVIEW_CODE: ${{ secrets.APP_REVIEW_CODE }}
+          # Team ID Apple — для файла универсальных ссылок (кнопка «Вернуться в «Место»» из бота).
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
         run: |
           { printf 'TELEGRAM_BOT_TOKEN=%s\nADMIN_TELEGRAM_IDS=%s\n' "$BOT_TOKEN" "$ADMIN_IDS"; printf '%s\n' "$APP_ENV";
-            printf 'APP_HOSTS=%s\nCRON_ENABLED=%s\nAPP_REVIEW_CODE=%s\n' "$APP_HOSTS" "$CRON_ENABLED" "$REVIEW_CODE"; } |
+            printf 'APP_HOSTS=%s\nCRON_ENABLED=%s\nAPP_REVIEW_CODE=%s\nAPPLE_TEAM_ID=%s\n' "$APP_HOSTS" "$CRON_ENABLED" "$REVIEW_CODE" "$APPLE_TEAM_ID"; } |
             ssh deploy@"$HOST" 'sudo mkdir -p /opt/mesto && sudo chown deploy /opt/mesto && umask 077 && cat > /opt/mesto/inputs.env'
 
       - name: Upload migration settings

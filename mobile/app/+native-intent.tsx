@@ -30,6 +30,8 @@ function mapSitePath(pathname: string): string | null {
 
 export function redirectSystemPath({ path }: { path: string; initial: boolean }): string {
   try {
+    // mesto://app-login — запасная кнопка со страницы сайта, если универсальная ссылка не сработала.
+    if (/^mesto:\/\/app-login/i.test(path)) return "/(auth)/login";
     if (/^https?:\/\//i.test(path)) {
       const url = new URL(path);
       if (!SITE_HOSTS.has(url.hostname.toLowerCase())) return path;
