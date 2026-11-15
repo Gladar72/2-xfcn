@@ -16,6 +16,7 @@ import { PLAN_NAME, untilLabel, type Subscription } from "@/lib/subscription";
 import { colors, FONT, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
+import { PearlBg } from "@/components/k";
 
 /** «Настройки» (app/(app)/settings в мини-приложении). */
 export default function SettingsScreen() {
@@ -141,13 +142,13 @@ export default function SettingsScreen() {
   const version = Constants.expoConfig?.version ?? "1.0";
 
   return (
-    <View style={{ flex: 1 }}>
-      <Aurora />
+    <View style={{ flex: 1, backgroundColor: "#F4F2F8" }}>
+      <PearlBg />
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: insets.bottom + 40, gap: 12 }}>
         <RoundBtn onPress={() => router.back()}>
           <Icon name="back" />
         </RoundBtn>
-        <Title plain="Наст" em="ройки" size={30} style={{ marginLeft: 4 }} />
+        <Title plain="Настройки" size={36} style={{ marginLeft: 4, marginTop: 10 }} />
 
         <Text style={styles.section}>Аккаунт</Text>
         <Glass strong style={styles.list}>

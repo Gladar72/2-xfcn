@@ -11,34 +11,13 @@ import { brand, brandGradient, colors, fonts, gradientEnd, gradientStart, f, SER
 import { LOGO_LETTERS, LOGO_M, LOGO_VIEWBOX } from "@/lib/logo-paths";
 import { textWidth } from "@/lib/textWidth";
 import { Creature } from "@/components/k/Creature";
+import { PearlBg } from "@/components/k";
 
 export { textWidth };
 
-/** Фон экрана как в прототипе: перламутр + мягкий свет сирени справа сверху и персика слева снизу. */
+/** Фон экрана — как .k-pbg в мини-аппе: перламутр и три мягких пятна, медленно плывут. */
 export function Aurora({ style }: { style?: StyleProp<ViewStyle> }) {
-  return (
-    <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.pearl }, style]} pointerEvents="none">
-      <Svg width="100%" height="100%" preserveAspectRatio="none" viewBox="0 0 100 100">
-        <Defs>
-          <RadialGradient id="a1" cx="100" cy="0" rx="75" ry="40" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="#DCD5FF" stopOpacity="0.95" />
-            <Stop offset="0.75" stopColor="#DCD5FF" stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="a2" cx="0" cy="48" rx="70" ry="30" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="#FFE3D6" stopOpacity="0.85" />
-            <Stop offset="0.75" stopColor="#FFE3D6" stopOpacity="0" />
-          </RadialGradient>
-          <RadialGradient id="a3" cx="85" cy="100" rx="80" ry="34" gradientUnits="userSpaceOnUse">
-            <Stop offset="0" stopColor="#D8E2FF" stopOpacity="0.7" />
-            <Stop offset="0.75" stopColor="#D8E2FF" stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100" height="100" fill="url(#a1)" />
-        <Rect x="0" y="0" width="100" height="100" fill="url(#a2)" />
-        <Rect x="0" y="0" width="100" height="100" fill="url(#a3)" />
-      </Svg>
-    </View>
-  );
+  return <PearlBg style={style} />;
 }
 
 /** Стеклянная плашка (.gl): размытие + полупрозрачный белый + тонкая белая обводка. */
