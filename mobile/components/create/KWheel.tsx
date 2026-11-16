@@ -61,6 +61,11 @@ export const KWheel = memo(function KWheel({ items, index, onChange, wide }: { i
         snapToInterval={ROW}
         decelerationRate={Platform.OS === "ios" ? "fast" : 0.985}
         contentOffset={initialOffset}
+        // Начальное положение ещё раз после раскладки: iOS иногда ставит его до того, как посчитан размер,
+        // и колесо стояло между строками (на «1,5 ч» вместо «2 ч»).
+        onContentSizeChange={() => {
+          if (!touching.current) (ref.current as unknown as { scrollTo: (o: { y: number; animated: boolean }) => void } | null)?.scrollTo({ y: last.current * ROW, animated: false });
+        }}
         contentContainerStyle={{ paddingVertical: PAD }}
         onScroll={onScroll}
         onScrollBeginDrag={() => {

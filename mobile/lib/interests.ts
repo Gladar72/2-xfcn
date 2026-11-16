@@ -160,5 +160,5 @@ export function distanceShort(m: number | null | undefined): string | null {
 /** «меньше 1 км от тебя» / «≈ N км от тебя» (lib/geo/approx-distance.ts). */
 export function distanceLabel(km: number | null | undefined): string | null {
   if (km == null) return null;
-  return km === 0 ? "меньше 1 км от тебя" : `≈ ${km} км от тебя`;
+  return km === 0 ? "меньше 1 км от тебя" : `≈ ${String(km).replace(".", ",")} км от тебя`;
 }
