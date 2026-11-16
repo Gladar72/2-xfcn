@@ -54,7 +54,7 @@ const FIELD_STEP: Record<string, number> = {
   isAnonymous: 4,
 };
 
-type Params = { id?: string; business?: string; category?: string; type?: string; invite?: string; inviteName?: string; fromCity?: string };
+type Params = { id?: string; business?: string; category?: string; type?: string; invite?: string; inviteName?: string; fromCity?: string; smokeStep?: string };
 
 export default function CreateScreen() {
   const params = useLocalSearchParams<Params>();
@@ -67,9 +67,11 @@ export default function CreateScreen() {
   );
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
   const [minSeats, setMinSeats] = useState(1);
-  const [step, setStep] = useState(params.business === "1" || params.business === "true" ? 2 : 1);
+  // smokeStep — только для снимков экрана в тестовой сборке: сразу открыть нужный шаг.
+  const smokeStep = process.env.EXPO_PUBLIC_UI_SMOKE === "1" && params.smokeStep ? Number(params.smokeStep) : 0;
+  const [step, setStep] = useState(smokeStep || (params.business === "1" || params.business === "true" ? 2 : 1));
   // «Что создаём?» — пропускаем при правке, «Найти компанию» из афиши и приглашении человека.
-  const skipKind = !!editId || !!params.fromCity || !!params.invite;
+  const skipKind = !!editId || !!params.fromCity || !!params.invite || !!smokeStep;
   const [chosen, setChosen] = useState(skipKind);
   const kind: Kind = form.business ? "business" : form.isAnonymous ? "anon" : "open";
   // Как в мини-аппе: выбор подсвечивается тёмным и через мгновение сам ведёт дальше (бизнес — сразу к названию).
