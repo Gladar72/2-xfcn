@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
 import { Aurora, Btn, Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
-import { PersonView } from "@/components/people/PersonView";
+import { PersonView, TopBtn } from "@/components/people/PersonView";
 import { PeopleFilterSheet } from "@/components/people/PeopleFilterSheet";
 import { api } from "@/lib/api";
 import { animateNext, tapLight } from "@/lib/feedback";
@@ -136,6 +136,11 @@ export default function PeopleScreen() {
       <Icon name="filter" color={filtersActive ? colors.violet : undefined} />
     </RoundBtn>
   );
+  const filterBtnDark = (
+    <TopBtn onPress={() => setFiltersOpen(true)} label="Фильтры">
+      <Icon name="filter" color={filtersActive ? "#C9BEFF" : "#fff"} />
+    </TopBtn>
+  );
   const filterSheet = <PeopleFilterSheet visible={filtersOpen} value={filters} onApply={applyFilters} onClose={() => setFiltersOpen(false)} />;
 
   async function allowLocation() {
@@ -248,7 +253,7 @@ export default function PeopleScreen() {
           <View style={[StyleSheet.absoluteFill, { backgroundColor: "#17141F" }]} pointerEvents="none">
             {cur.avatarUrl ? <Image source={{ uri: cur.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" /> : null}
           </View>
-          <PersonView id={cur.id} preview={cur} active onBack={back} onGone={removePerson} topAction={filterBtn} transparentBg />
+          <PersonView id={cur.id} preview={cur} active onBack={back} onGone={removePerson} topAction={filterBtnDark} transparentBg />
         </Animated.View>
       ) : (
         <View style={[styles.end, { flex: 1, paddingTop: insets.top + 60 }]}>

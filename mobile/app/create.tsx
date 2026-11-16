@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -392,6 +393,8 @@ export default function CreateScreen() {
           </ScrollView>
 
           <View style={[st.foot, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+            {/* Фон не обрывается полосой: над кнопкой — мягкий переход в цвет экрана */}
+            <LinearGradient pointerEvents="none" colors={["rgba(244,242,248,0)", "rgba(244,242,248,0.94)"]} style={st.footFade} />
             {banner ? (
               <Glass strong style={st.banner}>
                 <Mosya pose="think" size={44} />
@@ -431,6 +434,7 @@ const st = StyleSheet.create({
   count: { minWidth: 44, textAlign: "right", fontFamily: FONT, fontSize: 13, color: colors.grey },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   foot: { paddingHorizontal: 20, paddingTop: 10, gap: 10, backgroundColor: "rgba(244,242,248,0.94)" },
+  footFade: { position: "absolute", left: 0, right: 0, top: -36, height: 36 },
   banner: { flexDirection: "row", alignItems: "flex-start", gap: 10, borderRadius: 22, padding: 12 },
   bannerText: { fontFamily: FONT, fontSize: 14, lineHeight: 19, color: colors.ink },
 });

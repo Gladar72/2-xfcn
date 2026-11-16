@@ -4,8 +4,8 @@ import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { Press } from "@/components/k";
 import { Creature } from "@/components/k/Creature";
-import { Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { InviteSheet } from "@/components/people/InviteSheet";
 import { ReportSheet } from "@/components/people/ReportSheet";
@@ -13,7 +13,7 @@ import { api } from "@/lib/api";
 import { getMyId } from "@/lib/me";
 import { tapLight, tapWarn } from "@/lib/feedback";
 import { plural } from "@/lib/format";
-import { distanceLabel, interestIcon } from "@/lib/interests";
+import { interestIcon } from "@/lib/interests";
 import { colors, FONT, SERIF, f } from "@/lib/theme";
 
 /** Ответ GET /api/users/[id] (app/api/users/[id]/route.ts). */
@@ -172,7 +172,6 @@ export function PersonView({
 
   const common = p?.commonInterests ?? [];
   const other = (p?.interests ?? []).filter((i) => !common.includes(i));
-  const dist = distanceLabel(p?.distanceKm);
 
   return (
     <View style={{ flex: 1, backgroundColor: transparentBg ? "transparent" : "#17141F" }}>
@@ -210,12 +209,6 @@ export function PersonView({
           </Text>
           {p ? (
             <View style={styles.pills}>
-              {dist ? (
-                <View style={[styles.pill, styles.pillDark]}>
-                  <Icon name="pin" size={13} color="#fff" />
-                  <Text style={styles.pillText}>{dist}</Text>
-                </View>
-              ) : null}
               {p.ratingAvg > 0 ? (
                 <View style={styles.pill}>
                   <Text style={styles.pillText}>★ {p.ratingAvg.toFixed(1).replace(".", ",")}</Text>
@@ -279,7 +272,7 @@ export function PersonView({
           )}
         </View>
         {/* Тёмный низ до конца экрана — фото под карточкой не просвечивает */}
-        <View style={{ height: insets.bottom + (isMe ? 20 : 74), backgroundColor: "rgba(23,20,31,0.74)" }} />
+        <View style={{ height: Math.max(insets.bottom, 12) + (isMe ? 8 : 58), backgroundColor: "rgba(23,20,31,0.74)" }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}
@@ -292,15 +285,15 @@ export function PersonView({
           </View>
         ) : null}
         <View style={styles.topRow} pointerEvents="box-none">
-          <RoundBtn onPress={onBack}>
-            <Icon name="back" />
-          </RoundBtn>
+          <TopBtn onPress={onBack} label="Назад">
+            <Icon name="back" color="#fff" />
+          </TopBtn>
           <View style={styles.topRight} pointerEvents="box-none">
             {topAction}
             {!isMe && p ? (
-              <RoundBtn onPress={() => setReport(true)}>
-                <Icon name="flag" />
-              </RoundBtn>
+              <TopBtn onPress={() => setReport(true)} label="Пожаловаться">
+                <Icon name="flag" color="#fff" />
+              </TopBtn>
             ) : null}
           </View>
         </View>
@@ -365,7 +358,7 @@ const styles = StyleSheet.create({
   overlay: { justifyContent: "flex-end", paddingHorizontal: 20, gap: 8 },
   name: { fontSize: 34, lineHeight: 38, ...f("600"), color: "#fff", letterSpacing: -1, paddingRight: 56 },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingRight: 56 },
-  pill: { flexDirection: "row", alignItems: "center", gap: 4, height: 30, paddingHorizontal: 12, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.28)" },
+  pill: { flexDirection: "row", alignItems: "center", gap: 4, height: 30, paddingHorizontal: 12, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
   pillDark: { backgroundColor: "rgba(23,20,31,0.3)" },
   pillText: { fontSize: 13, ...f("500"), color: "#fff" },
   upk: { position: "absolute", right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
@@ -380,7 +373,7 @@ const styles = StyleSheet.create({
   rbOn: { backgroundColor: "rgba(255,255,255,0.94)" },
   callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
   callText: { color: colors.ink, fontSize: 14, lineHeight: 16, ...f("500"), textAlign: "center" },
-  body: { padding: 20, paddingTop: 16, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },
+  body: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },
   card: { borderRadius: 24, padding: 16, gap: 10 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
@@ -400,3 +393,13 @@ const styles = StyleSheet.create({
   footer: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.94)" },
   chatBtn: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#fff", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(23,20,31,0.15)" },
 });
+
+/** Кнопки поверх фото — тёмное стекло, как блок «О себе» (а не светлые круги). */
+export function TopBtn({ children, onPress, label }: { children: ReactNode; onPress?: () => void; label?: string }) {
+  return (
+    <Press onPress={onPress} accessibilityLabel={label} dark style={topBtnStyle}>
+      {children}
+    </Press>
+  );
+}
+const topBtnStyle = { width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(43,40,51,0.78)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", alignItems: "center" as const, justifyContent: "center" as const };

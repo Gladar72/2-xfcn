@@ -4,7 +4,6 @@ import { StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { router, type Href } from "expo-router";
 import { coverUri } from "@/lib/covers";
-import { distanceShort } from "@/lib/interests";
 import { eventIcon } from "@/lib/theme";
 import type { FeedEvent } from "@/lib/types";
 import { K, KPressGlass, kf } from "./index";
@@ -38,7 +37,7 @@ export function RowCard({ e }: { e: FeedEvent }) {
               <Image source={{ uri: eventIcon(e) }} style={{ width: 16, height: 16 }} contentFit="contain" />
             )}
             <Text style={kf("400", 12.5, { color: K.ink2 })} numberOfLines={1}>
-              {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}{e.distanceM != null ? ` · ${distanceShort(e.distanceM)}` : ""}
+              {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}
             </Text>
           </View>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>

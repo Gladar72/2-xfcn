@@ -9,7 +9,6 @@ import { Icon } from "./Icon";
 import { FireChip } from "./Fire";
 import { CATEGORY_SHORT, colors, eventIcon, FONT, f } from "@/lib/theme";
 import { dayShort } from "@/lib/format";
-import { distanceShort } from "@/lib/interests";
 import { type FeedEvent } from "@/lib/types";
 
 const STATUS_LABEL = { pending: "Заявка отправлена", accepted: "Ты идёшь ✓", rejected: "Не подтвердили" } as const;
@@ -26,7 +25,6 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
   const tag = e.isBusiness ? kind : `${full ? "мест нет" : `${going} из ${max}`} · ${e.isAnonymous ? "анонимно" : kind}`;
   const small = typeof width === "number" && width < 220;
   const place = e.organizerHidden ? "место после одобрения" : e.placeName ?? "";
-  const dist = distanceShort(e.distanceM);
 
   return (
     <Pressable onPress={() => router.push(`/event/${e.id}`)} style={({ pressed }) => [styles.card, { width, height, transform: [{ scale: pressed ? 0.975 : 1 }] }]}>
@@ -64,7 +62,6 @@ export function EventCard({ event: e, width = 300, height = 360 }: { event: Feed
         <Text style={styles.meta} numberOfLines={1}>
           {dayShort(e.eventDate)}, {e.eventTime.slice(0, 5)}
           {place ? ` · ${place}` : ""}
-          {dist ? ` · ${dist}` : ""}
         </Text>
         <View style={styles.go}>
           <Text style={styles.goText} numberOfLines={1}>{e.myApplicationStatus ? STATUS_LABEL[e.myApplicationStatus] : "Я иду"}</Text>

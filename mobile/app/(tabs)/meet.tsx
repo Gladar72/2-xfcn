@@ -26,11 +26,23 @@ interface MyEvent {
   pendingApplicationsCount: number;
 }
 interface MeetHint { notificationId: string; userId: string; name: string; age: number | null; avatarUrl: string | null }
-type Tab = 0 | 1 | 2;
+type Tab = 0 | 1 | 2 | 3; // Все · Я иду · Создал · Прошли
 
-function dayLong(iso: string) {
-  const d = new Date(`${iso}T00:00:00`);
-  return d.toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "short" }).replace(/\./g, "");
+const WD = ["Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб"];
+const WDL = ["воскресенье", "понедельник", "вторник", "среда", "четверг", "пятница", "суббота"];
+const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+/** Заголовок дня — как в «Афише заведений»: «Сегодня, 16 ноября», «Завтра, вторник 17», «Сб, 21 ноября». */
+function dayTitle(i: string) {
+  const now = new Date();
+  const today = isoOf(now);
+  const tomorrow = isoOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1));
+  const yesterday = isoOf(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
+  const d = new Date(`${i}T12:00:00`);
+  const dm = d.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+  if (i === today) return `Сегодня, ${dm}`;
+  if (i === tomorrow) return `Завтра, ${WDL[d.getDay()]} ${d.getDate()}`;
+  if (i === yesterday) return `Вчера, ${dm}`;
+  return `${WD[d.getDay()]}, ${dm}${d.getFullYear() !== now.getFullYear() ? ` ${d.getFullYear()}` : ""}`;
 }
 
 export default function MeetTab() {
@@ -43,7 +55,7 @@ export default function MeetTab() {
   const [toRate, setToRate] = useState<ReviewTarget[]>([]);
   const [rating, setRating] = useState<ReviewTarget | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const scope = tab === 2 ? "archive" : "upcoming";
+  const scope = tab === 3 ? "archive" : "upcoming";
 
   const load = useCallback(async (s: "upcoming" | "archive") => {
     try {
@@ -67,7 +79,20 @@ export default function MeetTab() {
   );
 
   const list = items[scope];
-  const shown = (list ?? []).filter((e) => (tab === 0 ? e.role !== "organizer" : tab === 1 ? e.role === "organizer" : true));
+  const shown = (list ?? []).filter((e) => (tab === 1 ? e.role !== "organizer" : tab === 2 ? e.role === "organizer" : true));
+  // Все встречи и события — по дням, как в афише: ближайшие сверху, в «Прошли» — последние сверху.
+  const groups: { d: string; list: MyEvent[] }[] = [];
+  [...shown]
+    .sort((a, b) => {
+      const ka = `${a.eventDate} ${a.eventTime}`;
+      const kb = `${b.eventDate} ${b.eventTime}`;
+      return scope === "archive" ? kb.localeCompare(ka) : ka.localeCompare(kb);
+    })
+    .forEach((e) => {
+      const g = groups[groups.length - 1];
+      if (g && g.d === e.eventDate) g.list.push(e);
+      else groups.push({ d: e.eventDate, list: [e] });
+    });
 
   return (
     <View style={{ flex: 1, backgroundColor: K.pearl }}>
@@ -103,7 +128,7 @@ export default function MeetTab() {
         {/* .k-tabs */}
         <KGlass style={{ marginTop: 16, borderRadius: 24, padding: 4 }}>
           <View style={{ flexDirection: "row", gap: 6 }}>
-            {(["Я иду", "Создал", "Прошли"] as const).map((t, i) => (
+            {(["Все", "Я иду", "Создал", "Прошли"] as const).map((t, i) => (
               <Press key={t} onPress={() => setTab(i as Tab)} dark={tab === i} style={{ flex: 1, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: tab === i ? K.ink : "transparent" }}>
                 <Text style={kf("500", 14, { color: tab === i ? "#fff" : K.ink })}>{t}</Text>
               </Press>
@@ -113,7 +138,11 @@ export default function MeetTab() {
 
         <View style={{ gap: 10, marginTop: 14 }}>
           {list === null ? [0, 1, 2].map((i) => <View key={i} style={{ height: 94, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.06)" }} />) : null}
-          {shown.map((e) => {
+        </View>
+        {groups.map(({ d, list: dayList }) => (
+          <View key={d} style={{ gap: 10 }}>
+            <Text style={[kf("500", 15, { ls: -0.01 }), { marginTop: 18, marginHorizontal: 2 }]}>{dayTitle(d)}</Text>
+          {dayList.map((e) => {
             const past = scope === "archive";
             const rv = toRate.find((r) => r.eventId === e.id);
             const pill: [string, "ok" | "wait" | "own"] =
@@ -133,7 +162,7 @@ export default function MeetTab() {
                   <View style={{ flex: 1, minWidth: 0, justifyContent: "center" }}>
                     <Text style={kf("500", 15)} numberOfLines={1}>{e.title}</Text>
                     <Text style={[kf("400", 12.5, { color: K.ink2 }), { marginTop: 3 }]} numberOfLines={1}>
-                      {dayLong(e.eventDate)}, {e.eventTime.slice(0, 5)}{e.placeName ? ` · ${e.placeName}` : ""}
+                      {e.eventTime.slice(0, 5)}{e.placeName ? ` · ${e.placeName}` : ""}
                     </Text>
                     <View style={{ alignSelf: "flex-start", marginTop: 6, height: 24, paddingHorizontal: 10, borderRadius: 12, backgroundColor: pc.bg, justifyContent: "center" }}>
                       <Text style={kf("500", 11.5, { color: pc.fg })} numberOfLines={1}>{pill[0]}</Text>
@@ -143,20 +172,21 @@ export default function MeetTab() {
               </KPressGlass>
             );
           })}
-        </View>
+          </View>
+        ))}
 
         {list !== null && shown.length === 0 ? (
           <KGlass style={{ marginTop: 14, borderRadius: 28 }}>
             <View style={{ paddingTop: 20, paddingHorizontal: 20, paddingBottom: 18, alignItems: "center", gap: 6 }}>
               <Creature size={84} variant="e" />
               <Text style={[kf("500", 17, { lh: 1.3 }), { textAlign: "center" }]}>
-                {tab === 2 ? "Прошедших встреч пока нет" : tab === 1 ? "Ты ещё ничего не создал" : "Ты пока никуда не идёшь"}
+                {tab === 3 ? "Прошедших встреч пока нет" : tab === 2 ? "Ты ещё ничего не создал" : tab === 1 ? "Ты пока никуда не идёшь" : "Встреч пока нет"}
               </Text>
               <Text style={[kf("400", 13.5, { lh: 1.45, color: K.ink2 }), { textAlign: "center" }]}>
-                {tab === 2 ? "После встречи здесь можно оценить участников" : tab === 1 ? "Создай встречу — люди рядом её увидят" : "Загляни на главную или создай свою встречу"}
+                {tab === 3 ? "После встречи здесь можно оценить участников" : tab === 2 ? "Создай встречу — люди рядом её увидят" : "Загляни на главную или создай свою встречу"}
               </Text>
-              <Press dark onPress={() => router.push(tab === 1 ? "/create" : "/(tabs)")} style={{ marginTop: 10, alignSelf: "stretch", height: 54, borderRadius: 27, backgroundColor: K.ink, alignItems: "center", justifyContent: "center" }}>
-                <Text style={kf("500", 16, { color: "#fff" })}>{tab === 1 ? "Создать встречу" : "Найти встречу"}</Text>
+              <Press dark onPress={() => router.push(tab === 2 ? "/create" : "/(tabs)")} style={{ marginTop: 10, alignSelf: "stretch", height: 54, borderRadius: 27, backgroundColor: K.ink, alignItems: "center", justifyContent: "center" }}>
+                <Text style={kf("500", 16, { color: "#fff" })}>{tab === 2 ? "Создать встречу" : "Найти встречу"}</Text>
               </Press>
             </View>
           </KGlass>

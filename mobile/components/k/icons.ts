@@ -37,5 +37,6 @@ export const K_EXTRA: Record<string, string> = {
   locate: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/>',
   minus: '<path d="M5 12h14"/>',
   route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16"/>',
+  expand: `<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>`,
   arrowUpRight: '<path d="M7 17L17 7M9 7h8v8"/>',
 };

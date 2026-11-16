@@ -1,5 +1,5 @@
 // Шаг 3. «Когда и где?» — день (чипы на 2 недели), время шагом 15 минут, длительность, место.
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Glass } from "@/components/brand";
 import { Icon } from "@/components/Icon";
@@ -9,6 +9,7 @@ import { colors, FONT, f } from "@/lib/theme";
 import { type AddressSuggestion, dayChip, dayLong, DURS, type Form, hhmm, nextDays, type PlaceSuggestion, type SetForm } from "./model";
 import { ChipRow, Label, Muted, StepTitle, Stepper } from "./parts";
 import { qs } from "@/lib/format";
+import { PlacePicker } from "./PlacePicker";
 
 const clampStart = (m: number) => ((m % 1440) + 1440) % 1440;
 const clampDur = (m: number) => Math.max(60, Math.min(23 * 60 + 45, m));
@@ -20,6 +21,8 @@ export function StepWhen({ form, set, catLabel, city }: { form: Form; set: SetFo
     return list.includes(form.dayIso) ? list : [...list, form.dayIso].sort();
   }, [form.dayIso]);
 
+  const formRef = useRef(form);
+  formRef.current = form;
   const [query, setQuery] = useState("");
   const [recs, setRecs] = useState<PlaceSuggestion[]>([]);
   const [drop, setDrop] = useState<PlaceSuggestion[]>([]);
@@ -145,6 +148,21 @@ export function StepWhen({ form, set, catLabel, city }: { form: Form; set: SetFo
           ) : null}
         </Glass>
       ) : null}
+
+      {/* Карта видна сразу: нажал — метка встала, адрес подставился сам (как в мини-аппе). */}
+      <PlacePicker
+        value={form.latitude !== undefined && form.longitude !== undefined ? { latitude: form.latitude, longitude: form.longitude } : null}
+        onPick={({ latitude, longitude }) => {
+          setManual(false);
+          setQuery("");
+          set({ latitude, longitude, placeName: "Точка на карте", address: "" });
+        }}
+        onAddress={(resolved) => {
+          const short = resolved.split(",").map((x) => x.trim()).filter((x) => x && !/^(Россия|Тюмень|Тюменская область)$/i.test(x)).slice(0, 2).join(", ");
+          const n = formRef.current.placeName;
+          set({ address: resolved, placeName: !n || n === "Точка на карте" ? short || "Точка на карте" : n });
+        }}
+      />
 
       {recs.length > 0 ? (
         <>
