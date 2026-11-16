@@ -33,7 +33,7 @@ export default function HomeScreen() {
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [peopleLoaded, setPeopleLoaded] = useState(false);
   // «Ты в деле» / «Заявка отправлена» — плашка с Мосей, как в мини-аппе.
-  const [plan, setPlan] = useState<{ ev: MyEvent; label: string } | null>(null);
+  const [plan, setPlan] = useState<{ ev: MyEvent; label: string; more?: number; waiting?: number } | null>(null);
   // Есть ли у меня свежая примерная точка — иначе предлагаем «Показать, кто рядом».
   const [meHasLoc, setMeHasLoc] = useState(true);
   const [geoBusy, setGeoBusy] = useState(false);
@@ -98,9 +98,13 @@ export default function HomeScreen() {
         .then((d) => {
           // «Ты в деле» — только если заявку приняли; если ещё ждём ответа — так и пишем.
           const mine = (d.items ?? d.events ?? []).filter((e) => e.role !== "organizer");
-          const ok = mine.find((e) => e.myStatus !== "pending");
-          const wait = mine.find((e) => e.myStatus === "pending");
-          setPlan(ok ? { ev: ok, label: "Ты в деле" } : wait ? { ev: wait, label: "Заявка отправлена" } : null);
+          // Несколько встреч — показываем ближайшую и «ещё N», тап ведёт во «Встречи», где все по датам.
+          const sorted = [...mine].sort((a, b) => `${a.eventDate} ${a.eventTime}`.localeCompare(`${b.eventDate} ${b.eventTime}`));
+          const ok = sorted.find((e) => e.myStatus !== "pending");
+          const wait = sorted.find((e) => e.myStatus === "pending");
+          const waiting = sorted.filter((e) => e.myStatus === "pending").length;
+          const top = ok ?? wait;
+          setPlan(top ? { ev: top, label: ok ? "Ты в деле" : "Заявка отправлена", more: sorted.length - 1, waiting: ok ? waiting : waiting - 1 } : null);
         })
         .catch(() => {});
     }, [])
@@ -202,9 +206,15 @@ export default function HomeScreen() {
             <B>{`${req.latest.name}${req.latest.age ? `, ${req.latest.age}` : ""}`}</B> хочет на «{req.latest.eventTitle}»{req.count > 1 ? ` · ещё ${req.count - 1}` : ""}
           </KMos>
         ) : shownPlan ? (
-          <KMos go="Открыть" onPress={() => router.push(`/event/${shownPlan.ev.id}` as Href)}>
+          <KMos
+            go={"more" in shownPlan && (shownPlan.more ?? 0) > 0 ? "Все" : "Открыть"}
+            onPress={() => ("more" in shownPlan && (shownPlan.more ?? 0) > 0 ? router.navigate("/(tabs)/meet") : router.push(`/event/${shownPlan.ev.id}` as Href))}
+          >
             <B>{shownPlan.label}</B> · {shownPlan.ev.title}, {whenText(shownPlan.ev.eventDate, shownPlan.ev.eventTime)}
             {shownPlan.label === "Заявка отправлена" ? " — ждём ответа организатора" : ""}
+            {"more" in shownPlan && (shownPlan.more ?? 0) > 0
+              ? ` · и ещё ${shownPlan.more} ${plural(shownPlan.more ?? 0, "встреча", "встречи", "встреч")}${shownPlan.waiting ? `, ${shownPlan.waiting} ${plural(shownPlan.waiting, "заявка ждёт", "заявки ждут", "заявок ждут")} ответа` : ""}`
+              : ""}
           </KMos>
         ) : (
           <KMos go="Найти" onPress={() => router.push("/people")}>
