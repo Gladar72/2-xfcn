@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Dimensions, Easing, PanResponder, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -167,33 +167,30 @@ export default function PeopleScreen() {
 
   // Свайп карточки: тянется за пальцем с лёгким наклоном; дальше трети экрана или резкий рывок — улетает,
   // и показываем следующего (в любую сторону — как в мини-аппе). Вертикальная прокрутка «О себе» не мешает.
-  const dx = useRef(new Animated.Value(0)).current;
+  // У каждой карточки своё смещение: новая появляется сразу на месте, без кадра «в полёте» — нет мигания и двойников.
+  const cardDx = useMemo(() => new Animated.Value(0), [index]);
+  const dxRef = useRef(cardDx);
+  dxRef.current = cardDx;
   const advance = useRef<(dir: 1 | -1) => void>(() => {});
   advance.current = (dir) => {
     Haptics.selectionAsync().catch(() => {});
-    Animated.timing(dx, { toValue: dir * W * 1.3, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => {
+    Animated.timing(dxRef.current, { toValue: dir * W * 1.3, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => {
       setIndex((i) => i + 1);
-      dx.setValue(0);
     });
   };
   const pan = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
-      onPanResponderMove: (_, g) => dx.setValue(g.dx),
+      onPanResponderMove: (_, g) => dxRef.current.setValue(g.dx),
       onPanResponderRelease: (_, g) => {
         if (Math.abs(g.dx) > W * 0.3 || Math.abs(g.vx) > 0.8) advance.current(g.dx > 0 ? 1 : -1);
-        else Animated.spring(dx, { toValue: 0, useNativeDriver: true, friction: 6, tension: 80 }).start();
+        else Animated.spring(dxRef.current, { toValue: 0, useNativeDriver: true, friction: 6, tension: 80 }).start();
       },
-      onPanResponderTerminate: () => Animated.spring(dx, { toValue: 0, useNativeDriver: true }).start(),
+      onPanResponderTerminate: () => Animated.spring(dxRef.current, { toValue: 0, useNativeDriver: true }).start(),
       onPanResponderTerminationRequest: () => false,
     })
   ).current;
-  const deckStyle = {
-    transform: [
-      { translateX: dx },
-      { rotate: dx.interpolate({ inputRange: [-W, 0, W], outputRange: ["-8deg", "0deg", "8deg"] }) },
-    ],
-  };
+
 
   if (items === null) {
     return (
@@ -246,8 +243,12 @@ export default function PeopleScreen() {
         </View>
       ) : null}
       {cur ? (
-        <Animated.View key={cur.id} style={[StyleSheet.absoluteFill, deckStyle]} {...pan.panHandlers}>
-          <PersonView id={cur.id} preview={cur} active onBack={back} onGone={removePerson} topAction={filterBtn} />
+        <Animated.View key={cur.id} style={[StyleSheet.absoluteFill, { transform: [{ translateX: cardDx }, { rotate: cardDx.interpolate({ inputRange: [-W, 0, W], outputRange: ["-8deg", "0deg", "8deg"] }) }] }]} {...pan.panHandlers}>
+          {/* Фото этого человека (уже в кэше — его было видно под прошлой карточкой) — без мигания при смене */}
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: "#17141F" }]} pointerEvents="none">
+            {cur.avatarUrl ? <Image source={{ uri: cur.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" /> : null}
+          </View>
+          <PersonView id={cur.id} preview={cur} active onBack={back} onGone={removePerson} topAction={filterBtn} transparentBg />
         </Animated.View>
       ) : (
         <View style={[styles.end, { flex: 1, paddingTop: insets.top + 60 }]}>

@@ -16,15 +16,15 @@ const NO_GL = process.env.EXPO_PUBLIC_UI_SMOKE === "1";
  */
 type Variant = "p" | "e";
 const t0 = Date.now();
-// Запасной вариант — 12 кадров того же шейдера (как в мини-аппе), плавно перетекают друг в друга.
-const FRAMES = 12;
-const frameUri = (v: Variant, k: number) => `${SITE}/brand/creature/m${v}${String(k * 2).padStart(2, "0")}.webp`;
+// Кадры — 24 кадра того же шейдера (как в мини-аппе), плавно перетекают друг в друга.
+const FRAMES = 24;
+const frameUri = (v: Variant, k: number) => `${SITE}/brand/creature/m${v}${String(k).padStart(2, "0")}.webp`;
 
 /** Мося из готовых кадров: перетекание прозрачностью на видеочипе (native driver) — 60 кадров, без рывков. */
 function FrameBlob({ size, variant, style }: { size: number; variant: Variant; style?: StyleProp<ViewStyle> }) {
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const a = Animated.loop(Animated.timing(t, { toValue: FRAMES, duration: FRAMES * 1000, easing: Easing.linear, useNativeDriver: true }));
+    const a = Animated.loop(Animated.timing(t, { toValue: FRAMES, duration: FRAMES * 500, easing: Easing.linear, useNativeDriver: true }));
     a.start();
     return () => a.stop();
   }, [t]);
@@ -44,8 +44,13 @@ function FrameBlob({ size, variant, style }: { size: number; variant: Variant; s
   );
 }
 
-export function Creature({ size = 58, variant = "e", style, hue = 0 }: { size?: number; variant?: Variant; style?: StyleProp<ViewStyle>; hue?: number }) {
-  const [failed, setFailed] = useState(NO_GL);
+/**
+ * live — живой шейдер (считается в JS-потоке каждый кадр, поэтому только для 1–2 Мось на экране:
+ * большой Мося в меню и цветные Моси на «Что создаём»). Остальные — кадры с перетеканием на видеочипе,
+ * они не нагружают приложение, и нажатия остаются мгновенными.
+ */
+export function Creature({ size = 58, variant = "e", style, hue = 0, live = false }: { size?: number; variant?: Variant; style?: StyleProp<ViewStyle>; hue?: number; live?: boolean }) {
+  const [failed, setFailed] = useState(NO_GL || !live);
   const raf = useRef(0);
   const active = useRef(AppState.currentState === "active");
 
@@ -95,9 +100,12 @@ export function Creature({ size = 58, variant = "e", style, hue = 0 }: { size?: 
       gl.uniform1f(U("hue"), hue);
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      let tick = 0;
       const frame = () => {
         raf.current = requestAnimationFrame(frame);
         if (!active.current) return;
+        // Маленькие Моси — 30 кадров в секунду (глазу не заметно, приложению легче), большой — 60.
+        if (size < 90 && (tick++ & 1)) return;
         const t = (Date.now() - t0) / 1000 + (variant === "p" ? 1.7 : 0);
         const ph = t % 3;
         gl.uniform1f(uT, t);

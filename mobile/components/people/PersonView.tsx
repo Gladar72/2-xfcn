@@ -4,7 +4,6 @@ import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
-import { BlurView } from "expo-blur";
 import { Creature } from "@/components/k/Creature";
 import { Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
@@ -62,7 +61,10 @@ export function PersonView({
   onBack,
   onGone,
   topAction,
+  transparentBg,
 }: {
+  /** В колоде под карточкой уже лежит фото этого человека — свой фон не рисуем, чтобы не моргало. */
+  transparentBg?: boolean;
   id: string;
   preview?: PersonPreview;
   /** «Как меня видят» — без кнопок действий. */
@@ -173,9 +175,9 @@ export function PersonView({
   const dist = distanceLabel(p?.distanceKm);
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#17141F" }}>
+    <View style={{ flex: 1, backgroundColor: transparentBg ? "transparent" : "#17141F" }}>
       {/* Фото стоит на месте (как .gal в мини-аппе), карточка с «О себе» едет поверх него. */}
-        <Animated.View pointerEvents="none" style={[styles.photoBox, StyleSheet.absoluteFillObject, { height: PHOTO_H, transform: [{ scale: photoScale }] }]}>
+        <Animated.View pointerEvents="none" style={[styles.photoBox, transparentBg && { backgroundColor: "transparent" }, StyleSheet.absoluteFillObject, { height: PHOTO_H, transform: [{ scale: photoScale }] }]}>
         {photos.length ? (
           <Image source={{ uri: photos[photo] ?? photos[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />
         ) : (
@@ -238,10 +240,9 @@ export function PersonView({
           </Pressable>
         </View>
 
-        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.4)", "rgba(23,20,31,0.62)"]} locations={[0, 0.55, 1]} style={{ height: 90, marginTop: -90 }} />
+        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.25)", "rgba(23,20,31,0.55)", "rgba(23,20,31,0.74)"]} locations={[0, 0.4, 0.75, 1]} style={{ height: 150, marginTop: -150 }} />
         {/* «О себе» — тёмное стекло: фото просвечивает размыто, без плотной синевы */}
         <View style={styles.body}>
-          <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
           {!p ? (
             error ? <Text style={styles.muted}>{error}</Text> : <ActivityIndicator color="#fff" style={{ marginTop: 30 }} />
           ) : (
@@ -278,7 +279,7 @@ export function PersonView({
           )}
         </View>
         {/* Тёмный низ до конца экрана — фото под карточкой не просвечивает */}
-        <View style={{ height: insets.bottom + (isMe ? 24 : 92), backgroundColor: "rgba(23,20,31,0.62)" }} />
+        <View style={{ height: insets.bottom + (isMe ? 20 : 74), backgroundColor: "rgba(23,20,31,0.74)" }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}
@@ -379,14 +380,14 @@ const styles = StyleSheet.create({
   rbOn: { backgroundColor: "rgba(255,255,255,0.94)" },
   callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
   callText: { color: colors.ink, fontSize: 14, lineHeight: 16, ...f("500"), textAlign: "center" },
-  body: { padding: 20, paddingTop: 16, gap: 12, backgroundColor: "rgba(23,20,31,0.62)", overflow: "hidden" },
+  body: { padding: 20, paddingTop: 16, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },
   card: { borderRadius: 24, padding: 16, gap: 10 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
   bio: { fontFamily: FONT, fontSize: 15.5, lineHeight: 22, color: colors.ink2 },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "#2B2833", borderRadius: 999, paddingLeft: 5, paddingRight: 13, paddingVertical: 5 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", borderRadius: 999, paddingLeft: 5, paddingRight: 13, paddingVertical: 5 },
   chipText: { fontFamily: FONT, fontSize: 14, color: "#fff" },
   reportLink: { height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center", marginTop: 4 },
   reportText: { fontSize: 14, ...f("500"), color: "rgba(255,255,255,0.85)" },

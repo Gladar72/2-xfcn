@@ -36,7 +36,7 @@ export function StepKind({ value, onPick }: { value: Kind | null; onPick: (k: Ki
           >
             {on ? (
               <View style={[s.card, s.cardOn]}>
-              <Creature size={64} variant={k.kind === "anon" ? "p" : "e"} hue={k.kind === "anon" ? 40 : k.kind === "business" ? -50 : 0} />
+              <Creature size={64} variant={k.kind === "anon" ? "p" : "e"} hue={k.kind === "anon" ? 40 : k.kind === "business" ? -50 : 0} live />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={[s.title, on && { color: "#fff" }]}>{k.title}</Text>
                 <Text style={[s.text, on && { color: "rgba(255,255,255,0.72)" }]}>{k.text}</Text>
@@ -44,7 +44,7 @@ export function StepKind({ value, onPick }: { value: Kind | null; onPick: (k: Ki
               </View>
             ) : (
               <Glass strong style={s.card}>
-              <Creature size={64} variant={k.kind === "anon" ? "p" : "e"} hue={k.kind === "anon" ? 40 : k.kind === "business" ? -50 : 0} />
+              <Creature size={64} variant={k.kind === "anon" ? "p" : "e"} hue={k.kind === "anon" ? 40 : k.kind === "business" ? -50 : 0} live />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={[s.title, on && { color: "#fff" }]}>{k.title}</Text>
                 <Text style={[s.text, on && { color: "rgba(255,255,255,0.72)" }]}>{k.text}</Text>

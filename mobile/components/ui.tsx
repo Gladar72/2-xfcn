@@ -38,8 +38,8 @@ export function Field(props: TextInputProps & { label?: string }) {
   return (
     <View style={{ gap: 6 }}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
-      <Glass strong style={[styles.field, multiline && { height: undefined, minHeight: 110, borderRadius: 22, paddingVertical: 12 }]}>
-        <TextInput placeholderTextColor={colors.grey} style={[styles.input, multiline && { height: undefined, textAlignVertical: "top" }, style]} multiline={multiline} {...rest} />
+      <Glass strong style={[styles.field, multiline && { height: undefined, minHeight: 110, borderRadius: 22, paddingVertical: 12, alignItems: "stretch", justifyContent: "flex-start" }]}>
+        <TextInput placeholderTextColor={colors.grey} style={[styles.input, multiline && { height: undefined, minHeight: 86, textAlignVertical: "top", textAlign: "left", paddingTop: 2, alignSelf: "stretch" }, style]} multiline={multiline} {...rest} />
       </Glass>
     </View>
   );

@@ -45,8 +45,8 @@ export function Press({
     if (timer.current) clearTimeout(timer.current);
     if (photo) return;
     timer.current = setTimeout(() => {
-      Animated.timing(scale, { toValue: 0.95, duration: 120, easing: Easing.ease, useNativeDriver: true }).start();
-    }, 90);
+      Animated.timing(scale, { toValue: 0.95, duration: 90, easing: Easing.ease, useNativeDriver: true }).start();
+    }, 40);
   };
   const up = () => {
     if (timer.current) clearTimeout(timer.current);

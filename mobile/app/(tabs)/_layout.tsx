@@ -145,7 +145,7 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
             ],
           }}
         >
-          <Creature size={104} variant="p" />
+          <Creature size={104} variant="p" live />
           <View pointerEvents="none" style={{ position: "absolute", width: 20, height: 2.4, backgroundColor: "#fff", opacity: 0.9, borderRadius: 1 }} />
           <View pointerEvents="none" style={{ position: "absolute", width: 2.4, height: 20, backgroundColor: "#fff", opacity: 0.9, borderRadius: 1 }} />
         </Animated.View>
