@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as WebBrowser from "expo-web-browser";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
 import { Aurora, Btn, Glass, RoundBtn, Title } from "@/components/brand";
 import { Sheet } from "@/components/Sheet";
 import { Icon } from "@/components/Icon";
@@ -161,7 +162,7 @@ export default function SubscriptionScreen() {
   }
 
   const priceLabel = (p: Plan) =>
-    !CAN_PAY ? "" : STORE === "appstore" ? (prices[p] ? `${prices[p]} / мес` : "…") : STORE === "rustore" ? `${PLAN_PRICE_RUB[p]} ₽ / 30 дней` : "";
+    !CAN_PAY ? "" : STORE === "appstore" ? (prices[p] ? `${prices[p]} / мес` : "…") : STORE === "rustore" ? `${PLAN_PRICE_RUB[p]} ₽ / мес` : "";
   const isCurrent = (p: Plan) => !!sub?.active && sub.plan === p;
   const ctaTitle =
     busy === "buy"
@@ -169,19 +170,25 @@ export default function SubscriptionScreen() {
       : isCurrent(picked)
         ? STORE === "appstore"
           ? "Это твой тариф"
-          : `Продлить «${PLAN_NAME[picked]}» — ${PLAN_PRICE_RUB[picked]} ₽`
+          : `Продлить ${PLAN_NAME[picked]} · ${PLAN_PRICE_RUB[picked]} ₽`
         : STORE === "appstore"
-          ? `Подписаться${prices[picked] ? ` за ${prices[picked]} / мес` : ""}`
-          : `Оплатить ${PLAN_PRICE_RUB[picked]} ₽`;
+          ? `Подписаться${prices[picked] ? ` · ${prices[picked]} / мес` : ""}`
+          : `${sub?.active ? "Перейти" : "Оплатить"} · ${PLAN_PRICE_RUB[picked]} ₽`;
 
   return (
     <View style={{ flex: 1 }}>
       <Aurora />
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: insets.bottom + 40, gap: 14 }}>
-        <View style={{ flexDirection: "row" }}>
-          <RoundBtn onPress={() => router.back()} size={40}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: insets.bottom + 140, gap: 14 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+          <RoundBtn onPress={() => router.back()} size={44}>
             <Icon name="back" />
           </RoundBtn>
+          {CAN_PAY ? (
+            <View style={styles.payPill}>
+              <Icon name="wallet" size={15} color={colors.ink} />
+              <Text style={styles.payPillText}>{STORE === "appstore" ? "Оплата через App Store" : "Оплата картой / СБП"}</Text>
+            </View>
+          ) : null}
         </View>
         {/* Как в мини-аппе: «Выбери тариф», что сейчас, и заметка про разовую оплату */}
         <View style={{ gap: 6 }}>
@@ -192,7 +199,7 @@ export default function SubscriptionScreen() {
         </View>
         {STORE !== "appstore" ? (
           <Glass strong style={styles.note}>
-            <Text style={[styles.muted, { color: colors.ink }]}>💳 Оплата разовая — на 30 дней, без автопродления: деньги сами не спишутся.{"\n"}📱 Тариф действует везде: в приложении, в Telegram и на сайте — просто войди под тем же аккаунтом.</Text>
+            <Text style={styles.noteText}>💳 Оплата разовая — на 30 дней, без автопродления: деньги сами не спишутся.{"\n"}📱 Тариф действует везде: здесь, в Telegram, и в приложениях «Место» для iPhone и Android — просто войди под тем же аккаунтом.</Text>
           </Glass>
         ) : null}
 
@@ -200,21 +207,27 @@ export default function SubscriptionScreen() {
           <ActivityIndicator color={colors.violet} style={{ marginTop: 30 }} />
         ) : (
           <Animated.View style={{ gap: 12, opacity: appear, transform: [{ translateY: appear.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }}>
-            {sub.active ? (
-              <Glass strong style={styles.current}>
-                <View style={styles.currentIc}>
-                  <Icon name="check" size={18} color={colors.ok} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.currentTitle}>Тариф «{PLAN_NAME[sub.plan ?? ""] ?? "—"}»</Text>
-                  <Text style={styles.muted}>
-                    Активен до {untilLabel(sub.periodEnd)}
-                    {sub.events?.limit ? ` · ${sub.events.used} из ${sub.events.limit} встреч` : ""}
-                  </Text>
-                </View>
-              </Glass>
-            ) : null}
-
+            {/* «Бесплатно» — как в мини-аппе: что доступно без тарифа */}
+            <Glass strong style={styles.plan}>
+              <View style={styles.planHead}>
+                <Text style={styles.planName}>Бесплатно</Text>
+                {!sub.active ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.badgeText}>Текущий</Text>
+                  </View>
+                ) : null}
+                <View style={{ flex: 1 }} />
+                <Text style={styles.price}>0 ₽</Text>
+              </View>
+              <View style={{ gap: 8, marginTop: 12 }}>
+                {["4 отклика на чужие встречи", "Свои встречи — нет", "Без поднятий в топ"].map((x) => (
+                  <View key={x} style={styles.feature}>
+                    <Icon name="check" size={15} color={colors.ink} />
+                    <Text style={styles.featureText}>{x}</Text>
+                  </View>
+                ))}
+              </View>
+            </Glass>
             {checking ? (
               <Glass strong style={styles.current}>
                 <ActivityIndicator color={colors.violet} />
@@ -235,26 +248,24 @@ export default function SubscriptionScreen() {
                 >
                   <Glass strong style={[styles.plan, on && styles.planOn]}>
                     <View style={styles.planHead}>
-                      <View style={[styles.radio, on && styles.radioOn]}>{on ? <View style={styles.radioDot} /> : null}</View>
                       <Text style={styles.planName}>{PLAN_NAME[p]}</Text>
-                      {p === "medium" ? (
-                        <View style={styles.badge}>
-                          <Text style={styles.badgeText}>популярный</Text>
-                        </View>
-                      ) : null}
                       {isCurrent(p) ? (
-                        <View style={[styles.badge, { backgroundColor: "rgba(34,181,115,0.14)" }]}>
-                          <Text style={[styles.badgeText, { color: colors.ok }]}>сейчас</Text>
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>Текущий</Text>
+                        </View>
+                      ) : !sub.active && p === "medium" ? (
+                        <View style={styles.badge}>
+                          <Text style={styles.badgeText}>Популярный</Text>
                         </View>
                       ) : null}
                       <View style={{ flex: 1 }} />
                       {priceLabel(p) ? <Text style={styles.price}>{priceLabel(p)}</Text> : null}
                     </View>
                     {true ? (
-                      <View style={{ gap: 6, marginTop: 10 }}>
+                      <View style={{ gap: 8, marginTop: 12 }}>
                         {PLAN_FEATURES[p].map((f) => (
                           <View key={f} style={styles.feature}>
-                            <Icon name="check" size={15} color={colors.violet} />
+                            <Icon name="check" size={15} color={colors.ink} />
                             <Text style={styles.featureText}>{f}</Text>
                           </View>
                         ))}
@@ -273,7 +284,6 @@ export default function SubscriptionScreen() {
               </Glass>
             ) : (
               <>
-                <Btn kind="v" title={ctaTitle} onPress={() => buy()} loading={busy === "buy"} disabled={!!busy || (STORE === "appstore" && isCurrent(picked))} />
                 {STORE === "appstore" ? (
                   <>
                     <View style={styles.links}>
@@ -312,8 +322,16 @@ export default function SubscriptionScreen() {
         )}
       </ScrollView>
 
+      {CAN_PAY && sub ? (
+        <View style={[styles.foot, { paddingBottom: Math.max(insets.bottom, 14) }]}>
+          <LinearGradient pointerEvents="none" colors={["rgba(244,242,248,0)", "rgba(244,242,248,0.96)"]} style={{ position: "absolute", left: 0, right: 0, top: -30, height: 30 }} />
+          <Btn kind="k" title={ctaTitle} onPress={() => buy()} loading={busy === "buy"} disabled={!!busy || (STORE === "appstore" && isCurrent(picked))} />
+          <Text style={styles.footNote}>{STORE === "appstore" ? "Подписка на месяц · отменить можно в настройках Apple ID" : "30 дней · чек придёт на почту или телефон"}</Text>
+        </View>
+      ) : null}
+
       {toast ? (
-        <View pointerEvents="none" style={[styles.toast, { bottom: insets.bottom + 24 }]}>
+        <View pointerEvents="none" style={[styles.toast, { bottom: insets.bottom + 110 }]}>
           <Text style={styles.toastText}>{toast}</Text>
         </View>
       ) : null}
@@ -345,18 +363,23 @@ const styles = StyleSheet.create({
   currentIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(34,181,115,0.14)", alignItems: "center", justifyContent: "center" },
   currentTitle: { fontSize: 16, ...f("600"), color: colors.ink },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey, lineHeight: 19 },
-  plan: { borderRadius: 24, padding: 16, borderWidth: 1.5, borderColor: "transparent" },
-  planOn: { borderColor: colors.violet },
+  plan: { borderRadius: 26, padding: 18, borderWidth: 2, borderColor: "transparent" },
+  planOn: { borderColor: colors.ink },
   planHead: { flexDirection: "row", alignItems: "center", gap: 8 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: "rgba(23,20,31,0.3)", alignItems: "center", justifyContent: "center" },
   radioOn: { borderColor: colors.violet },
   radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.violet },
-  planName: { fontSize: 18, ...f("600"), color: colors.ink },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: colors.lav },
-  badgeText: { fontSize: 11.5, ...f("600"), color: colors.violet },
-  price: { fontSize: 15, ...f("600"), color: colors.ink2 },
-  feature: { flexDirection: "row", alignItems: "center", gap: 8 },
-  featureText: { fontFamily: FONT, fontSize: 14.5, color: colors.ink2, flex: 1 },
+  planName: { fontSize: 21, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
+  badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 10, backgroundColor: colors.ink },
+  badgeText: { fontSize: 11.5, ...f("600"), color: "#fff" },
+  price: { fontSize: 16, ...f("600"), color: colors.ink },
+  feature: { flexDirection: "row", alignItems: "center", gap: 10 },
+  featureText: { fontFamily: FONT, fontSize: 15, color: colors.ink2, flex: 1 },
+  noteText: { fontFamily: FONT, fontSize: 14.5, lineHeight: 21, color: colors.ink },
+  payPill: { flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: "rgba(170,160,255,0.18)" },
+  payPillText: { fontSize: 13, ...f("500"), color: colors.ink },
+  foot: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 8, gap: 8, backgroundColor: "rgba(244,242,248,0.96)" },
+  footNote: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, textAlign: "center" },
   note: { borderRadius: 20, padding: 14 },
   links: { flexDirection: "row", justifyContent: "center", gap: 22 },
   link: { fontSize: 14, ...f("500"), color: colors.violet },

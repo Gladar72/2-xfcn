@@ -55,6 +55,8 @@ export default function MeetTab() {
   const [toRate, setToRate] = useState<ReviewTarget[]>([]);
   const [rating, setRating] = useState<ReviewTarget | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  // Полоска дат сверху (как в афише): «Все» или конкретный день — список ниже сужается до него.
+  const [day, setDay] = useState<string | null>(null);
   const scope = tab === 3 ? "archive" : "upcoming";
 
   const load = useCallback(async (s: "upcoming" | "archive") => {
@@ -81,7 +83,7 @@ export default function MeetTab() {
   const list = items[scope];
   const shown = (list ?? []).filter((e) => (tab === 1 ? e.role !== "organizer" : tab === 2 ? e.role === "organizer" : true));
   // Все встречи и события — по дням, как в афише: ближайшие сверху, в «Прошли» — последние сверху.
-  const groups: { d: string; list: MyEvent[] }[] = [];
+  const allGroups: { d: string; list: MyEvent[] }[] = [];
   [...shown]
     .sort((a, b) => {
       const ka = `${a.eventDate} ${a.eventTime}`;
@@ -89,10 +91,11 @@ export default function MeetTab() {
       return scope === "archive" ? kb.localeCompare(ka) : ka.localeCompare(kb);
     })
     .forEach((e) => {
-      const g = groups[groups.length - 1];
+      const g = allGroups[allGroups.length - 1];
       if (g && g.d === e.eventDate) g.list.push(e);
-      else groups.push({ d: e.eventDate, list: [e] });
+      else allGroups.push({ d: e.eventDate, list: [e] });
     });
+  const groups = day && allGroups.some((g) => g.d === day) ? allGroups.filter((g) => g.d === day) : allGroups;
 
   return (
     <View style={{ flex: 1, backgroundColor: K.pearl }}>
@@ -129,19 +132,40 @@ export default function MeetTab() {
         <KGlass style={{ marginTop: 16, borderRadius: 24, padding: 4 }}>
           <View style={{ flexDirection: "row", gap: 6 }}>
             {(["Все", "Я иду", "Создал", "Прошли"] as const).map((t, i) => (
-              <Press key={t} onPress={() => setTab(i as Tab)} dark={tab === i} style={{ flex: 1, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: tab === i ? K.ink : "transparent" }}>
+              <Press key={t} onPress={() => { setTab(i as Tab); setDay(null); }} dark={tab === i} style={{ flex: 1, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: tab === i ? K.ink : "transparent" }}>
                 <Text style={kf("500", 14, { color: tab === i ? "#fff" : K.ink })}>{t}</Text>
               </Press>
             ))}
           </View>
         </KGlass>
 
+        {allGroups.length > 1 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginTop: 12 }} contentContainerStyle={{ paddingHorizontal: 20, gap: 6 }}>
+            <Press onPress={() => setDay(null)} dark={!day} style={[styles.dp, !day && styles.dpOn]}>
+              <Text style={kf("400", 11, { color: !day ? "rgba(255,255,255,0.7)" : K.ink2 })}>Все</Text>
+              <Text style={kf("500", 16, { color: !day ? "#fff" : K.ink })}>{shown.length}</Text>
+            </Press>
+            {allGroups.map((g) => {
+              const on = day === g.d;
+              const d = new Date(`${g.d}T12:00:00`);
+              const today = isoOf(new Date());
+              return (
+                <Press key={g.d} onPress={() => setDay(on ? null : g.d)} dark={on} style={[styles.dp, on && styles.dpOn]}>
+                  <Text style={kf("400", 11, { color: on ? "rgba(255,255,255,0.7)" : K.ink2 })}>{g.d === today ? "Сегодня" : WD[d.getDay()]}</Text>
+                  <Text style={kf("500", 18, { color: on ? "#fff" : K.ink })}>{d.getDate()}</Text>
+                  <View style={[styles.dpDot, { backgroundColor: on ? "#fff" : K.ink }]} />
+                </Press>
+              );
+            })}
+          </ScrollView>
+        ) : null}
+
         <View style={{ gap: 10, marginTop: 14 }}>
           {list === null ? [0, 1, 2].map((i) => <View key={i} style={{ height: 94, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.06)" }} />) : null}
         </View>
         {groups.map(({ d, list: dayList }) => (
           <View key={d} style={{ gap: 10 }}>
-            <Text style={[kf("500", 15, { ls: -0.01 }), { marginTop: 18, marginHorizontal: 2 }]}>{dayTitle(d)}</Text>
+            <Text style={[kf("500", 17, { ls: -0.01 }), { marginTop: 20, marginHorizontal: 2 }]}>{dayTitle(d)}</Text>
           {dayList.map((e) => {
             const past = scope === "archive";
             const rv = toRate.find((r) => r.eventId === e.id);
@@ -207,6 +231,10 @@ export default function MeetTab() {
 }
 
 const styles = StyleSheet.create({
+  // .k-dp — плитка дня, как в «Когда и где?»
+  dp: { width: 58, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 1, backgroundColor: "rgba(255,255,255,0.66)", borderWidth: 1, borderColor: "rgba(255,255,255,0.95)" },
+  dpOn: { backgroundColor: K.ink, borderColor: K.ink },
+  dpDot: { width: 4, height: 4, borderRadius: 2, marginTop: 2 },
   // .k-badge
   badge: { position: "absolute", top: -5, left: 33, minWidth: 19, height: 19, paddingHorizontal: 5, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.9)", borderWidth: 1, borderColor: "#fff", alignItems: "center", justifyContent: "center", shadowColor: "rgb(80,60,160)", shadowOpacity: 0.18, shadowRadius: 4, shadowOffset: { width: 0, height: 2 } },
 });

@@ -14,6 +14,7 @@ import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
 import { LoadingScenes } from "@/components/LoadingScenes";
 import { tapOnLaunch } from "@/lib/feedback";
+import { PhotoEditorHost } from "@/components/PhotoEditor";
 import { colors, fonts, FONT } from "@/lib/theme";
 import { UI_SMOKE } from "@/lib/smoke";
 
@@ -193,6 +194,8 @@ export default function RootLayout() {
         <Gate />
         {/* Мося-гид: подсказки разделов после регистрации (lib/guide.ts). */}
         <MosyaPeekHost />
+        {/* Редактор фото 3:4 (как в Instagram) — общий для профиля, регистрации и обложек. */}
+        <PhotoEditorHost />
       </AuthProvider>
     </SafeAreaProvider>
   );

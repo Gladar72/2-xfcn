@@ -20,8 +20,8 @@ import { K, KChip, KGlass, KI, KPressGlass, KRb, KSec, KTitle, PearlBg, Press, k
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
 // .k-hero2 height:min(600px,78vh), .k-spacer height:min(440px,56vh)
-const HERO_H = Math.min(600, SCREEN_H * 0.78);
-const SPACER = Math.min(440, SCREEN_H * 0.56);
+const HERO_H = Math.round(SCREEN_H * 0.74); // фото крупнее: лицо видно целиком, как в мини-аппе
+const SPACER = Math.round(SCREEN_H * 0.6);
 
 type Tab = "followers" | "following";
 interface FollowSummary { followers: number; following: number; followersPreview: { id: string; avatarUrl: string }[]; followingPreview: { id: string; avatarUrl: string }[] }
@@ -95,7 +95,7 @@ export default function ProfileScreen() {
       {/* .k-hero2: фото с маской — снизу растворяется (78% → прозрачно) */}
       <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, height: HERO_H, transform: [{ translateY: heroShift }, { scale: heroScale }] }}>
         {main ? (
-          <FadeImage uri={main} width={SCREEN_W} height={HERO_H} from={0.5} to={1} focusY={0.25} style={StyleSheet.absoluteFill} />
+          <FadeImage uri={main} width={SCREEN_W} height={HERO_H} from={0.66} to={1} focusY={0.3} style={StyleSheet.absoluteFill} />
         ) : (
           <LinearGradient colors={["#D9D3E6", "#F4F2F8"]} style={StyleSheet.absoluteFill} />
         )}
