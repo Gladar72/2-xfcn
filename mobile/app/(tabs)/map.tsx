@@ -296,9 +296,11 @@ export default function MapScreen() {
         <RoundBtn size={44} onPress={() => camera.current?.zoomTo(Math.max(3, zoom - 1), { duration: 250 })}><KI n="minus" size={18} /></RoundBtn>
       </View>
       {/* .locate2: создать встречу — тёмная круглая кнопка над «Где я» */}
-      <Press dark onPress={() => router.push("/create")} accessibilityLabel="Создать встречу" style={{ position: "absolute", right: 16, bottom: insets.bottom + (carousel.length ? 256 : 164), width: 50, height: 50, borderRadius: 25, backgroundColor: K.ink, alignItems: "center", justifyContent: "center" }}>
-        <KI n="plus" size={22} color="#fff" />
-      </Press>
+      <View style={{ position: "absolute", right: 16, bottom: insets.bottom + (carousel.length ? 256 : 164) }}>
+        <Press dark onPress={() => router.push("/create")} accessibilityLabel="Создать встречу" style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: K.ink, alignItems: "center", justifyContent: "center" }}>
+          <KI n="plus" size={22} color="#fff" />
+        </Press>
+      </View>
       {/* .listb: «Списком · N» / «Здесь N · показать все» — над карточками */}
       <View pointerEvents="box-none" style={{ position: "absolute", left: 0, right: 0, bottom: insets.bottom + (carousel.length ? 206 : 104), alignItems: "center" }}>
         <Press onPress={() => (selected ? setSelected(null) : router.push(bizOnly ? "/business" : "/search"))} style={{ height: 36, borderRadius: 18 }}>

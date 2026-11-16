@@ -276,7 +276,7 @@ function Row({ icon, label, sub, onPress, last }: { icon: IconName; label: strin
 }
 
 const styles = StyleSheet.create({
-  section: { fontSize: 13, ...f("600"), color: colors.grey, textTransform: "uppercase", letterSpacing: 0.6, marginLeft: 8, marginTop: 6 },
+  section: { fontSize: 13, ...f("500"), color: colors.grey, marginLeft: 8, marginTop: 8 },
   list: { borderRadius: 24, paddingHorizontal: 12 },
   row: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
   sep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(23,20,31,0.15)" },

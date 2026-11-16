@@ -159,7 +159,7 @@ export default function BusinessScreen() {
 
         {groups.map(({ d, list }, gi) => (
           <View key={d} style={{ gap: 8 }}>
-            <Text style={[kf("500", 15, { ls: -0.01 }), { marginTop: gi === 0 ? 6 : 18, marginBottom: 8, marginHorizontal: 2 }]}>{dayTitle(d, t)}</Text>
+            <Text style={[kf("500", 15, { ls: -0.01 }), { marginTop: 18, marginBottom: 8, marginHorizontal: 2 }]}>{dayTitle(d, t)}</Text>
             {list.map((e) => {
               const left = Math.max(0, e.seatsTotal - e.seatsTaken);
               const price = e.businessPricingType === "free" ? "Бесплатно" : costShort(e);
