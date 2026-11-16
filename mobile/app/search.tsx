@@ -24,6 +24,9 @@ interface TrainingType {
  * быстрые чипы, категории (можно несколько), шторка фильтров, подгрузка страниц.
  * Параметры: ?categories=a,b&type=gym&date=today&filters=1
  */
+import { RowCard } from "@/components/k/RowCard";
+import { K, KChip, KGlass, Press, kf } from "@/components/k";
+
 export default function SearchScreen() {
   const params = useLocalSearchParams<{ categories?: string; type?: string; date?: string; filters?: string; q?: string }>();
   const insets = useSafeAreaInsets();
@@ -41,6 +44,8 @@ export default function SearchScreen() {
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [sheet, setSheet] = useState(params.filters === "1");
+  // «Все / Встречи / Афиша» — как в мини-аппе.
+  const [kind, setKind] = useState<"all" | "meet" | "biz">("all");
   const reqId = useRef(0);
 
   useEffect(() => {
@@ -59,7 +64,7 @@ export default function SearchScreen() {
       const id = ++reqId.current;
       const r = await api<{ items: FeedEvent[]; hasMore?: boolean }>(`/api/events?page=${p}${query ? `&${query}` : ""}`);
       if (id !== reqId.current) return;
-      const fresh = (r.items ?? []).filter((e) => !e.isBusiness);
+      const fresh = r.items ?? [];
       setItems((prev) => (p === 0 ? fresh : [...(prev ?? []), ...fresh]));
       setHasMore(!!r.hasMore);
       setPage(p);
@@ -82,11 +87,13 @@ export default function SearchScreen() {
   // Текст ищем по уже загруженным встречам — как в мини-приложении.
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle || !items) return items;
-    return items.filter((e) =>
+    if (!items) return items;
+    const byKind = items.filter((e) => (kind === "all" ? true : kind === "biz" ? e.isBusiness : !e.isBusiness));
+    if (!needle) return byKind;
+    return byKind.filter((e) =>
       [e.title, e.placeName, e.description, e.category?.name, e.trainingType?.name].some((s) => (s ?? "").toLowerCase().includes(needle))
     );
-  }, [items, q]);
+  }, [items, q, kind]);
 
   function setF(next: Partial<Filters>) {
     tapLight();
@@ -103,7 +110,7 @@ export default function SearchScreen() {
   const quick: { label: string; on: boolean; press: () => void }[] = [
     { label: "Сегодня", on: filters.date === "today", press: () => setF({ date: filters.date === "today" ? "any" : "today" }) },
     { label: "Завтра", on: filters.date === "tomorrow", press: () => setF({ date: filters.date === "tomorrow" ? "any" : "tomorrow" }) },
-    { label: "На выходных", on: filters.date === "weekend", press: () => setF({ date: filters.date === "weekend" ? "any" : "weekend" }) },
+    { label: "Выходные", on: filters.date === "weekend", press: () => setF({ date: filters.date === "weekend" ? "any" : "weekend" }) },
     { label: "Бесплатно", on: filters.costType === "free", press: () => setF({ costType: filters.costType === "free" ? "any" : "free" }) },
   ];
   const nf = activeCount(filters);
@@ -119,7 +126,7 @@ export default function SearchScreen() {
         keyboardDismissMode="on-drag"
         onEndReached={more}
         onEndReachedThreshold={0.6}
-        contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: insets.bottom + 40, gap: 14 }}
+        contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: insets.bottom + 40, gap: 8 }}
         ListHeaderComponent={
           <View style={{ gap: 12 }}>
             <View style={styles.bar}>
@@ -131,7 +138,7 @@ export default function SearchScreen() {
                 <TextInput
                   value={q}
                   onChangeText={setQ}
-                  placeholder="Что ищем?"
+                  placeholder="Встречи, места, интересы"
                   placeholderTextColor={colors.grey}
                   style={styles.input}
                   autoFocus={!params.categories && !params.date && params.filters !== "1"}
@@ -153,25 +160,28 @@ export default function SearchScreen() {
               </RoundBtn>
             </View>
 
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }} style={{ marginHorizontal: -16 }}>
+            {/* .k-seg3 */}
+            <KGlass style={{ borderRadius: 24, padding: 4, marginTop: 4 }}>
+              <View style={{ flexDirection: "row", gap: 6 }}>
+                {([["all", "Все"], ["meet", "Встречи"], ["biz", "Афиша"]] as const).map(([k, l]) => (
+                  <Press key={k} dark={kind === k} onPress={() => { tapLight(); setKind(k); }} style={{ flex: 1, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: kind === k ? K.ink : "transparent" }}>
+                    <Text style={kf("500", 14, { color: kind === k ? "#fff" : K.ink })}>{l}</Text>
+                  </Press>
+                ))}
+              </View>
+            </KGlass>
+
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingHorizontal: 16 }} style={{ marginHorizontal: -16 }}>
               {quick.map((c) => (
-                <Chip key={c.label} label={c.label} active={c.on} onPress={c.press} />
+                <KChip key={c.label} label={c.label} height={40} on={c.on} onPress={c.press} />
               ))}
-              <Chip label="На карте" onPress={() => router.navigate({ pathname: "/(tabs)/map", params: { date: filters.date, t: String(Date.now()) } })} />
             </ScrollView>
 
-            <View style={styles.cats}>
-              {cats.map((c) => {
-                const on = filters.categories.includes(c.slug);
-                return (
-                  <Pressable key={c.slug} onPress={() => toggleCat(c.slug)} style={({ pressed }) => [styles.cat, on && styles.catOn, { transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
-                    <Image source={{ uri: catIcon(c.slug) }} style={{ width: 34, height: 34 }} />
-                    <Text style={[styles.catText, on && { color: "#fff" }]} numberOfLines={1}>
-                      {CATEGORY_SHORT[c.slug] ?? c.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+            <Text style={[kf("500", 13, { color: K.ink2 }), { marginTop: 4, marginLeft: 2 }]}>Часто ищут</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+              {cats.map((c) => (
+                <KChip key={c.slug} label={CATEGORY_SHORT[c.slug] ?? c.name} iconUri={catIcon(c.slug)} on={filters.categories.includes(c.slug)} onPress={() => toggleCat(c.slug)} />
+              ))}
             </View>
 
             {filters.categories.includes("training") && types.length ? (
@@ -184,7 +194,7 @@ export default function SearchScreen() {
             ) : null}
 
             <View style={styles.resRow}>
-              <Text style={styles.section}>{touched && shown ? `Нашлось: ${shown.length}${hasMore ? "+" : ""}` : "Все встречи"}</Text>
+              <Text style={kf("500", 13, { color: K.ink2 })}>{(touched || kind !== "all") && shown ? `Нашлось: ${shown.length}${hasMore ? "+" : ""}` : "Все встречи и события"}</Text>
               {touched ? (
                 <Pressable
                   onPress={() => {
@@ -210,7 +220,7 @@ export default function SearchScreen() {
             </Glass>
           ) : null
         }
-        renderItem={({ item }) => <EventCard event={item} width="100%" height={320} />}
+        renderItem={({ item }) => <RowCard e={item} />}
         ListFooterComponent={loadingMore ? <ActivityIndicator color={colors.violet} style={{ marginVertical: 16 }} /> : null}
       />
 
