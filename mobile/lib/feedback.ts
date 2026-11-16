@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import { LayoutAnimation, Platform } from "react-native";
+import { AppState, LayoutAnimation, Platform } from "react-native";
 
 /** Лёгкая вибрация-отклик на действия: принять заявку, отметить гостя и т. п. */
 export function tapOk() {
@@ -47,4 +47,25 @@ export function manageErrorText(e: unknown): string {
   if (err?.data?.message) return err.data.message;
   if (err?.code && MANAGE_ERRORS[err.code]) return MANAGE_ERRORS[err.code]!;
   return err?.message || "Что-то пошло не так. Попробуй ещё раз";
+}
+
+/**
+ * Вибрация при запуске. iOS не играет вибрацию, пока приложение ещё «не активно» (идёт запуск,
+ * показывается системная заставка) — поэтому ждём, когда приложение станет активным, и только потом
+ * через небольшую паузу даём отклик. Средняя сила: лёгкую на старте почти не чувствуется.
+ */
+export function tapOnLaunch(delayMs = 350, style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Medium) {
+  let done = false;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const fire = () => {
+    if (done) return;
+    timer = setTimeout(() => {
+      if (done || AppState.currentState !== "active") return;
+      done = true;
+      Haptics.impactAsync(style).catch(() => {});
+    }, delayMs);
+  };
+  if (AppState.currentState === "active") fire();
+  const sub = AppState.addEventListener("change", (st) => { if (st === "active") fire(); });
+  return () => { done = true; sub.remove(); if (timer) clearTimeout(timer); };
 }

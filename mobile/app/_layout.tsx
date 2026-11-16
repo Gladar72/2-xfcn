@@ -13,7 +13,8 @@ import { MosyaPeekHost } from "@/components/MosyaPeek";
 import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
 import { LoadingScenes } from "@/components/LoadingScenes";
-import { tapLight } from "@/lib/feedback";
+import { tapOnLaunch } from "@/lib/feedback";
+import * as Haptics from "expo-haptics";
 import { colors, fonts, FONT } from "@/lib/theme";
 import { UI_SMOKE } from "@/lib/smoke";
 
@@ -150,14 +151,10 @@ function Gate() {
 
   const loaded = ready && fontReady && !smokeHold;
   // Лёгкая вибрация при запуске: в момент появления заставки и когда сервис открылся.
-  useEffect(() => {
-    const t = setTimeout(tapLight, 250);
-    return () => clearTimeout(t);
-  }, []);
+  useEffect(() => tapOnLaunch(600), []);
   useEffect(() => {
     if (!loaded) return;
-    const t = setTimeout(tapLight, 120);
-    return () => clearTimeout(t);
+    return tapOnLaunch(150, Haptics.ImpactFeedbackStyle.Light);
   }, [loaded]);
 
   if (!loaded) return <Splash fontReady={fontReady} />;
