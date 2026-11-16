@@ -11,6 +11,7 @@ import { api } from "@/lib/api";
 import { animateNext, tapLight } from "@/lib/feedback";
 import { plural } from "@/lib/format";
 import { colors, FONT, f } from "@/lib/theme";
+import { KRb } from "@/components/k";
 import { useGuide } from "@/lib/guide";
 
 interface ChatItem {
@@ -124,6 +125,10 @@ export default function ChatsScreen() {
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 16, paddingBottom: insets.bottom + 120, gap: 10 }}
         ListHeaderComponent={
           <View>
+            {/* Как в мини-аппе: «Чаты» открываются со «Встреч» — есть кнопка назад */}
+            <View style={{ marginBottom: 14 }}>
+              <KRb icon="back" onPress={() => router.navigate("/(tabs)/meet")} accessibilityLabel="Назад" />
+            </View>
             <Title plain="Чаты" size={36} style={{ marginBottom: 12, marginLeft: 4 }} />
             <Glass strong style={styles.tabs}>
               {TABS.map((t) => {
