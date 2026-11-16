@@ -183,11 +183,18 @@ export default function SubscriptionScreen() {
             <Icon name="back" />
           </RoundBtn>
         </View>
-        <View style={{ alignItems: "center", gap: 4 }}>
-          <Image source={{ uri: stickerUrl("mosya_rich") }} style={{ width: 140, height: 140 }} contentFit="contain" />
-          <Title plain="Тарифы " em="МЕСТО" size={28} style={{ textAlign: "center" }} />
-          <Text style={styles.lead}>Создавай свои встречи, откликайся без ограничений и поднимайся выше в ленте</Text>
+        {/* Как в мини-аппе: «Выбери тариф», что сейчас, и заметка про разовую оплату */}
+        <View style={{ gap: 6 }}>
+          <Title plain="Выбери " em="тариф" size={36} style={{ marginLeft: 2 }} />
+          <Text style={[styles.lead, { textAlign: "left", marginLeft: 2 }]}>
+            {sub?.active ? `Сейчас — ${PLAN_NAME[sub.plan ?? ""] ?? "тариф"} до ${untilLabel(sub.periodEnd)}. Сменить можно в любой момент.` : "Создавай свои встречи, откликайся без ограничений и поднимайся выше в ленте."}
+          </Text>
         </View>
+        {STORE !== "appstore" ? (
+          <Glass strong style={styles.note}>
+            <Text style={[styles.muted, { color: colors.ink }]}>💳 Оплата разовая — на 30 дней, без автопродления: деньги сами не спишутся.{"\n"}📱 Тариф действует везде: в приложении, в Telegram и на сайте — просто войди под тем же аккаунтом.</Text>
+          </Glass>
+        ) : null}
 
         {!sub ? (
           <ActivityIndicator color={colors.violet} style={{ marginTop: 30 }} />
@@ -243,7 +250,7 @@ export default function SubscriptionScreen() {
                       <View style={{ flex: 1 }} />
                       {priceLabel(p) ? <Text style={styles.price}>{priceLabel(p)}</Text> : null}
                     </View>
-                    {on ? (
+                    {true ? (
                       <View style={{ gap: 6, marginTop: 10 }}>
                         {PLAN_FEATURES[p].map((f) => (
                           <View key={f} style={styles.feature}>
@@ -333,7 +340,7 @@ export default function SubscriptionScreen() {
 }
 
 const styles = StyleSheet.create({
-  lead: { fontFamily: FONT, fontSize: 15, color: colors.ink2, textAlign: "center", lineHeight: 21, paddingHorizontal: 10 },
+  lead: { fontFamily: FONT, fontSize: 15, color: colors.ink2, textAlign: "center", lineHeight: 21, paddingHorizontal: 0 },
   current: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: 22, padding: 14 },
   currentIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(34,181,115,0.14)", alignItems: "center", justifyContent: "center" },
   currentTitle: { fontSize: 16, ...f("600"), color: colors.ink },
