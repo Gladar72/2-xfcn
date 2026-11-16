@@ -17,7 +17,7 @@ import { refreshLocationSilently, shareLocation } from "@/lib/location";
 import { B, K, KBiz, KChip, KGlass, KI, KMos, KPressGlass, KRb, KSec, KTitle, PearlBg, PhotoShade, Press, kf, StatusShade } from "@/components/k";
 import { HC_H, HC_W, KHc, KHcSkeleton, KInv, KMosaic, TwoLine } from "@/components/k/cards";
 
-interface MyEvent { id: string; title: string; eventDate: string; eventTime: string; role?: string }
+interface MyEvent { id: string; title: string; eventDate: string; eventTime: string; role?: string; myStatus?: "member" | "pending" }
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
@@ -96,8 +96,11 @@ export default function HomeScreen() {
       fetchPendingApplications().then((r) => setReq(r.latest ? r : null));
       api<{ items?: MyEvent[]; events?: MyEvent[] }>("/api/me/events?scope=upcoming")
         .then((d) => {
+          // «Ты в деле» — только если заявку приняли; если ещё ждём ответа — так и пишем.
           const mine = (d.items ?? d.events ?? []).filter((e) => e.role !== "organizer");
-          setPlan(mine[0] ? { ev: mine[0], label: "Ты в деле" } : null);
+          const ok = mine.find((e) => e.myStatus !== "pending");
+          const wait = mine.find((e) => e.myStatus === "pending");
+          setPlan(ok ? { ev: ok, label: "Ты в деле" } : wait ? { ev: wait, label: "Заявка отправлена" } : null);
         })
         .catch(() => {});
     }, [])
@@ -201,6 +204,7 @@ export default function HomeScreen() {
         ) : shownPlan ? (
           <KMos go="Открыть" onPress={() => router.push(`/event/${shownPlan.ev.id}` as Href)}>
             <B>{shownPlan.label}</B> · {shownPlan.ev.title}, {whenText(shownPlan.ev.eventDate, shownPlan.ev.eventTime)}
+            {shownPlan.label === "Заявка отправлена" ? " — ждём ответа организатора" : ""}
           </KMos>
         ) : (
           <KMos go="Найти" onPress={() => router.push("/people")}>

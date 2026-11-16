@@ -439,12 +439,12 @@ export default function EventScreen() {
           </View>
 
           {event.viewerStatus === "pending" && open && event.myApplicationId ? (
-            <Pressable onPress={() => setConfirm("withdraw")} style={styles.quietLink} hitSlop={6}>
+            <Pressable onPress={() => setConfirm("withdraw")} style={({ pressed }) => [styles.quietLink, pressed && { transform: [{ scale: 0.97 }] }]}>
               <Text style={styles.quietText}>Отозвать заявку</Text>
             </Pressable>
           ) : null}
           {event.viewerStatus === "accepted" && open && !started ? (
-            <Pressable onPress={() => setConfirm("leave")} style={styles.quietLink} hitSlop={6}>
+            <Pressable onPress={() => setConfirm("leave")} style={({ pressed }) => [styles.quietLink, pressed && { transform: [{ scale: 0.97 }] }]}>
               <Text style={styles.quietText}>{event.isBusiness ? "Отменить участие" : "Не смогу пойти"}</Text>
             </Pressable>
           ) : null}
@@ -559,7 +559,8 @@ const styles = StyleSheet.create({
   bannerTitle: { flex: 1, fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
   bannerText: { fontFamily: FONT, fontSize: 14.5, lineHeight: 20, color: colors.ink2 },
   bannerBtns: { flexDirection: "row", gap: 10, marginTop: 2 },
-  quietLink: { alignSelf: "center", paddingVertical: 10 },
+  // Как кнопка: тёмное стекло во всю ширину, текст — розово-красный (действие отменяет участие).
+  quietLink: { height: 50, borderRadius: 25, marginTop: 12, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,154,154,0.35)" },
   quietText: { fontSize: 15, ...f("500"), color: "#FF9A9A" },
   fade: { position: "absolute", left: 0, right: 0, bottom: 0 },
   footer: { position: "absolute", left: 12, right: 12, bottom: 0, flexDirection: "row", alignItems: "center", gap: 10, paddingTop: 10 },
