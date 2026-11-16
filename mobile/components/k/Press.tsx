@@ -46,14 +46,13 @@ export function Press({
     pos.current = { x: e.nativeEvent.locationX, y: e.nativeEvent.locationY };
     if (timer.current) clearTimeout(timer.current);
     if (photo) return;
-    timer.current = setTimeout(() => {
-      Animated.timing(scale, { toValue: 0.95, duration: 90, easing: Easing.ease, useNativeDriver: true }).start();
-    }, 40);
+    // Проседает сразу под пальцем — без паузы, иначе кнопка кажется «зависшей».
+    Animated.timing(scale, { toValue: 0.95, duration: 70, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
   };
   const up = () => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
-    Animated.timing(scale, { toValue: 1, duration: 500, easing: SPRING, useNativeDriver: true }).start();
+    Animated.timing(scale, { toValue: 1, duration: 320, easing: SPRING, useNativeDriver: true }).start();
   };
   const press = (e: GestureResponderEvent) => {
     noteTouch();
@@ -69,6 +68,7 @@ export function Press({
     <Animated.View style={[{ transform: [{ scale }] }, flat.flex != null ? { flex: flat.flex as number } : null, flat.alignSelf ? { alignSelf: flat.alignSelf } : null]}>
       <Pressable
         onPressIn={down}
+        unstable_pressDelay={0}
         onPressOut={up}
         onPress={press}
         onLongPress={onLongPress}

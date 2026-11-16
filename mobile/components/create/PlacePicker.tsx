@@ -16,35 +16,35 @@ export function PlacePicker({
   value,
   onPick,
   onAddress,
+  placeName,
+  address,
 }: {
   value: Coords | null;
   onPick: (c: Coords) => void;
   onAddress: (address: string) => void;
+  placeName?: string;
+  address?: string;
 }) {
   const [full, setFull] = useState(false);
   return (
     <>
       <View style={st.box}>
         {!full ? <PickerMap value={value} onPick={onPick} onAddress={onAddress} /> : null}
+        {/* ⤢ — справа внизу, как .k-mapexp мини-аппа */}
         <View style={st.exp} pointerEvents="box-none">
           <Press onPress={() => setFull(true)} accessibilityLabel="Карта на весь экран" style={st.round}>
             <KI n="expand" size={18} />
           </Press>
         </View>
-        {!value ? (
-          <View style={st.hint} pointerEvents="none">
-            <Text style={kf("500", 12.5, { color: K.ink })}>Нажми на карту — адрес определится сам</Text>
-          </View>
-        ) : null}
       </View>
       <Modal visible={full} animationType="slide" onRequestClose={() => setFull(false)} statusBarTranslucent>
-        <FullMap value={value} onPick={onPick} onAddress={onAddress} onClose={() => setFull(false)} />
+        <FullMap value={value} onPick={onPick} onAddress={onAddress} onClose={() => setFull(false)} placeName={placeName} address={address} />
       </Modal>
     </>
   );
 }
 
-function FullMap({ value, onPick, onAddress, onClose }: { value: Coords | null; onPick: (c: Coords) => void; onAddress: (a: string) => void; onClose: () => void }) {
+function FullMap({ value, onPick, onAddress, onClose, placeName, address }: { value: Coords | null; onPick: (c: Coords) => void; onAddress: (a: string) => void; onClose: () => void; placeName?: string; address?: string }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: K.pearl }}>
@@ -54,7 +54,8 @@ function FullMap({ value, onPick, onAddress, onClose }: { value: Coords | null; 
           <KI n="x" size={18} />
         </Press>
         <View style={st.fullTitle}>
-          <Text style={kf("500", 14)}>Где встречаемся?</Text>
+          <Text style={kf("500", 14)} numberOfLines={1}>{placeName && placeName !== "Точка на карте" ? placeName : "Отметь место"}</Text>
+          <Text style={kf("400", 12, { color: K.ink2 })} numberOfLines={1}>{address || "Нажми на карту — адрес определится сам"}</Text>
         </View>
       </View>
       <View style={[st.fullFoot, { paddingBottom: Math.max(insets.bottom, 16) }]}>
@@ -103,7 +104,7 @@ function PickerMap({ value, onPick, onAddress, controlsTop = 12 }: { value: Coor
         mapStyle={MAP_STYLE}
         logo={false}
         compass={false}
-        attributionPosition={{ top: 8, left: 58 }}
+        attributionPosition={{ bottom: 8, left: 8 }}
         onPress={(e: unknown) => {
           const ll = (e as { nativeEvent?: { lngLat?: [number, number] } })?.nativeEvent?.lngLat;
           if (ll) pick({ latitude: ll[1], longitude: ll[0] });
@@ -146,7 +147,7 @@ function PickerMap({ value, onPick, onAddress, controlsTop = 12 }: { value: Coor
 const shadow = { shadowColor: "rgb(40,20,100)", shadowOpacity: 0.14, shadowRadius: 8, shadowOffset: { width: 0, height: 6 } };
 const st = StyleSheet.create({
   box: { height: 230, borderRadius: 26, overflow: "hidden", marginTop: 10, backgroundColor: "#EEECF3", borderWidth: 1, borderColor: "rgba(255,255,255,0.8)" },
-  exp: { position: "absolute", left: 12, top: 12 },
+  exp: { position: "absolute", right: 12, bottom: 12 },
   ctrl: { position: "absolute", right: 12, gap: 8 },
   round: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.94)", alignItems: "center", justifyContent: "center", ...shadow },
   hint: { position: "absolute", left: 12, right: 12, bottom: 12, height: 34, borderRadius: 17, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center", ...shadow },
@@ -154,7 +155,7 @@ const st = StyleSheet.create({
   pinHead: { width: 36, height: 36, borderRadius: 18, backgroundColor: "#17141F", borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center", ...shadow },
   pinTail: { width: 3, height: 10, backgroundColor: "#17141F", borderRadius: 2, marginTop: -1 },
   fullHead: { position: "absolute", left: 16, right: 16, flexDirection: "row", alignItems: "center", gap: 10 },
-  fullTitle: { height: 40, paddingHorizontal: 16, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.94)", justifyContent: "center", ...shadow },
+  fullTitle: { flex: 1, minHeight: 44, paddingHorizontal: 16, paddingVertical: 6, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.94)", justifyContent: "center", ...shadow },
   fullFoot: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12 },
   done: { height: 56, borderRadius: 28, backgroundColor: K.ink, alignItems: "center", justifyContent: "center" },
 });

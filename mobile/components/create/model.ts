@@ -56,6 +56,9 @@ export interface Form {
   ticketPrice: string;
   bizTerms: string;
   isAnonymous: boolean;
+  /** Раздел афиши у бизнес-события (bars, party…); bizPicked — выбран руками, больше не угадываем. */
+  bizCategory: string | null;
+  bizPicked: boolean;
 }
 
 export type SetForm = (patch: Partial<Form>) => void;
@@ -160,6 +163,8 @@ export function initialForm(business: boolean, categorySlug: string | null, trai
     ticketPrice: "",
     bizTerms: "",
     isAnonymous: false,
+    bizCategory: null,
+    bizPicked: false,
   };
 }
 
@@ -198,6 +203,8 @@ export function formFromEvent(e: any): { form: Form; minSeats: number } {
     bizPricing: bp,
     ticketPrice: bp === "ticket" ? String(e.businessPricingDetails ?? "").replace(/[^\d]/g, "") : "",
     bizTerms: bp === "custom" ? e.businessPricingDetails ?? "" : "",
+    bizCategory: typeof e.bizCategory === "string" ? e.bizCategory : null,
+    bizPicked: typeof e.bizCategory === "string",
   };
   return { form, minSeats: Math.max(1, e.seatsTaken ?? 1) };
 }
