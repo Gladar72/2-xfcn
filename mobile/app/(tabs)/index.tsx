@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, AppState, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Animated, AppState, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { router, useFocusEffect, type Href } from "expo-router";
 import { Image } from "expo-image";
@@ -33,7 +33,21 @@ export default function HomeScreen() {
   const [people, setPeople] = useState<PersonCard[]>([]);
   const [peopleLoaded, setPeopleLoaded] = useState(false);
   // «Ты в деле» / «Заявка отправлена» — плашка с Мосей, как в мини-аппе.
-  const [plan, setPlan] = useState<{ ev: MyEvent; label: string; more?: number; waiting?: number } | null>(null);
+  const [plans, setPlans] = useState<{ ev: MyEvent; label: string; tail: string }[]>([]);
+  // Несколько встреч — плашка по очереди рассказывает о каждой (каждые 4 с, мягкая смена).
+  const [pi, setPi] = useState(0);
+  const fadeP = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (plans.length < 2) return;
+    const t = setInterval(() => {
+      Animated.timing(fadeP, { toValue: 0, duration: 220, useNativeDriver: true }).start(() => {
+        setPi((i) => (i + 1) % plans.length);
+        Animated.timing(fadeP, { toValue: 1, duration: 260, useNativeDriver: true }).start();
+      });
+    }, 4000);
+    return () => clearInterval(t);
+  }, [plans.length, fadeP]);
+  const plan = plans.length ? plans[pi % plans.length]! : null;
   // Есть ли у меня свежая примерная точка — иначе предлагаем «Показать, кто рядом».
   const [meHasLoc, setMeHasLoc] = useState(true);
   const [geoBusy, setGeoBusy] = useState(false);
@@ -98,13 +112,10 @@ export default function HomeScreen() {
         .then((d) => {
           // «Ты в деле» — только если заявку приняли; если ещё ждём ответа — так и пишем.
           const mine = (d.items ?? d.events ?? []).filter((e) => e.role !== "organizer");
-          // Несколько встреч — показываем ближайшую и «ещё N», тап ведёт во «Встречи», где все по датам.
+          // Одобрили — «Ты в деле · …, через 2 дня»; ждём ответа — «Заявка отправлена · … — ждём ответа».
           const sorted = [...mine].sort((a, b) => `${a.eventDate} ${a.eventTime}`.localeCompare(`${b.eventDate} ${b.eventTime}`));
-          const ok = sorted.find((e) => e.myStatus !== "pending");
-          const wait = sorted.find((e) => e.myStatus === "pending");
-          const waiting = sorted.filter((e) => e.myStatus === "pending").length;
-          const top = ok ?? wait;
-          setPlan(top ? { ev: top, label: ok ? "Ты в деле" : "Заявка отправлена", more: sorted.length - 1, waiting: ok ? waiting : waiting - 1 } : null);
+          const list = [...sorted.filter((e) => e.myStatus !== "pending"), ...sorted.filter((e) => e.myStatus === "pending")].slice(0, 6);
+          setPlans(list.map((e) => (e.myStatus === "pending" ? { ev: e, label: "Заявка отправлена", tail: " — ждём ответа организатора" } : { ev: e, label: "Ты в деле", tail: ` — ${inDays(e.eventDate, e.eventTime)}` })));
         })
         .catch(() => {});
     }, [])
@@ -164,7 +175,7 @@ export default function HomeScreen() {
   // Заявка «ждём ответа» тоже показывается плашкой (если нет подтверждённой).
   const shownPlan = plan ?? (() => {
     const p = (events ?? []).find((e) => e.myApplicationStatus === "pending");
-    return p ? { ev: { id: p.id, title: p.title, eventDate: p.eventDate, eventTime: p.eventTime }, label: "Заявка отправлена" } : null;
+    return p ? { ev: { id: p.id, title: p.title, eventDate: p.eventDate, eventTime: p.eventTime }, label: "Заявка отправлена", tail: " — ждём ответа организатора" } : null;
   })();
 
   return (
@@ -206,16 +217,13 @@ export default function HomeScreen() {
             <B>{`${req.latest.name}${req.latest.age ? `, ${req.latest.age}` : ""}`}</B> хочет на «{req.latest.eventTitle}»{req.count > 1 ? ` · ещё ${req.count - 1}` : ""}
           </KMos>
         ) : shownPlan ? (
-          <KMos
-            go={"more" in shownPlan && (shownPlan.more ?? 0) > 0 ? "Все" : "Открыть"}
-            onPress={() => ("more" in shownPlan && (shownPlan.more ?? 0) > 0 ? router.navigate("/(tabs)/meet") : router.push(`/event/${shownPlan.ev.id}` as Href))}
-          >
-            <B>{shownPlan.label}</B> · {shownPlan.ev.title}, {whenText(shownPlan.ev.eventDate, shownPlan.ev.eventTime)}
-            {shownPlan.label === "Заявка отправлена" ? " — ждём ответа организатора" : ""}
-            {"more" in shownPlan && (shownPlan.more ?? 0) > 0
-              ? ` · и ещё ${shownPlan.more} ${plural(shownPlan.more ?? 0, "встреча", "встречи", "встреч")}${shownPlan.waiting ? `, ${shownPlan.waiting} ${plural(shownPlan.waiting, "заявка ждёт", "заявки ждут", "заявок ждут")} ответа` : ""}`
-              : ""}
-          </KMos>
+          <Animated.View style={{ opacity: fadeP }}>
+            <KMos go="Открыть" onPress={() => router.push(`/event/${shownPlan.ev.id}` as Href)}>
+              <B>{shownPlan.label}</B> · {shownPlan.ev.title}, {whenText(shownPlan.ev.eventDate, shownPlan.ev.eventTime)}
+              {shownPlan.tail}
+              {plans.length > 1 ? `  ${(pi % plans.length) + 1}/${plans.length}` : ""}
+            </KMos>
+          </Animated.View>
         ) : (
           <KMos go="Найти" onPress={() => router.push("/people")}>
             {people.length > 0 ? (
@@ -284,6 +292,21 @@ function KCityCard({ c }: { c: CityEvent }) {
       </View>
     </Press>
   );
+}
+
+/** «через 2 дня», «завтра», «сегодня в 18:00», «через 3 часа». */
+function inDays(dateIso: string, time: string) {
+  const [y = 1970, m = 1, d = 1] = dateIso.slice(0, 10).split("-").map(Number);
+  const [h = 0, mi = 0] = time.split(":").map(Number);
+  const at = new Date(y, m - 1, d, h, mi);
+  const now = new Date();
+  const days = Math.round((new Date(y, m - 1, d).getTime() - new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()) / 864e5);
+  if (days <= 0) {
+    const hrs = Math.round((at.getTime() - now.getTime()) / 36e5);
+    return hrs >= 1 ? `через ${hrs} ${plural(hrs, "час", "часа", "часов")}` : "уже скоро";
+  }
+  if (days === 1) return "уже завтра";
+  return `через ${days} ${plural(days, "день", "дня", "дней")}`;
 }
 
 function whenText(dateIso: string, time: string) {
