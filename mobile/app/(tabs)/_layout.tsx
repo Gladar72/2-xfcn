@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Path, SvgXml } from "react-native-svg";
 import { f } from "@/lib/theme";
 import { tapLight } from "@/lib/feedback";
+import * as Haptics from "expo-haptics";
 import { Creature } from "@/components/k/Creature";
 import { PendingReviews } from "@/components/reviews/PendingReviews";
 import { fetchPendingApplications } from "@/lib/pending";
@@ -84,6 +85,7 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
   const go = (name: string) => {
     const r = state.routes.find((x) => x.name === name);
     if (!r) return;
+    if (cur !== name) Haptics.selectionAsync().catch(() => {}); // лёгкий щелчок при смене вкладки, как в нативных приложениях
     const e = navigation.emit({ type: "tabPress", target: r.key, canPreventDefault: true });
     if (cur !== name && !e.defaultPrevented) navigation.navigate(name);
   };
