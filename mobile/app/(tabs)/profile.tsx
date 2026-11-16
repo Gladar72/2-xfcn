@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Dimensions, Linking, ScrollView, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router, useFocusEffect, type Href } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams, type Href } from "expo-router";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { api } from "@/lib/api";
@@ -15,6 +15,7 @@ import type { MyProfile } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { FadeImage } from "@/components/k/FadeImage";
 import { Sheet } from "@/components/Sheet";
+import { HeartsSheet } from "@/components/people/HeartsSheet";
 import { K, KChip, KGlass, KI, KPressGlass, KRb, KSec, KTitle, PearlBg, Press, kf } from "@/components/k";
 
 const { height: SCREEN_H, width: SCREEN_W } = Dimensions.get("window");
@@ -27,6 +28,7 @@ interface FollowSummary { followers: number; following: number; followersPreview
 
 export default function ProfileScreen() {
   useGuide("profile");
+  const { hearts } = useLocalSearchParams<{ hearts?: string }>();
   const insets = useSafeAreaInsets();
   const [me, setMe] = useState<MyProfile | null>(null);
   const [sub, setSub] = useState<Subscription | null>(null);
@@ -159,6 +161,8 @@ export default function ProfileScreen() {
             <Press onPress={() => router.push("/profile-edit")} style={{ marginTop: 16, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.65)", borderWidth: 1, borderColor: "#fff", alignItems: "center", justifyContent: "center" }}>
               <Text style={kf("500", 15)}>Редактировать профиль</Text>
             </Press>
+
+            <HeartsSheet openOnMount={hearts === "1"} />
 
             {follows ? (
               <>

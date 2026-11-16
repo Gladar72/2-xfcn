@@ -12,6 +12,7 @@ import { LOGO_LETTERS, LOGO_M, LOGO_VIEWBOX } from "@/lib/logo-paths";
 import { textWidth } from "@/lib/textWidth";
 import { Creature } from "@/components/k/Creature";
 import { PearlBg } from "@/components/k";
+import { Press } from "@/components/k/Press";
 
 export { textWidth };
 
@@ -101,14 +102,13 @@ export function Btn({
     </View>
   );
   return (
-    <Pressable
+    <Press
       onPress={onPress}
       disabled={disabled || loading}
-      style={({ pressed }) => [
+      dark={kind !== "o" && kind !== "w"}
+      style={[
         styles.btn,
-        kind === "v" && styles.btnVShadow,
-        kind === "tg" && styles.btnTgShadow,
-        { backgroundColor: bg[kind], opacity: disabled ? 0.38 : 1, transform: [{ scale: pressed ? 0.96 : 1 }] },
+        { backgroundColor: bg[kind], opacity: disabled ? 0.38 : 1 },
         kind === "o" && { borderWidth: 1, borderColor: colors.stroke },
         style,
       ]}
@@ -117,20 +117,20 @@ export function Btn({
         <LinearGradient colors={brandGradient} start={gradientStart} end={gradientEnd} style={[StyleSheet.absoluteFill, { borderRadius: 999 }]} />
       ) : null}
       {content}
-    </Pressable>
+    </Press>
   );
 }
 
 /** Круглая кнопка 44×44 (.rb): стекло или чёрная. */
 export function RoundBtn({ children, onPress, dark, size = 44, style }: { children: ReactNode; onPress?: () => void; dark?: boolean; size?: number; style?: StyleProp<ViewStyle> }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [{ transform: [{ scale: pressed ? 0.86 : 1 }] }, style]}>
+    <Press onPress={onPress} dark={dark} style={[{ borderRadius: size / 2 }, style]}>
       {dark ? (
         <View style={[styles.round, { width: size, height: size, backgroundColor: colors.ink }]}>{children}</View>
       ) : (
         <Glass style={[styles.round, { width: size, height: size, borderRadius: size / 2 }]}>{children}</Glass>
       )}
-    </Pressable>
+    </Press>
   );
 }
 

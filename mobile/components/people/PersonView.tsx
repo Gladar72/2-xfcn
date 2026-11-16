@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { Press } from "@/components/k";
+import { HeartBurst, pop, type HeartBurstRef } from "@/components/k/HeartBurst";
 import { Creature } from "@/components/k/Creature";
 import { Icon } from "@/components/Icon";
 import { InviteSheet } from "@/components/people/InviteSheet";
@@ -96,12 +97,23 @@ export function PersonView({
     api<{ following?: boolean }>(`/api/follows?userId=${id}`).then((r) => setFollowing(!!r?.following)).catch(() => {});
   }, [active, self, id]);
 
+  const burst = useRef<HeartBurstRef>(null);
+  const heartPop = useRef(new Animated.Value(1)).current;
+  const bellPop = useRef(new Animated.Value(1)).current;
+  const [heartToast, setHeartToast] = useState<string | null>(null);
   async function heart() {
-    tapLight();
     const next = !liked;
     setLiked(next);
+    pop(heartPop);
+    if (next) burst.current?.fire();
+    else tapLight();
     try {
-      if (next) await api("/api/likes", { body: { userId: id, kind: "heart" } });
+      if (next) {
+        const r = await api<{ mutual?: boolean }>("/api/likes", { body: { userId: id, kind: "heart" } });
+        // Человеку пришло уведомление; когда ответит сердечком — «Это взаимно», можно звать на встречу.
+        setHeartToast(r?.mutual ? "Это взаимно! Самое время позвать на встречу 💜" : `Сердечко отправлено — ${name.split(" ")[0]} получит уведомление`);
+        setTimeout(() => setHeartToast(null), 2600);
+      }
       else await api(`/api/likes?userId=${id}`, { method: "DELETE" });
     } catch (e) {
       setLiked(!next);
@@ -111,6 +123,7 @@ export function PersonView({
 
   async function toggleFollow() {
     tapLight();
+    pop(bellPop);
     const next = !following;
     setFollowing(next);
     try {
@@ -302,18 +315,30 @@ export function PersonView({
 
       {!isMe && p ? (
         <View style={[styles.bar2, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <Pressable onPress={write} disabled={writing} style={({ pressed }) => [styles.rb, !p.canMessage && { opacity: 0.5 }, pressed && { opacity: 0.8 }]} accessibilityLabel="Написать">
+          {heartToast ? (
+            <View pointerEvents="none" style={[styles.heartToast, { bottom: Math.max(insets.bottom, 12) + 64 }]}>
+              <Text style={styles.heartToastText}>{heartToast}</Text>
+            </View>
+          ) : null}
+          <Press onPress={write} disabled={writing} dark style={[styles.rb, !p.canMessage && { opacity: 0.5 }]} accessibilityLabel="Написать">
             {writing ? <ActivityIndicator color="#fff" /> : <Icon name="chat" size={21} color="#fff" />}
-          </Pressable>
-          <Pressable onPress={heart} style={({ pressed }) => [styles.rb, liked && styles.rbOn, pressed && { transform: [{ scale: 0.92 }] }]} accessibilityLabel={liked ? "Убрать сердечко" : "Поставить сердечко"}>
-            <Icon name="heart" size={22} color={liked ? colors.ink : "#fff"} />
-          </Pressable>
-          <Pressable onPress={toggleFollow} style={({ pressed }) => [styles.rb, following && styles.rbOn, pressed && { transform: [{ scale: 0.92 }] }]} accessibilityLabel={following ? "Отписаться от событий" : "Подписаться на события"}>
-            <Icon name="bell" size={21} color={following ? colors.ink : "#fff"} />
-          </Pressable>
-          <Pressable onPress={() => setInvite(true)} style={({ pressed }) => [styles.callBtn, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
+          </Press>
+          <View>
+            <Animated.View style={{ transform: [{ scale: heartPop }] }}>
+              <Press onPress={heart} dark={!liked} style={[styles.rb, liked && styles.rbHeart]} accessibilityLabel={liked ? "Убрать сердечко" : "Поставить сердечко"}>
+                <Icon name="heart" size={22} color="#fff" />
+              </Press>
+            </Animated.View>
+            <HeartBurst ref={burst} size={48} />
+          </View>
+          <Animated.View style={{ transform: [{ scale: bellPop }] }}>
+            <Press onPress={toggleFollow} dark={!following} style={[styles.rb, following && styles.rbOn]} accessibilityLabel={following ? "Отписаться от событий" : "Подписаться на события"}>
+              <Icon name="bell" size={21} color={following ? colors.ink : "#fff"} />
+            </Press>
+          </Animated.View>
+          <Press onPress={() => setInvite(true)} haptic style={[styles.callBtn, { flex: 1 }]}>
             <Text style={styles.callText} numberOfLines={2}>Позвать на встречу</Text>
-          </Pressable>
+          </Press>
         </View>
       ) : null}
 
@@ -371,6 +396,9 @@ const styles = StyleSheet.create({
   bar2: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingTop: 10 },
   rb: { width: 48, height: 52, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.78)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
   rbOn: { backgroundColor: "rgba(255,255,255,0.94)" },
+  rbHeart: { backgroundColor: "#FF4F8B", borderColor: "rgba(255,255,255,0.3)" },
+  heartToast: { position: "absolute", left: 14, right: 14, minHeight: 42, borderRadius: 21, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "rgba(255,255,255,0.95)", alignItems: "center", justifyContent: "center" },
+  heartToastText: { fontFamily: FONT, fontSize: 14, color: "#17141F", textAlign: "center" },
   callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
   callText: { color: colors.ink, fontSize: 14, lineHeight: 16, ...f("500"), textAlign: "center" },
   body: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },

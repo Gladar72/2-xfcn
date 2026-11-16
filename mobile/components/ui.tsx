@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from "react-native";
 import { Image } from "expo-image";
 import { Btn, Glass } from "./brand";
+import { Press } from "@/components/k/Press";
 import { colors, FONT, f } from "@/lib/theme";
 
 export function Button({
@@ -56,7 +57,7 @@ export function Avatar({ uri, size = 40, name }: { uri?: string | null; size?: n
 
 export function Chip({ label, active, onPress }: { label: string; active?: boolean; onPress?: () => void }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.93 : 1 }] })}>
+    <Press onPress={onPress} dark={active} style={{ borderRadius: 999 }}>
       {active ? (
         <View style={[styles.chip, { backgroundColor: colors.ink }]}>
           <Text style={[styles.chipText, { color: "#fff" }]}>{label}</Text>
@@ -66,7 +67,7 @@ export function Chip({ label, active, onPress }: { label: string; active?: boole
           <Text style={styles.chipText}>{label}</Text>
         </Glass>
       )}
-    </Pressable>
+    </Press>
   );
 }
 
