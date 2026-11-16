@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Dimensions, FlatList, StyleSheet, Text, View, type ViewToken } from "react-native";
+import { ActivityIndicator, Alert, Animated, Dimensions, Easing, PanResponder, StyleSheet, Text, View } from "react-native";
+import { Image } from "expo-image";
+import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as Location from "expo-location";
@@ -54,7 +56,6 @@ export default function PeopleScreen() {
   const [filters, setFilters] = useState<PeopleFilters>(DEFAULT_PEOPLE_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [deckKey, setDeckKey] = useState(0);
-  const listRef = useRef<FlatList<Page>>(null);
   // Новый заход — новая подборка; внутри захода порядок стабилен при подгрузке.
   const seed = useRef(newVisitSeed()).current;
   const nextOffset = useRef<number | null>(null);
@@ -157,17 +158,42 @@ export default function PeopleScreen() {
     }
   }
 
-  const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    const first = viewableItems[0];
-    if (first?.index != null) setIndex(first.index);
-  }).current;
-
   function removePerson(id: string) {
     animateNext();
     setItems((list) => (list ? list.filter((x) => x.id !== id) : list));
   }
 
   const back = () => (router.canGoBack() ? router.back() : router.replace("/(tabs)"));
+
+  // Свайп карточки: тянется за пальцем с лёгким наклоном; дальше трети экрана или резкий рывок — улетает,
+  // и показываем следующего (в любую сторону — как в мини-аппе). Вертикальная прокрутка «О себе» не мешает.
+  const dx = useRef(new Animated.Value(0)).current;
+  const advance = useRef<(dir: 1 | -1) => void>(() => {});
+  advance.current = (dir) => {
+    Haptics.selectionAsync().catch(() => {});
+    Animated.timing(dx, { toValue: dir * W * 1.3, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => {
+      setIndex((i) => i + 1);
+      dx.setValue(0);
+    });
+  };
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
+      onPanResponderMove: (_, g) => dx.setValue(g.dx),
+      onPanResponderRelease: (_, g) => {
+        if (Math.abs(g.dx) > W * 0.3 || Math.abs(g.vx) > 0.8) advance.current(g.dx > 0 ? 1 : -1);
+        else Animated.spring(dx, { toValue: 0, useNativeDriver: true, friction: 6, tension: 80 }).start();
+      },
+      onPanResponderTerminate: () => Animated.spring(dx, { toValue: 0, useNativeDriver: true }).start(),
+      onPanResponderTerminationRequest: () => false,
+    })
+  ).current;
+  const deckStyle = {
+    transform: [
+      { translateX: dx },
+      { rotate: dx.interpolate({ inputRange: [-W, 0, W], outputRange: ["-8deg", "0deg", "8deg"] }) },
+    ],
+  };
 
   if (items === null) {
     return (
@@ -207,45 +233,39 @@ export default function PeopleScreen() {
     );
   }
 
-  const pages: Page[] = [...items.map((p) => ({ kind: "person" as const, p })), { kind: "end" }];
+  const cur = items[index];
+  const nextP = items[index + 1];
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.milk }}>
-      <FlatList
-        key={deckKey}
-        ref={listRef}
-        data={pages}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        decelerationRate="fast"
-        initialScrollIndex={Math.min(index, pages.length - 1)}
-        getItemLayout={(_, i) => ({ length: W, offset: W * i, index: i })}
-        keyExtractor={(pg) => (pg.kind === "person" ? pg.p.id : "end")}
-        onViewableItemsChanged={onViewable}
-        viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
-        windowSize={3}
-        renderItem={({ item: pg, index: i }) =>
-          pg.kind === "person" ? (
-            <View style={{ width: W }}>
-              <PersonView id={pg.p.id} preview={pg.p} active={Math.abs(i - index) <= 1} onBack={back} onGone={removePerson} topAction={filterBtn} />
-            </View>
-          ) : (
-            <View style={[styles.end, { width: W, paddingTop: insets.top + 60 }]}>
-              <Aurora />
-              <Mosya pose="wave" size={150} />
-              <View style={[styles.filterAbs, { top: insets.top + 8 }]}>{filterBtn}</View>
-              <Text style={styles.endTitle}>Пока всё</Text>
-              <Text style={styles.endText}>Ты посмотрел всех, кто рядом. Создай встречу — и люди с похожими интересами найдут тебя сами.</Text>
-              <Btn title="Создать встречу" onPress={() => router.push("/create")} style={{ alignSelf: "stretch", marginTop: 10 }} />
-              <Btn kind="o" title="Смотреть сначала" onPress={() => listRef.current?.scrollToIndex({ index: 0, animated: true })} style={{ alignSelf: "stretch" }} />
-              <Btn kind="o" title="Назад" onPress={back} style={{ alignSelf: "stretch" }} />
-            </View>
-          )
-        }
-      />
+    <View style={{ flex: 1, backgroundColor: "#17141F" }}>
+      {/* Как в мини-аппе: стопка — под карточкой уже видно следующего; свайп влево или вправо — следующий человек. */}
+      {nextP ? (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Image source={{ uri: nextP.avatarUrl ?? undefined }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(23,20,31,0.35)" }]} />
+        </View>
+      ) : null}
+      {cur ? (
+        <Animated.View key={cur.id} style={[StyleSheet.absoluteFill, deckStyle]} {...pan.panHandlers}>
+          <PersonView id={cur.id} preview={cur} active onBack={back} onGone={removePerson} topAction={filterBtn} />
+        </Animated.View>
+      ) : (
+        <View style={[styles.end, { flex: 1, paddingTop: insets.top + 60 }]}>
+          <Aurora />
+          <Mosya pose="wave" size={150} />
+          <View style={[styles.backAbs, { top: insets.top + 8 }]}>
+            <RoundBtn onPress={back}><Icon name="back" /></RoundBtn>
+          </View>
+          <View style={[styles.filterAbs, { top: insets.top + 8 }]}>{filterBtn}</View>
+          <Text style={styles.endTitle}>Пока всё</Text>
+          <Text style={styles.endText}>Ты посмотрел всех, кто рядом. Создай встречу — и люди с похожими интересами найдут тебя сами.</Text>
+          <Btn title="Создать встречу" onPress={() => router.push("/create")} style={{ alignSelf: "stretch", marginTop: 10 }} />
+          <Btn kind="o" title="Смотреть сначала" onPress={() => setIndex(0)} style={{ alignSelf: "stretch" }} />
+          <Btn kind="o" title="Назад" onPress={back} style={{ alignSelf: "stretch" }} />
+        </View>
+      )}
 
-      {!hasLocation && !geoHidden && pages[index]?.kind === "person" ? (
+      {!hasLocation && !geoHidden && cur ? (
         <Glass strong style={[styles.geo, { bottom: insets.bottom + 96 }]}>
           <View style={styles.geoIc}>
             <Icon name="nav" size={18} color={colors.violet} />

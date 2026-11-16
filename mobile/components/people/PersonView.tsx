@@ -4,6 +4,7 @@ import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { BlurView } from "expo-blur";
 import { Creature } from "@/components/k/Creature";
 import { Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
@@ -237,8 +238,10 @@ export function PersonView({
           </Pressable>
         </View>
 
-        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.75)", "#17141F"]} locations={[0, 0.5, 1]} style={{ height: 90, marginTop: -90 }} />
+        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.4)", "rgba(23,20,31,0.62)"]} locations={[0, 0.55, 1]} style={{ height: 90, marginTop: -90 }} />
+        {/* «О себе» — тёмное стекло: фото просвечивает размыто, без плотной синевы */}
         <View style={styles.body}>
+          <BlurView intensity={50} tint="dark" style={StyleSheet.absoluteFill} pointerEvents="none" />
           {!p ? (
             error ? <Text style={styles.muted}>{error}</Text> : <ActivityIndicator color="#fff" style={{ marginTop: 30 }} />
           ) : (
@@ -275,7 +278,7 @@ export function PersonView({
           )}
         </View>
         {/* Тёмный низ до конца экрана — фото под карточкой не просвечивает */}
-        <View style={{ height: insets.bottom + (isMe ? 24 : 92), backgroundColor: "#17141F" }} />
+        <View style={{ height: insets.bottom + (isMe ? 24 : 92), backgroundColor: "rgba(23,20,31,0.62)" }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}
@@ -376,7 +379,7 @@ const styles = StyleSheet.create({
   rbOn: { backgroundColor: "rgba(255,255,255,0.94)" },
   callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
   callText: { color: colors.ink, fontSize: 14, lineHeight: 16, ...f("500"), textAlign: "center" },
-  body: { padding: 20, paddingTop: 16, gap: 12, backgroundColor: colors.ink },
+  body: { padding: 20, paddingTop: 16, gap: 12, backgroundColor: "rgba(23,20,31,0.62)", overflow: "hidden" },
   card: { borderRadius: 24, padding: 16, gap: 10 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
