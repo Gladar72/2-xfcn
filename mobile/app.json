@@ -3,7 +3,7 @@
     "name": "Место",
     "slug": "mesto",
     "scheme": "mesto",
-    "version": "0.4.2",
+    "version": "0.5.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -31,13 +31,13 @@
           "ru"
         ]
       },
-      "buildNumber": "11",
+      "buildNumber": "12",
       "config": {
         "usesNonExemptEncryption": false
       }
     },
     "android": {
-      "versionCode": 11,
+      "versionCode": 12,
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
