@@ -39,6 +39,8 @@ export interface Form {
   /** Своё фото: uri — для показа, data — data:URL для отправки (нет у фото, уже лежащего на сервере). */
   ownPhoto: { uri: string; data?: string } | null;
   useOwnPhoto: boolean;
+  /** Выбранная обложка из набора (как в мини-аппе); null — первая из набора. */
+  cover?: string | null;
   dayIso: string;
   /** Начало — минуты от полуночи. */
   startMin: number;

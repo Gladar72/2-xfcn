@@ -6,7 +6,7 @@ import * as Location from "expo-location";
 import { Aurora, Btn, Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { api, ApiError } from "@/lib/api";
-import { coverFor, coverForText, coverUri } from "@/lib/covers";
+import { coverFor, coverSetFor, coverForText, coverUri } from "@/lib/covers";
 import { catIcon, CATEGORY_SHORT, colors, eventIcon, FONT } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 import { type Category, type Form, formFromEvent, hhmm, initialForm, isPast, nextDays, type TrainingType } from "@/components/create/model";
@@ -160,7 +160,9 @@ export default function CreateScreen() {
   }, [step]);
 
   const isOwn = form.categorySlug === "custom";
-  const presetCover = isOwn ? coverForText(`${form.own} ${form.title}`) : coverFor(form.categorySlug, form.trainingTypeSlug, form.business);
+  const autoCover = isOwn ? coverForText(`${form.own} ${form.title}`) : coverFor(form.categorySlug, form.trainingTypeSlug, form.business);
+  const coverSet = isOwn ? [] : coverSetFor(form.categorySlug, form.trainingTypeSlug, form.business);
+  const presetCover = form.cover && coverSet.includes(form.cover) ? form.cover : autoCover;
   const useOwn = form.useOwnPhoto && !!form.ownPhoto;
   const shownCover = useOwn ? form.ownPhoto!.uri : coverUri(presetCover);
   const iconUri = form.business
@@ -373,7 +375,7 @@ export default function CreateScreen() {
               />
             ) : null}
             {chosen && !needsPhoto && step === 1 ? <StepWhat form={form} set={set} categories={categories} trainingTypes={trainingTypes} /> : null}
-            {chosen && !needsPhoto && step === 2 ? <StepCover form={form} set={set} presetCover={presetCover} catLabel={catLabel} /> : null}
+            {chosen && !needsPhoto && step === 2 ? <StepCover form={form} set={set} presetCover={presetCover} coverSet={coverSet} catLabel={catLabel} /> : null}
             {chosen && !needsPhoto && step === 3 ? <StepWhen form={form} set={set} catLabel={catLabel} city={me?.city ?? null} /> : null}
             {chosen && !needsPhoto && step === 4 ? (
               <StepWho
