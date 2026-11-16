@@ -21,6 +21,9 @@ import { CATEGORY_SHORT, colors, eventIcon, FONT, SERIF, f } from "@/lib/theme";
 import { anonymousTag, type EventDetail } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { Creature } from "@/components/k/Creature";
+import { FadeImage } from "@/components/k/FadeImage";
+import { Dimensions } from "react-native";
+const SCREEN_W = Dimensions.get("window").width;
 
 const APPLY_ERRORS: Record<string, string> = {
   event_full: "Мест больше нет",
@@ -219,9 +222,10 @@ export default function EventScreen() {
       {event.photoUrl ? <Image source={{ uri: event.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} /> : null}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(23,20,31,0.72)" }]} />
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
-        <View style={styles.hero}>
+        <View style={[styles.hero, event.photoUrl ? { backgroundColor: "transparent" } : null]}>
           {event.photoUrl ? (
-            <Image source={{ uri: event.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            // Фото снизу растворяется в размытый фон — без резкой границы (как в мини-аппе).
+            <FadeImage uri={event.photoUrl} width={SCREEN_W} height={520} from={0.55} to={1} focusY={0.5} style={StyleSheet.absoluteFill} />
           ) : hasCoords ? (
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
               <Map
@@ -246,7 +250,7 @@ export default function EventScreen() {
               <Image source={{ uri: eventIcon(event) }} style={{ width: 200, height: 200 }} contentFit="contain" />
             </Grad>
           )}
-          <LinearGradient colors={["rgba(23,20,31,0.35)", "rgba(23,20,31,0)", "rgba(23,20,31,0.12)", "rgba(23,20,31,0.5)", "rgba(23,20,31,0.72)"]} locations={[0, 0.25, 0.5, 0.82, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <LinearGradient colors={["rgba(23,20,31,0.35)", "rgba(23,20,31,0)", "rgba(23,20,31,0.1)", "rgba(23,20,31,0.25)", "rgba(23,20,31,0)"]} locations={[0, 0.25, 0.55, 0.8, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={styles.heroText}>
             <View style={styles.badges}>
               <View style={styles.chip}>

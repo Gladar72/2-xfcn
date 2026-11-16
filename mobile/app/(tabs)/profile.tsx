@@ -13,6 +13,7 @@ import { PLAN_NAME, PLAN_PRICE_RUB, type Subscription } from "@/lib/subscription
 import { interestIcon } from "@/lib/interests";
 import type { MyProfile } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
+import { FadeImage } from "@/components/k/FadeImage";
 import { Sheet } from "@/components/Sheet";
 import { K, KChip, KGlass, KI, KPressGlass, KRb, KSec, KTitle, PearlBg, Press, kf } from "@/components/k";
 
@@ -92,12 +93,11 @@ export default function ProfileScreen() {
       {/* .k-hero2: фото с маской — снизу растворяется (78% → прозрачно) */}
       <Animated.View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 0, height: HERO_H, transform: [{ translateY: heroShift }, { scale: heroScale }] }}>
         {main ? (
-          <Image source={{ uri: main }} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition={{ top: "25%" }} transition={150} cachePolicy="memory-disk" />
+          <FadeImage uri={main} width={SCREEN_W} height={HERO_H} from={0.5} to={1} focusY={0.25} style={StyleSheet.absoluteFill} />
         ) : (
           <LinearGradient colors={["#D9D3E6", "#F4F2F8"]} style={StyleSheet.absoluteFill} />
         )}
-        {/* Низ фото растворяется в перламутре (как маска 78% → прозрачно в мини-аппе). */}
-        <LinearGradient colors={["rgba(244,242,248,0)", "rgba(244,242,248,0)", "rgba(244,242,248,0.35)", "rgba(244,242,248,0.8)", K.pearl]} locations={[0, 0.55, 0.72, 0.88, 1]} style={StyleSheet.absoluteFill} />
+
       </Animated.View>
 
       <Animated.ScrollView
