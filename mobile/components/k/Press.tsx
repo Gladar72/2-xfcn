@@ -1,6 +1,7 @@
 import { useRef, type ReactNode } from "react";
 import { Animated, Easing, Pressable, StyleSheet, View, type GestureResponderEvent, type StyleProp, type ViewStyle } from "react-native";
 import { tapLight } from "@/lib/feedback";
+import { noteTouch } from "./Creature";
 
 /**
  * Нажатие как в мини-аппе (components/proto/Motion26 + .k-pr в app/k26.css):
@@ -41,6 +42,7 @@ export function Press({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const down = (e: GestureResponderEvent) => {
+    noteTouch();
     pos.current = { x: e.nativeEvent.locationX, y: e.nativeEvent.locationY };
     if (timer.current) clearTimeout(timer.current);
     if (photo) return;
@@ -54,6 +56,7 @@ export function Press({
     Animated.timing(scale, { toValue: 1, duration: 500, easing: SPRING, useNativeDriver: true }).start();
   };
   const press = (e: GestureResponderEvent) => {
+    noteTouch();
     glowXY.setValue({ x: pos.current.x - 80, y: pos.current.y - 80 });
     glow.setValue(0);
     Animated.timing(glow, { toValue: 1, duration: 600, easing: Easing.out(Easing.ease), useNativeDriver: true }).start();

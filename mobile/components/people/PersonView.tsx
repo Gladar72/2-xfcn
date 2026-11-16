@@ -14,7 +14,7 @@ import { api } from "@/lib/api";
 import { getMyId } from "@/lib/me";
 import { tapLight, tapWarn } from "@/lib/feedback";
 import { plural } from "@/lib/format";
-import { interestIcon } from "@/lib/interests";
+import { distanceLabel, interestIcon } from "@/lib/interests";
 import { colors, FONT, SERIF, f } from "@/lib/theme";
 
 /** Ответ GET /api/users/[id] (app/api/users/[id]/route.ts). */
@@ -222,6 +222,12 @@ export function PersonView({
           </Text>
           {p ? (
             <View style={styles.pills}>
+              {distanceLabel(p.distanceKm) ? (
+                <View style={styles.pill}>
+                  <Icon name="pin" size={13} color="#fff" />
+                  <Text style={styles.pillText}>{distanceLabel(p.distanceKm)}</Text>
+                </View>
+              ) : null}
               {p.ratingAvg > 0 ? (
                 <View style={styles.pill}>
                   <Text style={styles.pillText}>★ {p.ratingAvg.toFixed(1).replace(".", ",")}</Text>

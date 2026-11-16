@@ -17,7 +17,7 @@ import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { MAP_STYLE, TYUMEN_CENTER } from "@/lib/map";
 import { clusterize } from "@/lib/cluster";
-import { Linking } from "react-native";
+import { openRoute } from "@/lib/route";
 import { K, KGlass, KI, Press, kf } from "@/components/k";
 import { catIcon } from "@/lib/theme";
 import { BizCatRow, BizCatSheet } from "@/components/BizCategories";
@@ -402,7 +402,7 @@ function MapCard({ e, onPress }: { e: MapEvent & { isCity?: boolean }; onPress: 
             <Text style={kf("400", 12.5, { color: colors.grey })}>{cityEv ? "событие города" : e.seatsLeft > 0 ? `свободно ${e.seatsLeft}` : "мест нет"}</Text>
           </View>
           {!e.organizerHidden ? (
-            <Press onPress={() => Linking.openURL(`https://yandex.ru/maps/?rtext=~${e.latitude},${e.longitude}&rtt=auto`)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(23,20,31,0.06)", alignItems: "center", justifyContent: "center" }} accessibilityLabel="Маршрут">
+            <Press onPress={() => openRoute(e.latitude, e.longitude)} style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: "rgba(23,20,31,0.06)", alignItems: "center", justifyContent: "center" }} accessibilityLabel="Маршрут">
               <KI n="route" size={18} color={K.ink} />
             </Press>
           ) : null}

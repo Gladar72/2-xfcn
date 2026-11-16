@@ -29,6 +29,12 @@
         "CFBundleDevelopmentRegion": "ru",
         "CFBundleLocalizations": [
           "ru"
+        ],
+        "LSApplicationQueriesSchemes": [
+          "yandexmaps",
+          "dgis",
+          "maps",
+          "comgooglemaps"
         ]
       },
       "buildNumber": "12",

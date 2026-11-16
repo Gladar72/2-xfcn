@@ -6,7 +6,7 @@ import { router, type Href } from "expo-router";
 import { FireChip } from "@/components/Fire";
 import { coverUri } from "@/lib/covers";
 import { costShort, dayShort, plural } from "@/lib/format";
-import { interestIcon } from "@/lib/interests";
+import { interestIcon, distanceShort } from "@/lib/interests";
 import type { FeedEvent, PersonCard } from "@/lib/types";
 import { K, KGlass, KPressGlass, PhotoShade, Press, kem, kf } from "./index";
 
@@ -129,7 +129,7 @@ export function KMosaic({ people, city, onOpen }: { people: PersonCard[]; city?:
             <View style={{ position: "absolute", left: 12, right: 12, bottom: 11 }}>
               <Text style={kf("500", 15, { color: "#fff" })} numberOfLines={1}>{q.name}, {q.age}</Text>
               <Text style={[kf("400", 11.5, { color: "#fff" }), { opacity: 0.85, marginTop: 2 }]} numberOfLines={1}>
-                {city ?? ""}
+                {q.distanceM != null ? (q.distanceM <= 0 ? "рядом" : `≈ ${distanceShort(q.distanceM)}`) : city ?? ""}
               </Text>
             </View>
           </Press>

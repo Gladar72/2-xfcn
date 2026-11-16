@@ -330,17 +330,19 @@ export default function EventScreen() {
 
           {/* Плитки как в прототипе: Когда · Мест · Расходы · Чат */}
           <View style={styles.tiles}>
-            <View style={[styles.tile, { flex: 1.25 }]}>
-              <View style={styles.tileHead}><Icon name="cal" size={13} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>Когда</Text></View>
-              <Text style={styles.tileVal} numberOfLines={1}>{formatEventDate(event.eventDate, event.eventTime)}</Text>
-              {event.eventEndTime ? <Text style={styles.tileSub}>до {event.eventEndTime.slice(0, 5)}</Text> : null}
+            <View style={styles.tile}>
+              <View style={styles.tileHead}><Icon name="cal" size={14} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>Когда</Text></View>
+              <Text style={styles.tileVal} numberOfLines={2}>
+                {formatEventDate(event.eventDate, event.eventTime)}
+                {event.eventEndTime ? `–${event.eventEndTime.slice(0, 5)}` : ""}
+              </Text>
             </View>
             <View style={styles.tile}>
-              <View style={styles.tileHead}><Icon name="people" size={13} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>Мест</Text></View>
+              <View style={styles.tileHead}><Icon name="people" size={14} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>Мест</Text></View>
               <Text style={styles.tileVal}>{event.seatsTaken + 1} из {event.seatsTotal + 1}</Text>
             </View>
             <View style={styles.tile}>
-              <View style={styles.tileHead}><Icon name="wallet" size={13} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>{event.isBusiness ? "Билет" : "Расходы"}</Text></View>
+              <View style={styles.tileHead}><Icon name="wallet" size={14} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>{event.isBusiness ? "Билет" : "Расходы"}</Text></View>
               <Text style={styles.tileVal} numberOfLines={2}>{costShort(event)}</Text>
             </View>
             {/* Как в мини-аппе: значок чата всегда, до одобрения — подсказка. */}
@@ -349,8 +351,10 @@ export default function EventScreen() {
               style={[styles.tile, styles.tileChat]}
               accessibilityLabel="Чат встречи"
             >
-              <Icon name="chat" size={20} color="#fff" />
-              <Text style={styles.tileLabel}>{event.isBusiness ? "Чат события" : "Чат"}</Text>
+              <View style={styles.tileHead}><Icon name="chat" size={14} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>{event.isBusiness ? "Чат события" : "Чат"}</Text></View>
+              <Text style={styles.tileVal} numberOfLines={2}>
+                {event.hasChat && event.conversationId && (event.viewerStatus === "organizer" || event.viewerStatus === "accepted") ? "Открыть" : event.isBusiness && event.seatsTotal > 20 ? "Нет общего" : "После одобрения"}
+              </Text>
             </Pressable>
           </View>
           {/* .k-orgc: организатор (анонимно — капля Моси и «Почему?») */}
@@ -365,7 +369,7 @@ export default function EventScreen() {
                 <View style={styles.why}><Text style={styles.whyText}>Почему?</Text></View>
               </Pressable>
             ) : (
-              <Pressable onPress={() => router.push(`/person/${event.organizer!.id}` as Href)} style={({ pressed }) => [styles.blk, styles.org, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
+              <Pressable onPress={() => router.push({ pathname: "/person/[id]", params: { id: event.organizer!.id, name: event.organizer!.name, avatar: event.organizer!.avatarUrl ?? "" } } as unknown as Href)} style={({ pressed }) => [styles.blk, styles.org, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}>
                 <Avatar uri={event.organizer.avatarUrl} name={event.organizer.name} size={46} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.orgName} numberOfLines={1}>{`${event.isBusiness ? event.organizer.name : event.organizer.name.trim().split(/\s+/)[0]}${event.viewerStatus === "organizer" ? " · это ты" : ""} · организатор`}</Text>
@@ -388,7 +392,7 @@ export default function EventScreen() {
                   event.organizerHidden ? (
                     <View style={styles.anonAva}><Creature size={46} variant="p" /></View>
                   ) : (
-                    <Pressable onPress={() => router.push(`/person/${event.organizer!.id}` as Href)}><Avatar uri={event.organizer.avatarUrl} name={event.organizer.name} size={52} /></Pressable>
+                    <Pressable onPress={() => router.push({ pathname: "/person/[id]", params: { id: event.organizer!.id, name: event.organizer!.name, avatar: event.organizer!.avatarUrl ?? "" } } as unknown as Href)}><Avatar uri={event.organizer.avatarUrl} name={event.organizer.name} size={52} /></Pressable>
                   )
                 ) : null}
                 {event.participants.map((p, i) => (
@@ -521,9 +525,10 @@ const styles = StyleSheet.create({
   chipText: { color: W, fontSize: 13, ...f("500") },
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.ok },
   title: { fontSize: 40, lineHeight: 42, ...f("300"), letterSpacing: -1.6, color: W },
-  tiles: { flexDirection: "row", gap: 8 },
-  tile: { flex: 1, minHeight: 74, borderRadius: 20, padding: 10, gap: 4, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
-  tileChat: { flex: 0, width: 58, alignItems: "center", justifyContent: "center" },
+  // Сетка 2×2: у всех плиток одинаковый размер, значок и подпись — текст переносится ровно, без «…».
+  tiles: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  tile: { flexBasis: "48%", flexGrow: 1, minHeight: 74, borderRadius: 20, padding: 10, gap: 4, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  tileChat: {},
   tileHead: { flexDirection: "row", alignItems: "center", gap: 4 },
   tileLabel: { fontFamily: FONT, fontSize: 11.5, color: W60 },
   tileVal: { fontSize: 15, ...f("500"), color: W },

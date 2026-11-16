@@ -39,19 +39,22 @@ export function Glass({
   const r = (flat.borderRadius as number | undefined) ?? 0;
   return (
     <View style={[styles.glassShadow, style, { overflow: "hidden" }]}>
-      <BlurView
-        intensity={intensity}
-        tint={dark ? "dark" : "light"}
-        experimentalBlurMethod={Platform.OS === "android" ? "dimezisBlurView" : undefined}
-        style={[StyleSheet.absoluteFill, { borderRadius: r }]}
-      />
+      {/* Размытие только у тёмного стекла (оно лежит на фото); светлое — без него, так нажатия не тормозят. */}
+      {dark ? (
+        <BlurView
+          intensity={intensity}
+          tint="dark"
+          experimentalBlurMethod={Platform.OS === "android" ? "dimezisBlurView" : undefined}
+          style={[StyleSheet.absoluteFill, { borderRadius: r }]}
+        />
+      ) : null}
       <View
         pointerEvents="none"
         style={[
           StyleSheet.absoluteFill,
           {
             borderRadius: r,
-            backgroundColor: dark ? "rgba(25,16,52,0.66)" : strong ? colors.glass2 : colors.glass,
+            backgroundColor: dark ? "rgba(25,16,52,0.66)" : strong ? "rgba(255,255,255,0.84)" : "rgba(255,255,255,0.68)",
             borderWidth: 1,
             borderColor: dark ? "rgba(255,255,255,0.16)" : colors.stroke,
           },

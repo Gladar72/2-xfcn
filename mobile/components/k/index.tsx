@@ -94,6 +94,9 @@ function Blob({ color, x, y, w, h }: { color: string; x: string; y: string; w: s
   return <SvgXml xml={xml} width="100%" height="100%" style={StyleSheet.absoluteFill} />;
 }
 
+/** Светлое стекло без размытия: белое 66% на жемчужном фоне выглядит так же, как размытое. */
+const GLASS_SOLID = "rgba(255,255,255,0.66)";
+
 /** Стекло .k-g (светлое), .k-gw (белое на фото), .k-gd (тёмное). */
 export function KGlass({ children, style, tone = "g", intensity }: { children?: ReactNode; style?: StyleProp<ViewStyle>; tone?: "g" | "gw" | "gd"; intensity?: number }) {
   const flat = StyleSheet.flatten(style) ?? {};
@@ -102,13 +105,17 @@ export function KGlass({ children, style, tone = "g", intensity }: { children?: 
   const bd = tone === "g" ? K.glassb : tone === "gw" ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.18)";
   return (
     <View style={[style, { overflow: "hidden" }]}>
-      <BlurView
-        intensity={intensity ?? (tone === "gw" ? 30 : 40)}
-        tint={tone === "gd" ? "dark" : "light"}
-        experimentalBlurMethod={Platform.OS === "android" ? "dimezisBlurView" : undefined}
-        style={[StyleSheet.absoluteFill, { borderRadius: r }]}
-      />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: r, backgroundColor: bg, borderWidth: 1, borderColor: bd }]} />
+      {/* Размытие — только на фото (gw/gd). На светлом фоне его не видно, а каждое размытие
+          перерисовывается при каждом кадре прокрутки и нажатия — из-за этого всё подтормаживало. */}
+      {tone !== "g" ? (
+        <BlurView
+          intensity={intensity ?? (tone === "gw" ? 30 : 40)}
+          tint={tone === "gd" ? "dark" : "light"}
+          experimentalBlurMethod={Platform.OS === "android" ? "dimezisBlurView" : undefined}
+          style={[StyleSheet.absoluteFill, { borderRadius: r }]}
+        />
+      ) : null}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: r, backgroundColor: tone === "g" ? GLASS_SOLID : bg, borderWidth: 1, borderColor: bd }]} />
       {children}
     </View>
   );
@@ -122,13 +129,15 @@ export function KPressGlass({ children, style, onPress, tone = "g", dark, access
   const bd = tone === "g" ? K.glassb : tone === "gw" ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.18)";
   return (
     <Press onPress={onPress} style={style} dark={dark || tone === "gd"} accessibilityLabel={accessibilityLabel}>
-      <BlurView
-        intensity={tone === "gw" ? 30 : 40}
-        tint={tone === "gd" ? "dark" : "light"}
-        experimentalBlurMethod={Platform.OS === "android" ? "dimezisBlurView" : undefined}
-        style={[StyleSheet.absoluteFill, { borderRadius: r }]}
-      />
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: r, backgroundColor: bg, borderWidth: 1, borderColor: bd }]} />
+      {tone !== "g" ? (
+        <BlurView
+          intensity={tone === "gw" ? 30 : 40}
+          tint={tone === "gd" ? "dark" : "light"}
+          experimentalBlurMethod={Platform.OS === "android" ? "dimezisBlurView" : undefined}
+          style={[StyleSheet.absoluteFill, { borderRadius: r }]}
+        />
+      ) : null}
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderRadius: r, backgroundColor: tone === "g" ? GLASS_SOLID : bg, borderWidth: 1, borderColor: bd }]} />
       {children}
     </Press>
   );

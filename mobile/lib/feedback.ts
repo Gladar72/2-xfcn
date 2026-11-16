@@ -62,7 +62,13 @@ export function tapOnLaunch(delayMs = 350, style: Haptics.ImpactFeedbackStyle = 
     timer = setTimeout(() => {
       if (done || AppState.currentState !== "active") return;
       done = true;
-      Haptics.impactAsync(style).catch(() => {});
+      // Первый вызов вибромотора после запуска iOS часто «проглатывает» (генератор ещё не готов),
+      // поэтому сначала будим его тихим щелчком, а через 120 мс даём заметный двойной отклик.
+      Haptics.selectionAsync().catch(() => {});
+      setTimeout(() => {
+        if (style === Haptics.ImpactFeedbackStyle.Light) Haptics.impactAsync(style).catch(() => {});
+        else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      }, 120);
     }, delayMs);
   };
   if (AppState.currentState === "active") fire();

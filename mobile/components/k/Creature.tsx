@@ -16,6 +16,11 @@ const NO_GL = process.env.EXPO_PUBLIC_UI_SMOKE === "1";
  */
 type Variant = "p" | "e";
 const t0 = Date.now();
+/** Последнее касание кнопки: пока палец на кнопке и 450 мс после — живой Мося не рисует кадры, JS-поток свободен для нажатий. */
+let lastTouch = 0;
+export function noteTouch() {
+  lastTouch = Date.now();
+}
 // Кадры — 24 кадра того же шейдера (как в мини-аппе), плавно перетекают друг в друга.
 const FRAMES = 24;
 const frameUri = (v: Variant, k: number) => `${SITE}/brand/creature/m${v}${String(k).padStart(2, "0")}.webp`;
@@ -104,8 +109,9 @@ export function Creature({ size = 58, variant = "e", style, hue = 0, live = fals
       const frame = () => {
         raf.current = requestAnimationFrame(frame);
         if (!active.current) return;
-        // Маленькие Моси — 30 кадров в секунду (глазу не заметно, приложению легче), большой — 60.
-        if (size < 90 && (tick++ & 1)) return;
+        // 30 кадров в секунду — глазу плавно, а JS-потоку вдвое легче; во время нажатий — пауза.
+        if (tick++ & 1) return;
+        if (Date.now() - lastTouch < 450) return;
         const t = (Date.now() - t0) / 1000 + (variant === "p" ? 1.7 : 0);
         const ph = t % 3;
         gl.uniform1f(uT, t);

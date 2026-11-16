@@ -14,7 +14,6 @@ import { api } from "@/lib/api";
 import { applyPendingRef } from "@/lib/referral";
 import { LoadingScenes } from "@/components/LoadingScenes";
 import { tapOnLaunch } from "@/lib/feedback";
-import * as Haptics from "expo-haptics";
 import { colors, fonts, FONT } from "@/lib/theme";
 import { UI_SMOKE } from "@/lib/smoke";
 
@@ -151,10 +150,10 @@ function Gate() {
 
   const loaded = ready && fontReady && !smokeHold;
   // Лёгкая вибрация при запуске: в момент появления заставки и когда сервис открылся.
-  useEffect(() => tapOnLaunch(600), []);
+  // Один заметный отклик, когда заставка сменилась сервисом (на холодном старте раньше его съедала система).
   useEffect(() => {
     if (!loaded) return;
-    return tapOnLaunch(150, Haptics.ImpactFeedbackStyle.Light);
+    return tapOnLaunch(350);
   }, [loaded]);
 
   if (!loaded) return <Splash fontReady={fontReady} />;
