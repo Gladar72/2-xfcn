@@ -6,6 +6,8 @@ import { Image } from "expo-image";
 import { Aurora, Glass, Mosya, RoundBtn, Title } from "@/components/brand";
 import { Icon, type IconName } from "@/components/Icon";
 import { Chip } from "@/components/ui";
+import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
+import { Creature } from "@/components/k/Creature";
 import { api } from "@/lib/api";
 import { colors, FONT, f } from "@/lib/theme";
 import { useGuide } from "@/lib/guide";
@@ -181,7 +183,7 @@ export default function NotificationsScreen() {
             <RoundBtn onPress={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))}>
               <Icon name="back" />
             </RoundBtn>
-            <Title plain="Уведом" em="ления" size={30} style={{ marginLeft: 4 }} />
+            <Title plain="Уведомления" size={36} style={{ marginLeft: 4, marginTop: 4 }} />
             <View style={styles.tabs}>
               <Chip label="Все" active={tab === "all"} onPress={() => setTab("all")} />
               <Chip label="Встречи" active={tab === "events"} onPress={() => setTab("events")} />
@@ -192,34 +194,58 @@ export default function NotificationsScreen() {
         renderItem={({ item: row }) => {
           if (row.kind === "label") return <Text style={styles.label}>{row.label}</Text>;
           const n = row.item;
-          const meta = TYPE_META[n.type] ?? { label: "Уведомление", icon: "bell" as IconName };
+          // Как в мини-аппе: «Ты в деле» / «Скоро встреча» — тёмная карточка с розовым свечением и двумя кнопками.
+          const rich = n.event && (n.type === "application_accepted" || n.type === "event_soon") && n.event.status !== "cancelled";
+          if (rich && n.event) {
+            const e = n.event;
+            return (
+              <View style={styles.rich}>
+                <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 100 100">
+                  <Defs>
+                    <RadialGradient id="g" cx="100" cy="100" rx="70" ry="90" gradientUnits="userSpaceOnUse">
+                      <Stop offset="0" stopColor="rgb(255,140,190)" stopOpacity={0.95} />
+                      <Stop offset="0.7" stopColor="rgb(255,140,190)" stopOpacity={0} />
+                    </RadialGradient>
+                  </Defs>
+                  <Rect width="100" height="100" fill="url(#g)" />
+                </Svg>
+                <View style={styles.richPill}><Text style={styles.richPillText}>{n.type === "event_soon" ? "Скоро встреча" : "Ты в деле!"}</Text></View>
+                <Text style={styles.richTitle}>{n.type === "event_soon" ? "Встречаемся через 2 часа" : "Участие подтверждено"}</Text>
+                <Text style={styles.richSub}>{e.title} · {dayLabel(e.eventDate).toLowerCase()}, {e.eventTime.slice(0, 5)}</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
+                  <Pressable onPress={() => router.push(`/event/${e.id}` as Href)} style={({ pressed }) => [styles.richBtn, pressed && { transform: [{ scale: 0.96 }] }]}>
+                    <Text style={styles.richBtnText}>Открыть встречу</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={() => (e.isBusiness && n.ticketCode ? router.push(`/ticket/${e.id}` as Href) : n.eventConversationId ? router.push(`/chat/${n.eventConversationId}` as Href) : router.navigate("/(tabs)/chats"))}
+                    style={({ pressed }) => [styles.richBtn, pressed && { transform: [{ scale: 0.96 }] }]}
+                  >
+                    <Text style={styles.richBtnText}>{e.isBusiness && n.ticketCode ? "Билет" : "Чат"}</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          }
           const avatar = !n.event?.photoUrl ? n.fromAvatarUrl : null;
           const photo = n.event?.photoUrl ?? avatar;
+          const m = n.text.match(/^(.+?)([:—].*)$/);
           return (
             <Pressable onPress={() => open(n)} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}>
               <Glass strong style={[styles.row, !n.isRead && styles.unread]}>
                 {photo ? (
-                  <Image source={{ uri: photo }} style={[styles.thumb, avatar ? { borderRadius: 25 } : null]} contentFit="cover" />
+                  <Image source={{ uri: photo }} style={styles.thumb} contentFit="cover" />
                 ) : (
                   <View style={[styles.thumb, styles.iconBox]}>
-                    <Icon name={meta.icon} size={22} color={colors.violet} />
+                    <Creature size={42} variant="e" />
                   </View>
                 )}
-                <View style={{ flex: 1, gap: 2 }}>
-                  <View style={styles.between}>
-                    <Text style={styles.title} numberOfLines={1}>
-                      {meta.label}
-                    </Text>
-                    <Text style={styles.time}>{timeAgo(n.createdAt)}</Text>
-                  </View>
-                  <Text style={styles.text} numberOfLines={3}>
-                    {n.text}
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.text}>
+                    <Text style={{ ...f("500"), color: colors.ink }}>{m ? m[1] : n.text}</Text>
+                    {m ? m[2] : ""}
                   </Text>
-                  {n.ticketCode && n.type === "application_accepted" ? (
-                    <Text style={styles.ticket}>🎟 Билет: {n.ticketCode}</Text>
-                  ) : null}
+                  <Text style={styles.time}>{timeAgo(n.createdAt)}</Text>
                 </View>
-                {!n.isRead ? <View style={styles.dot} /> : null}
               </Glass>
             </Pressable>
           );
@@ -241,14 +267,23 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   tabs: { flexDirection: "row", gap: 8 },
   label: { fontSize: 13, ...f("500"), color: colors.grey, marginTop: 6, marginLeft: 6 },
-  row: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 24, alignItems: "center" },
-  unread: { borderWidth: 1, borderColor: "rgba(23,20,31,0.35)" },
-  thumb: { width: 50, height: 50, borderRadius: 16 },
-  iconBox: { backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
+  // .nt из мини-аппа
+  row: { flexDirection: "row", gap: 12, padding: 10, borderRadius: 22, alignItems: "flex-start" },
+  unread: { borderWidth: 1.5, borderColor: "rgba(155,92,255,0.5)" },
+  thumb: { width: 46, height: 46, borderRadius: 23 },
+  iconBox: { backgroundColor: "#EFE8FF", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  // .ntrich
+  rich: { borderRadius: 24, padding: 16, backgroundColor: "#17141F", overflow: "hidden", gap: 4 },
+  richPill: { alignSelf: "flex-start", height: 28, paddingHorizontal: 11, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", justifyContent: "center", marginBottom: 6 },
+  richPillText: { color: "#fff", fontSize: 12.5, ...f("500") },
+  richTitle: { color: "#fff", fontSize: 19, ...f("500") },
+  richSub: { color: "rgba(255,255,255,0.9)", fontSize: 13.5, fontFamily: FONT },
+  richBtn: { flex: 1, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.55)", alignItems: "center", justifyContent: "center" },
+  richBtnText: { color: "#fff", fontSize: 14, ...f("500") },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   title: { fontSize: 15.5, ...f("500"), color: colors.ink, flex: 1 },
-  time: { fontFamily: FONT, fontSize: 12, color: colors.grey },
-  text: { fontFamily: FONT, fontSize: 14, lineHeight: 19, color: colors.ink2 },
+  time: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, marginTop: 3 },
+  text: { fontFamily: FONT, fontSize: 14.5, lineHeight: 21, color: colors.ink },
   ticket: { fontFamily: FONT, fontSize: 13, color: colors.violet, marginTop: 2 },
   dot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.pink },
   empty: { alignItems: "center", marginTop: 50, gap: 8, paddingHorizontal: 24 },

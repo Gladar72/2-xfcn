@@ -246,7 +246,7 @@ export default function EventScreen() {
               <Image source={{ uri: eventIcon(event) }} style={{ width: 200, height: 200 }} contentFit="contain" />
             </Grad>
           )}
-          <LinearGradient colors={["rgba(23,20,31,0.35)", "rgba(23,20,31,0)", "rgba(23,20,31,0.15)", "rgba(23,20,31,0.95)"]} locations={[0, 0.25, 0.55, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
+          <LinearGradient colors={["rgba(23,20,31,0.35)", "rgba(23,20,31,0)", "rgba(23,20,31,0.12)", "rgba(23,20,31,0.5)", "rgba(23,20,31,0.72)"]} locations={[0, 0.25, 0.5, 0.82, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
           <View style={styles.heroText}>
             <View style={styles.badges}>
               <View style={styles.chip}>

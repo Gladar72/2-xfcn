@@ -193,7 +193,7 @@ export function PersonView({
         contentContainerStyle={{ flexGrow: 1 }}
       >
         {/* Первый экран — прозрачный: нажатия слева/справа листают фото. */}
-        <View style={{ height: PHOTO_H }}>
+        <View style={{ minHeight: PHOTO_H, flexGrow: 1 }}>
           <View style={styles.zones}>
             <Pressable style={{ flex: 1 }} onPress={() => flip(-1)} />
             <Pressable style={{ flex: 1 }} onPress={() => flip(1)} />
@@ -275,7 +275,7 @@ export function PersonView({
           )}
         </View>
         {/* Тёмный низ до конца экрана — фото под карточкой не просвечивает */}
-        <View style={{ flexGrow: 1, minHeight: insets.bottom + (isMe ? 40 : 120), backgroundColor: "#17141F" }} />
+        <View style={{ height: insets.bottom + (isMe ? 24 : 92), backgroundColor: "#17141F" }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}

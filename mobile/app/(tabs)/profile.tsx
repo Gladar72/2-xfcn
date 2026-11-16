@@ -97,12 +97,12 @@ export default function ProfileScreen() {
           <LinearGradient colors={["#D9D3E6", "#F4F2F8"]} style={StyleSheet.absoluteFill} />
         )}
         {/* Низ фото растворяется в перламутре (как маска 78% → прозрачно в мини-аппе). */}
-        <LinearGradient colors={["rgba(244,242,248,0)", "rgba(244,242,248,0)", "rgba(244,242,248,0.85)", K.pearl]} locations={[0, 0.7, 0.9, 1]} style={StyleSheet.absoluteFill} />
+        <LinearGradient colors={["rgba(244,242,248,0)", "rgba(244,242,248,0)", "rgba(244,242,248,0.35)", "rgba(244,242,248,0.8)", K.pearl]} locations={[0, 0.55, 0.72, 0.88, 1]} style={StyleSheet.absoluteFill} />
       </Animated.View>
 
       <Animated.ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 130 }}
+        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 90 }}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
@@ -187,7 +187,7 @@ export default function ProfileScreen() {
               ) : null}
             </View>
 
-            <KSec plain="Мои" em="встречи" sub={`${counts[0]} создано · ${counts[1]} посещено · ${counts[2]} состоялось`} action="Все" onAction={() => router.navigate("/(tabs)/meet")} />
+            <KSec style={{ marginTop: 18 }} plain="Мои" em="встречи" sub={`${counts[0]} создано · ${counts[1]} посещено · ${counts[2]} состоялось`} action="Все" onAction={() => router.navigate("/(tabs)/meet")} />
             <View style={{ gap: 10, marginTop: 14 }}>
               {MENU.map(([t, href]) => (
                 <KRow key={t} label={t} onPress={() => (href.startsWith("http") ? Linking.openURL(href) : router.push(href as Href))} />
