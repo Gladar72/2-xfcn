@@ -25,8 +25,7 @@ export interface UserNotice {
 }
 
 /**
- * Единая точка уведомления пользователя: push в мобильное приложение +
- * (пока Mini App жив) прежнее сообщение от Telegram-бота.
+ * Единая точка уведомления пользователя: push в приложение, Telegram для пользователей мини-приложения.
  * Никогда не бросает исключений.
  */
 export async function notifyUser(admin: Admin, userId: string | null | undefined, notice: UserNotice): Promise<void> {
@@ -37,22 +36,14 @@ export async function notifyUser(admin: Admin, userId: string | null | undefined
     data: { ...(notice.data ?? {}), ...(notice.url ? { url: notice.url } : {}) },
   };
 
-  const tasks: Promise<unknown>[] = [sendPushToUsers(admin, [userId], push)];
-
-  if (notice.telegramText) {
-    tasks.push(
-      (async () => {
-        let telegramId = notice.telegramId;
-        if (telegramId === undefined) {
-          const { data } = await admin.from("users").select("telegram_id").eq("id", userId).maybeSingle();
-          telegramId = (data?.telegram_id as number | null | undefined) ?? null;
-        }
-        if (telegramId) await notifyTelegram(Number(telegramId), notice.telegramText!);
-      })().catch((err) => console.error("notifyUser: telegram", err))
-    );
+  const native = await sendPushToUsers(admin, [userId], push);
+  if (native.has(userId) || !notice.telegramText) return;
+  let telegramId = notice.telegramId;
+  if (telegramId === undefined) {
+    const { data } = await admin.from("users").select("telegram_id").eq("id", userId).maybeSingle();
+    telegramId = data?.telegram_id ?? null;
   }
-
-  await Promise.allSettled(tasks);
+  if (telegramId) await notifyTelegram(Number(telegramId), notice.telegramText);
 }
 
 /** Короткое название встречи для заголовка push (без огромных строк). */

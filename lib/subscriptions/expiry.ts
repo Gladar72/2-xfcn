@@ -1,3 +1,4 @@
+import { usesNativePush } from "@/lib/push/expo";
 import { InlineKeyboard, type Api } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { grantPartnerPremium, grantPartnerPremiumToUser } from "@/lib/subscriptions/referrals";
@@ -107,7 +108,7 @@ export async function processSubscriptionExpiry(
         payload: { subscriptionId: sub.id, periodEnd: sub.current_period_end },
       });
       if (lockError) continue;
-      if (sub.user?.telegram_id) {
+      if (sub.user?.telegram_id && !await usesNativePush(admin, sub.user_id)) {
         await api
           .sendMessage(
             Number(sub.user.telegram_id),
@@ -153,7 +154,7 @@ export async function processSubscriptionExpiry(
       type: "subscription_expired",
       payload: { subscriptionId: sub.id },
     });
-    if (sub.user) {
+    if (sub.user?.telegram_id && !await usesNativePush(admin, sub.user_id)) {
       await api
         .sendMessage(
           Number(sub.user.telegram_id),

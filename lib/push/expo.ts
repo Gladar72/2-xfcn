@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendApns } from "./apns";
 import { sendRuStore } from "@/lib/push/rustore";
 
 /**
@@ -144,6 +145,15 @@ async function loadTokens(admin: Admin, userIds: string[]): Promise<TokenRow[]> 
   return rows;
 }
 
+/** Used before sending Telegram copies, including batched city and chat recipients. */
+export async function nativeRecipients(admin: Admin, ids: string[]): Promise<Set<string>> {
+  return new Set((await loadTokens(admin, ids)).map(row => row.user_id));
+}
+
+export async function usesNativePush(admin: Admin, userId: string | null | undefined): Promise<boolean> {
+  return !!userId && (await nativeRecipients(admin, [userId])).has(userId);
+}
+
 function toExpo(token: string, message: PushMessage): ExpoMessage {
   return {
     to: token,
@@ -157,16 +167,20 @@ function toExpo(token: string, message: PushMessage): ExpoMessage {
 
 /** Раскладывает сообщения по каналам: RuStore Push для токенов RuStore, Expo — для остальных. */
 async function dispatch(admin: Admin, items: { t: TokenRow; message: PushMessage }[]): Promise<void> {
+  const apple: { token: string; message: PushMessage }[] = [];
   const expo: ExpoMessage[] = [];
   const rustore: { token: string; title: string; body: string; url?: string; data?: Record<string, unknown> }[] = [];
   for (const { t, message } of items) {
-    if (t.platform === "rustore") {
+    if (t.platform === "apns") {
+      apple.push({ token: t.token, message });
+    } else if (t.platform === "rustore") {
       rustore.push({ token: t.token, title: message.title, body: message.body, url: message.data?.url, data: message.data });
     } else {
       expo.push(toExpo(t.token, message));
     }
   }
-  const [dead] = await Promise.all([sendRuStore(rustore), sendExpoMessages(admin, expo)]);
+  const [ruDead, appleDead] = await Promise.all([sendRuStore(rustore), sendApns(apple).catch(err => { console.error("APNs:", err.message); return []; }), sendExpoMessages(admin, expo)]);
+  const dead = [...ruDead, ...appleDead];
   if (dead.length > 0) {
     try {
       await admin.from("push_tokens").delete().in("token", dead);
@@ -181,14 +195,16 @@ export async function sendPushToUsers(
   admin: Admin | null | undefined,
   userIds: string[],
   message: PushMessage
-): Promise<void> {
+): Promise<Set<string>> {
   try {
     const db = getAdmin(admin);
-    if (!db) return;
+    if (!db) return new Set();
     const tokens = await loadTokens(db, userIds);
     await dispatch(db, tokens.map((t) => ({ t, message })));
+    return new Set(tokens.map(t => t.user_id));
   } catch (err) {
     console.error("push: sendPushToUsers упал", err);
+    return new Set();
   }
 }
 

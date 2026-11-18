@@ -1,3 +1,4 @@
+import { usesNativePush } from "@/lib/push/expo";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -302,7 +303,7 @@ export async function recordReferralCommission(
         url: "/partner",
       });
     }
-    if (partner.telegram_id) await notify?.(
+    if (partner.telegram_id && !await usesNativePush(admin, partner.user_id)) await notify?.(
       Number(partner.telegram_id),
       `💰 Новая оплата по твоей ссылке!\nНачислено: +${formatMoney(commission, params.currency)} (30% от ${formatMoney(
         params.amount,

@@ -32,13 +32,15 @@ export async function notifyFollowers(
   if (ids.length === 0) return;
   const name = (org?.name as string | undefined)?.trim() || "Организатор";
 
-  await sendPushToUsers(admin, ids, {
+  const native = await sendPushToUsers(admin, ids, {
     title: `${name}: ${params.isBusiness ? "новое событие" : "новая встреча"}`,
     body: shortTitle(params.title, 100) || "Загляни — ты подписан(а) на этого организатора",
     data: { url: `/event/${params.eventId}`, type: "follow_event", eventId: params.eventId },
-  }).catch((err) => console.error("follow push:", err));
+  });
 
-  const { data: users } = await admin.from("users").select("telegram_id").in("id", ids);
+  const mini = ids.filter(id => !native.has(id));
+  if (!mini.length) return;
+  const { data: users } = await admin.from("users").select("telegram_id").in("id", mini);
   const telegramIds = (users ?? []).map((u) => u.telegram_id as number | null).filter((id): id is number => !!id);
   if (telegramIds.length === 0) return;
 

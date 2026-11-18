@@ -1,3 +1,4 @@
+import { usesNativePush } from "@/lib/push/expo";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { sendPushToUsers } from "@/lib/push/expo";
@@ -95,7 +96,7 @@ export async function sendDueEventResults(admin: ReturnType<typeof createAdminCl
         `Приятная атмосфера: ${pct((r) => r.pleasant_communication)}%\n` +
         `Придут снова: ${pct((r) => r.would_meet_again)}%`;
     }
-    if (telegramId) await notifyTelegram(telegramId, text);
+    if (telegramId && !await usesNativePush(admin, event.organizer_id)) await notifyTelegram(telegramId, text);
     await sendPushToUsers(admin, [event.organizer_id as string], {
       title: `Итоги ${kind} «${shortTitle(event.title)}»`,
       body:

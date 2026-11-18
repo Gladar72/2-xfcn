@@ -44,7 +44,7 @@ export async function announceNewEvent(
   if (recipients.length === 0) return;
 
   // Push в приложение — тем же людям.
-  await sendPushToUsers(
+  const native = await sendPushToUsers(
     admin,
     recipients.map((u) => u.id as string),
     {
@@ -52,9 +52,9 @@ export async function announceNewEvent(
       body: shortTitle(params.title, 100) || "Загляни — вдруг тебе подойдёт",
       data: { url: `/event/${params.eventId}`, type: params.isBusiness ? "business_event" : "event_created", eventId: params.eventId },
     }
-  ).catch((err) => console.error("announce push:", err));
+  );
 
-  const telegramIds = recipients.map((u) => u.telegram_id as number | null).filter((id): id is number => !!id);
+  const telegramIds = recipients.filter(u => !native.has(u.id)).map((u) => u.telegram_id as number | null).filter((id): id is number => !!id);
   if (telegramIds.length === 0) return;
 
   const card = await buildEventCard(admin, params.eventId);

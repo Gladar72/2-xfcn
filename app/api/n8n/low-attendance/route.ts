@@ -1,3 +1,4 @@
+import { nativeRecipients } from "@/lib/push/expo";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidN8nRequest } from "@/lib/n8n/auth";
@@ -48,7 +49,9 @@ export async function GET(req: NextRequest) {
 
   const fresh = dueSoonLowAttendance.filter((e) => !alreadyNotifiedEventIds.has(e.id));
 
+  const native = await nativeRecipients(admin, fresh.map(e => e.organizer_id));
   const items = fresh
+    .filter(e => !native.has(e.organizer_id))
     .map((e) => ({
       eventId: e.id,
       title: e.title,

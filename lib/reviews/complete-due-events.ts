@@ -1,3 +1,4 @@
+import { nativeRecipients } from "@/lib/push/expo";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushPersonal } from "@/lib/push/expo";
 import { shortTitle } from "@/lib/notify/user";
@@ -149,10 +150,12 @@ export async function finalizeCompletedEvents(
     )
   );
 
+  const native = await nativeRecipients(admin, (members ?? []).map(m => (m.users as unknown as { id: string } | null)?.id ?? ""));
   return toNotify
     .map((event) => {
       const recipients = (members ?? [])
         .filter((m) => m.event_id === event.id)
+        .filter(m => !native.has((m.users as unknown as { id: string } | null)?.id ?? ""))
         .map((m) => (m.users as unknown as { telegram_id: number } | null)?.telegram_id)
         .filter((id): id is number => typeof id === "number");
       return { eventId: event.id, title: event.title, recipients };
