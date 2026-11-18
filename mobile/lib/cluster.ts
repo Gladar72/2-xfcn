@@ -1,50 +1,54 @@
-// Простая кластеризация меток карты (без внешних библиотек): на заданном масштабе
-// метки ближе radius пикселей друг к другу собираются в один кружок с числом.
 export interface Pt { lng: number; lat: number }
-export interface Cluster<T> { id: string; lng: number; lat: number; items: T[]; offset?: [number, number] }
-export const ADDRESS_ZOOM = 14;
-// До восьми меток остаются в пределах экрана. Более плотные группы открывают список по адресу.
-const MAX_FAN = 8;
+interface EventPoint extends Pt { id: string; address?: string | null; organizerHidden?: boolean }
+export interface MapGroup<T> extends Pt { id: string; items: T[]; locationCount: number }
+export const ADDRESS_ZOOM = 16;
+export const MAX_MAP_ZOOM = 20;
 
-function px(lng: number, lat: number, z: number): [number, number] {
-  const s = 512 * Math.pow(2, z);
-  const x = ((lng + 180) / 360) * s;
-  const sin = Math.sin((lat * Math.PI) / 180);
-  const y = (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * s;
-  return [x, y];
+function pixels(point: Pt, scale: number): [number, number] {
+  const sin = Math.sin(Math.min(85.051129, Math.max(-85.051129, point.lat)) * Math.PI / 180);
+  return [(point.lng + 180) / 360 * scale, (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * scale];
 }
 
-export function clusterize<T extends Pt & { id: string }>(items: T[], zoom: number, radius = 46): Cluster<T>[] {
-  const z = Math.max(0, Math.min(21, zoom));
-  const pts = items.map((it) => ({ it, p: px(it.lng, it.lat, z) }));
-  const used = new Array(pts.length).fill(false);
-  const out: Cluster<T>[] = [];
-  for (let i = 0; i < pts.length; i++) {
-    if (used[i]) continue;
-    used[i] = true;
-    const group = [pts[i]!];
-    for (let j = i + 1; j < pts.length; j++) {
-      if (used[j]) continue;
-      const dx = pts[j]!.p[0] - pts[i]!.p[0];
-      const dy = pts[j]!.p[1] - pts[i]!.p[1];
-      if (dx * dx + dy * dy <= radius * radius) {
-        used[j] = true;
-        group.push(pts[j]!);
-      }
+function addressKey(event: EventPoint, city: string) {
+  const address = event.organizerHidden ? "" : event.address?.toLowerCase().replace(/ё/g, "е")
+    .replace(/(?:^|[\s,.])(улица|ул|дом|д)(?=[\s,.]|\d)/gu, " ")
+    .replace(/[\s,.]+/gu, " ").trim();
+  if (!address || !/\d/u.test(address)) return null;
+  const cityName = city.toLowerCase().replace(/ё/g, "е").trim();
+  return cityName && address.startsWith(cityName + " ") ? address.slice(cityName.length + 1) : address;
+}
+
+/** Сначала закрепляем каждый адрес за одной из сохранённых координат независимо от масштаба. */
+export function groupLocations<T extends EventPoint>(events: T[], city = ""): MapGroup<T>[] {
+  const addressAnchors = new Map<string, T>();
+  const locations = new Map<string, MapGroup<T>>();
+  for (const e of [...events].sort((a, b) => a.id.localeCompare(b.id))) {
+    const key = addressKey(e, city);
+    let anchor = e;
+    if (key) {
+      // API возвращает события одного города. Закрепляем адрес и при расхождении геокодеров.
+      anchor = addressAnchors.get(key) ?? e;
+      addressAnchors.set(key, anchor);
     }
-    const lng = group.reduce((s, g) => s + g.it.lng, 0) / group.length;
-    const lat = group.reduce((s, g) => s + g.it.lat, 0) / group.length;
-    const members = group.map((g) => g.it);
-    if (members.length > 1 && members.length <= MAX_FAN && z >= ADDRESS_ZOOM) {
-      const ordered = [...members].sort((a, b) => a.id.localeCompare(b.id));
-      const radiusPx = 44 / Math.sin(Math.PI / ordered.length);
-      ordered.forEach((it, index) => {
-        const angle = 2 * Math.PI * index / ordered.length;
-        out.push({ id: it.id, lng, lat, items: [it], offset: [Math.round(radiusPx * Math.cos(angle)), Math.round(radiusPx * Math.sin(angle))] });
-      });
-    } else {
-      out.push({ id: members.length > 1 ? `group:${members[0]!.id}` : members[0]!.id, lng, lat, items: members });
-    }
+    const coord = anchor.lng + "," + anchor.lat;
+    const location = locations.get(coord);
+    if (location) location.items.push(e);
+    else locations.set(coord, { id: anchor.id, lng: anchor.lng, lat: anchor.lat, items: [e], locationCount: 1 });
   }
-  return out;
+  return [...locations.values()];
+}
+
+/** Кружок тоже привязан к реальному адресу. Увеличение масштаба разделяет только разные места. */
+export function clusterize<T>(locations: MapGroup<T>[], zoom: number, radius = 46): MapGroup<T>[] {
+  const scale = 512 * 2 ** Math.max(0, Math.min(MAX_MAP_ZOOM, zoom));
+  const clusters: { group: MapGroup<T>; x: number; y: number }[] = [];
+  for (const location of locations) {
+    const [x, y] = pixels(location, scale);
+    const match = clusters.find(c => (c.x - x) ** 2 + (c.y - y) ** 2 <= radius ** 2);
+    if (match) {
+      match.group.items.push(...location.items);
+      match.group.locationCount++;
+    } else clusters.push({ group: { ...location, items: [...location.items] }, x, y });
+  }
+  return clusters.map(c => c.group);
 }

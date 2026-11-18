@@ -4,6 +4,7 @@ import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Aurora, Btn, Glass, RoundBtn, Title } from "@/components/brand";
+import { ProfilePhotoActions } from "@/components/ProfilePhotoActions";
 import { Icon } from "@/components/Icon";
 import { api, type ApiError } from "@/lib/api";
 import { animateNext, tapOk, tapWarn } from "@/lib/feedback";
@@ -21,6 +22,7 @@ const SAVE_ERRORS: Record<string, string> = {
 export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
   const [me, setMe] = useState<MyProfile | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [photos, setPhotos] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
@@ -70,30 +72,24 @@ export default function ProfileEditScreen() {
 
   function photoMenu(slot: number) {
     const url = photos[slot];
+    if (uploading !== null) return;
     if (!url) return upload(slot);
-    if (slot === 0) {
-      Alert.alert("Главное фото", "Оно на аватарке и в ленте людей.", [
-        { text: "Заменить", onPress: () => void upload(0) },
-        { text: "Отмена", style: "cancel" },
-      ]);
-      return;
-    }
-    Alert.alert("Фото", "", [
-      {
-        text: "Удалить",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const r = await api<{ photos: string[] }>("/api/me/photos", { method: "DELETE", body: { url } });
-            animateNext();
-            setPhotos(r.photos);
-          } catch {
-            Alert.alert("Не получилось", "Попробуй ещё раз");
-          }
-        },
-      },
-      { text: "Отмена", style: "cancel" },
-    ]);
+    setSelectedPhoto(url);
+  }
+
+  async function editSelectedPhoto() {
+    const url = selectedPhoto;
+    setSelectedPhoto(null);
+    if (!url) return;
+    if (url === photos[0]) { await upload(0); return; }
+    const slot = photos.indexOf(url);
+    setUploading(slot);
+    try {
+      const result = await api<{ photos: string[] }>("/api/me/photos", { method: "DELETE", body: { url } });
+      animateNext();
+      setPhotos(result.photos);
+    } catch { Alert.alert("Не получилось удалить фото", "Попробуй ещё раз"); }
+    finally { setUploading(null); }
   }
 
   async function save() {
@@ -128,7 +124,7 @@ export default function ProfileEditScreen() {
 
           {me ? (
             <>
-              <Text style={styles.hint}>До 3 фото. Первое — главное, оно на аватарке и в ленте людей.</Text>
+              <Text style={styles.hint}>Первое фото — обложка профиля. Нажми на снимок, чтобы изменить порядок.</Text>
               <View style={styles.photos}>
                 <Slot url={photos[0]} big loading={uploading === 0} onPress={() => photoMenu(0)} main />
                 <View style={{ flex: 1, gap: 10 }}>
@@ -195,6 +191,8 @@ export default function ProfileEditScreen() {
           ) : null}
         </ScrollView>
       </KeyboardAvoidingView>
+      <ProfilePhotoActions photos={photos} selected={selectedPhoto} onClose={() => setSelectedPhoto(null)}
+        onSaved={gallery => setPhotos(gallery.photos)} editLabel={selectedPhoto === photos[0] ? "Заменить фото" : "Удалить фото"} onEdit={editSelectedPhoto} />
       {me ? (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }]}>
           <Btn title="Сохранить" onPress={save} loading={saving} />
