@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Animated, AppState, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, AppState, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -9,7 +9,7 @@ import { HeartBurst, pop, type HeartBurstRef } from "@/components/k/HeartBurst";
 import { Creature } from "@/components/k/Creature";
 import { Icon } from "@/components/Icon";
 import { ProfilePictures } from "./ProfilePictures";
-import { lastSeenText, ms } from "../chat/types";
+import { presenceLabel } from "@/lib/profilePresence";
 import { InviteSheet } from "@/components/people/InviteSheet";
 import { ReportSheet } from "@/components/people/ReportSheet";
 import { api } from "@/lib/api";
@@ -21,7 +21,6 @@ import { colors, FONT, SERIF, f } from "@/lib/theme";
 
 /** Ответ GET /api/users/[id] (app/api/users/[id]/route.ts). */
 export interface Person {
-  telegramUsername?: string | null;
   id: string;
   name: string;
   avatarUrl: string | null;
@@ -141,8 +140,8 @@ export function PersonView({
   const [isMe, setIsMe] = useState(!!self);
   const { height: windowHeight } = useWindowDimensions();
   const [measuredHeight, setMeasuredHeight] = useState(0);
-  const footerInset = isMe ? insets.bottom : ACTION_HEIGHT + Math.max(insets.bottom, 12);
-  const heroHeight = Math.max(0, (measuredHeight || windowHeight) - footerInset);
+  const footerHeight = isMe ? 0 : ACTION_HEIGHT + 6 + Math.max(insets.bottom, 12);
+  const heroHeight = measuredHeight || Math.max(0, windowHeight - footerHeight);
 
   useEffect(() => {
     if (!self) getMyId().then((my) => setIsMe(my === id));
@@ -179,7 +178,7 @@ export function PersonView({
     const timer = setInterval(() => refreshTime(t => t + 1), 30_000);
     return () => clearInterval(timer);
   }, [active, lastActiveAt]);
-  const presence = ms(lastActiveAt) ? lastSeenText(lastActiveAt, p?.gender ?? preview?.gender) : null;
+  const presence = presenceLabel(lastActiveAt, p?.gender ?? preview?.gender);
   const distance = distanceLabel(p ? p.distanceKm : preview?.distanceKm, p ? p.distanceM : preview?.distanceM);
 
   const photos = p ? (p.photos.length ? p.photos : p.avatarUrl ? [p.avatarUrl] : []) : preview?.photos?.length ? preview.photos : preview?.avatarUrl ? [preview.avatarUrl] : [];
@@ -240,7 +239,7 @@ export function PersonView({
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        style={{ flex: 1 }}
+        style={{ flex: 1, overflow: "hidden" }}
         contentInsetAdjustmentBehavior="never"
         onLayout={(e) => setMeasuredHeight(e.nativeEvent.layout.height)}
       >
@@ -256,28 +255,18 @@ export function PersonView({
               {name}
               {age ? `, ${age}` : ""}
             </Text>
-            {(presence || distance) && <View pointerEvents="none" style={styles.pills}>
-              {distance && <View style={styles.pill}><Icon name="pin" size={13} color="#fff" /><Text style={styles.pillText}>{distance}</Text></View>}
-              {presence && <Text style={[styles.pillText, { alignSelf: "center" }]}>{presence.charAt(0).toUpperCase() + presence.slice(1)}</Text>}
+            {presence && <View pointerEvents="none" style={styles.presence}>
+              {presence === "Онлайн" && <View style={styles.onlineDot} />}
+              <Text style={styles.presenceText}>{presence}</Text>
             </View>}
-            {p ? (
+            {distance || (p && p.ratingAvg > 0) || common.length > 0 ? (
               <View style={styles.pills}>
-                {p.telegramUsername ? (
-                  <Pressable accessibilityRole="link" accessibilityLabel={`Telegram @${p.telegramUsername}`} style={styles.pill}
-                    onPress={() => Linking.openURL(`https://t.me/${encodeURIComponent(p.telegramUsername!)}`).catch(() => Alert.alert("Не удалось открыть Telegram"))}>
-                    <Icon name="send" size={14} color="#fff" /><Text style={styles.pillText}>@{p.telegramUsername}</Text>
-                  </Pressable>
-                ) : null}
-                {p.ratingAvg > 0 ? (
+                {distance && <View style={styles.pill}><Icon name="pin" size={13} color="#fff" /><Text style={styles.pillText}>{distance}</Text></View>}
+                {p && p.ratingAvg > 0 ? (
                   <View style={styles.pill}>
                     <Text style={styles.pillText}>★ {p.ratingAvg.toFixed(1).replace(".", ",")}</Text>
                   </View>
                 ) : null}
-                <View style={styles.pill}>
-                  <Text style={styles.pillText}>
-                    {p.completedMeetingsCount} {plural(p.completedMeetingsCount, "встреча", "встречи", "встреч")}
-                  </Text>
-                </View>
                 {common.length ? (
                   <View style={styles.pill}>
                     <Text style={styles.pillText}>
@@ -325,14 +314,14 @@ export function PersonView({
                 </View>
               ) : null}
               {!isMe ? (
-                <Pressable onPress={() => setReport(true)} style={styles.reportLink} hitSlop={6}>
+                <Pressable onPress={() => setReport(true)} style={styles.reportLink} accessibilityRole="button">
                   <Text style={styles.reportText}>Пожаловаться или заблокировать</Text>
                 </Pressable>
               ) : null}
             </>
           )}
         </View>
-        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0.74)", "rgba(23,20,31,0)"]} style={{ height: footerInset }} />
+        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0.74)", "rgba(23,20,31,0)"]} style={{ height: isMe ? Math.max(insets.bottom, 12) : 6 }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}
@@ -362,7 +351,7 @@ export function PersonView({
 
       {!isMe && p ? (
         <View style={[styles.bar2, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.82)"]} style={[StyleSheet.absoluteFillObject, { top: -22 }]} />
+          <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.82)"]} style={StyleSheet.absoluteFillObject} />
           {heartToast ? (
             <View pointerEvents="none" style={[styles.heartToast, { bottom: Math.max(insets.bottom, 12) + 64 }]}>
               <Text style={styles.heartToastText}>{heartToast}</Text>
@@ -388,7 +377,7 @@ export function PersonView({
             <Text style={styles.callText} numberOfLines={2}>Позвать на встречу</Text>
           </Press>
         </View>
-      ) : null}
+      ) : !isMe ? <View pointerEvents="none" style={{ height: footerHeight }} /> : null}
 
       {p ? (
         <>
@@ -431,6 +420,9 @@ const styles = StyleSheet.create({
   heroFade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 124 },
   overlay: { paddingHorizontal: 20, paddingBottom: 6, gap: 8 },
   name: { fontSize: 34, lineHeight: 38, ...f("600"), color: "#fff", letterSpacing: -1, paddingRight: 56 },
+  presence: { flexDirection: "row", alignItems: "center", gap: 6, paddingRight: 50 },
+  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#65D88F" },
+  presenceText: { flexShrink: 1, fontSize: 14, lineHeight: 19, ...f("500"), color: "#F5F4F6" },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingRight: 56 },
   pill: { flexDirection: "row", alignItems: "center", gap: 4, height: 30, paddingHorizontal: 12, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
   pillDark: { backgroundColor: "rgba(23,20,31,0.3)" },
@@ -443,7 +435,7 @@ const styles = StyleSheet.create({
   about: { alignSelf: "flex-start", maxWidth: "100%", minHeight: 36, justifyContent: "center", paddingHorizontal: 13, paddingVertical: 6 },
   aboutText: { lineHeight: 21 },
   chipIc: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  bar2: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 },
+  bar2: { flexShrink: 0, paddingTop: 6, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 },
   rb: { width: 48, height: ACTION_HEIGHT, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.78)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
   rbOn: { backgroundColor: "rgba(255,255,255,0.94)" },
   rbHeart: { backgroundColor: "#FF4F8B", borderColor: "rgba(255,255,255,0.3)" },

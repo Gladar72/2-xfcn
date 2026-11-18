@@ -70,7 +70,6 @@ export default function ProfileScreen() {
   const main = me?.avatarUrl || photos[0] || null;
   const all = [main, ...photos.filter((u) => u !== main)].filter((u): u is string => !!u).slice(0, 6);
   const [first, ...rest] = (me?.name ?? "").split(" ");
-  const meetings = me ? me.eventsOrganizedCount + me.eventsAttendedCount : 0;
   const lim = sub?.events?.limit ?? null;
   const used = sub?.events?.used ?? 0;
   const pct = sub?.active ? (lim ? Math.min(100, Math.round((used / lim) * 100)) : 100) : 0;
@@ -123,14 +122,8 @@ export default function ProfileScreen() {
               style={{ textAlign: "center" }}
             />
             <Text style={[kf("400", 13, { color: K.ink2 }), { textAlign: "center", marginTop: 4 }]}>
-              {[me.city, `${meetings} ${plural(meetings, "встреча", "встречи", "встреч")}`, me.ratingAvg > 0 ? `${me.ratingAvg.toFixed(1).replace(".", ",")} ★` : null].filter(Boolean).join(" · ")}
+              {[me.city, me.ratingAvg > 0 ? `${me.ratingAvg.toFixed(1).replace(".", ",")} ★` : null].filter(Boolean).join(" · ")}
             </Text>
-            {me.showTelegramUsername && me.telegramUsername ? (
-              <Press accessibilityLabel={`Telegram @${me.telegramUsername}`} onPress={() => Linking.openURL(`https://t.me/${encodeURIComponent(me.telegramUsername!)}`).catch(() => {})}
-                style={{ alignSelf: "center", flexDirection: "row", alignItems: "center", gap: 6, padding: 6 }}>
-                <KI n="send" size={16} /><Text style={kf("500", 14)}>@{me.telegramUsername}</Text>
-              </Press>
-            ) : null}
             {(me.interests ?? []).length > 0 ? (
               <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6, marginTop: 12 }}>
                 {(me.interests ?? []).slice(0, 6).map((i) => (

@@ -104,8 +104,6 @@ export interface MapEvent {
 }
 
 export interface MyProfile {
-  telegramUsername?: string | null;
-  showTelegramUsername?: boolean;
   id: string;
   name: string;
   avatarUrl: string | null;
