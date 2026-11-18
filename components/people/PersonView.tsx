@@ -35,6 +35,7 @@ interface FollowInfo {
 }
 
 export interface Person {
+  telegramUsername?: string | null;
   id: string;
   name: string;
   avatarUrl: string | null;
@@ -443,10 +444,9 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
 
   // The full profile can replace the preview's URL. Keep that loaded image
   // mounted until a photo from the new set is ready, scoped to this person only.
-  // Fetch the visible photo first, then only its next neighbour. Keep decoded
-  // images mounted so a swipe back never flashes or downloads the photo again.
-  const nextPhoto = photos.length > 1 && requestedPhoto && readyPhotos.has(requestedPhoto) ? photos[(photoIndex + 1) % photos.length] : undefined;
-  const visiblePhotos = photos.filter(src => src === requestedPhoto || src === shownPhoto || src === nextPhoto || readyPhotos.has(src));
+  // Start with the requested image, then warm both neighbours in this three-photo gallery.
+  const warmGallery = readyPhotos.size > 0;
+  const visiblePhotos = photos.filter(src => warmGallery || src === requestedPhoto || src === shownPhoto || readyPhotos.has(src));
   const renderedPhotos = shownPhoto && photos.length && !visiblePhotos.includes(shownPhoto) ? [shownPhoto, ...visiblePhotos] : visiblePhotos;
   const pendingPhoto = !!requestedPhoto && !readyPhotos.has(requestedPhoto);
   const photoFailed = !!requestedPhoto && failedPhotos.has(requestedPhoto);
@@ -504,6 +504,9 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
                 {person.distanceM !== undefined ? personDistanceLabel(person.distanceM) : distanceLabel(person.distanceKm)}
               </span>
             )}
+            {person.telegramUsername && <a className="pill glass" style={{ color: "white", textDecoration: "none" }}
+              href={`https://t.me/${encodeURIComponent(person.telegramUsername)}`} target="_blank" rel="noopener noreferrer" aria-label={`Telegram @${person.telegramUsername}`}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3 11.5 21 4l-4 16-6-5-3 3v-5l9-7-11 6z" /></svg> @{person.telegramUsername}</a>}
             {person.city && <span className="pill glass">{person.city}</span>}
             {person.ratingAvg > 0 && <span className="pill glass">★ {person.ratingAvg.toFixed(1).replace(".", ",")}</span>}
             <span className="pill glass">

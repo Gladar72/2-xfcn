@@ -7,6 +7,7 @@ import { Wordmark } from "@/components/brand/Logo";
 import { useGuide } from "@/lib/mosya/guide";
 import { addToHome, isTelegramAndroid, isTelegramIos, openAppStore, openRuStore } from "@/components/telegram/HomeScreenAsk";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
+import { KI } from "@/components/proto/k";
 import { Ic, Screen, Sheet, Toast } from "@/components/proto/ui";
 import { SupportSheet } from "@/components/proto/SupportSheet";
 import type { IconName } from "@/components/brand/Icon";
@@ -15,6 +16,8 @@ import { CityWheel } from "@/components/proto/pickers";
 import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 
 interface ProfileSummary {
+  telegramUsername: string | null;
+  showTelegramUsername: boolean;
   name: string;
   city: string;
   morningRemindersEnabled: boolean;
@@ -53,7 +56,7 @@ export default function SettingsPage() {
   useEffect(() => {
     fetch("/api/me/profile")
       .then((r) => r.json())
-      .then((d) => !d.error && setP({ name: d.name, city: d.city, morningRemindersEnabled: d.morningRemindersEnabled ?? true, profileHidden: !!d.profileHidden, canHideProfile: !!d.canHideProfile }))
+      .then((d) => !d.error && setP({ telegramUsername: d.telegramUsername ?? null, showTelegramUsername: !!d.showTelegramUsername, name: d.name, city: d.city, morningRemindersEnabled: d.morningRemindersEnabled ?? true, profileHidden: !!d.profileHidden, canHideProfile: !!d.canHideProfile }))
       .catch(() => {});
     fetch("/api/subscriptions")
       .then((r) => r.json())
@@ -74,6 +77,18 @@ export default function SettingsPage() {
     if (!res?.ok) setP({ ...p, morningRemindersEnabled: !next });
   }
 
+  const [savingTelegram, setSavingTelegram] = useState(false);
+  async function toggleTelegram() {
+    if (!p || savingTelegram) return;
+    const value = !p.showTelegramUsername;
+    setSavingTelegram(true);
+    try {
+      const res = await fetch("/api/me/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ showTelegramUsername: value }) });
+      if (!res.ok) throw Error();
+      setP(old => old && { ...old, showTelegramUsername: value });
+    } catch { window.alert("Не удалось сохранить настройку"); }
+    finally { setSavingTelegram(false); }
+  }
   async function toggleHidden() {
     if (!p) return;
     if (!p.canHideProfile && !p.profileHidden) {
@@ -171,6 +186,11 @@ export default function SettingsPage() {
           </span>
           <span className={`sw-t ${p?.profileHidden ? "on" : ""}`} role="switch" aria-checked={!!p?.profileHidden} onClick={toggleHidden} />
         </div>
+        {p?.telegramUsername && <div className="mrow">
+          <span aria-hidden="true"><KI n="send" style={{ width: 18, height: 18 }} /></span><span>Показывать Telegram в профиле<small>@{p.telegramUsername}</small></span>
+          <button type="button" className={`sw-t ${p.showTelegramUsername ? "on" : ""}`} style={{ backgroundColor: p.showTelegramUsername ? "#17141f" : undefined }} role="switch"
+            aria-label="Показывать Telegram в профиле" aria-checked={p.showTelegramUsername} disabled={savingTelegram} onClick={toggleTelegram} />
+        </div>}
         <Row i="pin" t="Город" s={p?.city} onClick={() => setCityOpen(true)} />
         <Row i="lock" t="Приватность и анонимность" href="/settings/privacy" />
         {ios && <Row i="home" t="Приложение для iPhone" s="Скачать «Место» в App Store" onClick={() => openAppStore()} />}

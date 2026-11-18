@@ -21,10 +21,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!/^[0-9a-f-]{36}$/i.test(id)) return NextResponse.json({ error: "not_found" }, { status: 404 });
   const admin = createAdminClient({ noStore: true });
 
-  const [{ data: user }, { data: interestRows }, { data: myInterestRows }, { data: meGeo }, { data: blockRow }] = await Promise.all([
+  const [{ data: user }, { data: interestRows }, { data: myInterestRows }, { data: meGeo }, { data: blockRow, error: blockError }] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, city, avatar_url, birth_date, gender, last_active_at, bio, rating_avg, completed_meetings_count, moderation_status, approx_lat, approx_lon, approx_location_at, show_distance")
+      .select("id, name, city, avatar_url, birth_date, gender, last_active_at, bio, rating_avg, completed_meetings_count, moderation_status, approx_lat, approx_lon, approx_location_at, show_distance, telegram_id, telegram_username, show_telegram_username")
       .eq("id", id)
       .maybeSingle(),
     admin.from("user_interests").select("interests(name)").eq("user_id", id),
@@ -39,6 +39,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       .maybeSingle(),
   ]);
 
+  if (blockError) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   if (!user || blockRow || (user.moderation_status && user.moderation_status !== "active")) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   const interests = (interestRows ?? [])
@@ -53,6 +54,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({
     id: user.id,
     name: user.name,
+    telegramUsername: user.show_telegram_username && user.telegram_id ? user.telegram_username : null,
     city: user.city,
     lastActiveAt: user.last_active_at ?? null,
     avatarUrl: user.avatar_url,
@@ -71,7 +73,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     commonInterests: interests.filter((n) =>
       (myInterestRows ?? []).some((r) => (r.interests as unknown as { name: string } | null)?.name === n)
     ),
-  });
+  }, { headers: { "Cache-Control": "private, no-store" } });
 }
 
 function calculateAge(birthDateIso: string): number {

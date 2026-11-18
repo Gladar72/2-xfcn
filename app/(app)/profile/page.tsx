@@ -18,6 +18,8 @@ interface Profile {
   name: string;
   avatarUrl: string | null;
   photos?: string[];
+  telegramUsername?: string | null;
+  showTelegramUsername?: boolean;
   interests?: { id: string; name: string }[];
   age: number;
   city: string;
@@ -142,6 +144,12 @@ export default function ProfilePage() {
                 .filter(Boolean)
                 .join(" · ")}
             </div>
+            {profile.showTelegramUsername && profile.telegramUsername && <div style={{ textAlign: "center", marginTop: 4 }}>
+              <a href={`https://t.me/${encodeURIComponent(profile.telegramUsername)}`} target="_blank" rel="noopener noreferrer"
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#17141f", textDecoration: "none" }}>
+                <KI n="send" style={{ width: 16, height: 16 }} />@{profile.telegramUsername}
+              </a>
+            </div>}
             {(profile.interests ?? []).length > 0 && (
               <div className="k-tags">
                 {(profile.interests ?? []).slice(0, 6).map((i) => (

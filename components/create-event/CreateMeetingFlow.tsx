@@ -1274,7 +1274,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               <p className="k-sub2" style={{ marginTop: 6, textAlign: "center" }}>
                 {business
                   ? seatsTotal > 20
-                    ? "Больше 20 гостей — общий чат не создаётся, только заявки"
+                    ? "Общий чат можно включить после публикации события"
                     : `Гостей на событии: ${seatsTotal}`
                   : `Не считая тебя · на встрече будет ${seatsTotal + 1} чел.`}
               </p>
