@@ -44,7 +44,7 @@ function hhmm(iso?: string): string {
  */
 export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; onChanged: () => void }) {
   const [pending, setPending] = useState<Application[]>([]);
-  const [confirm, setConfirm] = useState<null | "cancel" | "complete" | { remove: { id: string; name: string } }>(null);
+  const [confirm, setConfirm] = useState<null | "cancel" | "complete">(null);
   const [busy, setBusy] = useState(false);
   const [boosting, setBoosting] = useState(false);
 
@@ -77,12 +77,7 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
     if (!confirm) return;
     setBusy(true);
     try {
-      if (confirm === "cancel" || confirm === "complete") {
-        await api(`/api/events/${event.id}`, { method: "PATCH", body: { action: confirm } });
-      } else {
-        await api(`/api/events/${event.id}/members/${confirm.remove.id}`, { method: "DELETE" });
-        animateNext();
-      }
+      await api(`/api/events/${event.id}`, { method: "PATCH", body: { action: confirm } });
       tapOk();
       setConfirm(null);
       onChanged();
@@ -121,8 +116,6 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
     }
   }
 
-  const going = event.seatsTaken + 1;
-  const max = event.seatsTotal + 1;
   const invites = event.invites ?? [];
   const invitesGoing = invites.filter((i) => i.status === "accepted").length;
 
@@ -175,34 +168,6 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
                 </View>
               );
             })}
-          </Glass>
-        </View>
-      ) : null}
-
-      {event.participants.length > 0 ? (
-        <View style={{ gap: 10 }}>
-          <View style={styles.secRow}>
-            <Text style={styles.section}>Участники</Text>
-            <Text style={styles.muted}>
-              {going} из {max}
-            </Text>
-          </View>
-          <Glass strong style={styles.list}>
-            {event.participants.map((p, idx) => (
-              <View key={p.id} style={[styles.person, idx > 0 && styles.sep]}>
-                <Pressable onPress={() => router.push(`/person/${p.id}` as Href)} style={styles.personTap}>
-                  <Avatar uri={p.avatarUrl} name={p.name} size={40} />
-                  <Text style={styles.personName} numberOfLines={1}>
-                    {p.name}
-                  </Text>
-                </Pressable>
-                {active && !started ? (
-                  <Pressable hitSlop={8} onPress={() => setConfirm({ remove: { id: p.id, name: p.name } })}>
-                    <Text style={styles.remove}>Убрать</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ))}
           </Glass>
         </View>
       ) : null}
@@ -262,17 +227,6 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
         onConfirm={runConfirm}
         onClose={() => setConfirm(null)}
       />
-      <ConfirmSheet
-        visible={typeof confirm === "object" && confirm !== null}
-        title={typeof confirm === "object" && confirm ? `Убрать ${confirm.remove.name}?` : "Убрать участника?"}
-        text="Человек выйдет из встречи и чата, место освободится. Мы его аккуратно уведомим."
-        confirm="Да, убрать"
-        busyText="Убираем…"
-        danger
-        busy={busy}
-        onConfirm={runConfirm}
-        onClose={() => setConfirm(null)}
-      />
     </View>
   );
 }
@@ -323,7 +277,6 @@ const styles = StyleSheet.create({
   personTap: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
   personName: { flex: 1, fontFamily: FONT, fontSize: 15.5, color: colors.ink },
   status: { fontSize: 13, ...f("600") },
-  remove: { fontSize: 14, ...f("600"), color: colors.danger },
   tiles: { flexDirection: "row", gap: 10 },
   tile: { borderRadius: 22, padding: 14, gap: 6, minHeight: 112 },
   tileTitle: { fontSize: 15.5, ...f("500"), color: colors.ink, marginTop: 4 },

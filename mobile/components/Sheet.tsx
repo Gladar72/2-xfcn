@@ -15,18 +15,19 @@ export function Sheet({ visible, onClose, children }: { visible: boolean; onClos
   const slide = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    if (visible) {
+    if (!visible && !mounted) return;
+    if (visible && !mounted) {
       setMounted(true);
-      Animated.parallel([
-        Animated.timing(fade, { toValue: 1, duration: 220, useNativeDriver: true }),
-        Animated.spring(slide, { toValue: 0, damping: 22, stiffness: 220, mass: 0.9, useNativeDriver: true }),
-      ]).start();
-    } else if (mounted) {
-      Animated.parallel([
-        Animated.timing(fade, { toValue: 0, duration: 180, useNativeDriver: true }),
-        Animated.timing(slide, { toValue: 1, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-      ]).start(() => setMounted(false));
+      return;
     }
+    const motion = Animated.parallel([
+      Animated.timing(fade, { toValue: visible ? 1 : 0, duration: visible ? 220 : 180, useNativeDriver: true }),
+      visible
+        ? Animated.spring(slide, { toValue: 0, damping: 22, stiffness: 220, mass: 0.9, useNativeDriver: true })
+        : Animated.timing(slide, { toValue: 1, duration: 200, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
+    ]);
+    motion.start(({ finished }) => { if (finished && !visible) setMounted(false); });
+    return () => motion.stop();
   }, [visible, mounted, fade, slide]);
 
   if (!mounted) return null;
