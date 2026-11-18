@@ -13,6 +13,8 @@ name: iOS
 # Сертификат и профиль создаются по этому ключу на время сборки (.github/scripts/ios-sign.py) и потом отзываются.
 
 on:
+  push:
+    branches: [internal-testflight-gallery-nov18]
   workflow_dispatch:
     inputs:
       mode:
@@ -39,7 +41,7 @@ jobs:
           node-version: 20
 
       - name: Секреты на месте?
-        if: inputs.mode == 'release'
+        if: (inputs.mode == 'release' || github.event_name == 'push')
         env:
           TEAM: ${{ vars.APPLE_TEAM_ID }}
           KID: ${{ secrets.ASC_KEY_ID }}
@@ -113,14 +115,14 @@ jobs:
           git add -A && git commit -qm "Снимки iPhone" && git push -qf "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" HEAD:ios-shots
 
       - name: Номер сборки
-        if: inputs.mode == 'release'
+        if: (inputs.mode == 'release' || github.event_name == 'push')
         run: |
           PLIST=$(ls ios/*/Info.plist | grep -v Tests | head -1)
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ github.run_number }}" "$PLIST"
           /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$PLIST"
 
       - name: Сертификат и профиль App Store (через API, временные)
-        if: inputs.mode == 'release'
+        if: (inputs.mode == 'release' || github.event_name == 'push')
         id: sign
         env:
           TEAM: ${{ vars.APPLE_TEAM_ID }}
@@ -134,7 +136,7 @@ jobs:
           python3 ../.github/scripts/ios-sign.py
 
       - name: Архив и загрузка в App Store Connect
-        if: inputs.mode == 'release'
+        if: (inputs.mode == 'release' || github.event_name == 'push')
         env:
           TEAM: ${{ vars.APPLE_TEAM_ID }}
           KID: ${{ secrets.ASC_KEY_ID }}
@@ -165,7 +167,7 @@ jobs:
           echo "Сборка ${{ github.run_number }} загружена в App Store Connect — появится в TestFlight через 10–30 минут."
 
       - name: Отозвать временный сертификат (если сборка упала)
-        if: failure() && inputs.mode == 'release'
+        if: failure() && (inputs.mode == 'release' || github.event_name == 'push')
         env:
           TEAM: ${{ vars.APPLE_TEAM_ID }}
           KID: ${{ secrets.ASC_KEY_ID }}
@@ -175,5 +177,34 @@ jobs:
           [ -f "$KEY" ] && python3 ../.github/scripts/ios-sign.py revoke || true
 
       - name: Убрать ключи
-        if: always() && inputs.mode == 'release'
+        if: always() && (inputs.mode == 'release' || github.event_name == 'push')
         run: rm -f "$RUNNER_TEMP"/AuthKey*.p8 "$RUNNER_TEMP"/dist.*
+
+  internal-testflight:
+    needs: build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Дождаться доступности во внутреннем TestFlight
+        env:
+          KID: ${{ secrets.ASC_KEY_ID }}
+          ISS: ${{ secrets.ASC_ISSUER_ID }}
+          P8: ${{ secrets.ASC_KEY_P8 }}
+          BUILD: ${{ github.run_number }}
+        run: |
+          set -euo pipefail
+          umask 077
+          export KEY="$RUNNER_TEMP/testflight-auth.p8"
+          trap 'rm -f "$KEY"' EXIT
+          printf '%s\n' "$P8" > "$KEY"
+          pip install -q pyjwt cryptography
+          for attempt in {1..6}; do
+            python3 -u .github/scripts/asc_tf.py | tee "$RUNNER_TEMP/internal-testflight.log"
+            if grep -q '"internalBuildState": "IN_BETA_TESTING"' "$RUNNER_TEMP/internal-testflight.log"; then exit 0; fi
+            sleep 45
+          done
+          exit 1
