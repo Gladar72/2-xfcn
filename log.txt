@@ -1,0 +1,2 @@
+2026-11-18 09:23:33.815 Df log[66601:0] [com.apple.log:] log run noninteractively, parent: 48030 (launchd_sim), args: 'log' 'show' '--last' '6m' '--style' 'compact' '--predicate' 'process CONTAINS "Mesto" OR eventMessage CONTAINS "Unhandled JS Exception" OR eventMessage CONTAINS "RCTFatal"'
+Retired
