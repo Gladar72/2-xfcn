@@ -11,6 +11,7 @@ import { startAppleWatcher, stopAppleWatcher } from "@/lib/iap";
 import { CAN_PAY } from "@/lib/store";
 import { MosyaPeekHost } from "@/components/MosyaPeek";
 import { api } from "@/lib/api";
+import { refreshLocationSilently } from "@/lib/location";
 import { applyPendingRef } from "@/lib/referral";
 import { LoadingScenes } from "@/components/LoadingScenes";
 import { tapOnLaunch } from "@/lib/feedback";
@@ -61,7 +62,9 @@ function usePresencePing(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return;
     const ping = () => {
-      if (AppState.currentState === "active") api("/api/me/ping", { method: "POST" }).catch(() => {});
+      if (AppState.currentState !== "active") return;
+      api("/api/me/ping", { method: "POST" }).catch(() => {});
+      void refreshLocationSilently();
     };
     ping();
     const t = setInterval(ping, 60_000);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Animated, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, AppState, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -149,14 +149,23 @@ export function PersonView({
   useEffect(() => {
     if (!active) return;
     let current = true;
-    api<Person>(`/api/users/${id}`)
-      .then(r => {
+    let pending = false;
+    async function refresh(initial = false) {
+      if (pending || (!initial && AppState.currentState !== "active")) return;
+      pending = true;
+      try {
+        const r = await api<Person>(`/api/users/${id}`);
         if (!current) return;
         setP({ ...r, photos: r.photos ?? [], interests: r.interests ?? [], commonInterests: r.commonInterests ?? [] });
         setError(null);
-      })
-      .catch(() => { if (current) setError("Профиль недоступен"); });
-    return () => { current = false; };
+      } catch {
+        if (current && initial) setError("Профиль недоступен");
+      } finally { pending = false; }
+    }
+    void refresh(true);
+    const timer = setInterval(() => { void refresh(); }, 60_000);
+    const listener = AppState.addEventListener("change", state => { if (state === "active") void refresh(); });
+    return () => { current = false; clearInterval(timer); listener.remove(); };
   }, [active, id, preview?.distanceM, preview?.distanceKm]);
   const lastActiveAt = p ? p.lastActiveAt : preview?.lastActiveAt;
   const [, refreshTime] = useState(0);

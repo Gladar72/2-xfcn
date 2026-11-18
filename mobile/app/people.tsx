@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Dimensions, Easing, PanResponder, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Location from "expo-location";
+import { dueLocationReminder, markLocationReminder, refreshLocationSilently, shareLocation } from "@/lib/location";
 import { Aurora, Btn, Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { PersonView, TopBtn } from "@/components/people/PersonView";
@@ -28,23 +28,6 @@ type Page = { kind: "person"; p: PersonCard } | { kind: "end" };
  */
 type DeckResponse = { items: PersonCard[]; meHasLocation?: boolean; nextOffset?: number | null };
 
-/** Свежая точка без вопросов: только если доступ к геолокации уже дан. */
-async function refreshLocationQuietly(): Promise<boolean> {
-  try {
-    const perm = await Location.getForegroundPermissionsAsync();
-    if (perm.status !== "granted") return false;
-    const pos = await Promise.race([
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-      new Promise<null>((r) => setTimeout(() => r(null), 4000)),
-    ]);
-    if (!pos) return false;
-    await api("/api/me/location", { body: { lat: pos.coords.latitude, lon: pos.coords.longitude } });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export default function PeopleScreen() {
   useGuide("people");
   const { start } = useLocalSearchParams<{ start?: string }>();
@@ -53,7 +36,7 @@ export default function PeopleScreen() {
   const [hasLocation, setHasLocation] = useState(true);
   const [index, setIndex] = useState(0);
   const [geoBusy, setGeoBusy] = useState(false);
-  const [geoHidden, setGeoHidden] = useState(false);
+  const [reminder, setReminder] = useState<string | null>(null);
   const [filters, setFilters] = useState<PeopleFilters>(DEFAULT_PEOPLE_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [deckKey, setDeckKey] = useState(0);
@@ -73,7 +56,7 @@ export default function PeopleScreen() {
 
   const load = useCallback(async (keepPlace = false) => {
     const request = ++deckRequest.current;
-    const location = locationRefresh.current ??= refreshLocationQuietly();
+    const location = locationRefresh.current ??= refreshLocationSilently();
     const path = query(0);
     try {
       const r = await api<DeckResponse>(path);
@@ -153,24 +136,26 @@ export default function PeopleScreen() {
   );
   const filterSheet = <PeopleFilterSheet visible={filtersOpen} value={filters} onApply={applyFilters} onClose={() => setFiltersOpen(false)} />;
 
+  const canOfferLocation = !hasLocation && !!items?.[index];
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (canOfferLocation) dueLocationReminder().then(key => {
+      if (active) setReminder(key);
+    }).catch(() => {});
+    return () => { active = false; setReminder(null); };
+  }, [canOfferLocation]));
+  useEffect(() => {
+    if (reminder) markLocationReminder(reminder).catch(() => {});
+  }, [reminder]);
+
   async function allowLocation() {
+    if (geoBusy) return;
     setGeoBusy(true);
     try {
-      const perm = await Location.requestForegroundPermissionsAsync();
-      if (perm.status !== "granted") {
-        setGeoHidden(true);
-        return;
-      }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      await api("/api/me/location", { body: { lat: pos.coords.latitude, lon: pos.coords.longitude } });
-      animateNext();
-      setHasLocation(true);
-      load(true);
-    } catch {
-      Alert.alert("Не получилось", "Не удалось определить место. Попробуй позже");
-    } finally {
-      setGeoBusy(false);
-    }
+      const saved = await shareLocation();
+      setReminder(null);
+      if (saved) { animateNext(); setHasLocation(true); await load(true); }
+    } finally { setGeoBusy(false); }
   }
 
   function removePerson(id: string) {
@@ -281,15 +266,15 @@ export default function PeopleScreen() {
         </View>
       )}
 
-      {!hasLocation && !geoHidden && cur ? (
+      {!hasLocation && reminder && cur ? (
         <Glass strong style={[styles.geo, { bottom: insets.bottom + 96 }]}>
           <View style={styles.geoIc}>
             <Icon name="nav" size={18} color={colors.violet} />
           </View>
-          <Text style={styles.geoText}>Покажем, кто ближе к тебе. Видно только примерное расстояние — точное место никто не узнает.</Text>
+          <Text style={styles.geoText}>Показывать расстояние? В профиле будет видно, сколько примерно километров между вами.</Text>
           <View style={{ gap: 6 }}>
             <Btn title="Разрешить" onPress={allowLocation} loading={geoBusy} style={styles.geoBtn} />
-            <Text onPress={() => setGeoHidden(true)} style={styles.geoLater}>
+            <Text onPress={() => setReminder(null)} style={styles.geoLater}>
               Не сейчас
             </Text>
           </View>
