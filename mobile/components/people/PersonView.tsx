@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ActivityIndicator, Alert, Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -30,6 +30,7 @@ export interface Person {
   ratingAvg: number;
   completedMeetingsCount: number;
   distanceKm: number | null;
+  distanceM?: number | null;
   interests: string[];
   commonInterests: string[];
 }
@@ -40,6 +41,8 @@ export interface PersonPreview {
   name: string;
   age: number;
   avatarUrl: string | null;
+  distanceM?: number | null;
+  distanceKm?: number | null;
 }
 
 const NO_MEET = "Пока написать нельзя — у вас ещё не было общей встречи. Позови на свою встречу или создай новую 😉";
@@ -130,25 +133,25 @@ export function PersonView({
   const { height: windowHeight } = useWindowDimensions();
   const [measuredHeight, setMeasuredHeight] = useState(0);
   const footerInset = isMe ? insets.bottom : 62 + Math.max(insets.bottom, 12);
-  const heroHeight = measuredHeight || Math.max(0, windowHeight - footerInset);
+  const heroHeight = Math.max(0, (measuredHeight || windowHeight) - footerInset);
 
   useEffect(() => {
     if (!self) getMyId().then((my) => setIsMe(my === id));
   }, [self, id]);
 
-  const load = useCallback(() => {
+  useEffect(() => {
+    if (!active) return;
+    let current = true;
     api<Person>(`/api/users/${id}`)
-      .then((x) => ({ ...x, photos: x.photos ?? [], interests: x.interests ?? [], commonInterests: x.commonInterests ?? [] }))
-      .then((r) => {
-        setP(r);
+      .then(r => {
+        if (!current) return;
+        setP({ ...r, photos: r.photos ?? [], interests: r.interests ?? [], commonInterests: r.commonInterests ?? [] });
         setError(null);
       })
-      .catch(() => setError("Профиль недоступен"));
-  }, [id]);
-
-  useEffect(() => {
-    if (active && !p) load();
-  }, [active, p, load]);
+      .catch(() => { if (current) setError("Профиль недоступен"); });
+    return () => { current = false; };
+  }, [active, id, preview?.distanceM, preview?.distanceKm]);
+  const distance = distanceLabel(p ? p.distanceKm : preview?.distanceKm, p ? p.distanceM : preview?.distanceM);
 
   const photos = p ? (p.photos.length ? p.photos : p.avatarUrl ? [p.avatarUrl] : []) : preview?.avatarUrl ? [preview.avatarUrl] : [];
   const name = p?.name ?? preview?.name ?? "";
@@ -203,7 +206,8 @@ export function PersonView({
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        style={{ flex: 1, marginBottom: footerInset }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: footerInset }}
         onLayout={(e) => setMeasuredHeight(e.nativeEvent.layout.height)}
       >
         {/* Первый экран — прозрачный: нажатия слева/справа листают фото. */}
@@ -220,10 +224,10 @@ export function PersonView({
             </Text>
             {p ? (
               <View style={styles.pills}>
-                {distanceLabel(p.distanceKm) ? (
+                {distance ? (
                   <View style={styles.pill}>
                     <Icon name="pin" size={13} color="#fff" />
-                    <Text style={styles.pillText}>{distanceLabel(p.distanceKm)}</Text>
+                    <Text style={styles.pillText}>{distance}</Text>
                   </View>
                 ) : null}
                 {p.ratingAvg > 0 ? (
@@ -290,6 +294,7 @@ export function PersonView({
             </>
           )}
         </View>
+        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0.74)", "rgba(23,20,31,0)"]} style={{ height: 38 }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}
@@ -319,6 +324,7 @@ export function PersonView({
 
       {!isMe && p ? (
         <View style={[styles.bar2, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.82)"]} style={[StyleSheet.absoluteFillObject, { top: -22 }]} />
           {heartToast ? (
             <View pointerEvents="none" style={[styles.heartToast, { bottom: Math.max(insets.bottom, 12) + 64 }]}>
               <Text style={styles.heartToastText}>{heartToast}</Text>

@@ -5,7 +5,7 @@ import * as Location from "expo-location";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { Glass, Grad, RoundBtn } from "@/components/brand";
+import { Glass, RoundBtn } from "@/components/brand";
 import { EventPin } from "@/components/map/EventPin";
 import { Sheet } from "@/components/Sheet";
 import { Icon } from "@/components/Icon";
@@ -18,7 +18,7 @@ import { coverUri } from "@/lib/covers";
 import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { MAP_STYLE, TYUMEN_CENTER } from "@/lib/map";
-import { ADDRESS_ZOOM, clusterize } from "@/lib/cluster";
+import { ADDRESS_ZOOM, MAX_MAP_ZOOM, clusterize, groupLocations, type MapGroup } from "@/lib/cluster";
 import { openRoute } from "@/lib/route";
 import { K, KGlass, KI, Press, kf } from "@/components/k";
 import { catIcon } from "@/lib/theme";
@@ -109,10 +109,11 @@ export default function MapScreen() {
         // Пришли со страницы события (нажали на карту места) — сразу к нему, его карточка первой.
         const f = params.focus ? items.find((e) => e.id === params.focus) : undefined;
         if (f) {
+          const target = groupLocations(items.map(e => ({ ...e, lng: e.longitude, lat: e.latitude })), r.city ?? "").find(g => g.items.some(e => e.id === f.id));
           setTimeout(() => {
             if (id !== reqId.current) return;
             setSelected([f]);
-            camera.current?.flyTo({ center: [f.longitude, f.latitude], zoom: ADDRESS_ZOOM, duration: 600 });
+            camera.current?.flyTo({ center: [target?.lng ?? f.longitude, target?.lat ?? f.latitude], zoom: ADDRESS_ZOOM, duration: 600 });
           }, 50);
         } else if (items.length && items.every((e) => e.latitude === items[0]!.latitude && e.longitude === items[0]!.longitude)) {
           camera.current?.flyTo({ center: [items[0].longitude, items[0].latitude], zoom: 14, duration: 600 });
@@ -149,25 +150,20 @@ export default function MapScreen() {
   const word = bizOnly ? plural(shown.length, "событие", "события", "событий") : plural(events.length, "встреча", "встречи", "встреч");
   const shownCount = shown.length;
 
-  const clusters = useMemo(() => clusterize(shown.map((e) => ({ ...e, lng: e.longitude, lat: e.latitude })), zoom), [shown, zoom]);
+  const locations = useMemo(() => groupLocations(shown.map(e => ({ ...e, lng: e.longitude, lat: e.latitude })), city ?? ""), [shown, city]);
+  const clusters = useMemo(() => clusterize(locations, zoom), [locations, zoom]);
   useEffect(() => { setSelected(null); setAddressOpen(false); }, [shown]);
   const carousel = selected ?? shown.slice(0, 30);
 
-  function openCluster(leaves: (MapEvent & { isCity?: boolean })[]) {
+  function openCluster(group: MapGroup<MapEvent & { isCity?: boolean }>) {
     tapLight();
-    setSelected(leaves);
-    const lngs = leaves.map((e) => e.longitude);
-    const lats = leaves.map((e) => e.latitude);
-    const spread = Math.max(...lngs) - Math.min(...lngs) + Math.max(...lats) - Math.min(...lats);
-    if (zoom >= ADDRESS_ZOOM || spread < 0.0005 && leaves.length > 8) {
+    setSelected(group.items);
+    if (group.locationCount === 1 || zoom >= MAX_MAP_ZOOM) {
       setAddressOpen(true);
-    } else if (spread < 0.0005) {
-      camera.current?.flyTo({ center: [lngs[0]!, lats[0]!], zoom: ADDRESS_ZOOM, duration: 500 });
-    } else {
-      camera.current?.fitBounds([Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)], { padding: { top: 220, right: 60, bottom: 260, left: 60 }, duration: 500 });
+      return;
     }
+    camera.current?.flyTo({ center: [group.lng, group.lat], zoom: Math.min(MAX_MAP_ZOOM, zoom + 2), duration: 450 });
   }
-
 
   return (
     <View style={{ flex: 1 }}>
@@ -186,9 +182,9 @@ export default function MapScreen() {
           const e = c.items.find((item) => item.id === params.focus) ?? c.items[0]!;
           if (c.items.length > 1) {
             return (
-              <Marker key={c.id} id={c.id} lngLat={[c.lng, c.lat]} anchor="bottom">
-                <Pressable onPress={() => openCluster(c.items)} accessibilityRole="button" accessibilityLabel={`Показать события: ${c.items.length}`}>
-                  <EventPin photo={coverUri(e.markerPhoto)} icon={eventIcon(e)} count={c.items.length} />
+              <Marker key={`group:${c.id}`} id={`group:${c.id}`} lngLat={[c.lng, c.lat]} anchor="center">
+                <Pressable style={styles.cluster} onPress={() => openCluster(c)} accessibilityRole="button" accessibilityLabel={`Показать события: ${c.items.length}`}>
+                  <Text style={styles.clusterText}>{c.items.length}</Text>
                 </Pressable>
               </Marker>
             );
@@ -197,7 +193,7 @@ export default function MapScreen() {
           const full = !cityEv && e.seatsLeft <= 0;
           const label = cityEv ? "в городе" : full ? "мест нет" : timePill(e.startsAt, e.endsAt);
           return (
-            <Marker key={e.id} id={e.id} lngLat={[c.lng, c.lat]} offset={c.offset} anchor="bottom">
+            <Marker key={e.id} id={e.id} lngLat={[c.lng, c.lat]} anchor="bottom">
               <Pressable onPress={() => open(e)} style={[styles.pin, full && { opacity: 0.6 }]}>
                 {label === "сейчас" ? (
                   <View style={[styles.pill, { backgroundColor: colors.live }]}>
@@ -322,6 +318,8 @@ const styles = StyleSheet.create({
   noteText: { fontFamily: FONT, fontSize: 13, color: colors.ink2 },
   retry: { alignSelf: "flex-start", backgroundColor: colors.ink, borderRadius: 999, paddingHorizontal: 16, height: 38, justifyContent: "center" },
   retryText: { fontSize: 14, ...f("600"), color: "#fff" },
+  cluster: { minWidth: 46, height: 46, borderRadius: 23, paddingHorizontal: 6, borderWidth: 3, borderColor: "#fff", backgroundColor: "#17141F", alignItems: "center", justifyContent: "center" },
+  clusterText: { ...f("600"), fontSize: 17, color: "#fff" },
   pin: { alignItems: "center" },
   pill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginBottom: 2 },
   pillText: { color: "#fff", fontSize: 11.5, ...f("500") },

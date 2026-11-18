@@ -80,6 +80,7 @@ export interface EventDetail extends Omit<FeedEvent, "isHighlighted" | "isMine" 
 }
 
 export interface MapEvent {
+  address?: string | null;
   id: string;
   title: string;
   latitude: number;
