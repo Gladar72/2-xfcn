@@ -15,6 +15,7 @@ import { usePeopleVisitSeed } from "@/lib/people/use-visit-seed";
 import { selectedPersonPreview } from "@/lib/people/selected-preview";
 
 interface Card {
+  photos?: string[];
   id: string;
   name: string;
   age: number;
@@ -39,7 +40,7 @@ function quick(c: Card): Person {
     age: c.age,
     city: c.city,
     avatarUrl: c.avatarUrl,
-    photos: c.avatarUrl ? [c.avatarUrl] : [],
+    photos: c.photos?.length ? c.photos : c.avatarUrl ? [c.avatarUrl] : [],
     ratingAvg: c.ratingAvg,
     completedMeetingsCount: c.completedMeetingsCount,
     interests: c.sharedInterests,
@@ -127,6 +128,7 @@ function Deck({ start, cityFilter, filters }: { start: string | null; cityFilter
   const queryUrl = useCallback((selected: string | null, offset = 0) => {
     const q = peopleFilterParams(filters);
     q.set("deck", "1");
+    q.set("gallery", "1");
     if (selected) q.set("start", selected);
     if (cityFilter) q.set("city", cityFilter);
     if (offset) q.set("offset", String(offset));

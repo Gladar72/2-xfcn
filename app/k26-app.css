@@ -456,3 +456,8 @@
 .K .k-story .k-sdetails{bottom:34px}
 .K .k-story .k-slink{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);width:16px;height:16px;color:#fff;opacity:.9}
 .K .k-story .k-slink svg{width:16px;height:16px;display:block}
+
+/* Обложка в мастере совпадает с рамкой кадрирования. */
+.K .k-bizph, .K .k-prev, .K .k-ecw .k-ecov { height:auto; aspect-ratio:3/2; }
+.K .k-cvg { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.K .k-cvg button { aspect-ratio:3/2; }

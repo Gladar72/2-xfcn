@@ -57,13 +57,25 @@ export async function GET(req: Request) {
     if (name) interestNames.set(row.interest_id as string, name);
   }
   const shared = new Map<string, string[]>();
-  if (page.length && interestNames.size) {
-    const { data: rows } = await admin.from("user_interests").select("user_id, interest_id")
-      .in("user_id", page.map((u) => u.id)).in("interest_id", [...interestNames.keys()]);
-    for (const row of rows ?? []) {
-      const name = interestNames.get(row.interest_id as string);
-      if (name) shared.set(row.user_id as string, [...(shared.get(row.user_id as string) ?? []), name]);
-    }
+  const ids = page.map(u => u.id);
+  const includeGallery = deck && params.get("gallery") === "1";
+  const [interestRows, photoRows] = await Promise.all([
+    ids.length && interestNames.size
+      ? admin.from("user_interests").select("user_id, interest_id").in("user_id", ids).in("interest_id", [...interestNames.keys()])
+      : { data: [] },
+    ids.length && includeGallery
+      ? admin.from("user_photos").select("user_id, url, position").in("user_id", ids)
+        .gt("position", 0).order("position").order("id")
+      : { data: [] },
+  ]);
+  for (const row of interestRows.data ?? []) {
+    const name = interestNames.get(row.interest_id as string);
+    if (name) shared.set(row.user_id as string, [...(shared.get(row.user_id as string) ?? []), name]);
+  }
+  const extras = new Map<string, string[]>();
+  for (const row of photoRows.data ?? []) {
+    const urls = extras.get(row.user_id) ?? [];
+    if (urls.length < 2 && row.url) extras.set(row.user_id, [...urls, row.url]);
   }
   const items = page.map((u) => {
     const common = shared.get(u.id as string) ?? [];
@@ -71,6 +83,7 @@ export async function GET(req: Request) {
       id: u.id, name: u.name, city: u.city, gender: u.gender,
       lastActiveAt: u.last_active_at ?? null, avatarUrl: u.avatar_url, age: age(u.birth_date as string),
       ratingAvg: Number(u.rating_avg ?? 0), completedMeetingsCount: Number(u.completed_meetings_count ?? 0),
+      ...(includeGallery ? { photos: [...new Set([u.avatar_url, ...(extras.get(u.id) ?? [])].filter(Boolean))] } : {}),
       sharedInterests: common.slice(0, 3), sharedCount: common.length,
       distanceKm: approxDistanceKm(me, u), distanceM: approxDistanceM(me, u),
     };
