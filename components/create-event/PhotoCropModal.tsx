@@ -116,7 +116,15 @@ export function PhotoCropModal({ src, aspectRatio, title = "Обложка вс�
       s = Math.min(MAX_SCALE, Math.max(1, (g.scale * d) / g.dist));
       setScale(s);
     }
-    setOffset(clamp({ x: g.ox + (cx - g.cx), y: g.oy + (cy - g.cy) }, s));
+    const rect = frameRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const factor = s / g.scale;
+    setOffset(clamp({
+      x: cx - centerX - (g.cx - centerX - g.ox) * factor,
+      y: cy - centerY - (g.cy - centerY - g.oy) * factor,
+    }, s));
   }
 
   function onUp(e: ReactPointerEvent<HTMLDivElement>) {

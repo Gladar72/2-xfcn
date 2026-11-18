@@ -8,11 +8,16 @@ vi.mock("@/lib/telegram/current-user", () => ({ getCurrentUser: vi.fn().mockReso
 const person = (n: number) => ({ id: id(n), name: `Person ${n}`, city: "Тюмень", gender: "female", avatar_url: `/photo-${n}.jpg`, birth_date: "1995-01-01" });
 function database(count = 41, fails = false) {
   const rpc = vi.fn(() => ({ select: async () => ({ data: Array.from({ length: count }, (_, i) => person(i + 1)), error: fails ? {} : null }) }));
-  const from = vi.fn((table: string) => ({ select: () => ({ eq: () => table === "users"
+  const extraRows = [{ user_id: id(1), url: "/photo-1.jpg" }, { user_id: id(1), url: "/second.jpg" }, { user_id: id(2), url: "/third.jpg" }];
+  const orderId = vi.fn(async () => ({ data: extraRows }));
+  const order = vi.fn(() => ({ order: orderId }));
+  const gt = vi.fn(() => ({ order }));
+  const photoIds = vi.fn(() => ({ gt }));
+  const from = vi.fn((table: string) => table === "user_photos" ? {select: () => ({ in: photoIds })} : ({ select: () => ({ eq: () => table === "users"
     ? { maybeSingle: async () => ({ data: person(0), error: null }) }
     : Promise.resolve({ data: [], error: null }) }) }));
   vi.mocked(createAdminClient).mockReturnValue({ from, rpc } as unknown as ReturnType<typeof createAdminClient>);
-  return { rpc, from };
+  return { rpc, from, photoIds, gt, order, orderId };
 }
 async function deck(params = "") { return GET(new Request(`https://example.test/api/people?deck=1${params}`)); }
 beforeEach(() => { vi.clearAllMocks(); });
@@ -79,4 +84,18 @@ it("rejects malformed selections before issuing database queries", async () => {
 it("reports database failure instead of an empty city", async () => {
   database(0, true);
   expect((await deck()).status).toBe(503);
+});
+
+
+it("loads ordered gallery URLs only for the selected deck page and omits historical avatars", async () => {
+  const db = database(2);
+  const data = await (await deck("&gallery=1")).json();
+  expect(db.photoIds).toHaveBeenCalledWith("user_id", [id(1), id(2)]);
+  expect(db.gt).toHaveBeenCalledWith("position", 0);
+  expect(db.order).toHaveBeenCalledWith("position");
+  expect(db.orderId).toHaveBeenCalledWith("id");
+  expect(data.items.map((p: { photos: string[] }) => p.photos)).toEqual([["/photo-1.jpg", "/second.jpg"], ["/photo-2.jpg", "/third.jpg"]]);
+  const legacy = await (await deck()).json();
+  expect(legacy.items[0]).not.toHaveProperty("photos");
+  expect(db.photoIds).toHaveBeenCalledTimes(1);
 });

@@ -139,7 +139,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
   // Событие для бизнеса — три шага (без «Куда зовёшь?»): сразу «Название и обложка».
   // Правка — сначала экран «Редактировать» (шаг 0, как в прототипе), из него — в нужный шаг.
-  const [step, setStep] = useState(editId ? 0 : businessProp ? 2 : 1);
+  const ideaTitle = !editId && searchParams.get("invite") && searchParams.get("category") ? (searchParams.get("ideaTitle") ?? "").trim().slice(0, 100) : "";
+  const [step, setStep] = useState(editId ? 0 : businessProp || ideaTitle ? 2 : 1);
   const [dir, setDir] = useState(1);
   const [toast, setToast] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -168,7 +169,8 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
   // Раздел выбран руками — больше не подбираем его по названию.
   const [bizPicked, setBizPicked] = useState(false);
   const [own, setOwn] = useState("");
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState(ideaTitle);
+  const autoTitle = useRef(ideaTitle);
   const [description, setDescription] = useState("");
   const [photo, setPhoto] = useState<string | undefined>();
   const [ownPhoto, setOwnPhoto] = useState<string | undefined>();
@@ -520,7 +522,13 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       flash(h);
       return;
     }
-    if (step === 1 && (isOwn || (business && bizCategory === "other")) && !title) setTitle(own.trim());
+    if (step === 1 && !business && !editId && (!title.trim() || title === autoTitle.current)) {
+      const label = categories.find(c => c.slug === categorySlug)?.name;
+      const nextTitle = categorySlug === "training" ? `Тренировка · ${catLabel}`
+        : isOwn ? own.trim() : SHORT[categorySlug ?? ""] ?? label ?? "";
+      autoTitle.current = nextTitle;
+      setTitle(nextTitle);
+    }
     if (editId) {
       // В правке «Готово» возвращает на экран «Редактировать».
       setDir(-1);
@@ -532,13 +540,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       setStep(step + 1);
     } else publish();
   }
-  // Шаг 1 личной встречи — без «Далее»: выбор плитки сразу ведёт на следующий шаг.
-  function goStep2() {
-    setTimeout(() => {
-      setDir(1);
-      setStep(editId ? 0 : 2);
-    }, 180);
-  }
+
   function back() {
     if (editId) {
       if (step > 0) {
@@ -547,7 +549,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       } else goBack(router, `/events/${editId}`);
       return;
     }
-    if (step > (business ? 2 : 1)) {
+    if (step > (business || ideaTitle ? 2 : 1)) {
       setDir(-1);
       setStep(step - 1);
     } else if (chosen && !skipKind) {
@@ -795,7 +797,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               <div className="k-ecw">
                 <div className="k-ecov" style={bgCover(photo)} />
                 <div className="k-ecb">
-                  <span className="k-fl">Обложка · вертикальная 3:4</span>
+                  <span className="k-fl">Обложка · горизонтальная 3:2</span>
                   <button className="k-btn k-l k-pr" onClick={() => fileRef.current?.click()}>
                     Сменить
                   </button>
@@ -916,9 +918,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                       onClick={() => {
                         setCategorySlug(c.slug);
                         if (c.slug !== "training") {
-                          // Выбрал раздел — сразу дальше, без кнопки «Далее».
                           setTrainingTypeSlug(null);
-                          goStep2();
                         }
                       }}
                     >
@@ -942,7 +942,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                           onClick={() => {
                             setTrainingTypeSlug(t.slug);
                             setOwn("");
-                            goStep2();
                           }}
                         >
                           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -965,7 +964,6 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                         {OTHER_SPORTS.filter(([n]) => !trainingTypes.some((t) => t.name.toLowerCase() === n.toLowerCase())).map(([n, ic]) => (
                           <button key={n} className={`k-cat k-g k-pr ${own === n ? "k-on" : ""}`} onClick={() => {
                               setOwn(n);
-                              goStep2();
                             }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img src={ic} alt="" />
@@ -981,12 +979,9 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 <button
                   className={`k-own k-g k-pr ${isOwn ? "k-on" : ""}`}
                   onClick={() => {
-                    // Как просили: «Своё предложение» — сразу дальше, без лишнего поля.
                     setCategorySlug("custom");
                     setTrainingTypeSlug(null);
                     setOwn("");
-                    setDir(1);
-                    setStep(2);
                   }}
                 >
                   <span className="k-op">
@@ -1046,7 +1041,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
               <span className="k-lbl">Обложка</span>
               <p className="k-cvn">
                 {business
-                  ? "Загрузи своё фото — афишу, зал или сцену. Вертикально, 3:4"
+                  ? "Загрузи своё фото — афишу, зал или сцену. Горизонтально, 3:2"
                   : isOwn && !presetCover
                     ? `Под «${own.trim() || title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото`
                     : gridCovers.length > 1
@@ -1066,14 +1061,14 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                         <Ic n="camera" />
                       </span>
                       <b>{business ? "Загрузить фото события" : "Загрузить фото"}</b>
-                      <small>{business ? "Афиша, зал или сцена · вертикально, 3:4" : "Вертикально, 3:4 — так встречу заметят"}</small>
+                      <small>{business ? "Афиша, зал или сцена · горизонтально, 3:2" : "Горизонтально, 3:2 — так встречу заметят"}</small>
                     </span>
                   )}
                 </button>
               )}
               {!business && !bigUpload && (
               <div className="k-cvg">
-                {gridCovers.length === 0 && !business && (!isOwn || presetCover) && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "3 / 4", borderRadius: 16 }} />)}
+                {gridCovers.length === 0 && !business && (!isOwn || presetCover) && [0, 1, 2].map((i) => <div key={i} className="sk" style={{ aspectRatio: "3 / 2", borderRadius: 16 }} />)}
                 {gridCovers.map((c, i) => (
                   <button key={c.slice(-40) + i} className={`k-pr ${photo === c ? "k-on" : ""}`} style={bgCover(c)} onClick={() => setPhoto(c)} aria-label={`Обложка ${i + 1}`} />
                 ))}
@@ -1392,9 +1387,9 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
       {cropSrc && (
         <PhotoCropModal
           src={cropSrc}
-          aspectRatio={3 / 4}
+          aspectRatio={3 / 2}
           title="Обложка встречи"
-          hint="Двигай фото пальцем, двумя пальцами — приблизить. Так обложка будет выглядеть на карточке"
+          hint="Передвигай фото одним пальцем. Разведи два пальца, чтобы приблизить, или сведи, чтобы отдалить."
           preview={{ title }}
           onReplace={() => fileRef.current?.click()}
           onCancel={() => setCropSrc(undefined)}

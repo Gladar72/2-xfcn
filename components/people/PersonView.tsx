@@ -1,5 +1,6 @@
 "use client";
 
+import { suggestMeet } from "@/lib/mosya/suggest";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -445,12 +446,12 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
   // The full profile can replace the preview's URL. Keep that loaded image
   // mounted until a photo from the new set is ready, scoped to this person only.
   // Start with the requested image, then warm both neighbours in this three-photo gallery.
-  const warmGallery = readyPhotos.size > 0;
-  const visiblePhotos = photos.filter(src => warmGallery || src === requestedPhoto || src === shownPhoto || readyPhotos.has(src));
+  const visiblePhotos = photos;
   const renderedPhotos = shownPhoto && photos.length && !visiblePhotos.includes(shownPhoto) ? [shownPhoto, ...visiblePhotos] : visiblePhotos;
   const pendingPhoto = !!requestedPhoto && !readyPhotos.has(requestedPhoto);
   const photoFailed = !!requestedPhoto && failedPhotos.has(requestedPhoto);
   const common = person.commonInterests ?? [];
+  const ideas = inviteOpen ? suggestMeet(person.interests ?? [], common)?.ideas ?? [] : [];
   const others = (person.interests ?? []).filter((i) => !common.includes(i));
   const meets = person.completedMeetingsCount;
 
@@ -772,6 +773,17 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
 
       <Sheet open={inviteOpen} onClose={() => setInviteOpen(false)} cls="invite-sheet" label="Приглашение на встречу">
         <h2 className="t">Куда пойдём?</h2>
+        {ideas.length > 0 && <p>Мося предлагает по интересам</p>}
+        {ideas.map(idea => (
+          <button key={idea.title} className="opt gl" onClick={() => {
+            const query = new URLSearchParams({ invite: person.id, inviteName: person.name, category: idea.category, ideaTitle: idea.title });
+            if (idea.type) query.set("type", idea.type);
+            router.push(`/create?${query}`);
+          }}>
+            <img width={36} height={36} src={idea.icon} alt="" />
+            <b>{idea.title}</b>
+          </button>
+        ))}
           <button
             className="opt gl"
             onClick={() => router.push(`/create?invite=${person.id}&inviteName=${encodeURIComponent(person.name)}`)}
