@@ -59,17 +59,6 @@ export default function SettingsScreen() {
     }, [])
   );
 
-  const [savingTelegram, setSavingTelegram] = useState(false);
-  async function toggleTelegram(value: boolean) {
-    if (savingTelegram) return;
-    setSavingTelegram(true);
-    try {
-      await api("/api/me/profile", { method: "PATCH", body: { showTelegramUsername: value } });
-      setMe(old => old && { ...old, showTelegramUsername: value });
-    } catch { Alert.alert("Не удалось сохранить", "Попробуй ещё раз."); }
-    finally { setSavingTelegram(false); }
-  }
-
   async function toggleMorning(v: boolean) {
     tapLight();
     setMorning(v);
@@ -192,12 +181,6 @@ export default function SettingsScreen() {
             </View>
             <Switch value={hidden} onValueChange={toggleHidden} trackColor={{ true: colors.violet, false: "rgba(22,18,31,0.15)" }} thumbColor="#fff" />
           </View>
-          {me?.telegramUsername ? <View style={[styles.row, styles.sep]}>
-            <View style={[styles.ic, { backgroundColor: "rgba(20,20,20,0.06)" }]}><Icon name="send" size={18} color={colors.ink} /></View>
-            <View style={{ flex: 1 }}><Text style={styles.label}>Показывать Telegram в профиле</Text><Text style={styles.sub}>@{me.telegramUsername}</Text></View>
-            <Switch accessibilityLabel="Показывать Telegram в профиле" disabled={savingTelegram} value={!!me.showTelegramUsername} onValueChange={toggleTelegram}
-              trackColor={{ true: colors.ink, false: "rgba(22,18,31,0.15)" }} thumbColor="#fff" />
-          </View> : null}
           <Row icon="bell" label="Уведомления" onPress={() => router.push("/notifications")} />
           <Row icon="mask" label="Приватность и анонимность" onPress={() => router.push("/privacy")} last />
         </Glass>
