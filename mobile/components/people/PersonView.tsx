@@ -63,19 +63,18 @@ export function PersonView({
   preview,
   self,
   active = true,
+  preload = false,
   onBack,
   onGone,
   topAction,
-  transparentBg,
 }: {
-  /** В колоде под карточкой уже лежит фото этого человека — свой фон не рисуем, чтобы не моргало. */
-  transparentBg?: boolean;
   id: string;
   preview?: PersonPreview;
   /** «Как меня видят» — без кнопок действий. */
   self?: boolean;
   /** В колоде грузим только видимую карточку и соседние. */
   active?: boolean;
+  preload?: boolean;
   onBack: () => void;
   /** Человека заблокировали — колода убирает карточку. */
   onGone?: (id: string) => void;
@@ -146,12 +145,15 @@ export function PersonView({
     if (!self) getMyId().then((my) => setIsMe(my === id));
   }, [self, id]);
 
+  const shouldLoad = active || preload;
+  const isActive = useRef(active);
+  isActive.current = active;
   useEffect(() => {
-    if (!active) return;
+    if (!shouldLoad) return;
     let current = true;
     let pending = false;
     async function refresh(initial = false) {
-      if (pending || (!initial && AppState.currentState !== "active")) return;
+      if (pending || (!initial && (!isActive.current || AppState.currentState !== "active"))) return;
       pending = true;
       try {
         const r = await api<Person>(`/api/users/${id}`);
@@ -166,7 +168,7 @@ export function PersonView({
     const timer = setInterval(() => { void refresh(); }, 60_000);
     const listener = AppState.addEventListener("change", state => { if (state === "active") void refresh(); });
     return () => { current = false; clearInterval(timer); listener.remove(); };
-  }, [active, id, preview?.distanceM, preview?.distanceKm]);
+  }, [shouldLoad, id, preview?.distanceM, preview?.distanceKm]);
   const lastActiveAt = p ? p.lastActiveAt : preview?.lastActiveAt;
   const [, refreshTime] = useState(0);
   useEffect(() => {
@@ -212,13 +214,18 @@ export function PersonView({
   const other = (p?.interests ?? []).filter((i) => !common.includes(i));
 
   return (
-    <View style={{ flex: 1, backgroundColor: transparentBg ? "transparent" : "#17141F" }}>
+    <View style={{ flex: 1, backgroundColor: "#17141F" }}>
       {/* Фото стоит на месте (как .gal в мини-аппе), карточка с «О себе» едет поверх него. */}
-      <Animated.View pointerEvents="none" style={[styles.photoBox, transparentBg && { backgroundColor: "transparent" }, StyleSheet.absoluteFillObject, { transform: [{ scale: photoScale }] }]}>
+      <Animated.View pointerEvents="none" style={[styles.photoBox, StyleSheet.absoluteFillObject, { transform: [{ scale: photoScale }] }]}>
         {photos.length ? (
-          <ProfilePictures key={id} photos={photos} index={photo} />
+          <>
+            <View style={[StyleSheet.absoluteFill, styles.noPhoto, { backgroundColor: "#242129" }]}>
+              <Text style={{ color: "#ccc8ce", fontSize: 44 }}>{name.trim().slice(0, 1)}</Text>
+            </View>
+            <ProfilePictures key={id} photos={active ? photos : photos.slice(0, 1)} index={photo} />
+          </>
         ) : (
-          <LinearGradient colors={["#3F3A4E", "#AAA0FF", colors.milk]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
+          <LinearGradient colors={["#403C44", "#28252D", "#17141F"]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
             <Creature size={170} variant="e" />
           </LinearGradient>
         )}
