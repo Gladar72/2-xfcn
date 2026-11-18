@@ -41,3 +41,23 @@ export async function DELETE(req: NextRequest) {
   const { data: me } = await admin.from("users").select("avatar_url").eq("id", currentUser.userId).maybeSingle();
   return NextResponse.json({ photos: await getUserPhotos(admin, currentUser.userId, (me?.avatar_url as string | null) ?? null) });
 }
+
+/** Порядок передаётся целиком: первый снимок становится обложкой профиля. */
+export async function PATCH(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const body = await req.json().catch(() => null);
+  const before = body?.before;
+  const photos = body?.photos;
+  const valid = (urls: unknown): urls is string[] => Array.isArray(urls) && urls.length >= 2 && urls.length <= 3
+    && urls.every(url => typeof url === "string" && url.length > 0) && new Set(urls).size === urls.length;
+  if (!valid(before) || !valid(photos) || before.length !== photos.length || !photos.every(url => before.includes(url))) {
+    return NextResponse.json({ error: "invalid_order" }, { status: 422 });
+  }
+  const { data, error } = await createAdminClient().rpc("reorder_profile_photos", {
+    p_user_id: user.userId, p_before: before, p_after: photos,
+  });
+  if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+  if (!data) return NextResponse.json({ error: "photos_changed" }, { status: 409 });
+  return NextResponse.json({ avatarUrl: photos[0], photos });
+}

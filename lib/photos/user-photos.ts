@@ -14,7 +14,8 @@ export async function getUserPhotos(admin: Admin, userId: string, avatarUrl: str
     .eq("user_id", userId)
     .gt("position", 0)
     .order("position", { ascending: true })
+    .order("id", { ascending: true })
     .limit(2);
   const extra = (data ?? []).map((r) => r.url as string).filter(Boolean);
-  return [...(avatarUrl ? [avatarUrl] : []), ...extra];
+  return Array.from(new Set([...(avatarUrl ? [avatarUrl] : []), ...extra]));
 }
