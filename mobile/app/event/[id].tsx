@@ -14,6 +14,7 @@ import { Aurora, Btn, Glass, Grad, Pill, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { Avatar } from "@/components/ui";
 import { ConfirmSheet } from "@/components/Sheet";
+import { OrganizerQuestion } from "@/components/event/OrganizerQuestion";
 import { OrganizerPanel } from "@/components/event/OrganizerPanel";
 import { ShareSheet } from "@/components/event/ShareSheet";
 import { manageErrorText, tapOk, tapWarn } from "@/lib/feedback";
@@ -75,6 +76,7 @@ export default function EventScreen() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [whoOpen, setWhoOpen] = useState(false);
   const [whoCount, setWhoCount] = useState(30);
+  const [questionOpen, setQuestionOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
 
@@ -221,6 +223,10 @@ export default function EventScreen() {
   const started = Date.now() >= new Date(event.startsAt).getTime();
   const live = Date.now() >= new Date(event.startsAt).getTime() && Date.now() < new Date(event.endsAt).getTime();
   const catLabel = event.isBusiness ? "Для бизнеса" : event.trainingType?.name ?? (event.category ? CATEGORY_SHORT[event.category.slug] ?? event.category.name : "Встреча");
+
+  const contactLabel = event.isBusiness && !event.hasChat
+    ? event.viewerStatus === "organizer" ? "Личные сообщения" : "Задать вопрос организатору"
+    : event.isBusiness ? "Чат события" : "Чат встречи";
 
   const action = (() => {
     if (event.status === "completed") return <Btn kind="o" title="Встреча завершена" disabled />;
@@ -400,14 +406,18 @@ export default function EventScreen() {
               <Text style={styles.tileVal} numberOfLines={2}>{costShort(event)}</Text>
             </View>
           </View>
-          <Pressable
-            onPress={() => (event.hasChat && event.conversationId && (event.viewerStatus === "organizer" || event.viewerStatus === "accepted") ? openChat() : Alert.alert("", event.isBusiness && event.seatsTotal > 20 ? "У больших событий общего чата нет — вопросы организатору в Telegram" : "Чат откроется после одобрения заявки"))}
-            style={({ pressed }) => [styles.chatBar, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
-            accessibilityLabel="Чат события"
-          >
-            <Icon name="chat" size={20} color="#fff" />
-            <Text style={styles.chatBarText}>{event.isBusiness ? "Чат события" : "Чат встречи"}</Text>
-          </Pressable>
+          {(!event.isBusiness || event.hasChat || open) && (
+            <Pressable onPress={() => {
+              if (event.isBusiness && !event.hasChat) {
+                if (event.viewerStatus === "organizer") router.navigate("/(tabs)/chats");
+                else setQuestionOpen(true);
+              } else if (event.conversationId) openChat();
+              else Alert.alert("Чат встречи", "Общий чат откроется после одобрения заявки.");
+            }} style={({ pressed }) => [styles.chatBar, { transform: [{ scale: pressed ? 0.97 : 1 }] }]} accessibilityRole="button" accessibilityLabel={contactLabel}>
+              <Icon name="chat" size={20} color="#fff" />
+              <Text style={styles.chatBarText}>{contactLabel}</Text>
+            </Pressable>
+          )}
           {/* .k-orgc: организатор (анонимно — капля Моси и «Почему?») */}
           {event.organizer ? (
             event.organizerHidden ? (
@@ -532,6 +542,9 @@ export default function EventScreen() {
         <RoundBtn onPress={share}><Icon name="share" /></RoundBtn>
       </View>
 
+      {event.isBusiness && !event.hasChat && open && event.viewerStatus !== "organizer" ? (
+        <OrganizerQuestion key={event.id} visible={questionOpen} eventId={event.id} title={event.title} onClose={() => setQuestionOpen(false)} />
+      ) : null}
       <Sheet visible={whoOpen} onClose={() => setWhoOpen(false)}>
         <View style={styles.whoHeader}>
           <Text style={styles.whoTitle}>Кто идёт · {people.length}</Text>

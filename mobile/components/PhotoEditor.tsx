@@ -278,6 +278,27 @@ export async function pickAndEdit(opts: { aspect?: number; title?: string; hint?
   return new Promise((resolve) => pushReq?.({ src, ...opts, resolve }));
 }
 
+/** Open the saved profile photo directly, including legacy absolute and relative image URLs. */
+export async function editExistingPhoto(url: string): Promise<EditedPhoto | null> {
+  const fs = await import("expo-file-system/legacy");
+  const { API_URL } = await import("@/lib/config");
+  const uri = new URL(url, API_URL).href;
+  const local = uri.startsWith("file:");
+  const path = local ? uri : `${fs.cacheDirectory}profile-edit-${Date.now()}.jpg`;
+  try {
+    if (!local) {
+      const download = await fs.downloadAsync(uri, path);
+      if (download.status !== 200) throw new Error("photo_unavailable");
+    }
+    const { width: w, height: h } = await RNImage.getSize(path);
+    const open = pushReq;
+    if (!open) return null;
+    return await new Promise<EditedPhoto | null>(resolve => open({ src: { uri: path, w, h }, title: "Фото профиля", resolve }));
+  } finally {
+    if (!local) await fs.deleteAsync(path, { idempotent: true }).catch(() => {});
+  }
+}
+
 /** Ставится один раз в корне приложения (app/_layout.tsx). */
 export function PhotoEditorHost() {
   const [req, setReq] = useState<Req | null>(null);

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, Linking, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -8,6 +8,8 @@ import { Press } from "@/components/k";
 import { HeartBurst, pop, type HeartBurstRef } from "@/components/k/HeartBurst";
 import { Creature } from "@/components/k/Creature";
 import { Icon } from "@/components/Icon";
+import { ProfilePictures } from "./ProfilePictures";
+import { lastSeenText, ms } from "../chat/types";
 import { InviteSheet } from "@/components/people/InviteSheet";
 import { ReportSheet } from "@/components/people/ReportSheet";
 import { api } from "@/lib/api";
@@ -19,6 +21,7 @@ import { colors, FONT, SERIF, f } from "@/lib/theme";
 
 /** Ответ GET /api/users/[id] (app/api/users/[id]/route.ts). */
 export interface Person {
+  telegramUsername?: string | null;
   id: string;
   name: string;
   avatarUrl: string | null;
@@ -29,6 +32,7 @@ export interface Person {
   bio: string | null;
   ratingAvg: number;
   completedMeetingsCount: number;
+  lastActiveAt?: string | null;
   distanceKm: number | null;
   distanceM?: number | null;
   interests: string[];
@@ -43,8 +47,11 @@ export interface PersonPreview {
   avatarUrl: string | null;
   distanceM?: number | null;
   distanceKm?: number | null;
+  lastActiveAt?: string | null;
+  gender?: "male" | "female";
 }
 
+const ACTION_HEIGHT = 52;
 const NO_MEET = "Пока написать нельзя — у вас ещё не было общей встречи. Позови на свою встречу или создай новую 😉";
 /**
  * Профиль человека (components/people/PersonView.tsx в мини-приложении):
@@ -132,7 +139,7 @@ export function PersonView({
   const [isMe, setIsMe] = useState(!!self);
   const { height: windowHeight } = useWindowDimensions();
   const [measuredHeight, setMeasuredHeight] = useState(0);
-  const footerInset = isMe ? insets.bottom : 62 + Math.max(insets.bottom, 12);
+  const footerInset = isMe ? insets.bottom : ACTION_HEIGHT + Math.max(insets.bottom, 12);
   const heroHeight = Math.max(0, (measuredHeight || windowHeight) - footerInset);
 
   useEffect(() => {
@@ -151,6 +158,14 @@ export function PersonView({
       .catch(() => { if (current) setError("Профиль недоступен"); });
     return () => { current = false; };
   }, [active, id, preview?.distanceM, preview?.distanceKm]);
+  const lastActiveAt = p ? p.lastActiveAt : preview?.lastActiveAt;
+  const [, refreshTime] = useState(0);
+  useEffect(() => {
+    if (!active || !lastActiveAt) return;
+    const timer = setInterval(() => refreshTime(t => t + 1), 30_000);
+    return () => clearInterval(timer);
+  }, [active, lastActiveAt]);
+  const presence = ms(lastActiveAt) ? lastSeenText(lastActiveAt, p?.gender ?? preview?.gender) : null;
   const distance = distanceLabel(p ? p.distanceKm : preview?.distanceKm, p ? p.distanceM : preview?.distanceM);
 
   const photos = p ? (p.photos.length ? p.photos : p.avatarUrl ? [p.avatarUrl] : []) : preview?.avatarUrl ? [preview.avatarUrl] : [];
@@ -192,7 +207,7 @@ export function PersonView({
       {/* Фото стоит на месте (как .gal в мини-аппе), карточка с «О себе» едет поверх него. */}
       <Animated.View pointerEvents="none" style={[styles.photoBox, transparentBg && { backgroundColor: "transparent" }, StyleSheet.absoluteFillObject, { transform: [{ scale: photoScale }] }]}>
         {photos.length ? (
-          <Image source={{ uri: photos[photo] ?? photos[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />
+          <ProfilePictures key={id} photos={photos} index={photo} />
         ) : (
           <LinearGradient colors={["#3F3A4E", "#AAA0FF", colors.milk]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
             <Creature size={170} variant="e" />
@@ -207,7 +222,7 @@ export function PersonView({
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         style={{ flex: 1 }}
-        contentContainerStyle={{ paddingBottom: footerInset }}
+        contentInsetAdjustmentBehavior="never"
         onLayout={(e) => setMeasuredHeight(e.nativeEvent.layout.height)}
       >
         {/* Первый экран — прозрачный: нажатия слева/справа листают фото. */}
@@ -222,13 +237,17 @@ export function PersonView({
               {name}
               {age ? `, ${age}` : ""}
             </Text>
+            {(presence || distance) && <View pointerEvents="none" style={styles.pills}>
+              {distance && <View style={styles.pill}><Icon name="pin" size={13} color="#fff" /><Text style={styles.pillText}>{distance}</Text></View>}
+              {presence && <Text style={[styles.pillText, { alignSelf: "center" }]}>{presence.charAt(0).toUpperCase() + presence.slice(1)}</Text>}
+            </View>}
             {p ? (
               <View style={styles.pills}>
-                {distance ? (
-                  <View style={styles.pill}>
-                    <Icon name="pin" size={13} color="#fff" />
-                    <Text style={styles.pillText}>{distance}</Text>
-                  </View>
+                {p.telegramUsername ? (
+                  <Pressable accessibilityRole="link" accessibilityLabel={`Telegram @${p.telegramUsername}`} style={styles.pill}
+                    onPress={() => Linking.openURL(`https://t.me/${encodeURIComponent(p.telegramUsername!)}`).catch(() => Alert.alert("Не удалось открыть Telegram"))}>
+                    <Icon name="send" size={14} color="#fff" /><Text style={styles.pillText}>@{p.telegramUsername}</Text>
+                  </Pressable>
                 ) : null}
                 {p.ratingAvg > 0 ? (
                   <View style={styles.pill}>
@@ -294,7 +313,7 @@ export function PersonView({
             </>
           )}
         </View>
-        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0.74)", "rgba(23,20,31,0)"]} style={{ height: 38 }} />
+        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0.74)", "rgba(23,20,31,0)"]} style={{ height: footerInset }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}
@@ -387,7 +406,7 @@ function Chips({ items }: { items: string[] }) {
 }
 
 const styles = StyleSheet.create({
-  photoBox: { backgroundColor: colors.violet, overflow: "hidden" },
+  photoBox: { backgroundColor: "#17141F", overflow: "hidden" },
   noPhoto: { alignItems: "center", justifyContent: "center" },
   zones: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
   heroFade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 124 },
@@ -405,15 +424,15 @@ const styles = StyleSheet.create({
   about: { alignSelf: "flex-start", maxWidth: "100%", minHeight: 36, justifyContent: "center", paddingHorizontal: 13, paddingVertical: 6 },
   aboutText: { lineHeight: 21 },
   chipIc: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  bar2: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingTop: 10 },
-  rb: { width: 48, height: 52, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.78)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  bar2: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 },
+  rb: { width: 48, height: ACTION_HEIGHT, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.78)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
   rbOn: { backgroundColor: "rgba(255,255,255,0.94)" },
   rbHeart: { backgroundColor: "#FF4F8B", borderColor: "rgba(255,255,255,0.3)" },
   heartToast: { position: "absolute", left: 14, right: 14, minHeight: 42, borderRadius: 21, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "rgba(255,255,255,0.95)", alignItems: "center", justifyContent: "center" },
   heartToastText: { fontFamily: FONT, fontSize: 14, color: "#17141F", textAlign: "center" },
-  callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
+  callBtn: { flex: 1, height: ACTION_HEIGHT, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
   callText: { color: colors.ink, fontSize: 14, lineHeight: 16, ...f("500"), textAlign: "center" },
-  body: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 16, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },
+  body: { paddingHorizontal: 20, paddingTop: 10, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },
   card: { borderRadius: 24, padding: 16, gap: 10 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },

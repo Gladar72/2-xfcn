@@ -8,5 +8,5 @@ export default function PersonScreen() {
   const { id, self, name, avatar, age } = useLocalSearchParams<{ id: string; self?: string; name?: string; avatar?: string; age?: string }>();
   // Имя и фото приходят сразу со встречи — экран открывается мгновенно, остальное догружается.
   const preview = name ? { id, name, age: Number(age) || 0, avatarUrl: avatar || null } : undefined;
-  return <PersonView id={id} preview={preview} self={self === "1"} onBack={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))} />;
+  return <PersonView key={id} id={id} preview={preview} self={self === "1"} onBack={() => (router.canGoBack() ? router.back() : router.replace("/(tabs)"))} />;
 }

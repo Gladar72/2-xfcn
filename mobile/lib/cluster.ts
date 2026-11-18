@@ -40,6 +40,7 @@ export function groupLocations<T extends EventPoint>(events: T[], city = ""): Ma
 
 /** Кружок тоже привязан к реальному адресу. Увеличение масштаба разделяет только разные места. */
 export function clusterize<T>(locations: MapGroup<T>[], zoom: number, radius = 46): MapGroup<T>[] {
+  if (zoom >= ADDRESS_ZOOM) return locations;
   const scale = 512 * 2 ** Math.max(0, Math.min(MAX_MAP_ZOOM, zoom));
   const clusters: { group: MapGroup<T>; x: number; y: number }[] = [];
   for (const location of locations) {

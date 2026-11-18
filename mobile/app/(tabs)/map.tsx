@@ -155,14 +155,11 @@ export default function MapScreen() {
   useEffect(() => { setSelected(null); setAddressOpen(false); }, [shown]);
   const carousel = selected ?? shown.slice(0, 30);
 
-  function openCluster(group: MapGroup<MapEvent & { isCity?: boolean }>) {
+  function zoomToCluster(group: MapGroup<MapEvent & { isCity?: boolean }>) {
     tapLight();
     setSelected(group.items);
-    if (group.locationCount === 1 || zoom >= MAX_MAP_ZOOM) {
-      setAddressOpen(true);
-      return;
-    }
-    camera.current?.flyTo({ center: [group.lng, group.lat], zoom: Math.min(MAX_MAP_ZOOM, zoom + 2), duration: 450 });
+    const nextZoom = group.locationCount === 1 ? ADDRESS_ZOOM : Math.min(ADDRESS_ZOOM, zoom + 2);
+    camera.current?.flyTo({ center: [group.lng, group.lat], zoom: nextZoom, duration: 450 });
   }
 
   return (
@@ -179,33 +176,47 @@ export default function MapScreen() {
         <Camera ref={camera} initialViewState={{ center: TYUMEN_CENTER, zoom: 11 }} />
         {located ? <UserLocation /> : null}
         {clusters.map((c) => {
-          const e = c.items.find((item) => item.id === params.focus) ?? c.items[0]!;
-          if (c.items.length > 1) {
+          if (c.items.length > 1 && zoom < ADDRESS_ZOOM) {
             return (
               <Marker key={`group:${c.id}`} id={`group:${c.id}`} lngLat={[c.lng, c.lat]} anchor="center">
-                <Pressable style={styles.cluster} onPress={() => openCluster(c)} accessibilityRole="button" accessibilityLabel={`Показать события: ${c.items.length}`}>
+                <Pressable style={styles.cluster} onPress={() => zoomToCluster(c)} accessibilityRole="button" accessibilityLabel={`Показать события: ${c.items.length}`}>
                   <Text style={styles.clusterText}>{c.items.length}</Text>
                 </Pressable>
               </Marker>
             );
           }
-          const cityEv = e.isCity || e.id.startsWith("city:");
-          const full = !cityEv && e.seatsLeft <= 0;
-          const label = cityEv ? "в городе" : full ? "мест нет" : timePill(e.startsAt, e.endsAt);
+          const shared = c.items.length > 1;
+          const visible = c.items.length > 3 ? c.items.slice(0, 2) : c.items;
           return (
-            <Marker key={e.id} id={e.id} lngLat={[c.lng, c.lat]} anchor="bottom">
-              <Pressable onPress={() => open(e)} style={[styles.pin, full && { opacity: 0.6 }]}>
-                {label === "сейчас" ? (
-                  <View style={[styles.pill, { backgroundColor: colors.live }]}>
-                    <Text style={styles.pillText}>сейчас</Text>
-                  </View>
-                ) : (
-                  <View style={[styles.pill, { backgroundColor: "#17141F" }]}>
-                    <Text style={styles.pillText}>{label}</Text>
-                  </View>
-                )}
-                <EventPin photo={coverUri(e.markerPhoto)} icon={eventIcon(e)} badge={e.isBusiness || cityEv ? undefined : eventIcon(e)} />
-              </Pressable>
+            <Marker key={`photos:${c.id}`} id={`photos:${c.id}`} lngLat={[c.lng, c.lat]} anchor="bottom">
+              <View collapsable={false} style={styles.pin}>
+                <View style={styles.photoRow}>
+                  {visible.map(e => {
+                    const cityEvent = e.isCity || e.id.startsWith("city:");
+                    const full = !cityEvent && e.seatsLeft <= 0;
+                    const label = cityEvent ? "в городе" : full ? "мест нет" : timePill(e.startsAt, e.endsAt);
+                    return (
+                      <Pressable key={e.id} onPress={() => open(e)} accessibilityRole="button" accessibilityLabel={e.title}
+                        style={[styles.pin, full && { opacity: 0.6 }]}>
+                        <View style={[styles.pill, { backgroundColor: label === "сейчас" ? colors.live : "#17141F" }]}>
+                          <Text style={styles.pillText}>{label}</Text>
+                        </View>
+                        <EventPin shared={shared} photo={coverUri(e.markerPhoto)} icon={eventIcon(e)} badge={e.isBusiness || cityEvent ? undefined : eventIcon(e)} />
+                      </Pressable>
+                    );
+                  })}
+                  {visible.length < c.items.length ? (
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Все события по адресу: ${c.items.length}`}
+                      style={styles.morePhotos} onPress={() => { setSelected(c.items); setAddressOpen(true); }}>
+                      <Text style={styles.clusterText}>+{c.items.length - visible.length}</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                {shared ? <>
+                  <View pointerEvents="none" style={styles.addressJoin} />
+                  <View pointerEvents="none" style={styles.addressTip} />
+                </> : null}
+              </View>
             </Marker>
           );
         })}
@@ -271,17 +282,20 @@ export default function MapScreen() {
       ) : null}
 
       <Sheet visible={addressOpen} onClose={() => setAddressOpen(false)}>
-        <Text style={kf("600", 18)}>События на карте</Text>
+        <Text style={kf("600", 18)}>События по этому адресу</Text>
         <FlatList style={{ maxHeight: 420, flexShrink: 1 }} data={selected ?? []} keyExtractor={(e) => e.id}
-          renderItem={({ item }) => <Pressable style={{ paddingVertical: 12 }} onPress={() => { setAddressOpen(false); open(item); }}>
-            <Text style={kf("500", 15)}>{item.title}</Text>
-            <Text style={kf("400", 13, { color: colors.grey })}>{timePill(item.startsAt, item.endsAt)}{item.placeName ? ` · ${item.placeName}` : ""}</Text>
+          renderItem={({ item }) => <Pressable style={styles.addressEvent} onPress={() => { setAddressOpen(false); open(item); }}>
+            <Image source={{ uri: coverUri(item.markerPhoto) ?? eventIcon(item) }} style={styles.addressPhoto} contentFit="cover" />
+            <View style={{ flex: 1 }}>
+              <Text style={kf("500", 15)}>{item.title}</Text>
+              <Text style={kf("400", 13, { color: colors.grey })}>{timePill(item.startsAt, item.endsAt)}{item.placeName ? ` · ${item.placeName}` : ""}</Text>
+            </View>
           </Pressable>} />
       </Sheet>
       <BizCatSheet visible={catSheet} onClose={() => setCatSheet(false)} counts={bizCounts} value={bizCat} onChange={setBizCat} total={events.length} />
       {/* .zm: приблизить / отдалить — справа посередине */}
       <View style={{ position: "absolute", right: 16, top: insets.top + 200, gap: 10 }}>
-        <RoundBtn size={44} onPress={() => camera.current?.zoomTo(Math.min(20, zoom + 1), { duration: 250 })}><KI n="plus" size={18} /></RoundBtn>
+        <RoundBtn size={44} onPress={() => camera.current?.zoomTo(Math.min(MAX_MAP_ZOOM, zoom + 1), { duration: 250 })}><KI n="plus" size={18} /></RoundBtn>
         <RoundBtn size={44} onPress={() => camera.current?.zoomTo(Math.max(3, zoom - 1), { duration: 250 })}><KI n="minus" size={18} /></RoundBtn>
       </View>
       {/* .locate2: создать встречу — тёмная круглая кнопка над «Где я» */}
@@ -321,6 +335,12 @@ const styles = StyleSheet.create({
   cluster: { minWidth: 46, height: 46, borderRadius: 23, paddingHorizontal: 6, borderWidth: 3, borderColor: "#fff", backgroundColor: "#17141F", alignItems: "center", justifyContent: "center" },
   clusterText: { ...f("600"), fontSize: 17, color: "#fff" },
   pin: { alignItems: "center" },
+  photoRow: { flexDirection: "row", alignItems: "flex-end", gap: 3 },
+  addressEvent: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
+  addressPhoto: { width: 46, height: 46, borderRadius: 12 },
+  addressJoin: { alignSelf: "stretch", height: 6, marginHorizontal: 25, borderColor: "#17141F", borderLeftWidth: 2, borderRightWidth: 2, borderBottomWidth: 2, borderBottomLeftRadius: 3, borderBottomRightRadius: 3 },
+  addressTip: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderTopWidth: 9, borderLeftColor: "transparent", borderRightColor: "transparent", borderTopColor: "#17141F" },
+  morePhotos: { minWidth: 48, height: 48, paddingHorizontal: 4, borderRadius: 24, alignItems: "center", justifyContent: "center", backgroundColor: "#17141F" },
   pill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginBottom: 2 },
   pillText: { color: "#fff", fontSize: 11.5, ...f("500") },
   locate: { position: "absolute", right: 16 },

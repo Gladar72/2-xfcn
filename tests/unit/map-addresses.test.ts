@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { clusterize, groupLocations } from "../../mobile/lib/cluster";
+import { ADDRESS_ZOOM, clusterize, groupLocations } from "../../mobile/lib/cluster";
 
 const first = { id: "a", address: "Тюмень, Ямская улица, 22", lat: 57.151, lng: 65.50 };
 const same = { id: "b", address: "ул. Ямская, д. 22", lat: 57.15105, lng: 65.5001 };
@@ -22,4 +22,15 @@ it("keeps both events at one address through zoom in, zoom out, and reordered re
 it("groups identical coordinates without an address and keeps other private points approximate", () => {
   const group = groupLocations([first, { ...first, address: null, id: "d" }, { ...same, organizerHidden: true }]);
   expect(clusterize(group, 20).map(g => g.items.length)).toEqual([2, 1]);
+});
+
+it("reveals neighbouring addresses at street zoom and keeps one exact anchor for photos at the same venue", () => {
+  const neighbour = { ...other, lng: first.lng + 0.00001 };
+  const addresses = groupLocations([first, same, neighbour], "Тюмень");
+  expect(clusterize(addresses, ADDRESS_ZOOM - 0.25)).toHaveLength(1);
+  expect(clusterize(addresses, ADDRESS_ZOOM).map(g => [g.lng, g.lat, g.items.map(e => e.id)])).toEqual([
+    [first.lng, first.lat, ["a", "b"]],
+    [neighbour.lng, neighbour.lat, ["c"]],
+  ]);
+  expect(clusterize(addresses, ADDRESS_ZOOM - 1)).toHaveLength(1);
 });

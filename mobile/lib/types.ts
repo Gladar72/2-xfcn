@@ -56,6 +56,8 @@ export interface FeedEvent {
 }
 
 export interface PersonCard {
+  gender?: "male" | "female";
+  lastActiveAt?: string | null;
   id: string;
   name: string;
   age: number;
@@ -101,6 +103,8 @@ export interface MapEvent {
 }
 
 export interface MyProfile {
+  telegramUsername?: string | null;
+  showTelegramUsername?: boolean;
   id: string;
   name: string;
   avatarUrl: string | null;

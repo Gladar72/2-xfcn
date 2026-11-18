@@ -633,7 +633,7 @@ export function WhoStep({
         </Press>
       </View>
       <Text style={[kf("400", 14, { lh: 1.5, color: K.ink2 }), { marginTop: 6, textAlign: "center" }]}>
-        {business ? (seats > 20 ? "Больше 20 гостей — общий чат не создаётся, только заявки" : `Гостей на событии: ${seats}`) : `Не считая тебя · на встрече будет ${seats + 1} чел.`}
+        {business ? (seats > 20 ? "Общий чат можно включить после публикации события" : `Гостей на событии: ${seats}`) : `Не считая тебя · на встрече будет ${seats + 1} чел.`}
       </Text>
       <Press onPress={onPlans} style={[st.plan, G]}>
         <View style={{ flex: 1, minWidth: 0 }}>

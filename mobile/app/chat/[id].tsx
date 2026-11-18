@@ -826,7 +826,7 @@ export default function ChatScreen() {
         ) : (
           <View style={[styles.readonly, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <Icon name="lock" size={16} color={colors.grey} />
-            <Text style={styles.readonlyText}>{blocked ? "Ты не можешь писать в этот чат" : "Встреча завершена — чат в архиве, писать нельзя"}</Text>
+            <Text style={styles.readonlyText}>{blocked ? "Ты не можешь писать в этот чат" : "Чат доступен только для чтения"}</Text>
           </View>
         )}
       </KeyboardAvoidingView>

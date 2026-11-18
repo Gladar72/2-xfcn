@@ -29,18 +29,19 @@ type Page = { kind: "person"; p: PersonCard } | { kind: "end" };
 type DeckResponse = { items: PersonCard[]; meHasLocation?: boolean; nextOffset?: number | null };
 
 /** Свежая точка без вопросов: только если доступ к геолокации уже дан. */
-async function refreshLocationQuietly(): Promise<void> {
+async function refreshLocationQuietly(): Promise<boolean> {
   try {
     const perm = await Location.getForegroundPermissionsAsync();
-    if (perm.status !== "granted") return;
+    if (perm.status !== "granted") return false;
     const pos = await Promise.race([
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
       new Promise<null>((r) => setTimeout(() => r(null), 4000)),
     ]);
-    if (!pos) return;
+    if (!pos) return false;
     await api("/api/me/location", { body: { lat: pos.coords.latitude, lon: pos.coords.longitude } });
+    return true;
   } catch {
-    // Без точки колода всё равно откроется — просто без расстояний.
+    return false;
   }
 }
 
@@ -60,7 +61,8 @@ export default function PeopleScreen() {
   const seed = useRef(newVisitSeed()).current;
   const nextOffset = useRef<number | null>(null);
   const loadingMore = useRef(false);
-  const located = useRef(false);
+  const locationRefresh = useRef<Promise<boolean> | null>(null);
+  const deckRequest = useRef(0);
   // Выбранного в «Людях рядом» человека открываем первым — только при входе, не после фильтров.
   const startId = useRef<string | undefined>(start || undefined);
 
@@ -70,18 +72,26 @@ export default function PeopleScreen() {
   );
 
   const load = useCallback(async (keepPlace = false) => {
+    const request = ++deckRequest.current;
+    const location = locationRefresh.current ??= refreshLocationQuietly();
+    const path = query(0);
     try {
-      if (!located.current) {
-        located.current = true;
-        await refreshLocationQuietly();
-      }
-      const r = await api<DeckResponse>(query(0));
+      const r = await api<DeckResponse>(path);
+      if (request !== deckRequest.current) return;
       nextOffset.current = r.nextOffset ?? null;
       setItems(r.items ?? []);
       setHasLocation(r.meHasLocation !== false);
       // После разрешения геолокации остаёмся на той же карточке — порядок тот же (то же зерно).
       if (!keepPlace) setIndex(0);
+      if (!r.meHasLocation && await location && request === deckRequest.current) {
+        const fresh = await api<DeckResponse>(path).catch(() => null);
+        if (!fresh || request !== deckRequest.current) return;
+        const distances = new Map(fresh.items.map(person => [person.id, person]));
+        setItems(list => list?.map(person => distances.get(person.id) ?? person) ?? []);
+        setHasLocation(fresh.meHasLocation !== false);
+      }
     } catch {
+      if (request !== deckRequest.current) return;
       nextOffset.current = null;
       setItems([]);
     }

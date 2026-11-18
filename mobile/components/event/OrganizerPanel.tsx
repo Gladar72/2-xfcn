@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Pressable, Switch, StyleSheet, Text, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { Glass } from "@/components/brand";
 import { Icon, type IconName } from "@/components/Icon";
@@ -20,6 +20,7 @@ export interface OrganizerEvent {
   seatsTotal: number;
   seatsTaken: number;
   isBusiness: boolean;
+  hasChat: boolean;
   participants: { id: string; name: string; avatarUrl: string | null }[];
   invites?: { id: string; status: string; user: { id: string; name: string; avatarUrl: string | null } }[];
   pendingApplicationsCount?: number;
@@ -46,6 +47,16 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
   const [pending, setPending] = useState<Application[]>([]);
   const [confirm, setConfirm] = useState<null | "cancel" | "complete">(null);
   const [busy, setBusy] = useState(false);
+  const [savingChat, setSavingChat] = useState(false);
+  async function changeChat(enabled: boolean) {
+    if (savingChat) return;
+    setSavingChat(true);
+    try {
+      await api(`/api/events/${event.id}/chat-mode`, { method: "PATCH", body: { enabled } });
+      await onChanged();
+    } catch { Alert.alert("Не удалось изменить чат", "Попробуй ещё раз."); }
+    finally { setSavingChat(false); }
+  }
   const [boosting, setBoosting] = useState(false);
 
   const active = event.status === "published" || event.status === "closed";
@@ -133,6 +144,14 @@ export function OrganizerPanel({ event, onChanged }: { event: OrganizerEvent; on
         </Glass>
       )}
 
+      {active && event.isBusiness && <Glass strong style={styles.hint}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.hintTitle}>Общий чат события</Text>
+          <Text style={styles.muted}>{event.hasChat ? "Участники пишут в общий чат" : "Вопросы приходят тебе в личные сообщения"}</Text>
+        </View>
+        <Switch accessibilityLabel="Общий чат события" value={event.hasChat} disabled={savingChat}
+          trackColor={{ true: colors.ink }} onValueChange={changeChat} />
+      </Glass>}
       {active && pending.length > 0 ? (
         <View style={{ gap: 10 }}>
           <View style={styles.secRow}>
