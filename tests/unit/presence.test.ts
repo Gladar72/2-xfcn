@@ -7,12 +7,13 @@ const ago = (minutes: number) => new Date(now - minutes * 60_000).toISOString();
 test("unknown, invalid and future activity never invent an online status", () => {
   for (const value of [null, undefined, "bad", ago(-10)]) expect(presenceLabel(value, "female", now)).toBeNull();
 });
-test("presence expires and formats Russian time and gender", () => {
-  expect(presenceLabel(ago(1), "female", now)).toBe("В сети");
-  expect(presenceLabel(ago(2), "female", now)).toBe("Была 2 минуты назад");
-  expect(presenceLabel(ago(11), "male", now)).toBe("Был 11 минут назад");
-  expect(presenceLabel(ago(21), null, now)).toBe("В сети 21 минуту назад");
-  expect(presenceLabel(ago(60), "female", now)).toBe("Была 1 час назад");
-  expect(presenceLabel(ago(25 * 60), "male", now)).toBe("Был 1 день назад");
-  expect(presenceLabel(ago(31 * 24 * 60), "female", now)).toBe("Была больше месяца назад");
+test("online expires at two minutes, then shows a gendered local date and time", () => {
+  const now = new Date(2026, 10, 18, 11, 0).getTime();
+  const at = (day: number) => new Date(2026, 10, day, 9, 5).toISOString();
+  expect(presenceLabel(new Date(now - 119999).toISOString(), "female", now)).toBe("Онлайн");
+  expect(presenceLabel(new Date(now - 120000).toISOString(), "female", now)).toBe("Была в сети сегодня в 10:58");
+  expect(presenceLabel(at(17), "male", now)).toBe("Был в сети вчера в 09:05");
+  expect(presenceLabel(at(18), null, now)).toBe("Последний визит сегодня в 09:05");
+  expect(presenceLabel(at(8), "female", now)).toMatch(/^Была в сети 8 нояб?.? в 09:05$/);
+  expect(presenceLabel(new Date(2025, 10, 2, 19, 5).toISOString(), "male", now)).toContain("2025");
 });

@@ -18,8 +18,6 @@ interface Profile {
   name: string;
   avatarUrl: string | null;
   photos?: string[];
-  telegramUsername?: string | null;
-  showTelegramUsername?: boolean;
   interests?: { id: string; name: string }[];
   age: number;
   city: string;
@@ -114,7 +112,6 @@ export default function ProfilePage() {
     }
   }
   const [first, ...rest] = (profile?.name ?? "").split(" ");
-  const meetings = profile ? profile.eventsOrganizedCount + profile.eventsAttendedCount : 0;
   const lim = sub?.events?.limit ?? null;
   const used = sub?.events?.used ?? 0;
 
@@ -140,16 +137,10 @@ export default function ProfilePage() {
               {rest.length ? <> <em>{rest.join(" ")}</em></> : profile.age ? <>, <em>{profile.age}</em></> : null}
             </h1>
             <div className="k-mt3">
-              {[profile.city, `${meetings} ${plural(meetings, "встреча", "встречи", "встреч")}`, profile.ratingAvg > 0 ? `${profile.ratingAvg.toFixed(1).replace(".", ",")} ★` : null]
+              {[profile.city, profile.ratingAvg > 0 ? `${profile.ratingAvg.toFixed(1).replace(".", ",")} ★` : null]
                 .filter(Boolean)
                 .join(" · ")}
             </div>
-            {profile.showTelegramUsername && profile.telegramUsername && <div style={{ textAlign: "center", marginTop: 4 }}>
-              <a href={`https://t.me/${encodeURIComponent(profile.telegramUsername)}`} target="_blank" rel="noopener noreferrer"
-                style={{ display: "inline-flex", alignItems: "center", gap: 6, color: "#17141f", textDecoration: "none" }}>
-                <KI n="send" style={{ width: 16, height: 16 }} />@{profile.telegramUsername}
-              </a>
-            </div>}
             {(profile.interests ?? []).length > 0 && (
               <div className="k-tags">
                 {(profile.interests ?? []).slice(0, 6).map((i) => (
@@ -262,10 +253,4 @@ export default function ProfilePage() {
 
     </Screen>
   );
-}
-
-function plural(n: number, a: string, b: string, c: string) {
-  const m = n % 10;
-  const h = n % 100;
-  return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 10 || h >= 20) ? b : c;
 }
