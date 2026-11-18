@@ -31,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: application } = await admin
     .from("applications")
-    .select("id, event_id, user_id, status, events(organizer_id, title, has_chat, is_anonymous, place_name, address)")
+    .select("id, event_id, user_id, status, events(organizer_id, title, is_business, has_chat, is_anonymous, place_name, address)")
     .eq("id", applicationId)
     .maybeSingle();
 
@@ -119,7 +119,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // "Для бизнеса" — организатор может явно выбрать НЕ создавать чат (при
   // seats_total <= 20, см. мастер создания) — тогда пропускаем этот блок
   // целиком: люди просто откликаются и получают уведомление, без общего чата.
-  if (hasChat) {
+  if (hasChat && !(application.events as unknown as { is_business: boolean } | null)?.is_business) {
     const { data: existingConversation } = await admin
       .from("conversations")
       .select("id")

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
   const { data: existingUser, error: findError } = await admin
     .from("users")
-    .select("id, telegram_id, moderation_status, avatar_url")
+    .select("id, telegram_id, moderation_status, avatar_url, telegram_username")
     .eq("telegram_id", telegramUser.id)
     .maybeSingle();
 
@@ -72,6 +72,12 @@ export async function POST(req: NextRequest) {
 
   if (existingUser.moderation_status === "banned") {
     return NextResponse.json({ error: "user_banned" }, { status: 403 });
+  }
+
+  const handle = telegramUser.username ?? null;
+  if ((existingUser.telegram_username ?? null) !== handle) {
+    const { error } = await admin.from("users").update({ telegram_username: handle, show_telegram_username: false }).eq("id", existingUser.id);
+    if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   }
 
   // Import a missing Telegram avatar in the background. Authentication must

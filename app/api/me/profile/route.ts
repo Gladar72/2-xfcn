@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
 
   // The home screen only needs a city. Avoid counting meetings and loading the
   // entire photo gallery before the first events/people requests can start.
@@ -35,7 +35,7 @@ export async function GET(req: Request) {
   const { data: user, error } = await admin
     .from("users")
     .select(
-      "id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at, receipt_contact, last_active_at, morning_reminders_enabled, phone, email, is_profile_hidden"
+      "id, name, avatar_url, birth_date, city, bio, rating_avg, rating_count, completed_meetings_count, created_at, receipt_contact, last_active_at, morning_reminders_enabled, phone, email, is_profile_hidden, telegram_id, telegram_username, show_telegram_username"
     )
     .eq("id", currentUser.userId)
     .maybeSingle();
@@ -90,6 +90,8 @@ export async function GET(req: Request) {
     ratingCount: user.rating_count,
     completedMeetingsCount: user.completed_meetings_count,
     receiptContact: user.receipt_contact,
+    telegramUsername: user.telegram_id ? user.telegram_username : null,
+    showTelegramUsername: !!user.show_telegram_username,
     morningRemindersEnabled: user.morning_reminders_enabled,
     profileHidden,
     canHideProfile: canHide,
@@ -172,7 +174,15 @@ export async function PATCH(req: Request) {
     update.morning_reminders_enabled = body.morningRemindersEnabled;
   }
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({ noStore: true });
+  if (typeof body?.showTelegramUsername === "boolean") {
+    if (body.showTelegramUsername) {
+      const { data, error } = await admin.from("users").select("telegram_id, telegram_username").eq("id", currentUser.userId).single();
+      if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+      if (!data.telegram_id || !data.telegram_username) return NextResponse.json({ error: "no_telegram_username" }, { status: 422 });
+    }
+    update.show_telegram_username = body.showTelegramUsername;
+  }
   if (typeof body?.profileHidden === "boolean") {
     if (body.profileHidden && !(await canHideProfile(admin, currentUser.userId))) {
       return NextResponse.json({ error: "plan_required" }, { status: 403 });

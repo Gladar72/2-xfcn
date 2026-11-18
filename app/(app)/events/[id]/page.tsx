@@ -52,6 +52,7 @@ interface EventDetails {
   status: string;
   costType: string | null;
   isBusiness: boolean;
+  hasChat: boolean;
   businessPricingType: "ticket" | "free" | "custom" | null;
   businessPricingDetails: string | null;
   photoUrl: string | null;
@@ -322,6 +323,49 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
     } catch {
       /* без хранилища — просто скрываем до перезахода */
     }
+  }
+  const [questionOpen, setQuestionOpen] = useState(false);
+  const [questionText, setQuestionText] = useState("");
+  const [sendingQuestion, setSendingQuestion] = useState(false);
+  const questionLock = useRef(false);
+  const questionRetry = useRef<{ text: string; event: string; id: string } | null>(null);
+  async function sendOrganizerQuestion() {
+    const text = questionText.trim();
+    if (!text || questionLock.current) return;
+    questionLock.current = true;
+    setSendingQuestion(true);
+    try {
+      if (questionRetry.current?.text !== text || questionRetry.current.event !== eventId) {
+        questionRetry.current = { text, event: eventId, id: crypto.randomUUID() };
+      }
+      const res = await fetch(`/api/events/${eventId}/question`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, messageId: questionRetry.current.id }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        flash(result.error === "blocked" ? "Переписка недоступна" : result.error === "event_unavailable" ? "Личные вопросы для этого события закрыты" : "Не удалось отправить вопрос. Попробуй ещё раз.");
+        return;
+      }
+      setQuestionOpen(false);
+      setQuestionText("");
+      questionRetry.current = null;
+      router.push(`/chats/${result.conversationId}`);
+    } catch { flash("Не удалось отправить вопрос. Попробуй ещё раз."); }
+    finally { questionLock.current = false; setSendingQuestion(false); }
+  }
+  const [savingChat, setSavingChat] = useState(false);
+  async function changeChat(enabled: boolean) {
+    if (savingChat) return;
+    setSavingChat(true);
+    try {
+      const res = await fetch(`/api/events/${eventId}/chat-mode`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled }) });
+      if (!res.ok) throw new Error();
+      const result = await res.json();
+      setChatId(result.conversationId);
+      setEvent(old => old ? { ...old, hasChat: result.hasChat } : old);
+    } catch { flash("Не удалось изменить чат"); }
+    finally { setSavingChat(false); }
   }
   const [chatId, setChatId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -628,7 +672,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
               <b>{ticket ?? costShort(event)}</b>
             </div>
             {/* Как в прототипе: значок чата всегда наверху, и у анонимной встречи тоже. */}
-            {chatId ? (
+            {event.isBusiness && !event.hasChat ? (active ? (
+              <button className="k-tile k-gd k-pr k-tchat" onClick={() => mine ? router.push("/chats") : setQuestionOpen(true)}>
+                <KI n="chat" /><small>{mine ? "Личные сообщения" : "Задать вопрос организатору"}</small>
+              </button>
+            ) : null) : chatId ? (
               <Link className="k-tile k-gd k-pr k-tchat" href={`/chats/${chatId}`} aria-label="Чат встречи">
                 <KI n="chat" />
                 <small>{event.isBusiness ? "Чат события" : "Чат"}</small>
@@ -636,7 +684,7 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
             ) : (
               <button
                 className="k-tile k-gd k-pr k-tchat"
-                onClick={() => say(event.isBusiness && event.seatsTotal > 20 ? "У больших событий общего чата нет — вопросы организатору в Telegram" : "Чат откроется после одобрения заявки")}
+                onClick={() => say("Чат откроется после одобрения заявки")}
                 aria-label="Чат встречи"
               >
                 <KI n="chat" />
@@ -814,6 +862,11 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
 
           {canManage && (
             <div className="orgb">
+              {event.isBusiness && <div className="k-blk k-gd" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{ flex: 1 }}><b>Общий чат события</b><div>{event.hasChat ? "Участники пишут в общий чат" : "Вопросы приходят тебе в личные сообщения"}</div></div>
+                <button role="switch" aria-label="Общий чат события" aria-checked={event.hasChat} disabled={savingChat}
+                  className={`sw-t ${event.hasChat ? "on" : ""}`} onClick={() => changeChat(!event.hasChat)} />
+              </div>}
               {event.status === "published" && pendingApplicants.length > 0 && (
                 <div className="blk">
                   <div className="blk-h">
@@ -1040,6 +1093,16 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
       )}
       <ShareSheet open={shareOpen} onClose={() => setShareOpen(false)} eventId={event.id} title={event.title} description={event.description} when={shareWhen} version={event.photoUrl ?? ""} photo={event.photoUrl} chip={`${catName} · ${shareWhen}`} meta={storyMeta(event)} />
 
+      <Sheet open={questionOpen && active && event.isBusiness && !event.hasChat && !mine} onClose={() => { if (!questionLock.current) setQuestionOpen(false); }} label="Вопрос организатору">
+        <h2>Вопрос организатору</h2>
+        <p>{event.title}</p>
+        <textarea aria-label="Твой вопрос" placeholder="Что хочешь уточнить?" value={questionText} maxLength={1500}
+          disabled={sendingQuestion} onChange={e => setQuestionText(e.target.value)} rows={3}
+          style={{ width: "100%", padding: 12, borderRadius: 14, font: "inherit", margin: "8px 0" }} />
+        <button className="btn v" disabled={sendingQuestion || !questionText.trim()} onClick={sendOrganizerQuestion}>
+          {sendingQuestion ? "Отправляем…" : "Отправить лично"}
+        </button>
+      </Sheet>
       <Sheet open={anonOpen} onClose={() => setAnonOpen(false)}>
         <div className="anonbox">
           <Chr shape="ball" pal={anonPal} face="hidden" />

@@ -1,3 +1,4 @@
+import { invitationBlocked } from "@/lib/invites/access";
 import { NextRequest, NextResponse } from "next/server";
 import { runInBackground } from "@/lib/server/background";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -127,16 +128,16 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const [membership, { data: conversationRow, error: conversationError }] = await Promise.all([
     assertMembership(admin, conversationId, currentUser.userId),
     admin.from("conversations")
-      .select("event_id, events(title, status, is_business, organizer_id, photo_url, event_date, event_time, place_name, address, is_anonymous, category:categories(slug, name, emoji))")
+      .select("event_id, events(title, status, has_chat, is_business, organizer_id, photo_url, event_date, event_time, place_name, address, is_anonymous, category:categories(slug, name, emoji))")
       .eq("id", conversationId)
       .maybeSingle(),
   ]);
   if (!membership) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   if (conversationError) return NextResponse.json({ error: "fetch_failed" }, { status: 503 });
-  const eventCheckStatus = (conversationRow?.events as unknown as { status: string } | null)?.status;
+  const group = conversationRow?.events as unknown as { status: string; has_chat: boolean } | null;
   // ?readonly=1 — мобильное приложение показывает архив закрытых чатов (только чтение).
   const readonly = req.nextUrl.searchParams.get("readonly") === "1";
-  if (!readonly && (eventCheckStatus === "completed" || eventCheckStatus === "cancelled")) {
+  if (!readonly && (group?.has_chat === false || group?.status === "completed" || group?.status === "cancelled")) {
     return NextResponse.json({ error: "event_closed" }, { status: 403 });
   }
 
@@ -303,12 +304,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // новых сообщений (переписку по-прежнему можно читать и открывать).
   const { data: conversationRow, error: conversationError } = await admin
     .from("conversations")
-    .select("events(status)")
+    .select("event_id, events(status,has_chat)")
     .eq("id", conversationId)
     .maybeSingle();
   if (conversationError) return NextResponse.json({ error: "send_failed" }, { status: 503 });
-  const eventStatus = (conversationRow?.events as unknown as { status: string } | null)?.status;
-  if (eventStatus === "completed" || eventStatus === "cancelled") {
+  const group = conversationRow?.events as unknown as { status: string; has_chat: boolean } | null;
+  if (conversationRow?.event_id === null) {
+    const { data: others, error } = await admin.from("conversation_members").select("user_id,is_blocked")
+      .eq("conversation_id", conversationId).neq("user_id", currentUser.userId);
+    if (error) return NextResponse.json({ error: "send_failed" }, { status: 503 });
+    const peer = others?.length === 1 ? others[0] : null;
+    if (peer && (peer.is_blocked || await invitationBlocked(admin, currentUser.userId, peer.user_id))) {
+      return NextResponse.json({ error: "blocked" }, { status: 403 });
+    }
+  }
+  if (group?.has_chat === false || group?.status === "completed" || group?.status === "cancelled") {
     return NextResponse.json({ error: "event_closed" }, { status: 422 });
   }
 

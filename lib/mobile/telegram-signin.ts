@@ -23,7 +23,7 @@ export async function telegramSignIn(
 ): Promise<[Record<string, unknown>, number]> {
   const { data: user } = await admin
     .from("users")
-    .select("id, telegram_id, moderation_status")
+    .select("id, telegram_id, moderation_status, telegram_username")
     .eq("telegram_id", tg.id)
     .maybeSingle();
 
@@ -38,6 +38,12 @@ export async function telegramSignIn(
     ];
   }
   if (user.moderation_status === "banned") return [{ error: "user_banned" }, 403];
+
+  const handle = tg.username ?? null;
+  if ((user.telegram_username ?? null) !== handle) {
+    const { error } = await admin.from("users").update({ telegram_username: handle, show_telegram_username: false }).eq("id", user.id);
+    if (error) return [{ error: "unavailable" }, 503];
+  }
 
   let phoneLinked: string | null = null;
   let phoneError: string | null = null;

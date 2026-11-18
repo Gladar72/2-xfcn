@@ -48,7 +48,7 @@ export async function respondToInvite(
 
   const { data: event } = await admin
     .from("events")
-    .select("id, title, organizer_id, status, has_chat, seats_total, seats_taken, event_date, event_time, event_end_time, city, longitude")
+    .select("id, title, organizer_id, status, is_business, has_chat, seats_total, seats_taken, event_date, event_time, event_end_time, city, longitude")
     .eq("id", invite.event_id)
     .maybeSingle();
   if (!event) return { ok: false, error: "event_not_found", text: "Встреча не найдена" };
@@ -131,7 +131,7 @@ export async function respondToInvite(
   await admin.from("event_members").insert({ event_id: event.id, user_id: invite.invitee_id, role: "participant" });
 
   // Один общий чат на встречу — как при принятии заявки.
-  if (event.has_chat ?? true) {
+  if (!event.is_business && (event.has_chat ?? true)) {
     const { data: conv } = await admin.from("conversations").select("id").eq("event_id", event.id).maybeSingle();
     let conversationId = conv?.id as string | undefined;
     if (!conversationId) {
