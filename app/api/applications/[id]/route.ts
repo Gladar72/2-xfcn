@@ -1,3 +1,4 @@
+import { usesNativePush } from "@/lib/push/expo";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -77,7 +78,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .select("telegram_id")
       .eq("id", application.user_id)
       .maybeSingle();
-    if (rejectedUser) {
+    if (rejectedUser && !await usesNativePush(admin, application.user_id)) {
       notifyTelegram(rejectedUser.telegram_id, buildNotificationText("application_rejected", eventTitle)).catch(
         () => {}
       );
@@ -156,7 +157,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     .select("telegram_id")
     .eq("id", application.user_id)
     .maybeSingle();
-  if (participant) {
+  if (participant && !await usesNativePush(admin, application.user_id)) {
     const ticketLine = ticketCode
       ? `\n\n🎟 Твой билет: ${ticketCode}\nНазови номер организатору на входе. Билет всегда под рукой в приложении: Уведомления → «Открыть билет».`
       : "";

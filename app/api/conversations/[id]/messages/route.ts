@@ -1,3 +1,4 @@
+import { nativeRecipients } from "@/lib/push/expo";
 import { NextRequest, NextResponse } from "next/server";
 import { runInBackground } from "@/lib/server/background";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -462,6 +463,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         .filter((m) => !m.is_blocked)
         .filter((m) => !(m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000))
         .map((m) => m.user_id as string);
+      const native = await nativeRecipients(admin, pushRecipients);
       const pushPromise = sendPushPersonal(
         admin,
         pushRecipients.map((userId) => ({
@@ -478,7 +480,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         pushPromise,
         ...otherMembers.map(async (m) => {
           const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
-          if (!telegramId || m.is_blocked) return;
+          if (!telegramId || m.is_blocked || native.has(m.user_id)) return;
           if (m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000) return;
           try {
             await getBot().api.sendMessage(telegramId, text, {

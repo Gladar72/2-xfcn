@@ -600,7 +600,7 @@ async function notifyParticipantsOfChange(
 
   // Push в мобильное приложение — всем участникам, есть общий чат или нет.
   const { data: changedEvent } = await admin.from("events").select("title").eq("id", eventId).maybeSingle();
-  await sendPushToUsers(
+  const native = await sendPushToUsers(
     admin,
     (memberRows ?? []).map((m) => m.user_id as string),
     {
@@ -629,7 +629,7 @@ async function notifyParticipantsOfChange(
     await Promise.allSettled(
       (memberRows ?? []).map((m) => {
         const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
-        return telegramId ? notifyTelegram(telegramId, text) : Promise.resolve();
+        return telegramId && !native.has(m.user_id) ? notifyTelegram(telegramId, text) : Promise.resolve();
       })
     );
   }

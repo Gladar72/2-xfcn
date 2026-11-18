@@ -1,3 +1,4 @@
+import { usesNativePush } from "@/lib/push/expo";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notify/user";
 import { getBot } from "@/lib/telegram/bot";
@@ -58,7 +59,7 @@ export async function deliverAdminReply(admin: Admin, ticketId: string, reply: s
       url: "/support",
     }).catch(() => console.error("Support: app notification unavailable"));
   }
-  if (!ticket.telegram_id) return "saved";
+  if (!ticket.telegram_id || await usesNativePush(admin, ticket.user_id)) return "saved";
   try {
     // Always the MESTO bot. Do not infer delivery from the presence of a chat ID.
     const sent = await getBot().api.sendMessage(Number(ticket.telegram_id), `💬 Ответ поддержки МЕСТО:\n\n${text}`);
