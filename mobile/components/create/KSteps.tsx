@@ -214,7 +214,7 @@ export function CoverStep({
   covers: string[];
   catLabel: string;
   presetCover: string | null;
-  onUpload: () => void;
+  onUpload: (edit?: boolean) => void;
 }) {
   const business = form.business;
   const isOwn = form.categorySlug === "custom";
@@ -271,7 +271,7 @@ export function CoverStep({
       <Lbl>Обложка</Lbl>
       <Text style={[kf("400", 12.5, { color: K.ink2 }), { marginTop: -2, marginHorizontal: 2 }]}>
         {business
-          ? "Загрузи своё фото — афишу, зал или сцену. Вертикально, 3:4"
+          ? "Загрузи своё фото — афишу, зал или сцену. Горизонтально, 3:2"
           : isOwn && !presetCover
             ? `Под «${form.own.trim() || form.title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото`
             : grid.length > 1
@@ -279,13 +279,13 @@ export function CoverStep({
               : "Обложку подобрал Мося · или загрузи своё фото"}
       </Text>
       {bigUpload ? (
-        <Press onPress={onUpload} photo={!!bigBg} style={[st.bizph, !bigBg && G]}>
+        <Press onPress={() => onUpload(!!form.ownPhoto?.source)} photo={!!bigBg} style={[st.bizph, !bigBg && G]}>
           {bigBg ? (
             <>
               <Image source={{ uri: bigBg }} style={StyleSheet.absoluteFill} contentFit="cover" />
               <View style={st.bizphChip}>
                 <KI n="cam" size={16} color="#fff" />
-                <Text style={kf("500", 13, { color: "#fff" })}>{own ? "Заменить фото" : "Загрузить своё фото"}</Text>
+                <Text style={kf("500", 13, { color: "#fff" })}>{form.ownPhoto?.source ? "Изменить кадр" : own ? "Заменить фото" : "Загрузить своё фото"}</Text>
               </View>
             </>
           ) : (
@@ -294,7 +294,7 @@ export function CoverStep({
                 <KI n="cam" size={20} color="#fff" />
               </View>
               <Text style={[kf("500", 16), { marginTop: 4 }]}>{business ? "Загрузить фото события" : "Загрузить фото"}</Text>
-              <Text style={kf("400", 12.5, { color: K.ink2 })}>{business ? "Афиша, зал или сцена · вертикально, 3:4" : "Вертикально, 3:4 — так встречу заметят"}</Text>
+              <Text style={kf("400", 12.5, { color: K.ink2 })}>{business ? "Афиша, зал или сцена · горизонтально, 3:2" : "Горизонтально, 3:2 — так встречу заметят"}</Text>
             </View>
           )}
         </Press>
@@ -303,7 +303,7 @@ export function CoverStep({
           {grid.map((c, i) => {
             const on = selected === c;
             return (
-              <View key={c} style={{ width: "25%", padding: 4 }}>
+              <View key={c} style={{ width: "50%", padding: 4 }}>
                 <Press photo onPress={() => set({ cover: c, useOwnPhoto: false })} style={[st.cv, on && st.cvOn]} accessibilityLabel={`Обложка ${i + 1}`}>
                   <Image source={{ uri: coverUri(c) ?? undefined }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
                 </Press>
@@ -311,14 +311,14 @@ export function CoverStep({
             );
           })}
           {own ? (
-            <View style={{ width: "25%", padding: 4 }}>
-              <Press photo onPress={() => set({ useOwnPhoto: true })} style={[st.cv, selected === "own" && st.cvOn]} accessibilityLabel="Своё фото">
+            <View style={{ width: "50%", padding: 4 }}>
+              <Press photo onPress={() => selected === "own" ? onUpload(!!form.ownPhoto?.source) : set({ useOwnPhoto: true })} style={[st.cv, selected === "own" && st.cvOn]} accessibilityLabel="Своё фото">
                 <Image source={{ uri: own }} style={StyleSheet.absoluteFill} contentFit="cover" />
               </Press>
             </View>
           ) : null}
-          <View style={{ width: "25%", padding: 4 }}>
-            <Press onPress={onUpload} style={[st.cv, { backgroundColor: "rgba(23,20,31,0.05)", alignItems: "center", justifyContent: "center", gap: 2 }]}>
+          <View style={{ width: "50%", padding: 4 }}>
+            <Press onPress={() => onUpload()} style={[st.cv, { backgroundColor: "rgba(23,20,31,0.05)", alignItems: "center", justifyContent: "center", gap: 2 }]}>
               <Text style={kf("300", 26, { color: K.ink2 })}>+</Text>
               <Text style={kf("500", 10.5, { color: K.ink2 })}>Своё фото</Text>
             </Press>
@@ -721,9 +721,9 @@ const st = StyleSheet.create({
   field: { minHeight: 54, borderRadius: 27, paddingHorizontal: 18, justifyContent: "center" },
   ta: { borderRadius: 24, paddingVertical: 14, justifyContent: "flex-start" },
   input: { fontFamily: "Inter-Regular", fontSize: 16, color: K.ink, paddingVertical: 0 },
-  bizph: { marginTop: 10, height: 300, borderRadius: 28, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  bizph: { marginTop: 10, width: "100%", aspectRatio: 3 / 2, borderRadius: 28, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   bizphChip: { position: "absolute", left: 14, bottom: 14, flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: "rgba(23,20,31,0.55)" },
-  cv: { aspectRatio: 3 / 4, borderRadius: 16, overflow: "hidden", backgroundColor: "#2B2737" },
+  cv: { aspectRatio: 3 / 2, borderRadius: 16, overflow: "hidden", backgroundColor: "#2B2737" },
   cvOn: { borderWidth: 2.5, borderColor: K.ink },
   dp: { width: 58, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 2 },
   calb: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 46, borderRadius: 23, marginTop: 8 },
@@ -738,6 +738,6 @@ const st = StyleSheet.create({
   tg2: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 58, borderRadius: 29, paddingLeft: 18, paddingRight: 8, paddingVertical: 8 },
   sw: { width: 52, height: 32, borderRadius: 16, backgroundColor: "rgba(23,20,31,0.15)", padding: 3 },
   swDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#fff" },
-  prev: { height: 440, borderRadius: 32, overflow: "hidden", marginTop: 4, backgroundColor: "#2B2737" },
+  prev: { width: "100%", aspectRatio: 3 / 2, borderRadius: 32, overflow: "hidden", marginTop: 4, backgroundColor: "#2B2737" },
   prevChip: { position: "absolute", top: 14, left: 14, height: 30, paddingHorizontal: 12, borderRadius: 15, justifyContent: "center", backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.45)" },
 });

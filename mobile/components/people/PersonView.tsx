@@ -41,6 +41,7 @@ export interface Person {
 
 /** То, что уже известно из ленты/колоды — показываем сразу, пока грузится полный профиль. */
 export interface PersonPreview {
+  photos?: string[];
   id: string;
   name: string;
   age: number;
@@ -64,6 +65,7 @@ export function PersonView({
   self,
   active = true,
   preload = false,
+  warmPhotos = 1,
   onBack,
   onGone,
   topAction,
@@ -75,6 +77,7 @@ export function PersonView({
   /** В колоде грузим только видимую карточку и соседние. */
   active?: boolean;
   preload?: boolean;
+  warmPhotos?: number;
   onBack: () => void;
   /** Человека заблокировали — колода убирает карточку. */
   onGone?: (id: string) => void;
@@ -179,7 +182,7 @@ export function PersonView({
   const presence = ms(lastActiveAt) ? lastSeenText(lastActiveAt, p?.gender ?? preview?.gender) : null;
   const distance = distanceLabel(p ? p.distanceKm : preview?.distanceKm, p ? p.distanceM : preview?.distanceM);
 
-  const photos = p ? (p.photos.length ? p.photos : p.avatarUrl ? [p.avatarUrl] : []) : preview?.avatarUrl ? [preview.avatarUrl] : [];
+  const photos = p ? (p.photos.length ? p.photos : p.avatarUrl ? [p.avatarUrl] : []) : preview?.photos?.length ? preview.photos : preview?.avatarUrl ? [preview.avatarUrl] : [];
   const name = p?.name ?? preview?.name ?? "";
   const age = p?.age ?? preview?.age;
 
@@ -222,7 +225,7 @@ export function PersonView({
             <View style={[StyleSheet.absoluteFill, styles.noPhoto, { backgroundColor: "#242129" }]}>
               <Text style={{ color: "#ccc8ce", fontSize: 44 }}>{name.trim().slice(0, 1)}</Text>
             </View>
-            <ProfilePictures key={id} photos={active ? photos : photos.slice(0, 1)} index={photo} />
+            <ProfilePictures key={id} photos={active ? photos : photos.slice(0, warmPhotos)} index={photo} />
           </>
         ) : (
           <LinearGradient colors={["#403C44", "#28252D", "#17141F"]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>

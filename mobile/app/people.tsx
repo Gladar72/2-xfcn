@@ -49,7 +49,7 @@ export default function PeopleScreen() {
   const startId = useRef<string | undefined>(start || undefined);
 
   const query = useCallback(
-    (offset: number) => `/api/people?${qs({ deck: 1, seed, offset, start: startId.current, ...peopleFilterQuery(filters) })}`,
+    (offset: number) => `/api/people?${qs({ deck: 1, gallery: 1, seed, offset, start: startId.current, ...peopleFilterQuery(filters) })}`,
     [seed, filters]
   );
 
@@ -266,7 +266,7 @@ export default function PeopleScreen() {
             style={[StyleSheet.absoluteFill, { backgroundColor: "#17141F" }, front && { transform: [{ translateX: cardDx },
               { rotate: cardDx.interpolate({ inputRange: [-W, 0, W], outputRange: ["-8deg", "0deg", "8deg"] }) }] }]}
             {...(front ? pan.panHandlers : {})}>
-            <PersonView id={person.id} preview={person} active={front} preload onBack={back} onGone={removePerson} topAction={filterBtnDark} />
+            <PersonView id={person.id} preview={person} active={front} preload warmPhotos={person.id === items[index + 1]?.id ? 2 : 1} onBack={back} onGone={removePerson} topAction={filterBtnDark} />
           </Animated.View>
         );
       })}

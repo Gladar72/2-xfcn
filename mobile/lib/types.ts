@@ -56,6 +56,7 @@ export interface FeedEvent {
 }
 
 export interface PersonCard {
+  photos?: string[];
   gender?: "male" | "female";
   lastActiveAt?: string | null;
   id: string;

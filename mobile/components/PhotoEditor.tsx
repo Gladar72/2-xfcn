@@ -1,6 +1,6 @@
-// Вертикальный редактор фото перед загрузкой — как PhotoCropModal мини-аппа и как в Instagram:
+// Редактор фото перед загрузкой — как PhotoCropModal мини-аппа и как в Instagram:
 // фото двигается пальцем, двумя пальцами — приближается, пока двигаешь — видна сетка третей.
-// «Повернуть», «Сбросить», «Заменить». Сохраняет кадр 3:4 (обложки и фото профиля).
+// «Повернуть», «Сбросить», «Заменить». Сохраняет кадр в пропорциях переданной рамки.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Image as RNImage, Modal, PanResponder, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -12,9 +12,10 @@ import { Press, kf } from "@/components/k";
 
 const MAX_SCALE = 4;
 
-export type EditedPhoto = { uri: string; data: string };
+export type EditedPhoto = { uri: string; data: string; source: Src };
 
-type Src = { uri: string; w: number; h: number };
+export type PhotoSource = { uri: string; w: number; h: number; crop?: { x: number; y: number; scale: number } };
+type Src = PhotoSource;
 
 function Tool({ d, label, onPress }: { d: string; label: string; onPress: () => void }) {
   return (
@@ -95,7 +96,8 @@ export function PhotoEditor({
   };
   const reset = () => apply({ x: 0, y: 0, s: 1 }, true);
   useEffect(() => {
-    apply({ x: 0, y: 0, s: 1 });
+    const crop = src?.crop;
+    apply(crop ? clamp(crop.x * fw, crop.y * fh, crop.scale) : { x: 0, y: 0, s: 1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, fw, fh]);
 
@@ -171,7 +173,7 @@ export function PhotoEditor({
       if (cw > 1080) ctx.resize({ width: 1080 });
       const img = await ctx.renderAsync();
       const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.85, base64: true });
-      if (out.base64) onDone({ uri: out.uri, data: `data:image/jpeg;base64,${out.base64}` });
+      if (out.base64) onDone({ uri: out.uri, source: { ...src, crop: { x: x / fw, y: y / fh, scale: s } }, data: `data:image/jpeg;base64,${out.base64}` });
     } catch {
       Alert.alert("Не удалось обработать фото", "Попробуй ещё раз или выбери другое фото.");
     } finally {
@@ -257,7 +259,7 @@ export async function pickSource(): Promise<Src | null> {
 }
 
 const st = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0C0716" },
+  root: { flex: 1, backgroundColor: "#101010" },
   head: { height: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
   pill: { height: 38, paddingHorizontal: 16, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", minWidth: 84 },
   stage: { flex: 1, alignItems: "center", justifyContent: "center" },
@@ -272,8 +274,8 @@ type Req = { src: Src; aspect?: number; title?: string; hint?: string; previewTi
 let pushReq: ((r: Req | null) => void) | null = null;
 
 /** Галерея → наш редактор 3:4 → готовое фото (или null, если передумал). */
-export async function pickAndEdit(opts: { aspect?: number; title?: string; hint?: string; previewTitle?: string } = {}): Promise<EditedPhoto | null> {
-  const src = await pickSource();
+export async function pickAndEdit(opts: { source?: Src; aspect?: number; title?: string; hint?: string; previewTitle?: string } = {}): Promise<EditedPhoto | null> {
+  const src = opts.source ?? await pickSource();
   if (!src || !pushReq) return null;
   return new Promise((resolve) => pushReq?.({ src, ...opts, resolve }));
 }
