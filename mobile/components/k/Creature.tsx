@@ -29,16 +29,28 @@ const frameUri = (v: Variant, k: number) => `${SITE}/brand/creature/m${v}${Strin
 function FrameBlob({ size, variant, style }: { size: number; variant: Variant; style?: StyleProp<ViewStyle> }) {
   const t = useRef(new Animated.Value(0)).current;
   useEffect(() => {
-    const a = Animated.loop(Animated.timing(t, { toValue: FRAMES, duration: FRAMES * 500, easing: Easing.linear, useNativeDriver: true }));
+    const a = Animated.loop(Animated.timing(t, { toValue: FRAMES, duration: FRAMES * 420, easing: Easing.linear, useNativeDriver: true }));
     a.start();
     return () => a.stop();
   }, [t]);
   return (
     <View style={[{ width: size, height: size }, style]} pointerEvents="none">
       {Array.from({ length: FRAMES }, (_, k) => {
-        // Кадр k виден около момента k: плавно появляется и уходит (треугольник прозрачности), по кругу.
-        const input = k === 0 ? [0, 1, FRAMES - 1, FRAMES] : [k - 1, k, k + 1];
-        const output = k === 0 ? [1, 0, 0, 1] : [0, 1, 0];
+        // Настоящее перетекание: каждый следующий кадр проявляется ПОВЕРХ непрозрачного предыдущего,
+        // а тот гаснет чуть позже — прозрачность в сумме не проседает, нет «мигания» и рывков.
+        // Кадр 0 лежит внизу всегда; последний кадр в конце круга уходит и открывает его.
+        let input: number[];
+        let output: number[];
+        if (k === 0) {
+          input = [0, FRAMES];
+          output = [1, 1];
+        } else if (k === FRAMES - 1) {
+          input = [k - 1, k, FRAMES];
+          output = [0, 1, 0];
+        } else {
+          input = [k - 1, k, k + 1, k + 1.6];
+          output = [0, 1, 1, 0];
+        }
         return (
           <Animated.View key={k} style={[StyleSheet.absoluteFill, { opacity: t.interpolate({ inputRange: input, outputRange: output, extrapolate: "clamp" }) }]}>
             <Image source={{ uri: frameUri(variant, k) }} style={{ width: size, height: size }} contentFit="contain" cachePolicy="memory-disk" />

@@ -1,5 +1,7 @@
-import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, Pressable, StyleSheet, Text, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
+import { Sheet } from "@/components/Sheet";
 import { useLocalSearchParams, useFocusEffect, router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -62,6 +64,9 @@ export default function EventScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<null | "withdraw" | "leave">(null);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  const [whoOpen, setWhoOpen] = useState(false);
+  const [whoCount, setWhoCount] = useState(30);
   const [shareOpen, setShareOpen] = useState(false);
   const [confirmBusy, setConfirmBusy] = useState(false);
 
@@ -216,13 +221,45 @@ export default function EventScreen() {
     }
   })();
 
+  // Все, кто идёт: организатор + участники (как EventParticipants мини-аппа).
+  const people: { id: string; name: string; avatarUrl: string | null; anonymous?: boolean }[] = [
+    ...(event.organizer ? [{ id: event.organizer.id, name: event.organizerHidden ? "Организатор" : event.organizer.name, avatarUrl: event.organizerHidden ? null : event.organizer.avatarUrl, anonymous: !!event.organizerHidden }] : []),
+    ...event.participants.map((p) => ({ id: p.id, name: p.name, avatarUrl: p.avatarUrl, anonymous: !!p.anonymous })),
+  ];
+  const openPerson = (p: { id: string; name: string; avatarUrl: string | null; anonymous?: boolean }) => {
+    setWhoOpen(false);
+    if (p.anonymous) {
+      Alert.alert("Анонимно", "Профиль откроется после одобрения заявки");
+      return;
+    }
+    router.push({ pathname: "/person/[id]", params: { id: p.id, name: p.name, avatar: p.avatarUrl ?? "" } } as unknown as Href);
+  };
+  const placeText = event.address && event.placeName && event.address.toLowerCase().startsWith(event.placeName.toLowerCase()) ? event.address : [event.placeName, event.address].filter(Boolean).join(", ");
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.ink }}>
       {/* Как в прототипе: тёмная страница, обложка размыта на фоне. */}
       {event.photoUrl ? <Image source={{ uri: event.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={40} /> : null}
       <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(23,20,31,0.72)" }]} />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
-        <View style={[styles.hero, event.photoUrl ? { backgroundColor: "transparent" } : null]}>
+      <Animated.ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 110 }}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
+      >
+        {/* Тянешь вниз — фото растягивается вверх, без пустой полосы над ним (как в мини-аппе). */}
+        <Animated.View
+          style={[
+            styles.hero,
+            event.photoUrl ? { backgroundColor: "transparent" } : null,
+            {
+              transform: [
+                { translateY: scrollY.interpolate({ inputRange: [-300, 0], outputRange: [-150, 0], extrapolateRight: "clamp" }) },
+                { scale: scrollY.interpolate({ inputRange: [-300, 0], outputRange: [1 + 300 / 520, 1], extrapolateRight: "clamp" }) },
+              ],
+            },
+          ]}
+        >
           {event.photoUrl ? (
             // Фото снизу растворяется в размытый фон — без резкой границы (как в мини-аппе).
             <FadeImage uri={event.photoUrl} width={SCREEN_W} height={520} from={0.55} to={1} focusY={0.5} style={StyleSheet.absoluteFill} />
@@ -291,7 +328,7 @@ export default function EventScreen() {
               </RoundBtn>
             </View>
           </View>
-        </View>
+        </Animated.View>
 
         <View style={styles.body}>
 
@@ -328,35 +365,33 @@ export default function EventScreen() {
             </Glass>
           ) : null}
 
-          {/* Плитки как в прототипе: Когда · Мест · Расходы · Чат */}
+          {/* Как в мини-аппе: три одинаковые плитки «Когда · Мест · Билет/Расходы» и под ними — кнопка «Чат события». */}
           <View style={styles.tiles}>
             <View style={styles.tile}>
               <View style={styles.tileHead}><Icon name="cal" size={14} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>Когда</Text></View>
-              <Text style={styles.tileVal} numberOfLines={2}>
-                {formatEventDate(event.eventDate, event.eventTime)}
-                {event.eventEndTime ? `–${event.eventEndTime.slice(0, 5)}` : ""}
+              <Text style={styles.tileVal} numberOfLines={1}>{formatEventDate(event.eventDate, event.eventTime).split(",").slice(-2).join(",").trim()}</Text>
+              <Text style={styles.tileSub} numberOfLines={1}>
+                {new Date(`${event.eventDate}T12:00:00`).toLocaleDateString("ru-RU", { day: "numeric", month: "short" }).replace(".", "")}
+                {event.eventEndTime ? ` · до ${event.eventEndTime.slice(0, 5)}` : ""}
               </Text>
             </View>
             <View style={styles.tile}>
               <View style={styles.tileHead}><Icon name="people" size={14} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>Мест</Text></View>
-              <Text style={styles.tileVal}>{event.seatsTaken + 1} из {event.seatsTotal + 1}</Text>
+              <Text style={styles.tileVal} numberOfLines={1}>{event.seatsTaken + 1} из {event.seatsTotal + 1}</Text>
             </View>
             <View style={styles.tile}>
               <View style={styles.tileHead}><Icon name="wallet" size={14} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>{event.isBusiness ? "Билет" : "Расходы"}</Text></View>
               <Text style={styles.tileVal} numberOfLines={2}>{costShort(event)}</Text>
             </View>
-            {/* Как в мини-аппе: значок чата всегда, до одобрения — подсказка. */}
-            <Pressable
-              onPress={() => (event.hasChat && event.conversationId && (event.viewerStatus === "organizer" || event.viewerStatus === "accepted") ? openChat() : Alert.alert("", event.isBusiness && event.seatsTotal > 20 ? "У больших событий общего чата нет — вопросы организатору в Telegram" : "Чат откроется после одобрения заявки"))}
-              style={[styles.tile, styles.tileChat]}
-              accessibilityLabel="Чат встречи"
-            >
-              <View style={styles.tileHead}><Icon name="chat" size={14} color="rgba(255,255,255,0.6)" /><Text style={styles.tileLabel}>{event.isBusiness ? "Чат события" : "Чат"}</Text></View>
-              <Text style={styles.tileVal} numberOfLines={2}>
-                {event.hasChat && event.conversationId && (event.viewerStatus === "organizer" || event.viewerStatus === "accepted") ? "Открыть" : event.isBusiness && event.seatsTotal > 20 ? "Нет общего" : "После одобрения"}
-              </Text>
-            </Pressable>
           </View>
+          <Pressable
+            onPress={() => (event.hasChat && event.conversationId && (event.viewerStatus === "organizer" || event.viewerStatus === "accepted") ? openChat() : Alert.alert("", event.isBusiness && event.seatsTotal > 20 ? "У больших событий общего чата нет — вопросы организатору в Telegram" : "Чат откроется после одобрения заявки"))}
+            style={({ pressed }) => [styles.chatBar, { transform: [{ scale: pressed ? 0.97 : 1 }] }]}
+            accessibilityLabel="Чат события"
+          >
+            <Icon name="chat" size={20} color="#fff" />
+            <Text style={styles.chatBarText}>{event.isBusiness ? "Чат события" : "Чат встречи"}</Text>
+          </Pressable>
           {/* .k-orgc: организатор (анонимно — капля Моси и «Почему?») */}
           {event.organizer ? (
             event.organizerHidden ? (
@@ -386,20 +421,25 @@ export default function EventScreen() {
             <OrganizerPanel event={event} onChanged={load} />
           ) : (
             <View style={styles.blk}>
-              <Text style={styles.cardH}>{`${live ? "Уже на месте" : "Идут"} · ${event.seatsTaken + 1}`}</Text>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 10 }}>
-                {event.organizer ? (
-                  event.organizerHidden ? (
-                    <View style={styles.anonAva}><Creature size={46} variant="p" /></View>
-                  ) : (
-                    <Pressable onPress={() => router.push({ pathname: "/person/[id]", params: { id: event.organizer!.id, name: event.organizer!.name, avatar: event.organizer!.avatarUrl ?? "" } } as unknown as Href)}><Avatar uri={event.organizer.avatarUrl} name={event.organizer.name} size={52} /></Pressable>
-                  )
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={styles.cardH}>{`${live ? "Уже на месте" : "Идут"} · ${people.length}`}</Text>
+                {people.length > 0 ? (
+                  <Pressable onPress={() => setWhoOpen(true)} hitSlop={10} accessibilityLabel={`Показать всех · ${people.length}`}>
+                    <Icon name="down" size={20} color="rgba(255,255,255,0.75)" />
+                  </Pressable>
                 ) : null}
-                {event.participants.map((p, i) => (
-                  <Pressable key={p.anonymous ? `anon-${i}` : p.id} disabled={!!p.anonymous} onPress={() => router.push(`/person/${p.id}` as Href)}>
+              </View>
+              <View style={{ flexDirection: "row", gap: 10, marginTop: 12 }}>
+                {people.slice(0, 5).map((p, i) => (
+                  <Pressable key={p.anonymous ? `anon-${i}` : p.id} onPress={() => openPerson(p)} style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.92 : 1 }] })}>
                     {p.anonymous ? <View style={styles.anonAva}><Creature size={46} variant="p" /></View> : <Avatar uri={p.avatarUrl} name={p.name} size={52} />}
                   </Pressable>
                 ))}
+                {people.length > 5 ? (
+                  <Pressable onPress={() => setWhoOpen(true)} style={({ pressed }) => [styles.moreAva, { transform: [{ scale: pressed ? 0.92 : 1 }] }]} accessibilityLabel={`Показать всех участников: ${people.length}`}>
+                    <Text style={styles.moreAvaText}>+{people.length - 5}</Text>
+                  </Pressable>
+                ) : null}
               </View>
               {!full && (event.viewerStatus === "none" || !event.viewerStatus) && open ? (
                 <Pressable onPress={apply} style={({ pressed }) => [styles.freeChip, { transform: [{ scale: pressed ? 0.95 : 1 }] }]}>
@@ -426,12 +466,40 @@ export default function EventScreen() {
             ) : (
               <>
                 <Text style={styles.cardH}>Место</Text>
-                <Text style={[styles.desc, { marginTop: 4 }]}>
-                  {(event.address && event.placeName && event.address.toLowerCase().startsWith(event.placeName.toLowerCase()) ? event.address : [event.placeName, event.address].filter(Boolean).join(", ")) || "Место уточняется"}
-                </Text>
+                <Text style={[styles.desc, { marginTop: 4 }]}>{placeText || "Место уточняется"}</Text>
+                <View style={{ flexDirection: "row", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                  {hasCoords ? (
+                    <Pressable onPress={() => openRoute(event.latitude!, event.longitude!)} style={({ pressed }) => [styles.freeChip, styles.actChip, { marginTop: 0, transform: [{ scale: pressed ? 0.95 : 1 }] }]}>
+                      <Icon name="map" size={17} color="#fff" />
+                      <Text style={styles.freeText}>Маршрут</Text>
+                    </Pressable>
+                  ) : null}
+                  {event.address ? (
+                    <Pressable
+                      onPress={() => Clipboard.setStringAsync(placeText).then(() => { tapOk(); Alert.alert("", "Адрес скопирован"); }).catch(() => {})}
+                      style={({ pressed }) => [styles.freeChip, { marginTop: 0, transform: [{ scale: pressed ? 0.95 : 1 }] }]}
+                    >
+                      <Text style={styles.freeText}>Скопировать адрес</Text>
+                    </Pressable>
+                  ) : null}
+                </View>
                 {hasCoords ? (
-                  <Pressable onPress={() => openRoute(event.latitude!, event.longitude!)} style={[styles.freeChip, { marginTop: 10 }]}>
-                    <Text style={styles.freeText}>Маршрут</Text>
+                  // Карта места — как в мини-аппе: метка с фото и временем; нажал — открывается большая карта.
+                  <Pressable onPress={() => router.push({ pathname: "/(tabs)/map", params: { focus: event.id } } as unknown as Href)} style={styles.placeMap}>
+                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                      <Map style={StyleSheet.absoluteFill} mapStyle={MAP_STYLE} logo={false} compass={false} dragPan={false} touchZoom={false} doubleTapZoom={false} touchRotate={false} touchPitch={false} attributionPosition={{ top: 8, left: 8 }}>
+                        <Camera initialViewState={{ center: [event.longitude!, event.latitude!], zoom: 15.5 }} />
+                        <Marker lngLat={[event.longitude!, event.latitude!]} anchor="bottom">
+                          <View style={{ alignItems: "center" }}>
+                            <View style={styles.pinTime}><Text style={styles.pinTimeText}>{event.eventTime.slice(0, 5)}</Text></View>
+                            <View style={styles.pin}>
+                              <Image source={{ uri: (event.isBusiness ? event.photoUrl : event.organizerHidden ? null : event.organizer?.avatarUrl) ?? eventIcon(event) }} style={{ width: 46, height: 46, borderRadius: 23 }} contentFit="cover" />
+                            </View>
+                            <View style={styles.pinTail} />
+                          </View>
+                        </Marker>
+                      </Map>
+                    </View>
                   </Pressable>
                 ) : null}
               </>
@@ -449,7 +517,23 @@ export default function EventScreen() {
             </Pressable>
           ) : null}
         </View>
-      </ScrollView>
+      </Animated.ScrollView>
+
+      <Sheet visible={whoOpen} onClose={() => setWhoOpen(false)}>
+        <Text style={styles.whoTitle}>Кто идёт · {people.length}</Text>
+        <View style={{ gap: 4, marginTop: 8 }}>
+          {people.slice(0, whoCount).map((p, i) => (
+            <Pressable key={p.anonymous ? `a${i}` : p.id} onPress={() => openPerson(p)} style={({ pressed }) => [styles.whoRow, pressed && { backgroundColor: "rgba(23,20,31,0.05)" }]}>
+              {p.anonymous ? <View style={[styles.anonAva, { width: 44, height: 44 }]}><Creature size={40} variant="p" /></View> : <Avatar uri={p.avatarUrl} name={p.name} size={44} />}
+              <Text style={styles.whoName} numberOfLines={1}>{p.anonymous ? p.name : p.name.trim().split(/\s+/)[0]}{i === 0 && event.organizer ? " · организатор" : ""}</Text>
+              {!p.anonymous ? <Icon name="chev" size={18} color={colors.grey} /> : null}
+            </Pressable>
+          ))}
+        </View>
+        {whoCount < people.length ? (
+          <Btn kind="o" title={`Показать ещё · ${people.length - whoCount}`} onPress={() => setWhoCount((n) => n + 30)} style={{ marginTop: 10 }} />
+        ) : null}
+      </Sheet>
 
       <ConfirmSheet
         visible={confirm === "withdraw"}
@@ -514,6 +598,20 @@ function InfoRow({ icon, text, last }: { icon: "cal" | "pin" | "people" | "walle
 const W = "#fff";
 const W60 = "rgba(255,255,255,0.6)";
 const styles = StyleSheet.create({
+  tileSub: { fontFamily: FONT, fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 },
+  chatBar: { marginTop: 8, height: 56, borderRadius: 28, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  chatBarText: { fontSize: 16, ...f("500"), color: "#fff" },
+  moreAva: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.12)", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.5)" },
+  moreAvaText: { fontSize: 15, ...f("500"), color: "#fff" },
+  actChip: { flexDirection: "row", alignItems: "center", gap: 8 },
+  placeMap: { height: 240, marginTop: 14, marginHorizontal: -16, marginBottom: -14, overflow: "hidden", backgroundColor: "#EEECF3" },
+  pin: { width: 54, height: 54, borderRadius: 27, backgroundColor: "#17141F", borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center", overflow: "hidden" },
+  pinTail: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderTopWidth: 10, borderLeftColor: "transparent", borderRightColor: "transparent", borderTopColor: "#fff", marginTop: -2 },
+  pinTime: { paddingHorizontal: 8, height: 22, borderRadius: 11, backgroundColor: "#fff", justifyContent: "center", marginBottom: 4 },
+  pinTimeText: { fontSize: 12, ...f("600"), color: "#17141F" },
+  whoTitle: { fontSize: 22, ...f("500"), color: colors.ink, letterSpacing: -0.4 },
+  whoRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, paddingHorizontal: 6, borderRadius: 16 },
+  whoName: { flex: 1, fontFamily: FONT, fontSize: 16, color: colors.ink },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   hero: { height: 520, overflow: "hidden", backgroundColor: colors.ink },
   heroText: { position: "absolute", left: 20, right: 20, bottom: 18, gap: 10 },
@@ -526,8 +624,8 @@ const styles = StyleSheet.create({
   liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.ok },
   title: { fontSize: 40, lineHeight: 42, ...f("300"), letterSpacing: -1.6, color: W },
   // Сетка 2×2: у всех плиток одинаковый размер, значок и подпись — текст переносится ровно, без «…».
-  tiles: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tile: { flexBasis: "48%", flexGrow: 1, minHeight: 74, borderRadius: 20, padding: 10, gap: 4, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  tiles: { flexDirection: "row", gap: 8 },
+  tile: { flex: 1, minHeight: 84, borderRadius: 20, padding: 10, gap: 4, backgroundColor: "rgba(255,255,255,0.08)", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
   tileChat: {},
   tileHead: { flexDirection: "row", alignItems: "center", gap: 4 },
   tileLabel: { fontFamily: FONT, fontSize: 11.5, color: W60 },
@@ -542,7 +640,7 @@ const styles = StyleSheet.create({
   desc: { fontFamily: FONT, fontSize: 15, lineHeight: 22, color: "rgba(255,255,255,0.82)" },
   org: { flexDirection: "row", alignItems: "center", gap: 12 },
   // .k-blk.k-gd из мини-аппа
-  blk: { borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: "rgba(20,16,30,0.42)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
+  blk: { overflow: "hidden", borderRadius: 24, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: "rgba(20,16,30,0.42)", borderWidth: 1, borderColor: "rgba(255,255,255,0.18)" },
   orgAnon: { width: 46, height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   anonAva: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.14)", borderWidth: 2, borderColor: "rgba(255,255,255,0.6)", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   why: { height: 32, paddingHorizontal: 12, borderRadius: 16, backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.45)", justifyContent: "center" },

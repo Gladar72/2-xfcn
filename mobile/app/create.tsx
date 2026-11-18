@@ -76,11 +76,11 @@ export default function CreateScreen() {
   const kind: Kind = form.business ? "business" : form.isAnonymous ? "anon" : "open";
   // Как в мини-аппе: выбор подсвечивается тёмным и через мгновение сам ведёт дальше (бизнес — сразу к названию).
   const [dir, setDir] = useState(1);
+  // Выбор только подсвечивается — дальше человек сам жмёт «Далее».
+  const [kindPicked, setKindPicked] = useState(false);
   function pickKind(k: Kind) {
     set({ business: k === "business", isAnonymous: k === "anon" });
-    setStep(k === "business" ? 2 : 1);
-    setDir(1);
-    setTimeout(() => setChosen(true), 220);
+    setKindPicked(true);
   }
   const [toast, setToast] = useState<string | null>(null);
   const flash = (t: string) => {
@@ -241,6 +241,16 @@ export default function CreateScreen() {
 
   async function next() {
     setBanner(null);
+    if (!chosen) {
+      if (!kindPicked) {
+        flash("Выбери формат — открытая, анонимная или для бизнеса");
+        return;
+      }
+      setDir(1);
+      setStep(form.business ? 2 : 1);
+      setChosen(true);
+      return;
+    }
     const h = problem();
     if (h) {
       flash(h);
@@ -254,10 +264,7 @@ export default function CreateScreen() {
   }
   // Шаг 1 личной встречи — без «Далее»: выбор плитки сразу ведёт на следующий шаг.
   function goStep2() {
-    setTimeout(() => {
-      setDir(1);
-      setStep(2);
-    }, 180);
+    /* выбор плитки только подсвечивается — переход по «Далее» */
   }
 
   function back() {
@@ -358,7 +365,7 @@ export default function CreateScreen() {
   const seatsCap = Math.max(Math.min(hardMax, planMax), editId ? form.seatsTotal : 0);
   const planName = plan === "medium" ? "Медиум" : plan === "premium" ? "Премиум" : "Старт";
   const steps = form.business ? [2, 3, 4] : [1, 2, 3, 4];
-  const showFoot = chosen && !needsPhoto && !(step === 1 && !form.business && !form.categorySlug && !editId);
+  const showFoot = !needsPhoto;
   const whenTxt = `${dayLong(form.dayIso)}, ${hhmm(form.startMin)}–${hhmm(form.startMin + form.duration)}`;
 
   /* ---------- «Встреча опубликована» — как в мини-аппе ---------- */
@@ -433,7 +440,7 @@ export default function CreateScreen() {
                 transform: [{ translateX: enter.interpolate({ inputRange: [0, 1], outputRange: [dir * 40, 0] }) }],
               }}
             >
-              {!chosen ? <KindStep value={kind} onPick={pickKind} /> : null}
+              {!chosen ? <KindStep value={kindPicked ? kind : null} onPick={pickKind} /> : null}
               {needsPhoto ? (
                 <OrganizerPhotoGate
                   loading={profileState === "loading"}

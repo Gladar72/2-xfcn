@@ -78,7 +78,7 @@ const CHIPS: [DateChip, string][] = [
  */
 export default function MapScreen() {
   useGuide("map");
-  const params = useLocalSearchParams<{ date?: string; business?: string; t?: string }>();
+  const params = useLocalSearchParams<{ date?: string; business?: string; t?: string; focus?: string }>();
   const insets = useSafeAreaInsets();
   const camera = useRef<CameraRef>(null);
   // Точка «я здесь» — только если доступ к геопозиции уже дан (сами не спрашиваем при открытии).
@@ -123,7 +123,14 @@ export default function MapScreen() {
         if (chip === "now") items = items.filter((e) => new Date(e.startsAt).getTime() <= now && now < new Date(e.endsAt).getTime());
         setEvents(items);
         if (r.city) setCity(r.city);
-        if (items.length === 1) {
+        // Пришли со страницы события (нажали на карту места) — сразу к нему, его карточка первой.
+        const f = params.focus ? items.find((e) => e.id === params.focus) : undefined;
+        if (f) {
+          setTimeout(() => {
+            setSelected([f]);
+            camera.current?.flyTo({ center: [f.longitude, f.latitude], zoom: 16, duration: 600 });
+          }, 50);
+        } else if (items.length === 1) {
           camera.current?.flyTo({ center: [items[0].longitude, items[0].latitude], zoom: 14, duration: 600 });
         } else if (items.length > 1) {
           const lngs = items.map((e) => e.longitude);
@@ -135,7 +142,7 @@ export default function MapScreen() {
         }
       })
       .catch(() => id === reqId.current && setError("Не удалось загрузить карту"));
-  }, [chip, bizOnly]);
+  }, [chip, bizOnly, params.focus]);
 
   useEffect(load, [load]);
 
