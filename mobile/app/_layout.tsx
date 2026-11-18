@@ -181,7 +181,7 @@ function Gate() {
       <Stack.Screen name="privacy" />
       {/* Один экран тарифов: возврат из оплаты (mesto://subscription?paid=1) не открывает второй поверх. */}
       <Stack.Screen name="subscription" getId={() => "subscription"} />
-      <Stack.Screen name="create" options={{ presentation: "modal", animation: "slide_from_bottom" }} />
+      <Stack.Screen name="create" options={{ presentation: "card", animation: "slide_from_right", gestureEnabled: true }} />
     </Stack>
   );
 }

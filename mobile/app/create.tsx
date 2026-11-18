@@ -179,8 +179,9 @@ export default function CreateScreen() {
   const enter = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     scrollRef.current?.scrollTo({ y: 0, animated: false });
+    // Плавный переход между шагами: новый шаг выезжает сбоку с мягкой пружиной и проявляется.
     enter.setValue(0);
-    Animated.timing(enter, { toValue: 1, duration: 450, easing: Easing.bezier(0.2, 0.8, 0.2, 1), useNativeDriver: true }).start();
+    Animated.spring(enter, { toValue: 1, useNativeDriver: true, damping: 22, stiffness: 180, mass: 0.9 }).start();
   }, [step, chosen, enter]);
 
   // Бизнес-событие: раздел афиши подбираем по названию и описанию, пока человек пишет.
@@ -436,8 +437,8 @@ export default function CreateScreen() {
           >
             <Animated.View
               style={{
-                opacity: enter,
-                transform: [{ translateX: enter.interpolate({ inputRange: [0, 1], outputRange: [dir * 40, 0] }) }],
+                opacity: enter.interpolate({ inputRange: [0, 0.6, 1], outputRange: [0, 0.9, 1], extrapolate: "clamp" }),
+                transform: [{ translateX: enter.interpolate({ inputRange: [0, 1], outputRange: [dir * 90, 0] }) }],
               }}
             >
               {!chosen ? <KindStep value={kindPicked ? kind : null} onPick={pickKind} /> : null}
