@@ -2,11 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { sendDueDigests } from "@/lib/telegram/event-digest";
 import { getBot } from "@/lib/telegram/bot";
-import { sendPushToUsers } from "@/lib/push/expo";
+import { nativeRecipients, sendPushToUsers } from "@/lib/push/expo";
 
 vi.mock("@/lib/telegram/bot", () => ({ getBot: vi.fn() }));
 vi.mock("@/lib/telegram/event-announce", () => ({ ANNOUNCE_OFF: "ann_off" }));
-vi.mock("@/lib/push/expo", () => ({ sendPushToUsers: vi.fn().mockResolvedValue(undefined) }));
+vi.mock("@/lib/push/expo", () => ({ nativeRecipients: vi.fn(async () => new Set<string>()), sendPushToUsers: vi.fn().mockResolvedValue(new Set()) }));
 
 const NOW = Date.parse("2026-10-31T13:00:00Z"); // 18:00 in Tyumen
 const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
@@ -65,6 +65,13 @@ describe("event digest delivery guard", () => {
     }
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(sendPushToUsers).toHaveBeenCalledTimes(1);
+  });
+  it("sends a single app notification and no bot message to a mobile recipient", async () => {
+    vi.mocked(nativeRecipients).mockResolvedValueOnce(new Set(["user-1"]));
+    const { admin } = database();
+    expect(await sendDueDigests(admin)).toMatchObject({ claimed: 1 });
+    expect(sendPushToUsers).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
   });
   it("only one concurrent worker owns a delivery", async () => {
     const { admin } = database({ last: "2026-10-30T13:00:00Z" });

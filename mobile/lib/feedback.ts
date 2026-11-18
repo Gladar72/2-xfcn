@@ -49,29 +49,20 @@ export function manageErrorText(e: unknown): string {
   return err?.message || "Что-то пошло не так. Попробуй ещё раз";
 }
 
-/**
- * Вибрация при запуске. iOS не играет вибрацию, пока приложение ещё «не активно» (идёт запуск,
- * показывается системная заставка) — поэтому ждём, когда приложение станет активным, и только потом
- * через небольшую паузу даём отклик. Средняя сила: лёгкую на старте почти не чувствуется.
- */
-export function tapOnLaunch(delayMs = 350, style: Haptics.ImpactFeedbackStyle = Haptics.ImpactFeedbackStyle.Medium) {
-  let done = false;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  const fire = () => {
-    if (done) return;
+/** Один лёгкий отклик за холодный запуск, когда приложение впервые активно. */
+let launchTapPlayed = false;
+export function tapOnLaunch() {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  function schedule() {
+    clearTimeout(timer);
+    if (launchTapPlayed || AppState.currentState !== "active") return;
     timer = setTimeout(() => {
-      if (done || AppState.currentState !== "active") return;
-      done = true;
-      // Первый вызов вибромотора после запуска iOS часто «проглатывает» (генератор ещё не готов),
-      // поэтому сначала будим его тихим щелчком, а через 120 мс даём заметный двойной отклик.
-      Haptics.selectionAsync().catch(() => {});
-      setTimeout(() => {
-        if (style === Haptics.ImpactFeedbackStyle.Light) Haptics.impactAsync(style).catch(() => {});
-        else Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      }, 120);
-    }, delayMs);
-  };
-  if (AppState.currentState === "active") fire();
-  const sub = AppState.addEventListener("change", (st) => { if (st === "active") fire(); });
-  return () => { done = true; sub.remove(); if (timer) clearTimeout(timer); };
+      if (launchTapPlayed || AppState.currentState !== "active") return;
+      launchTapPlayed = true;
+      tapLight();
+    }, 120);
+  }
+  const sub = AppState.addEventListener("change", schedule);
+  schedule();
+  return () => { clearTimeout(timer); sub.remove(); };
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -43,12 +43,6 @@ export interface PersonPreview {
 }
 
 const NO_MEET = "Пока написать нельзя — у вас ещё не было общей встречи. Позови на свою встречу или создай новую 😉";
-// «screen», а не «window»: на Android окно не включает панель навигации — внизу оставалась светлая полоса.
-const { height: SCREEN_H } = Dimensions.get("screen");
-// Как в мини-приложении: фото на весь экран, имя внизу поверх, панель «♡ 🔔 Позвать на встречу».
-const PHOTO_H = SCREEN_H;
-const OVERLAY_H = 230;
-
 /**
  * Профиль человека (components/people/PersonView.tsx в мини-приложении):
  * фото на весь экран с листанием, «О себе», общие интересы,
@@ -133,6 +127,10 @@ export function PersonView({
     }
   }
   const [isMe, setIsMe] = useState(!!self);
+  const { height: windowHeight } = useWindowDimensions();
+  const [measuredHeight, setMeasuredHeight] = useState(0);
+  const footerInset = isMe ? insets.bottom : 62 + Math.max(insets.bottom, 12);
+  const heroHeight = measuredHeight || Math.max(0, windowHeight - footerInset);
 
   useEffect(() => {
     if (!self) getMyId().then((my) => setIsMe(my === id));
@@ -189,7 +187,7 @@ export function PersonView({
   return (
     <View style={{ flex: 1, backgroundColor: transparentBg ? "transparent" : "#17141F" }}>
       {/* Фото стоит на месте (как .gal в мини-аппе), карточка с «О себе» едет поверх него. */}
-        <Animated.View pointerEvents="none" style={[styles.photoBox, transparentBg && { backgroundColor: "transparent" }, StyleSheet.absoluteFillObject, { height: PHOTO_H, transform: [{ scale: photoScale }] }]}>
+      <Animated.View pointerEvents="none" style={[styles.photoBox, transparentBg && { backgroundColor: "transparent" }, StyleSheet.absoluteFillObject, { transform: [{ scale: photoScale }] }]}>
         {photos.length ? (
           <Image source={{ uri: photos[photo] ?? photos[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />
         ) : (
@@ -205,54 +203,54 @@ export function PersonView({
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        contentContainerStyle={{ flexGrow: 1 }}
+        style={{ flex: 1, marginBottom: footerInset }}
+        onLayout={(e) => setMeasuredHeight(e.nativeEvent.layout.height)}
       >
         {/* Первый экран — прозрачный: нажатия слева/справа листают фото. */}
-        <View style={{ minHeight: PHOTO_H, flexGrow: 1 }}>
+        <View style={{ minHeight: heroHeight, justifyContent: "flex-end" }}>
           <View style={styles.zones}>
             <Pressable style={{ flex: 1 }} onPress={() => flip(-1)} />
             <Pressable style={{ flex: 1 }} onPress={() => flip(1)} />
           </View>
-        </View>
-        {/* Как в действующем приложении: имя, «в сети» и плашки фактов внизу фото, справа — стрелка к «О себе». */}
-        <View style={[styles.overlay, { marginTop: -(OVERLAY_H + insets.bottom), height: OVERLAY_H + insets.bottom, paddingBottom: (isMe ? 24 : 92) + insets.bottom }]}>
-          <Text style={styles.name} numberOfLines={2}>
-            {name}
-            {age ? `, ${age}` : ""}
-          </Text>
-          {p ? (
-            <View style={styles.pills}>
-              {distanceLabel(p.distanceKm) ? (
-                <View style={styles.pill}>
-                  <Icon name="pin" size={13} color="#fff" />
-                  <Text style={styles.pillText}>{distanceLabel(p.distanceKm)}</Text>
-                </View>
-              ) : null}
-              {p.ratingAvg > 0 ? (
-                <View style={styles.pill}>
-                  <Text style={styles.pillText}>★ {p.ratingAvg.toFixed(1).replace(".", ",")}</Text>
-                </View>
-              ) : null}
-              <View style={styles.pill}>
-                <Text style={styles.pillText}>
-                  {p.completedMeetingsCount} {plural(p.completedMeetingsCount, "встреча", "встречи", "встреч")}
-                </Text>
-              </View>
-              {common.length ? (
+          <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.25)", "rgba(23,20,31,0.55)", "rgba(23,20,31,0.74)"]} locations={[0, 0.4, 0.75, 1]} style={styles.heroFade} />
+          <View pointerEvents="box-none" style={styles.overlay}>
+            <Text style={styles.name} numberOfLines={2}>
+              {name}
+              {age ? `, ${age}` : ""}
+            </Text>
+            {p ? (
+              <View style={styles.pills}>
+                {distanceLabel(p.distanceKm) ? (
+                  <View style={styles.pill}>
+                    <Icon name="pin" size={13} color="#fff" />
+                    <Text style={styles.pillText}>{distanceLabel(p.distanceKm)}</Text>
+                  </View>
+                ) : null}
+                {p.ratingAvg > 0 ? (
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>★ {p.ratingAvg.toFixed(1).replace(".", ",")}</Text>
+                  </View>
+                ) : null}
                 <View style={styles.pill}>
                   <Text style={styles.pillText}>
-                    {common.length} {plural(common.length, "общий интерес", "общих интереса", "общих интересов")}
+                    {p.completedMeetingsCount} {plural(p.completedMeetingsCount, "встреча", "встречи", "встреч")}
                   </Text>
                 </View>
-              ) : null}
-            </View>
-          ) : null}
-          <Pressable onPress={() => scrollRef.current?.scrollTo({ y: SCREEN_H * 0.55, animated: true })} style={[styles.upk, { bottom: (isMe ? 24 : 92) + insets.bottom }]} accessibilityLabel="О себе">
-            <Icon name="up" size={20} color="#fff" />
-          </Pressable>
+                {common.length ? (
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>
+                      {common.length} {plural(common.length, "общий интерес", "общих интереса", "общих интересов")}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+            <Pressable onPress={() => scrollRef.current?.scrollTo({ y: heroHeight * 0.55, animated: true })} style={styles.upk} accessibilityLabel="О себе">
+              <Icon name="up" size={20} color="#fff" />
+            </Pressable>
+          </View>
         </View>
 
-        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.25)", "rgba(23,20,31,0.55)", "rgba(23,20,31,0.74)"]} locations={[0, 0.4, 0.75, 1]} style={{ height: 150, marginTop: -150 }} />
         {/* «О себе» — тёмное стекло: фото просвечивает размыто, без плотной синевы */}
         <View style={styles.body}>
           {!p ? (
@@ -262,7 +260,9 @@ export function PersonView({
               {p.bio?.trim() ? (
                 <View style={styles.blk}>
                   <Text style={styles.blkH}>О себе</Text>
-                  <Text style={styles.about}>{p.bio.trim()}</Text>
+                  <View style={[styles.glassPill, styles.about]}>
+                    <Text style={[styles.chipText, styles.aboutText]}>{p.bio.trim()}</Text>
+                  </View>
                 </View>
               ) : null}
               {common.length ? (
@@ -290,8 +290,6 @@ export function PersonView({
             </>
           )}
         </View>
-        {/* Тёмный низ до конца экрана — фото под карточкой не просвечивает */}
-        <View style={{ height: Math.max(insets.bottom, 12) + (isMe ? 8 : 58), backgroundColor: "rgba(23,20,31,0.74)" }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}
@@ -371,7 +369,7 @@ function Chips({ items }: { items: string[] }) {
   return (
     <View style={styles.chips}>
       {items.map((i) => (
-        <View key={i} style={styles.chip}>
+        <View key={i} style={[styles.glassPill, styles.chip]}>
           <View style={styles.chipIc}>
             <Image source={{ uri: interestIcon(i) }} style={{ width: 16, height: 16 }} contentFit="contain" />
           </View>
@@ -383,21 +381,23 @@ function Chips({ items }: { items: string[] }) {
 }
 
 const styles = StyleSheet.create({
-  photoBox: { height: PHOTO_H, backgroundColor: colors.violet, overflow: "hidden" },
+  photoBox: { backgroundColor: colors.violet, overflow: "hidden" },
   noPhoto: { alignItems: "center", justifyContent: "center" },
   zones: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
-  overlay: { justifyContent: "flex-end", paddingHorizontal: 20, gap: 8 },
+  heroFade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 124 },
+  overlay: { paddingHorizontal: 20, paddingBottom: 6, gap: 8 },
   name: { fontSize: 34, lineHeight: 38, ...f("600"), color: "#fff", letterSpacing: -1, paddingRight: 56 },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingRight: 56 },
   pill: { flexDirection: "row", alignItems: "center", gap: 4, height: 30, paddingHorizontal: 12, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
   pillDark: { backgroundColor: "rgba(23,20,31,0.3)" },
   pillText: { fontSize: 13, ...f("500"), color: "#fff" },
-  upk: { position: "absolute", right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  upk: { position: "absolute", right: 20, bottom: 6, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
   blk: { gap: 10, marginBottom: 6 },
   blkRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   blkH: { fontSize: 18, ...f("500"), color: "#fff", letterSpacing: -0.4 },
   blkSub: { fontFamily: FONT, fontSize: 13.5, color: "#C6C3CD" },
-  about: { fontFamily: FONT, fontSize: 15, lineHeight: 22, color: "#F5F4F7", backgroundColor: "#2B2833", borderRadius: 20, padding: 16, overflow: "hidden" },
+  about: { alignSelf: "flex-start", maxWidth: "100%", minHeight: 36, justifyContent: "center", paddingHorizontal: 13, paddingVertical: 6 },
+  aboutText: { lineHeight: 21 },
   chipIc: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   bar2: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingTop: 10 },
   rb: { width: 48, height: 52, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.78)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
@@ -407,14 +407,15 @@ const styles = StyleSheet.create({
   heartToastText: { fontFamily: FONT, fontSize: 14, color: "#17141F", textAlign: "center" },
   callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
   callText: { color: colors.ink, fontSize: 14, lineHeight: 16, ...f("500"), textAlign: "center" },
-  body: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },
+  body: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 16, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },
   card: { borderRadius: 24, padding: 16, gap: 10 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
   bio: { fontFamily: FONT, fontSize: 15.5, lineHeight: 22, color: colors.ink2 },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", borderRadius: 999, paddingLeft: 5, paddingRight: 13, paddingVertical: 5 },
+  glassPill: { backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", borderRadius: 18 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 7, paddingLeft: 5, paddingRight: 13, paddingVertical: 5 },
   chipText: { fontFamily: FONT, fontSize: 14, color: "#fff" },
   reportLink: { height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center", marginTop: 4 },
   reportText: { fontSize: 14, ...f("500"), color: "rgba(255,255,255,0.85)" },

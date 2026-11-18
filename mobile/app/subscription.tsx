@@ -9,7 +9,6 @@ import { Aurora, Btn, Glass, RoundBtn, Title } from "@/components/brand";
 import { Sheet } from "@/components/Sheet";
 import { Icon } from "@/components/Icon";
 import { api, ApiError } from "@/lib/api";
-import { API_URL } from "@/lib/config";
 import { tapLight, tapOk, tapWarn } from "@/lib/feedback";
 import { buyApple, loadApplePrices, restoreApple } from "@/lib/iap";
 import { getMyId } from "@/lib/me";
@@ -178,7 +177,7 @@ export default function SubscriptionScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Aurora />
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: insets.bottom + 140, gap: 14 }}>
+      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 10, paddingHorizontal: 16, paddingBottom: CAN_PAY && sub ? 12 : Math.max(insets.bottom, 12), gap: 14 }}>
         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
           <RoundBtn onPress={() => router.back()} size={44}>
             <Icon name="back" />
@@ -192,12 +191,16 @@ export default function SubscriptionScreen() {
         </View>
         {/* Как в мини-аппе: «Выбери тариф», что сейчас, и заметка про разовую оплату */}
         <View style={{ gap: 6 }}>
-          <Title plain="Выбери " em="тариф" size={36} style={{ marginLeft: 2 }} />
+          <Title plain={CAN_PAY ? "Выбери " : ""} em={CAN_PAY ? "тариф" : "Тарифы"} size={36} style={{ marginLeft: 2 }} />
           <Text style={[styles.lead, { textAlign: "left", marginLeft: 2 }]}>
-            {sub?.active ? `Сейчас — ${PLAN_NAME[sub.plan ?? ""] ?? "тариф"} до ${untilLabel(sub.periodEnd)}. Сменить можно в любой момент.` : "Создавай свои встречи, откликайся без ограничений и поднимайся выше в ленте."}
+            {sub?.active ? `Сейчас — ${PLAN_NAME[sub.plan ?? ""] ?? "тариф"} до ${untilLabel(sub.periodEnd)}.` : "Создавай свои встречи, откликайся без ограничений и поднимайся выше в ленте."}
           </Text>
         </View>
-        {STORE !== "appstore" ? (
+        {!CAN_PAY ? (
+          <Glass strong style={styles.note}>
+            <Text style={styles.noteText}>Оформление тарифа в этой версии недоступно. Уже подключил тариф в другой версии «Места»? Войди в тот же аккаунт — все его возможности будут доступны здесь.</Text>
+          </Glass>
+        ) : STORE === "rustore" ? (
           <Glass strong style={styles.note}>
             <Text style={styles.noteText}>💳 Оплата разовая — на 30 дней, без автопродления: деньги сами не спишутся.{"\n"}📱 Тариф действует везде: здесь, в Telegram, и в приложениях «Место» для iPhone и Android — просто войди под тем же аккаунтом.</Text>
           </Glass>
@@ -240,13 +243,14 @@ export default function SubscriptionScreen() {
               return (
                 <Pressable
                   key={p}
+                  disabled={!CAN_PAY}
                   onPress={() => {
                     tapLight();
                     setPicked(p);
                   }}
                   style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}
                 >
-                  <Glass strong style={[styles.plan, on && styles.planOn]}>
+                  <Glass strong style={[styles.plan, (CAN_PAY ? on : isCurrent(p)) && styles.planOn]}>
                     <View style={styles.planHead}>
                       <Text style={styles.planName}>{PLAN_NAME[p]}</Text>
                       {isCurrent(p) ? (
@@ -276,13 +280,7 @@ export default function SubscriptionScreen() {
               );
             })}
 
-            {!CAN_PAY ? (
-              <Glass strong style={styles.note}>
-                <Text style={styles.muted}>
-                  В этой версии приложения оформить тариф нельзя. Если он у тебя уже есть — все возможности работают и здесь.
-                </Text>
-              </Glass>
-            ) : (
+            {CAN_PAY && (
               <>
                 {STORE === "appstore" ? (
                   <>
@@ -301,7 +299,7 @@ export default function SubscriptionScreen() {
                         Условия использования
                       </Text>{" "}
                       и{" "}
-                      <Text style={styles.legalLink} onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)}>
+                      <Text style={styles.legalLink} onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "privacy" } })}>
                         политика конфиденциальности
                       </Text>
                       .
@@ -310,7 +308,7 @@ export default function SubscriptionScreen() {
                 ) : (
                   <Text style={styles.legal}>
                     Разовая оплата на 30 дней картой или через СБП, без автопродления. Чек придёт на почту.{" "}
-                    <Text style={styles.legalLink} onPress={() => Linking.openURL(`${API_URL}/legal/offer`)}>
+                    <Text style={styles.legalLink} onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "offer" } })}>
                       Оферта
                     </Text>
                     .
@@ -378,7 +376,7 @@ const styles = StyleSheet.create({
   noteText: { fontFamily: FONT, fontSize: 14.5, lineHeight: 21, color: colors.ink },
   payPill: { flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: "rgba(170,160,255,0.18)" },
   payPillText: { fontSize: 13, ...f("500"), color: colors.ink },
-  foot: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 16, paddingTop: 8, gap: 8, backgroundColor: "rgba(244,242,248,0.96)" },
+  foot: { paddingHorizontal: 16, paddingTop: 8, gap: 8, backgroundColor: "rgba(244,242,248,0.96)" },
   footNote: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, textAlign: "center" },
   note: { borderRadius: 20, padding: 14 },
   links: { flexDirection: "row", justifyContent: "center", gap: 22 },

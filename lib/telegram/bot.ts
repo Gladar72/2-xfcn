@@ -1,3 +1,4 @@
+import { usesNativePush } from "@/lib/push/expo";
 import { Bot, InputFile, InlineKeyboard, Keyboard, type Context } from "grammy";
 import { TELEGRAM_API_ROOT } from "@/lib/telegram/api-root";
 import { getSupportAiReply } from "@/lib/telegram/support-ai";
@@ -987,7 +988,7 @@ export function getBot(): Bot {
       await ctx.editMessageText(`${originalText}\n\n✅ Выплачено`).catch(() => {});
       if (result) {
         const sum = formatAmounts({ RUB: result.amountRub, XTR: result.amountStars });
-        if (result.partner.telegram_id) {
+        if (result.partner.telegram_id && !await usesNativePush(admin, result.partner.user_id)) {
           await ctx.api
             .sendMessage(Number(result.partner.telegram_id), `💸 Выплата ${sum} отправлена на твои реквизиты. Спасибо, что ты с МЕСТО!`)
             .catch(() => {});
@@ -1013,7 +1014,7 @@ export function getBot(): Bot {
       const premiumLine = premiumOn
         ? "🎁 Тебе включён бесплатный тариф «Премьер» — все функции приложения без ограничений."
         : "🎁 Тебе положен бесплатный тариф «Премьер» — он включится сразу, как зарегистрируешься в приложении.";
-      if (partner.telegram_id) {
+      if (partner.telegram_id && !await usesNativePush(admin, partner.user_id)) {
         await ctx.api
           .sendMessage(Number(partner.telegram_id), `🎉 Заявка одобрена! Добро пожаловать в партнёры МЕСТО.\n\n${premiumLine}\n\n${PROJECT_BRIEF}\n\n${PARTNER_AUDIENCE}\n\n${PARTNER_TERMS}\n\n${approvedPartnerText(link)}`, {
             reply_markup: partnerMenuKeyboard(link),
@@ -1029,7 +1030,7 @@ export function getBot(): Bot {
         });
       }
     } else {
-      if (partner.telegram_id) {
+      if (partner.telegram_id && !await usesNativePush(admin, partner.user_id)) {
         await ctx.api
           .sendMessage(Number(partner.telegram_id), "К сожалению, заявка в партнёрскую программу отклонена.")
           .catch(() => {});

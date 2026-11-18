@@ -1,3 +1,4 @@
+import { nativeRecipients } from "@/lib/push/expo";
 import { InlineKeyboard, type Api } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { CITY_UTC_OFFSET } from "@/lib/data/city-timezones";
@@ -140,6 +141,7 @@ export async function sendDueEventReminders(
         (m): m is { role: "organizer" | "participant"; ticketCode: string | null; user: MemberUser } => !!m.user
       );
 
+    const native = await nativeRecipients(admin, members.map(m => m.user.id));
     const participantsCount = members.filter((m) => m.role === "participant").length;
 
     // ── Первое напоминание: всем, кому ещё не писали ──
@@ -200,7 +202,7 @@ export async function sendDueEventReminders(
       for (const row of inserted ?? []) {
         const member = members.find((m) => m.user.id === row.user_id);
         if (!member) continue;
-        if (!member.user.telegram_id) continue; // без Telegram — только push выше
+        if (!member.user.telegram_id || native.has(member.user.id)) continue; // без Telegram — только push выше
         const when = inHowLong(minutesLeft);
         const time = event.event_time.slice(0, 5);
         try {
@@ -257,7 +259,7 @@ export async function sendDueEventReminders(
           body: `«${shortTitle(event.title)}» в ${event.event_time.slice(0, 5)}. Ты так и не ответил(а) — идёшь?`,
           data: { url: `/event/${event.id}`, type: "event_soon", eventId: event.id, rsvpId: r.id },
         });
-        if (!member.user.telegram_id) continue;
+        if (!member.user.telegram_id || native.has(member.user.id)) continue;
         try {
           await api.sendMessage(
             member.user.telegram_id,
@@ -380,7 +382,7 @@ export async function handleRsvpAnswer(
     .eq("id", event.organizer_id)
     .maybeSingle();
   const organizerTelegramId = organizer?.telegram_id as number | undefined;
-  if (organizerTelegramId) {
+  if (organizerTelegramId && !(await nativeRecipients(admin, [event.organizer_id])).has(event.organizer_id)) {
     await api
       .sendMessage(
         Number(organizerTelegramId),

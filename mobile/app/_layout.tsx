@@ -5,7 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AppState, Platform, StyleSheet, Text, View } from "react-native";
 import * as Font from "expo-font";
 import { AuthProvider, useAuth } from "@/lib/auth";
-import { registerForPush, useNotificationTaps } from "@/lib/push";
+import { usePushRegistration, useNotificationTaps } from "@/lib/push";
 import { noteLaunch } from "@/lib/review";
 import { startAppleWatcher, stopAppleWatcher } from "@/lib/iap";
 import { CAN_PAY } from "@/lib/store";
@@ -84,7 +84,7 @@ function Gate() {
   const [smokePhase, setSmokePhase] = useState<"login" | "map">("login");
 
   useEffect(() => {
-    if (!ready) return;
+    if (!ready || (segments[0] as string) === "legal") return;
     // Тестовая сборка для проверки карты на эмуляторе (не для магазина): сразу на карту.
     // Сначала 20 с экран входа (снимок), потом карта.
     if (process.env.EXPO_PUBLIC_MAP_SMOKE === "1") {
@@ -133,7 +133,6 @@ function Gate() {
       stopAppleWatcher();
       return;
     }
-    registerForPush().catch(() => {});
     // Счётчик запусков для просьбы оценить приложение (lib/review.ts).
     noteLaunch().catch(() => {});
     // iPhone: продления и прерванные покупки App Store — на сервер и закрыть.
@@ -144,18 +143,14 @@ function Gate() {
     applyPendingRef().catch(() => {});
   }, [signedIn]);
 
+  usePushRegistration(ready && signedIn);
   usePresencePing(ready && signedIn);
 
   // Тап по push-уведомлению открывает нужный экран (встреча, чат, уведомления).
   useNotificationTaps(ready && fontReady && signedIn);
 
   const loaded = ready && fontReady && !smokeHold;
-  // Лёгкая вибрация при запуске: в момент появления заставки и когда сервис открылся.
-  // Один заметный отклик, когда заставка сменилась сервисом (на холодном старте раньше его съедала система).
-  useEffect(() => {
-    if (!loaded) return;
-    return tapOnLaunch(350);
-  }, [loaded]);
+  useEffect(tapOnLaunch, []);
 
   if (!loaded) return <Splash fontReady={fontReady} />;
 
@@ -179,6 +174,7 @@ function Gate() {
       <Stack.Screen name="business" />
       <Stack.Screen name="city/[id]" />
       <Stack.Screen name="privacy" />
+      <Stack.Screen name="legal/[doc]" />
       {/* Один экран тарифов: возврат из оплаты (mesto://subscription?paid=1) не открывает второй поверх. */}
       <Stack.Screen name="subscription" getId={() => "subscription"} />
       <Stack.Screen name="create" options={{ presentation: "card", animation: "slide_from_right", gestureEnabled: true }} />

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ sendMessage: vi.fn(), notifyUser: vi.fn() }));
 vi.mock("@/lib/telegram/bot", () => ({ getBot: () => ({ api: { sendMessage: mocks.sendMessage } }) }));
+vi.mock("@/lib/push/expo", () => ({ usesNativePush: async () => false }));
 vi.mock("@/lib/notify/user", () => ({ notifyUser: mocks.notifyUser }));
 import { deliverAdminReply } from "@/lib/support/tickets";
 

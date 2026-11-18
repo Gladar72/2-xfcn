@@ -1,10 +1,12 @@
 import { useEffect } from "react";
-import { Platform } from "react-native";
+import { AppState, Platform } from "react-native";
 import * as Device from "expo-device";
 import * as Notifications from "expo-notifications";
 import Constants from "expo-constants";
 import { router, type Href } from "expo-router";
-import { api } from "./api";
+import * as SecureStore from "expo-secure-store";
+import { api, getToken } from "./api";
+import { API_URL } from "./config";
 import { STORE } from "./store";
 
 // Показываем уведомления и когда приложение открыто (баннер сверху + в списке).
@@ -32,52 +34,106 @@ async function ensureAndroidChannel(): Promise<void> {
  * Android-сборка для RuStore: пуши через RuStore Push (работает в России без Google и VPN).
  * Модуль подключаем лениво — на iPhone и в сборке для Google Play его нет.
  */
-let ruStoreListening = false;
-async function registerRuStorePush(): Promise<boolean> {
-  if (Platform.OS !== "android" || STORE !== "rustore") return false;
-  if (!process.env.EXPO_PUBLIC_RUSTORE_PUSH_PROJECT_ID) return false;
+const PUSH_KEY = "mesto_registered_push";
+let queue: Promise<unknown> = Promise.resolve();
+let generation = 0;
+function serial<T>(job: () => Promise<T>): Promise<T> {
+  const next = queue.then(job, job);
+  queue = next.catch(() => {});
+  return next;
+}
+
+async function detach(session: string | null, token: string) {
+  if (!session) return;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require("react-native-rustore-push") as {
-      default: {
-        checkPushAvailability: () => Promise<boolean>;
-        getToken: () => Promise<string>;
-        createPushEmitter: () => void;
-      };
-      eventEmitter: { addListener: (event: string, cb: (payload: unknown) => void) => unknown };
-    };
-    const client = mod.default;
-    if (!(await client.checkPushAvailability())) return false; // нет приложения RuStore на телефоне
-    const send = (token: string) =>
-      api("/api/me/push-token", { body: { token, platform: "rustore" } }).catch(() => {});
-    const token = await client.getToken();
-    if (token) await send(token);
-    if (!ruStoreListening) {
-      ruStoreListening = true;
-      client.createPushEmitter();
-      // RuStore может выдать новый токен — сразу сообщаем серверу.
-      mod.eventEmitter.addListener("ON_NEW_TOKEN", (t) => {
-        if (typeof t === "string" && t) void send(t);
-      });
-    }
-    return true;
-  } catch {
-    return false;
+    const res = await fetch(API_URL + "/api/me/push-token", {
+      method: "DELETE", headers: { Authorization: "Bearer " + session, "Content-Type": "application/json" },
+      body: JSON.stringify({ token }), signal: controller.signal,
+    });
+    if (!res.ok && res.status !== 401) throw new Error("push unregister failed");
+  } finally {
+    clearTimeout(timer);
   }
 }
 
-/** Спрашивает разрешение на уведомления и отправляет push-токен (RuStore или Expo) на сервер. */
-export async function registerForPush(): Promise<void> {
-  await ensureAndroidChannel().catch(() => {});
-  if (!Device.isDevice) return;
-  let { status } = await Notifications.getPermissionsAsync();
-  if (status !== "granted") status = (await Notifications.requestPermissionsAsync()).status;
-  if (status !== "granted") return;
-  if (await registerRuStorePush()) return;
-  const projectId = (Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined)?.eas?.projectId;
-  if (!projectId) return; // появится после `eas init`
-  const { data: token } = await Notifications.getExpoPushTokenAsync({ projectId });
-  await api("/api/me/push-token", { body: { token, platform: Platform.OS } }).catch(() => {});
+export function unregisterPush() {
+  generation++;
+  return serial(async () => {
+    const token = await SecureStore.getItemAsync(PUSH_KEY);
+    if (token) await detach(await getToken(), token);
+    await SecureStore.deleteItemAsync(PUSH_KEY);
+  });
+}
+
+async function deviceAddress(deviceToken?: Notifications.DevicePushToken) {
+  if (Platform.OS === "ios") {
+    const result = deviceToken ?? await Notifications.getDevicePushTokenAsync();
+    return { token: String(result.data), platform: "apns" };
+  }
+  if (STORE === "rustore" && process.env.EXPO_PUBLIC_RUSTORE_PUSH_PROJECT_ID) {
+    const client = require("react-native-rustore-push").default;
+    if (await client.checkPushAvailability()) {
+      const token = await client.getToken();
+      if (token) return { token: String(token), platform: "rustore" };
+    }
+  }
+  const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID || Constants.easConfig?.projectId ||
+    Constants.expoConfig?.extra?.eas?.projectId;
+  if (!projectId) return null;
+  return { token: (await Notifications.getExpoPushTokenAsync({ projectId, devicePushToken: deviceToken })).data, platform: Platform.OS };
+}
+
+export function usePushRegistration(enabled: boolean) {
+  useEffect(() => {
+    if (!enabled || !Device.isDevice) return;
+    let alive = true;
+    const gen = generation;
+    let running = false;
+    let again = false;
+    let latest: Notifications.DevicePushToken | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const active = () => alive && generation === gen;
+    const sync = async (ask = false) => {
+      if (!active()) return;
+      if (running) { again = true; return; }
+      running = true;
+      try {
+        await ensureAndroidChannel();
+        let permissions = await Notifications.getPermissionsAsync();
+        if (permissions.status === "undetermined" && ask) permissions = await Notifications.requestPermissionsAsync();
+        const address = permissions.granted ? await deviceAddress(latest) : null;
+        await serial(async () => {
+          if (!active()) return;
+          const old = await SecureStore.getItemAsync(PUSH_KEY);
+          if (address) {
+            await api("/api/me/push-token", { body: address });
+            await SecureStore.setItemAsync(PUSH_KEY, address.token);
+          }
+          if (old && old !== address?.token) await detach(await getToken(), old);
+          if (!address) await SecureStore.deleteItemAsync(PUSH_KEY);
+        });
+      } catch {
+        if (active()) { clearTimeout(timer); timer = setTimeout(() => void sync(), 60000); }
+      } finally {
+        running = false;
+        if (again && active()) { again = false; void sync(); }
+      }
+    };
+    void sync(true);
+    const foreground = AppState.addEventListener("change", state => { if (state === "active") void sync(); });
+    const changed = Notifications.addPushTokenListener(token => { latest = token; void sync(); });
+    let ruSubscription: { remove(): void } | undefined;
+    if (Platform.OS === "android" && STORE === "rustore" && process.env.EXPO_PUBLIC_RUSTORE_PUSH_PROJECT_ID) {
+      try {
+        const ru = require("react-native-rustore-push");
+        ru.default.createPushEmitter();
+        ruSubscription = ru.eventEmitter.addListener("ON_NEW_TOKEN", () => void sync());
+      } catch {}
+    }
+    return () => { alive = false; clearTimeout(timer); foreground.remove(); changed.remove(); ruSubscription?.remove(); };
+  }, [enabled]);
 }
 
 // Один и тот же тап не обрабатываем дважды (getLastNotificationResponseAsync

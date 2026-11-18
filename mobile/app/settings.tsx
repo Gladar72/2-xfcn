@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Constants from "expo-constants";
@@ -10,7 +10,6 @@ import { CitySheet } from "@/components/CitySheet";
 import { Icon, type IconName } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { API_URL } from "@/lib/config";
 import { tapLight, tapOk, tapWarn } from "@/lib/feedback";
 import { PLAN_NAME, untilLabel, type Subscription } from "@/lib/subscription";
 import { colors, FONT, f } from "@/lib/theme";
@@ -211,9 +210,9 @@ export default function SettingsScreen() {
 
         <Text style={styles.section}>Документы</Text>
         <Glass strong style={styles.list}>
-          <Row icon="doc" label="Оферта" onPress={() => Linking.openURL(`${API_URL}/legal/offer`)} />
-          <Row icon="shield" label="Политика конфиденциальности" onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)} />
-          <Row icon="doc" label="Согласие на обработку данных" onPress={() => Linking.openURL(`${API_URL}/legal/consent`)} last />
+          <Row icon="doc" label="Оферта" onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "offer" } })} />
+          <Row icon="shield" label="Политика конфиденциальности" onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "privacy" } })} />
+          <Row icon="doc" label="Согласие на обработку данных" onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "consent" } })} last />
         </Glass>
 
         <Pressable onPress={confirmSignOut} style={({ pressed }) => [styles.logout, pressed && { opacity: 0.7 }]}>

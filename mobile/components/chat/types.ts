@@ -35,6 +35,8 @@ export interface ChatMember {
   id: string;
   name: string;
   avatarUrl: string | null;
+  gender?: "male" | "female" | null;
+  anonymous?: boolean;
   lastReadAt: string | null;
   lastActiveAt: string | null;
 }
@@ -63,20 +65,21 @@ export function isOnline(lastActiveAt: string | null | undefined): boolean {
   return Date.now() - ms(lastActiveAt) < 2 * 60_000;
 }
 
-export function lastSeenText(lastActiveAt: string | null | undefined): string {
-  if (!lastActiveAt) return "был(а) давно";
+export function lastSeenText(lastActiveAt?: string | null, gender?: ChatMember["gender"]): string {
   const t = ms(lastActiveAt);
-  const min = Math.floor((Date.now() - t) / 60_000);
+  if (!t) return "Нет данных об активности";
+  const ago = Math.max(0, Date.now() - t);
+  const min = Math.floor(ago / 60_000);
   if (min < 2) return "в сети";
-  if (min < 60) return `был(а) ${min} мин назад`;
-  const h = Math.floor(min / 60);
-  const d = new Date(t);
-  const time = timeOf(lastActiveAt);
-  if (h < 24 && new Date().getDate() === d.getDate()) return `был(а) сегодня в ${time}`;
-  const y = new Date();
-  y.setDate(y.getDate() - 1);
-  if (y.toDateString() === d.toDateString()) return `был(а) вчера в ${time}`;
-  return `был(а) ${d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" })}`;
+  const prefix = gender === "female" ? "была" : gender === "male" ? "был" : "последний визит";
+  if (min < 60) return `${prefix} ${min} мин назад`;
+  const day = new Date(t).toDateString();
+  const today = new Date();
+  const time = timeOf(lastActiveAt!);
+  if (day === today.toDateString()) return `${prefix} сегодня в ${time}`;
+  today.setDate(today.getDate() - 1);
+  if (day === today.toDateString()) return `${prefix} вчера в ${time}`;
+  return `${prefix} ${new Date(t).toLocaleDateString("ru-RU", { day: "numeric", month: "short" })} в ${time}`;
 }
 
 export function timeOf(iso: string): string {

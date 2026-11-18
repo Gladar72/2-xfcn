@@ -1,10 +1,11 @@
+import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
   Animated,
   Easing,
   KeyboardAvoidingView,
-  Linking,
+
   Platform,
   Pressable,
   ScrollView,
@@ -22,7 +23,6 @@ import { Icon } from "@/components/Icon";
 import { CitySheet } from "@/components/CitySheet";
 import { DateWheels, ageOf, ageWord, type BirthDate } from "@/components/register/DateWheels";
 import { RegHint } from "@/components/register/RegHint";
-import { API_URL } from "@/lib/config";
 import { api, type ApiError } from "@/lib/api";
 import { useAuth, type AuthResult } from "@/lib/auth";
 import { loginWithTelegram } from "@/lib/telegramLogin";
@@ -482,17 +482,17 @@ export default function RegisterScreen() {
             <>
               <Check on={agreed} onPress={() => setAgreed((v) => !v)}>
                 Мне есть 18 лет, принимаю{" "}
-                <Text style={styles.link} onPress={() => Linking.openURL(`${API_URL}/legal/offer`)}>
+                <Text style={styles.link} onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "offer" } })}>
                   оферту
                 </Text>{" "}
                 и{" "}
-                <Text style={styles.link} onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)}>
+                <Text style={styles.link} onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "privacy" } })}>
                   политику конфиденциальности
                 </Text>
               </Check>
               <Check on={agreedPd} onPress={() => setAgreedPd((v) => !v)}>
                 Даю{" "}
-                <Text style={styles.link} onPress={() => Linking.openURL(`${API_URL}/legal/consent`)}>
+                <Text style={styles.link} onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "consent" } })}>
                   согласие на обработку персональных данных
                 </Text>
               </Check>

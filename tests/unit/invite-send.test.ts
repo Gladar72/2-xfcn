@@ -5,7 +5,7 @@ vi.mock("@/lib/telegram/current-user", () => ({ getCurrentUser: mocks.current })
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: mocks.admin }));
 vi.mock("@/lib/chat/can-direct", () => ({ findDirectConversation: mocks.chat, haveSharedEvent: mocks.shared }));
 vi.mock("@/lib/telegram/bot", () => ({ getBot: () => ({ api: { sendMessage: mocks.telegram } }) }));
-vi.mock("@/lib/push/expo", () => ({ sendPushToUsers: mocks.push }));
+vi.mock("@/lib/push/expo", () => ({ usesNativePush: async () => false, sendPushToUsers: mocks.push }));
 import { POST } from "@/app/api/conversations/direct/route";
 const sender = "00000000-0000-4000-8000-000000000001";
 const recipient = "00000000-0000-4000-8000-000000000002";

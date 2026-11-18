@@ -12,6 +12,7 @@ import { coverUri } from "@/lib/covers";
 import { INTEREST_GROUPS } from "@/lib/interests";
 import { BIZ_SECTIONS, bizCategoryIcon } from "@/lib/bizCategories";
 import { Creature, K, KI, Press, kem, kf } from "@/components/k";
+import { creatureForKind } from "@/components/k/Creature";
 import { KWheel } from "./KWheel";
 import { PlacePicker } from "./PlacePicker";
 import { BIZ_PRICING, COSTS, type AddressSuggestion, type Category, type Form, type PlaceSuggestion, type SetForm, type TrainingType } from "./model";
@@ -82,10 +83,10 @@ function Chip({ label, icon, on, onPress }: { label: string; icon?: string; on: 
 
 /* ---------- «Что создаём?» ---------- */
 
-const KINDS: [Kind, number, string, string][] = [
-  ["open", 0, "Открытая встреча", "Кофе, спорт, кино, прогулка — все видят тебя и место встречи"],
-  ["anon", 40, "Анонимная встреча", "Имя, фото и точный адрес увидят только те, чью заявку ты примешь"],
-  ["business", -50, "Событие для бизнеса", "Афиша для заведения или своего дела: концерт, квиз, мастер‑класс. Гостей до 500, можно билеты"],
+const KINDS: [Kind, string, string][] = [
+  ["open", "Открытая встреча", "Кофе, спорт, кино, прогулка — все видят тебя и место встречи"],
+  ["anon", "Анонимная встреча", "Имя, фото и точный адрес увидят только те, чью заявку ты примешь"],
+  ["business", "Событие для бизнеса", "Афиша для заведения или своего дела: концерт, квиз, мастер‑класс. Гостей до 500, можно билеты"],
 ];
 
 export function KindStep({ value, onPick }: { value: Kind | null; onPick: (k: Kind) => void }) {
@@ -94,12 +95,12 @@ export function KindStep({ value, onPick }: { value: Kind | null; onPick: (k: Ki
       <H1 plain="Что " em="создаём" after="?" />
       <Sub>Выбери формат — дальше всё подскажу по шагам.</Sub>
       <View style={{ gap: 8, marginTop: 4 }}>
-        {KINDS.map(([k, hue, name, text]) => {
+        {KINDS.map(([k, name, text]) => {
           const on = value === k;
           return (
             <Press key={k} haptic dark={on} onPress={() => onPick(k)} style={[st.opt3, on ? st.on : G]}>
               <View style={{ width: 76, height: 76, alignItems: "center", justifyContent: "center" }}>
-                <Creature size={86} variant={k === "anon" ? "p" : "e"} hue={hue} />
+                <Creature size={86} variant={creatureForKind[k]} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={kf("500", 15, { color: on ? "#fff" : K.ink })}>{name}</Text>
