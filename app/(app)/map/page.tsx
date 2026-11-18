@@ -8,6 +8,7 @@ import { openRoute } from "@/lib/maps/route";
 import { photoThumb } from "@/lib/photos/thumb";
 import { Ic, Sheet } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
+import { groupLocations } from "@/lib/maps/event-addresses";
 import { EventsMap, categoryIcon3d, eventTimeLabel, type EventsMapHandle, type MapEventItem } from "@/components/map/EventsMap";
 import { BIZ_CATEGORIES, BIZ_OTHER, bizCategoryCounts, bizCategoryIcon, matchesBizCategory } from "@/lib/events/biz-categories";
 import { ApiReadError, getJson } from "@/lib/http/get-json";
@@ -95,16 +96,7 @@ function MapPageContent() {
   // Если открытый кластер собран из НЕСКОЛЬКИХ разных мест — предлагаем
   // приблизить карту к его границам (п.6 задания на кластеризацию).
   // Если все встречи ровно в одном месте — приближать нечего, кнопка не нужна.
-  const distinctPlaceCount = useMemo(() => {
-    if (!selected) return 0;
-    // Более широкий порог, чем технический "разъезд" одинаковых координат
-    // на карте (JITTER_METERS в EventsMap.tsx, ~4м) — иначе кнопка могла бы
-    // появляться даже для встреч, которые на самом деле в одном месте.
-    // 4 знака ≈ 11м — заметно шире жителя разъезда, но всё ещё отличает
-    // по-настоящему разные адреса.
-    const keys = new Set(selected.map((e) => `${e.latitude.toFixed(4)},${e.longitude.toFixed(4)}`));
-    return keys.size;
-  }, [selected]);
+  const distinctPlaceCount = useMemo(() => groupLocations(selected ?? [], resolvedCity).length, [selected, resolvedCity]);
 
   // Переход со страницы встречи (нажали на мини-карту): /map?focus=<id> —
   // приближаем карту к встрече и сразу открываем её карточку.

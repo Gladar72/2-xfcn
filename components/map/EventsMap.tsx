@@ -3,6 +3,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { createMap, type LngLat, type MapLibreMap, type MapLibreMarker } from "@/lib/maps/load-maplibre";
 import { searchAddress } from "@/lib/maps/forward-geocode";
+import { ADDRESS_ZOOM, groupLocations } from "@/lib/maps/event-addresses";
 import { CATEGORY_ICON } from "@/lib/data/category-icons";
 
 export interface MapEventItem {
@@ -56,28 +57,6 @@ const DEFAULT_CENTER: [number, number] = [65.534328, 57.152985]; // Тюмень
 // Метка с подписью времени ~80px высотой и до ~90px шириной — радиус больше неё,
 // иначе соседние метки налезают друг на друга.
 const CLUSTER_RADIUS = 72;
-// Начиная с этого масштаба встречи больше не объединяются в кружки —
-// раздвинутые дубликаты (см. JITTER_METERS) видны отдельными значками.
-const CLUSTER_MAX_ZOOM = 21;
-// Точность округления координат, чтобы найти встречи в буквально одной
-// точке (например, две встречи в одном и том же месте, выбранном через
-// автодополнение адреса) — 6 знаков после запятой ≈ 0.1м, ловит только
-// настоящие совпадения, не "рядом, но другое здание".
-const EXACT_MATCH_PRECISION = 6;
-// На сколько метров технически "раздвигаем" встречи с одинаковыми
-// координатами по кругу вокруг общей точки. Маленькое смещение —
-// на обычном масштабе карты (город, район) это меньше одного экранного
-// пикселя, поэтому такие встречи по-прежнему видны одним кружком; но при
-// максимальном увеличении карты то же самое расстояние в метрах
-// превращается в десятки экранных пикселей — больше порога кластеризации
-// (CLUSTER_RADIUS) — и стандартная пиксельная кластеризация сама
-// естественно разводит их на отдельные значки. Раньше вместо этого
-// применялось "жёсткое" объединение без раздвижения — по итогам
-// тестирования пользователь явно попросил именно раздвигать при
-// увеличении, а не держать одним кружком навсегда.
-const JITTER_METERS = 6;
-const METERS_PER_DEGREE_LAT = 111320;
-
 /** Координаты центра города через геокодер — с фолбэком на Тюмень, если геокодирование не удалось. */
 async function geocodeCityCenter(city: string): Promise<[number, number]> {
   const suggestions = await searchAddress(city);
@@ -136,40 +115,6 @@ function createClusterButton(count: number, onClick: () => void): HTMLButtonElem
     onClick();
   });
   return button;
-}
-
-/**
- * Встречи с буквально одинаковыми координатами технически "раздвигаются"
- * по маленькому кругу (см. JITTER_METERS) — так стандартная пиксельная
- * кластеризация сама решает, показывать ли их одним кружком (на обычном
- * масштабе) или отдельными значками (при сильном увеличении), вместо
- * жёсткого правила "одно и то же место — всегда один кружок навсегда".
- */
-function jitterExactDuplicates(events: MapEventItem[]): MapEventItem[] {
-  const groups = new Map<string, MapEventItem[]>();
-  for (const event of events) {
-    const key = `${event.latitude.toFixed(EXACT_MATCH_PRECISION)},${event.longitude.toFixed(EXACT_MATCH_PRECISION)}`;
-    const list = groups.get(key) ?? [];
-    list.push(event);
-    groups.set(key, list);
-  }
-
-  const result: MapEventItem[] = [];
-  for (const list of groups.values()) {
-    const first = list.find(() => true);
-    if (!first || list.length === 1) {
-      if (first) result.push(first);
-      continue;
-    }
-    const metersPerDegreeLng = METERS_PER_DEGREE_LAT * Math.cos((first.latitude * Math.PI) / 180);
-    list.forEach((event, i) => {
-      const angle = (2 * Math.PI * i) / list.length;
-      const dLat = (JITTER_METERS * Math.sin(angle)) / METERS_PER_DEGREE_LAT;
-      const dLng = (JITTER_METERS * Math.cos(angle)) / metersPerDegreeLng;
-      result.push({ ...event, latitude: event.latitude + dLat, longitude: event.longitude + dLng });
-    });
-  }
-  return result;
 }
 
 const MONTHS_SHORT = ["янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
@@ -257,6 +202,47 @@ export function buildEventMarkerElement(event: MapEventItem, onClick: () => void
   });
   // Кончик капли (повёрнутый на 45° угол) выступает ниже квадрата на ~0.2 диаметра.
   return { el, offsetY: -Math.round(PIN * 0.2) };
+}
+
+/** Each drop pivots at its actual tip; the map marker stays on the saved coordinate. */
+function buildAddressMarker(items: MapEventItem[], select: (events: MapEventItem[]) => void) {
+  const visible = items.length > 3 ? items.slice(0, 2) : items;
+  const el = document.createElement("div");
+  el.className = "address-pins";
+  const slot = visible.length === 3 ? 48 : 60;
+  el.style.width = `${visible.length * slot}px`;
+  if (items.length > visible.length) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "address-more";
+    more.textContent = `+${items.length - visible.length}`;
+    more.setAttribute("aria-label", `Все события по адресу: ${items.length}`);
+    more.onclick = e => { e.stopPropagation(); select(items); };
+    el.append(more);
+  }
+  const row = document.createElement("div");
+  row.className = "address-heads";
+  visible.forEach((event, i) => {
+    const { el: pin } = buildEventMarkerElement(event, () => select([event]));
+    const label = pin.firstElementChild!;
+    const drop = pin.lastElementChild as HTMLElement;
+    const angle = (i - (visible.length - 1) / 2) * (visible.length === 2 ? 88 : 60);
+    const tip = PIN * (Math.sqrt(2) - 1) / 2;
+    drop.classList.remove("mkpop");
+    Object.assign(drop.style, { position: "absolute", bottom: tip+"px", left: "50%", pointerEvents: "none",
+      transformOrigin: `50% calc(100% + ${tip}px)`, transform: `translateX(-50%) rotate(${angle}deg)` });
+    const image = drop.querySelector("img");
+    if (image) image.style.transform = `rotate(${-angle}deg)`;
+    const hit = document.createElement("button");
+    hit.type = "button";
+    hit.className = "address-hit";
+    hit.setAttribute("aria-label", event.title);
+    hit.append(label);
+    hit.onclick = e => { e.stopPropagation(); select([event]); };
+    row.append(drop, hit);
+  });
+  el.append(row);
+  return { el, offsetY: 0 };
 }
 
 export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function EventsMap(
@@ -352,19 +338,16 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
 
       if (events.length === 0) return;
 
-      // Раздвигаем встречи с буквально одинаковыми координатами (см.
-      // jitterExactDuplicates) — дальше обычная пиксельная кластеризация
-      // сама решает, объединять их в кружок или показывать раздельно.
-      const jittered = jitterExactDuplicates(events);
-      const eventsById = new Map(jittered.map((e) => [e.id, e]));
-
+      const locations = groupLocations(events, city);
+      const locationsById = new Map(locations.flatMap(location => location.items.map(event => [event.id, location] as const)));
+      const eventsById = new Map(events.map(event => [event.id, event]));
       const geojson = {
         type: "FeatureCollection",
-        features: jittered.map((event) => ({
+        features: locations.flatMap(location => location.items.map(event => ({
           type: "Feature",
           properties: { id: event.id },
-          geometry: { type: "Point", coordinates: [event.longitude, event.latitude] },
-        })),
+          geometry: { type: "Point", coordinates: [location.lng, location.lat] },
+        }))),
       };
 
       // HTML-маркеры (наши 3D-пины и кружки-счётчики) поверх кластеров,
@@ -391,7 +374,12 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
                 .getClusterLeaves(clusterId, Infinity, 0)
                 .then((leaves) => {
                   const list = leaves.map((l) => eventsById.get(l.properties.id)).filter((e): e is MapEventItem => !!e);
-                  if (list.length > 0) onSelectRef.current(list);
+                  if (cancelled || !list.length) return;
+                  onSelectRef.current(list);
+                  const first = locationsById.get(list[0]!.id);
+                  if (!first) return;
+                  const oneAddress = list.every(e => locationsById.get(e.id) === first);
+                  activeMap.flyTo({ center: oneAddress ? [first.lng, first.lat] : coords, zoom: oneAddress ? ADDRESS_ZOOM : Math.min(ADDRESS_ZOOM, activeMap.getZoom() + 2) });
                 })
                 .catch(() => {});
             });
@@ -399,15 +387,19 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
             markers.set(key, marker);
           } else {
             const id = String(props.id);
-            const event = eventsById.get(id);
-            if (!event || seen.has(id)) continue;
-            seen.add(id);
-            if (markers.has(id)) continue;
-            const { el, offsetY } = buildEventMarkerElement(event, () => onSelectRef.current([event]));
+            const location = locationsById.get(id);
+            if (!location) continue;
+            const key = "address:" + location.id;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            if (markers.has(key)) continue;
+            const single = location.items[0]!;
+            const { el, offsetY } = location.items.length === 1
+              ? buildEventMarkerElement(single, () => onSelectRef.current([single]))
+              : buildAddressMarker(location.items, items => onSelectRef.current(items));
             const marker = new maplibregl.Marker({ element: el, anchor: "bottom", offset: [0, offsetY] })
-              .setLngLat([event.longitude, event.latitude])
-              .addTo(activeMap);
-            markers.set(id, marker);
+              .setLngLat([location.lng, location.lat]).addTo(activeMap);
+            markers.set(key, marker);
           }
         }
         for (const [key, marker] of markers) {
@@ -428,7 +420,7 @@ export const EventsMap = forwardRef<EventsMapHandle, EventsMapProps>(function Ev
           // кластеры не пересчитываются и метки слипаются. Считаем до 22-го.
           maxzoom: 22,
           clusterRadius: CLUSTER_RADIUS,
-          clusterMaxZoom: CLUSTER_MAX_ZOOM,
+          clusterMaxZoom: ADDRESS_ZOOM - 1,
         });
         // Невидимый слой — без него карта не отдаёт точки источника
         // (querySourceFeatures), а рисуем мы их сами HTML-маркерами.

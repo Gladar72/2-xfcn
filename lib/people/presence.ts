@@ -1,13 +1,18 @@
-/** Activity in Место, based on the existing foreground heartbeat. */
-export function presenceLabel(lastActiveAt: string | null | undefined, gender?: string | null, now = Date.now()): string | null {
-  if (!lastActiveAt) return null;
-  const elapsed = now - Date.parse(lastActiveAt);
+/** Foreground activity from the existing two-minute presence window, in the viewer's local time. */
+export function presenceLabel(iso?: string | null, gender?: string | null, now = Date.now()): string | null {
+  if (!iso) return null;
+  const timestamp = Date.parse(iso.replace(/(\.\d{3})\d+/, "$1"));
+  const elapsed = now - timestamp;
   if (!Number.isFinite(elapsed) || elapsed < -60_000) return null;
-  if (elapsed < 120_000) return "В сети";
-  const verb = gender === "female" ? "Была" : gender === "male" ? "Был" : "В сети";
-  const amount = Math.floor(elapsed / (elapsed < 3_600_000 ? 60_000 : elapsed < 86_400_000 ? 3_600_000 : 86_400_000));
-  const units = elapsed < 3_600_000 ? ["минуту", "минуты", "минут"] : elapsed < 86_400_000 ? ["час", "часа", "часов"] : ["день", "дня", "дней"];
-  const form = amount % 100 >= 11 && amount % 100 <= 14 ? 2 : amount % 10 === 1 ? 0 : amount % 10 >= 2 && amount % 10 <= 4 ? 1 : 2;
-  if (elapsed >= 30 * 86_400_000) return `${verb} больше месяца назад`;
-  return `${verb} ${amount} ${units[form]} назад`;
+  if (elapsed < 120_000) return "Онлайн";
+  const date = new Date(timestamp);
+  const today = new Date(now);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const day = date.toDateString() === today.toDateString() ? "сегодня"
+    : date.toDateString() === yesterday.toDateString() ? "вчера"
+    : date.toLocaleDateString("ru-RU", { day: "numeric", month: "short", ...(date.getFullYear() === today.getFullYear() ? {} : { year: "numeric" }) });
+  const time = String(date.getHours()).padStart(2, "0") + ":" + String(date.getMinutes()).padStart(2, "0");
+  const prefix = gender === "female" ? "Была в сети" : gender === "male" ? "Был в сети" : "Последний визит";
+  return `${prefix} ${day} в ${time}`;
 }

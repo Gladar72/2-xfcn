@@ -11,10 +11,10 @@ const id = "00000000-0000-4000-8000-000000000123";
 const when = "2026-11-17T15:00:00Z";
 beforeEach(() => { vi.clearAllMocks(); });
 it.each([
-  { linked: true, visible: true, expected: "example" },
-  { linked: true, visible: false, expected: null },
-  { linked: false, visible: true, expected: null },
-])("returns last activity and only an opted-in, linked Telegram handle: %j", async ({ linked, visible, expected }) => {
+  { linked: true, visible: true },
+  { linked: true, visible: false },
+  { linked: false, visible: true },
+])("returns last activity and omits even formerly visible Telegram handles: %j", async ({ linked, visible }) => {
   const from = (table: string) => {
     let row: unknown = table === "user_interests" ? [] : null;
     const chain = {
@@ -35,6 +35,7 @@ it.each([
   expect(res.status).toBe(200);
   expect(res.headers.get("cache-control")).toContain("no-store");
   const body = await res.json();
-  expect(body).toMatchObject({ telegramUsername: expected, lastActiveAt: when, distanceM: null, photos: ["photo"] });
+  expect(body).toMatchObject({ lastActiveAt: when, distanceM: null, photos: ["photo"] });
   expect(body).not.toHaveProperty("telegram_id");
+  expect(body).not.toHaveProperty("telegramUsername");
 });

@@ -13,5 +13,5 @@ export function PresenceLabel({ lastActiveAt, gender }: { lastActiveAt?: string 
     return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", update); };
   }, [lastActiveAt]);
   const label = presenceLabel(lastActiveAt, gender, now);
-  return label ? <span className="presence" title="Последняя активность в Месте">{label === "В сети" && <i aria-hidden />}{label}</span> : null;
+  return label ? <span className="presence" title="Последняя активность в Месте">{label === "Онлайн" && <i aria-hidden />}{label}</span> : null;
 }

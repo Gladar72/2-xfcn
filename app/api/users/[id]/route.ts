@@ -24,7 +24,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const [{ data: user }, { data: interestRows }, { data: myInterestRows }, { data: meGeo }, { data: blockRow, error: blockError }] = await Promise.all([
     admin
       .from("users")
-      .select("id, name, city, avatar_url, birth_date, gender, last_active_at, bio, rating_avg, completed_meetings_count, moderation_status, approx_lat, approx_lon, approx_location_at, show_distance, telegram_id, telegram_username, show_telegram_username")
+      .select("id, name, city, avatar_url, birth_date, gender, last_active_at, bio, rating_avg, completed_meetings_count, moderation_status, approx_lat, approx_lon, approx_location_at, show_distance")
       .eq("id", id)
       .maybeSingle(),
     admin.from("user_interests").select("interests(name)").eq("user_id", id),
@@ -54,7 +54,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({
     id: user.id,
     name: user.name,
-    telegramUsername: user.show_telegram_username && user.telegram_id ? user.telegram_username : null,
     city: user.city,
     lastActiveAt: user.last_active_at ?? null,
     avatarUrl: user.avatar_url,

@@ -36,7 +36,6 @@ interface FollowInfo {
 }
 
 export interface Person {
-  telegramUsername?: string | null;
   id: string;
   name: string;
   avatarUrl: string | null;
@@ -284,15 +283,32 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
     if (initial) setPerson((p) => (p && p.id === initial.id && p.bio !== undefined && initial.bio === undefined ? { ...p, city: initial.city, distanceKm: initial.distanceKm, distanceM: initial.distanceM } : initial));
   }, [initial]);
 
+  const hasInitialProfile = !!initial;
   useEffect(() => {
-    if (initial) return;
+    if (pending) return;
     const controller = new AbortController();
-    fetch(`/api/users/${id}`, { signal: controller.signal })
-      .then((r) => r.json())
-      .then((d) => (d.error ? setError("Профиль не найден.") : setPerson(d)))
-      .catch(() => { if (!controller.signal.aborted) setError("Проблема с соединением."); });
-    return () => controller.abort();
-  }, [id, initial]);
+    let loading = false;
+    async function refresh(first = false) {
+      if (loading || document.hidden) return;
+      loading = true;
+      try {
+        const response = await fetch(`/api/users/${id}`, { signal: controller.signal, cache: "no-store" });
+        if (!response.ok) {
+          if (first || response.status === 404) { setPerson(null); setError("Профиль недоступен."); }
+          return;
+        }
+        const profile = await response.json();
+        if (!controller.signal.aborted) { setPerson(profile); setError(null); }
+      } catch {
+        if (!controller.signal.aborted && first) setError("Проблема с соединением.");
+      } finally { loading = false; }
+    }
+    if (!hasInitialProfile) void refresh(true);
+    const refreshVisible = () => { void refresh(); };
+    const timer = window.setInterval(refreshVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshVisible);
+    return () => { controller.abort(); window.clearInterval(timer); document.removeEventListener("visibilitychange", refreshVisible); };
+  }, [id, hasInitialProfile, pending]);
 
   // Gallery images preload themselves. Avoid a second set of Image instances.
 
@@ -453,7 +469,6 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
   const common = person.commonInterests ?? [];
   const ideas = inviteOpen ? suggestMeet(person.interests ?? [], common)?.ideas ?? [] : [];
   const others = (person.interests ?? []).filter((i) => !common.includes(i));
-  const meets = person.completedMeetingsCount;
 
   return (
     <section
@@ -505,14 +520,8 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
                 {person.distanceM !== undefined ? personDistanceLabel(person.distanceM) : distanceLabel(person.distanceKm)}
               </span>
             )}
-            {person.telegramUsername && <a className="pill glass" style={{ color: "white", textDecoration: "none" }}
-              href={`https://t.me/${encodeURIComponent(person.telegramUsername)}`} target="_blank" rel="noopener noreferrer" aria-label={`Telegram @${person.telegramUsername}`}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden="true"><path d="M3 11.5 21 4l-4 16-6-5-3 3v-5l9-7-11 6z" /></svg> @{person.telegramUsername}</a>}
             {person.city && <span className="pill glass">{person.city}</span>}
             {person.ratingAvg > 0 && <span className="pill glass">★ {person.ratingAvg.toFixed(1).replace(".", ",")}</span>}
-            <span className="pill glass">
-              {meets} {plural(meets, "встреча", "встречи", "встреч")}
-            </span>
             {common.length > 0 && (
               <span className="pill glass">
                 {common.length} {plural(common.length, "общий интерес", "общих интереса", "общих интересов")}
