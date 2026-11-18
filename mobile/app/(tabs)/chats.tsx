@@ -122,7 +122,7 @@ export default function ChatsScreen() {
       <FlatList
         data={shown}
         keyExtractor={(c) => c.conversationId}
-        contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 16, paddingBottom: insets.bottom + 120, gap: 10 }}
+        contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 16, paddingBottom: insets.bottom + 86, gap: 10 }}
         ListHeaderComponent={
           <View>
             {/* Как в мини-аппе: «Чаты» открываются со «Встреч» — есть кнопка назад */}

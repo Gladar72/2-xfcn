@@ -1,3 +1,4 @@
+import { usesNativePush } from "@/lib/push/expo";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -146,7 +147,7 @@ export async function POST(req: NextRequest) {
     ]);
     const appUrl = process.env.APP_URL;
     const telegramId = invitee?.telegram_id as number | undefined;
-    if (telegramId) {
+    if (telegramId && !await usesNativePush(admin, otherId)) {
       const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       const name = esc(((sender?.name as string | undefined) ?? "").trim() || "Кто-то");
       const keyboard = new InlineKeyboard().text(companion ? "✅ Пойдём вместе" : "✅ Пойду", `inv:y:${inviteId}`).text("Не смогу", `inv:n:${inviteId}`);

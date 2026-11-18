@@ -383,7 +383,7 @@ export default function CreateScreen() {
           <KRb icon="back" onPress={() => router.replace(`/event/${publishedId}`)} accessibilityLabel="Назад" />
         </View>
         <View style={{ flex: 1, alignItems: "center", paddingTop: "6%", paddingHorizontal: 24 }}>
-          <Creature size={220} variant="e" live />
+          <Creature size={220} variant="e" />
           <Text style={[kf("300", 36, { lh: 1.14, ls: -0.035 }), { textAlign: "center", marginTop: 26 }]}>
             {form.business ? "Событие" : "Встреча"}
             {"\n"}

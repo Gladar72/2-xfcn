@@ -1,10 +1,10 @@
+import { router } from "expo-router";
 import { type ReactNode } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Wordmark } from "@/components/brand";
-import { API_URL } from "@/lib/config";
 import { FONT, SERIF, f } from "@/lib/theme";
 
 /**
@@ -66,11 +66,11 @@ export function AuthShell({
           <View style={{ gap: 10 }}>{children}</View>
           <Text style={styles.legal}>
             Продолжая, ты принимаешь{" "}
-            <Text style={styles.link} onPress={() => Linking.openURL(`${API_URL}/legal/offer`)}>
+            <Text style={styles.link} onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "offer" } })}>
               условия
             </Text>{" "}
             и{" "}
-            <Text style={styles.link} onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)}>
+            <Text style={styles.link} onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "privacy" } })}>
               политику конфиденциальности
             </Text>
           </Text>

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Aurora, Glass, Mosya, RoundBtn, Title } from "@/components/brand";
 import { Icon } from "@/components/Icon";
-import { API_URL } from "@/lib/config";
 import { tapLight } from "@/lib/feedback";
 import { getAnonDefault, setAnonDefault } from "@/lib/prefs";
 import { colors, FONT } from "@/lib/theme";
@@ -53,7 +52,7 @@ export default function PrivacyScreen() {
               <Text style={styles.sub}>Видны только тем, чью заявку ты одобришь</Text>
             </View>
           </View>
-          <Pressable onPress={() => Linking.openURL(`${API_URL}/legal/privacy`)} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
+          <Pressable onPress={() => router.push({ pathname: "/legal/[doc]", params: { doc: "privacy" } })} style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}>
             <View style={styles.ic}>
               <Icon name="shield" size={18} color={colors.violet} />
             </View>

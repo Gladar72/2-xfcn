@@ -2,8 +2,7 @@
 import { useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
-import * as ImagePicker from "expo-image-picker";
-import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import { pickAndEdit } from "@/components/PhotoEditor";
 import { Glass } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { Field } from "@/components/ui";
@@ -11,19 +10,6 @@ import { coverUri } from "@/lib/covers";
 import { colors, f } from "@/lib/theme";
 import type { Form, SetForm } from "./model";
 import { Label, Muted, StepTitle } from "./parts";
-
-/** Фото из галереи: обрезка 3:2 в системном редакторе → 1200 px по ширине, JPEG 0.8 → data:URL (как шлёт веб). */
-async function pickPhoto(): Promise<{ uri: string; data: string } | null> {
-  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [3, 2], quality: 1 });
-  const asset = res.canceled ? null : res.assets[0];
-  if (!asset) return null;
-  const ctx = ImageManipulator.manipulate(asset.uri);
-  ctx.resize({ width: 1200 });
-  const img = await ctx.renderAsync();
-  const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.8, base64: true });
-  if (!out.base64) return null;
-  return { uri: out.uri, data: `data:image/jpeg;base64,${out.base64}` };
-}
 
 export function StepCover({ form, set, presetCover, coverSet = [], catLabel }: { form: Form; set: SetForm; presetCover: string | null; coverSet?: string[]; catLabel: string }) {
   const [loading, setLoading] = useState(false);
@@ -33,7 +19,7 @@ export function StepCover({ form, set, presetCover, coverSet = [], catLabel }: {
   async function upload() {
     setLoading(true);
     try {
-      const p = await pickPhoto();
+      const p = await pickAndEdit({ aspect: 3 / 2, previewTitle: form.title });
       if (p) set({ ownPhoto: p, useOwnPhoto: true });
     } catch {
       Alert.alert("Не получилось", "Не удалось открыть фото — попробуй другое.");

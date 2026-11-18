@@ -53,7 +53,7 @@ export default function CityEventScreen() {
   return (
     <View style={{ flex: 1 }}>
       <Aurora />
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 110 }} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 12 }} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           {e.photoUrl ? (
             <Image source={{ uri: e.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} />
@@ -156,6 +156,6 @@ const styles = StyleSheet.create({
   card: { borderRadius: 22, padding: 16 },
   desc: { fontFamily: FONT, fontSize: 15, lineHeight: 22, color: colors.ink2 },
   note: { fontFamily: FONT, fontSize: 13.5, lineHeight: 19, color: colors.ink2 },
-  footer: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
+  footer: { flexDirection: "row", gap: 10, paddingHorizontal: 16, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
   round: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
 });

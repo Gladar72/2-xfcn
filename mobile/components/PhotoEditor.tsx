@@ -2,7 +2,7 @@
 // фото двигается пальцем, двумя пальцами — приближается, пока двигаешь — видна сетка третей.
 // «Повернуть», «Сбросить», «Заменить». Сохраняет кадр 3:4 (обложки и фото профиля).
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Image as RNImage, Modal, PanResponder, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import { ActivityIndicator, Alert, Animated, Image as RNImage, Modal, PanResponder, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
@@ -31,7 +31,7 @@ export function PhotoEditor({
   source,
   aspect = 3 / 4,
   title = "Обложка встречи",
-  hint = "Двигай фото пальцем, двумя пальцами — приблизить. Так обложка будет выглядеть на карточке",
+  hint = "Двигай фото пальцем, своди и разводи два пальца, чтобы изменить масштаб",
   previewTitle,
   onCancel,
   onDone,
@@ -53,7 +53,7 @@ export function PhotoEditor({
   useEffect(() => setSrc(source), [source]);
 
   // Рамка — самая большая вертикальная рамка нужных пропорций, что влезает между шапкой и кнопками.
-  const stageH = win.height - insets.top - insets.bottom - 56 - 130;
+  const stageH = Math.max(40, win.height - insets.top - insets.bottom - 56 - 142);
   let fw = Math.min(win.width - 32, 440);
   let fh = fw / aspect;
   if (fh > stageH) {
@@ -72,7 +72,7 @@ export function PhotoEditor({
   const sc = useRef(new Animated.Value(1)).current;
   const grid = useRef(new Animated.Value(0)).current;
   const cur = useRef({ x: 0, y: 0, s: 1 });
-  const g = useRef<{ x: number; y: number; s: number; dist: number; cx: number; cy: number } | null>(null);
+  const g = useRef<{ x: number; y: number; s: number; fingers: string; dist: number; cx: number; cy: number } | null>(null);
 
   const clamp = (x: number, y: number, s: number) => {
     const mx = Math.max(0, (base.w * s - fw) / 2);
@@ -97,43 +97,47 @@ export function PhotoEditor({
   useEffect(() => {
     apply({ x: 0, y: 0, s: 1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src]);
+  }, [src, fw, fh]);
 
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
-          g.current = null;
-          Animated.timing(grid, { toValue: 1, duration: 150, useNativeDriver: true }).start();
-        },
-        onPanResponderMove: (e, gs) => {
-          const t = e.nativeEvent.touches;
-          if (t.length >= 2) {
-            const a = t[0]!, b = t[1]!;
-            const dist = Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
-            const cx = (a.pageX + b.pageX) / 2, cy = (a.pageY + b.pageY) / 2;
-            if (!g.current || g.current.dist === 0) g.current = { ...cur.current, dist, cx, cy };
-            const s = Math.max(1, Math.min(MAX_SCALE, g.current.s * (dist / g.current.dist)));
-            apply(clamp(g.current.x + (cx - g.current.cx), g.current.y + (cy - g.current.cy), s));
-          } else {
-            if (!g.current || g.current.dist !== 0) g.current = { ...cur.current, dist: 0, cx: gs.moveX, cy: gs.moveY };
-            apply(clamp(g.current.x + (gs.moveX - g.current.cx), g.current.y + (gs.moveY - g.current.cy), cur.current.s));
-          }
-        },
-        onPanResponderRelease: () => {
-          g.current = null;
-          Animated.timing(grid, { toValue: 0, duration: 250, useNativeDriver: true }).start();
-        },
-        onPanResponderTerminate: () => {
-          g.current = null;
-          Animated.timing(grid, { toValue: 0, duration: 250, useNativeDriver: true }).start();
-        },
-      }),
+  function track(e: GestureResponderEvent, rebase = false) {
+    const touches = e.nativeEvent.touches.slice(0, 2);
+    if (!touches.length) { g.current = null; return; }
+    const [a, second] = touches;
+    const b = second ?? a!;
+    const fingers = touches.map(t => t.identifier).sort().join(",");
+    const cx = (a!.locationX + b.locationX - fw) / 2;
+    const cy = (a!.locationY + b.locationY - fh) / 2;
+    const dist = Math.hypot(a!.pageX - b.pageX, a!.pageY - b.pageY);
+    if (rebase || fingers !== g.current?.fingers) {
+      g.current = { ...cur.current, fingers, cx, cy, dist };
+      return;
+    }
+    const start = g.current;
+    if (!start) return;
+    const s = start.dist > 0 ? Math.max(1, Math.min(MAX_SCALE, start.s * dist / start.dist)) : start.s;
+    // Keep the same pixel underneath the moving midpoint, including on zoom-out.
+    apply(clamp(cx - (start.cx - start.x) * s / start.s, cy - (start.cy - start.y) * s / start.s, s));
+  }
+  const pan = useMemo(() => {
+    const end = () => {
+      g.current = null;
+      Animated.timing(grid, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+    };
+    return PanResponder.create({
+      onStartShouldSetPanResponder: () => !busy,
+      onMoveShouldSetPanResponder: () => !busy,
+      onPanResponderGrant: (e) => {
+        track(e, true);
+        Animated.timing(grid, { toValue: 1, duration: 120, useNativeDriver: true }).start();
+      },
+      onPanResponderStart: (e) => track(e, true),
+      onPanResponderMove: (e) => track(e),
+      onPanResponderEnd: (e) => track(e, true),
+      onPanResponderRelease: end,
+      onPanResponderTerminate: end,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [base, fw, fh]
-  );
+  }, [base, fw, fh, busy]);
 
   async function rotate() {
     if (!src || busy) return;
@@ -145,6 +149,8 @@ export function PhotoEditor({
       const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 });
       Haptics.selectionAsync().catch(() => {});
       setSrc({ uri: out.uri, w: out.width, h: out.height });
+    } catch {
+      Alert.alert("Не удалось обработать фото", "Попробуй ещё раз или выбери другое фото.");
     } finally {
       setBusy(false);
     }
@@ -156,7 +162,8 @@ export function PhotoEditor({
     try {
       const { x, y, s } = cur.current;
       const k = base.k * s; // пикселей экрана на пиксель фото
-      const cw = fw / k, ch = fh / k;
+      const cw = Math.max(1, Math.min(src.w, Math.round(fw / k)));
+      const ch = Math.max(1, Math.min(src.h, Math.round(fh / k)));
       const originX = Math.max(0, Math.min(src.w - cw, src.w / 2 - x / k - cw / 2));
       const originY = Math.max(0, Math.min(src.h - ch, src.h / 2 - y / k - ch / 2));
       const ctx = ImageManipulator.manipulate(src.uri);
@@ -165,6 +172,8 @@ export function PhotoEditor({
       const img = await ctx.renderAsync();
       const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.85, base64: true });
       if (out.base64) onDone({ uri: out.uri, data: `data:image/jpeg;base64,${out.base64}` });
+    } catch {
+      Alert.alert("Не удалось обработать фото", "Попробуй ещё раз или выбери другое фото.");
     } finally {
       setBusy(false);
     }
@@ -187,7 +196,7 @@ export function PhotoEditor({
         </View>
 
         <View style={st.stage}>
-          <View style={[st.frame, { width: fw, height: fh }]} {...pan.panHandlers}>
+          <View style={[st.frame, { width: fw, height: fh }]}>
             {src ? (
               <Animated.View
                 style={{
@@ -213,6 +222,7 @@ export function PhotoEditor({
               <View style={third("h", 1)} />
               <View style={third("h", 2)} />
             </Animated.View>
+            <View collapsable={false} style={StyleSheet.absoluteFill} {...pan.panHandlers} />
           </View>
         </View>
 
@@ -258,11 +268,11 @@ const st = StyleSheet.create({
 });
 
 /* ---------- Общий редактор для всего приложения: pickAndEdit() из любого экрана ---------- */
-type Req = { src: Src; title?: string; hint?: string; previewTitle?: string; resolve: (p: EditedPhoto | null) => void };
+type Req = { src: Src; aspect?: number; title?: string; hint?: string; previewTitle?: string; resolve: (p: EditedPhoto | null) => void };
 let pushReq: ((r: Req | null) => void) | null = null;
 
 /** Галерея → наш редактор 3:4 → готовое фото (или null, если передумал). */
-export async function pickAndEdit(opts: { title?: string; hint?: string; previewTitle?: string } = {}): Promise<EditedPhoto | null> {
+export async function pickAndEdit(opts: { aspect?: number; title?: string; hint?: string; previewTitle?: string } = {}): Promise<EditedPhoto | null> {
   const src = await pickSource();
   if (!src || !pushReq) return null;
   return new Promise((resolve) => pushReq?.({ src, ...opts, resolve }));
@@ -284,6 +294,7 @@ export function PhotoEditorHost() {
   return (
     <PhotoEditor
       source={req?.src ?? null}
+      aspect={req?.aspect}
       title={req?.title}
       hint={req?.hint}
       previewTitle={req?.previewTitle}

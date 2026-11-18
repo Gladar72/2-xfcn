@@ -106,63 +106,40 @@ export function PeopleFilterSheet({
   return (
     <Sheet visible={visible} onClose={onClose}>
       <View style={styles.head}>
-        {catalog ? (
-          <Pressable
-            hitSlop={10}
-            onPress={() => {
-              setCatalog(false);
-              setSearch("");
-            }}
-            accessibilityLabel="Назад к фильтрам"
-          >
-            <Icon name="back" />
-          </Pressable>
-        ) : null}
-        <Text style={styles.title}>{catalog ? "Интересы" : "Фильтры"}</Text>
+        <Text style={styles.title}>Фильтры</Text>
       </View>
 
-      {catalog ? (
-        <View style={styles.search}>
-          <Icon name="search" size={18} color={colors.grey} />
-          <TextInput value={search} onChangeText={setSearch} placeholder="Найти интерес" placeholderTextColor={colors.grey} style={styles.searchInput} />
-        </View>
-      ) : null}
-
       <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 16, paddingBottom: 8 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {!catalog ? (
-          <>
-            <View style={{ gap: 8 }}>
-              <Text style={styles.label}>Кого показывать</Text>
-              <View style={styles.wrap}>
-                {GENDERS.map(([v, l]) => (
-                  <Chip
-                    key={v}
-                    label={l}
-                    active={gender === v}
-                    onPress={() => {
-                      tapLight();
-                      setGender(v);
-                    }}
-                  />
-                ))}
-              </View>
-            </View>
+        <View style={{ gap: 8 }}>
+          <Text style={styles.label}>Кого показывать</Text>
+          <View style={styles.wrap}>
+            {GENDERS.map(([v, l]) => (
+              <Chip
+                key={v}
+                label={l}
+                active={gender === v}
+                onPress={() => {
+                  tapLight();
+                  setGender(v);
+                }}
+              />
+            ))}
+          </View>
+        </View>
 
-            <View style={{ gap: 8 }}>
-              <Text style={styles.label}>Возраст</Text>
-              <View style={{ flexDirection: "row", gap: 10 }}>
-                <AgeInput prefix="от" value={low} onChange={setLow} />
-                <AgeInput prefix="до" value={high} onChange={setHigh} plus={high === String(PEOPLE_MAX_AGE)} />
-              </View>
-              {!ageOk ? <Text style={styles.error}>Укажи возраст от 18 до 65+. Значение «от» не должно быть больше «до».</Text> : null}
-            </View>
+        <View style={{ gap: 8 }}>
+          <Text style={styles.label}>Возраст</Text>
+          <View style={{ flexDirection: "row", gap: 10 }}>
+            <AgeInput prefix="от" value={low} onChange={setLow} />
+            <AgeInput prefix="до" value={high} onChange={setHigh} plus={high === String(PEOPLE_MAX_AGE)} />
+          </View>
+          {!ageOk ? <Text style={styles.error}>Укажи возраст от 18 до 65+. Значение «от» не должно быть больше «до».</Text> : null}
+        </View>
 
-            <View style={{ gap: 8 }}>
-              <Text style={styles.label}>Интересы</Text>
-              <Text style={styles.hint}>Хотя бы один из выбранных</Text>
-            </View>
-          </>
-        ) : null}
+        <View style={{ gap: 8 }}>
+          <Text style={styles.label}>Интересы</Text>
+          <Text style={styles.hint}>Хотя бы один из выбранных</Text>
+        </View>
 
         {all === null ? (
           failed ? (
@@ -170,9 +147,27 @@ export function PeopleFilterSheet({
           ) : (
             <ActivityIndicator color={colors.violet} />
           )
-        ) : catalog ? (
-          groups.length ? (
-            groups.map((g) => (
+        ) : (
+          <>
+            {!catalog && (
+              <View style={styles.wrap}>
+                {preview.map((i) => (
+                  <InterestChip key={i.id} name={i.name} on={selected.includes(i.id)} onPress={() => toggle(i.id)} />
+                ))}
+              </View>
+            )}
+            <Pressable accessibilityRole="button" accessibilityState={{ expanded: catalog }} style={styles.link}
+              onPress={() => { setCatalog(!catalog); setSearch(""); }}>
+              <Text style={styles.linkText}>{catalog ? "Свернуть интересы" : "Все интересы"}{selected.length ? ` · ${selected.length}` : ""}</Text>
+              <Icon name={catalog ? "up" : "down"} size={16} color={colors.ink} />
+            </Pressable>
+            {catalog && (
+              <>
+                <View style={styles.search}>
+                  <Icon name="search" size={18} color={colors.grey} />
+                  <TextInput value={search} onChangeText={setSearch} placeholder="Найти интерес" placeholderTextColor={colors.grey} style={styles.searchInput} />
+                </View>
+                {groups.length ? groups.map((g) => (
               <View key={g.title} style={{ gap: 8 }}>
                 <Text style={styles.group}>{g.title}</Text>
                 <View style={styles.wrap}>
@@ -181,35 +176,14 @@ export function PeopleFilterSheet({
                   ))}
                 </View>
               </View>
-            ))
-          ) : (
-            <Text style={styles.hint}>Такой интерес не найден. Попробуй другое название.</Text>
-          )
-        ) : (
-          <>
-            <View style={styles.wrap}>
-              {preview.map((i) => (
-                <InterestChip key={i.id} name={i.name} on={selected.includes(i.id)} onPress={() => toggle(i.id)} />
-              ))}
-            </View>
-            <Pressable onPress={() => setCatalog(true)} style={styles.link} hitSlop={6}>
-              <Text style={styles.linkText}>Все интересы{selected.length ? ` · ${selected.length}` : ""}</Text>
-              <Icon name="chev" size={16} color={colors.violet} />
-            </Pressable>
+            )) : <Text style={styles.hint}>Такой интерес не найден. Попробуй другое название.</Text>}
+              </>
+            )}
           </>
         )}
       </ScrollView>
 
-      {catalog ? (
-        <Btn
-          title={`Готово${selected.length ? ` · ${selected.length}` : ""}`}
-          onPress={() => {
-            setCatalog(false);
-            setSearch("");
-          }}
-        />
-      ) : (
-        <View style={{ flexDirection: "row", gap: 10 }}>
+        <View style={{ flexDirection: "row", gap: 10, minHeight: 52, flexShrink: 0 }}>
           <Btn kind="o" title="Сбросить" onPress={reset} disabled={isDefault} style={{ flex: 1 }} />
           <Btn
             title="Показать анкеты"
@@ -218,7 +192,6 @@ export function PeopleFilterSheet({
             style={{ flex: 1.6 }}
           />
         </View>
-      )}
     </Sheet>
   );
 }
@@ -265,6 +238,6 @@ const styles = StyleSheet.create({
   chip: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.85)", borderRadius: 999, paddingLeft: 6, paddingRight: 14, paddingVertical: 6, borderWidth: 1, borderColor: "rgba(23,20,31,0.12)" },
   chipOn: { backgroundColor: colors.violet, borderColor: colors.violet },
   chipText: { fontFamily: FONT, fontSize: 14, color: colors.ink },
-  link: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start" },
+  link: { minHeight: 44, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 13, borderRadius: 16, backgroundColor: "#fff" },
   linkText: { fontFamily: FONT, fontSize: 14.5, color: colors.violet },
 });

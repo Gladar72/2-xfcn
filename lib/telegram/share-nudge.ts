@@ -1,3 +1,4 @@
+import { usesNativePush } from "@/lib/push/expo";
 import { cityDates } from "@/lib/events/local-dates";
 import { InlineKeyboard, type Api } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
@@ -92,7 +93,7 @@ export async function sendDueShareNudges(admin: Admin, api: Api): Promise<{ nudg
     nudged += 1;
 
     const tgId = e.organizer?.telegram_id;
-    if (tgId) {
+    if (tgId && !await usesNativePush(admin, e.organizer_id)) {
       const link = eventShareLink(BOT, e.id);
       const shareText = `${e.title} — пойдёшь со мной? 🙌`;
       const kb = new InlineKeyboard()

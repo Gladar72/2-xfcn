@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, getToken, setToken, setUnauthorizedHandler } from "./api";
+import { unregisterPush } from "./push";
 import { resetMyId } from "./me";
 import { resetRealtime } from "./realtime";
 
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ticketKind, setTicketKind] = useState<"phone" | "email" | "telegram" | "apple" | null>(null);
 
   const signOut = useCallback(async () => {
+    await unregisterPush().catch(() => {});
     await setToken(null);
     resetMyId();
     resetRealtime();

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Creature } from "@/components/k/Creature";
+import { Creature, creatureForKind } from "@/components/k/Creature";
 import { Glass } from "@/components/brand";
 import { tapLight } from "@/lib/feedback";
 import { colors, FONT, f } from "@/lib/theme";
@@ -34,23 +34,14 @@ export function StepKind({ value, onPick }: { value: Kind | null; onPick: (k: Ki
             }}
             style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.97 : 1 }] })}
           >
-            {on ? (
-              <View style={[s.card, s.cardOn]}>
-              <Creature size={64} variant={k.kind === "anon" ? "p" : "e"} hue={k.kind === "anon" ? 40 : k.kind === "business" ? -50 : 0} live />
+            <View style={[s.card, on && s.cardOn]}>
+              {!on && <Glass strong style={[StyleSheet.absoluteFill, { borderRadius: 24 }]} />}
+              <Creature size={64} variant={creatureForKind[k.kind]} />
               <View style={{ flex: 1, gap: 4 }}>
                 <Text style={[s.title, on && { color: "#fff" }]}>{k.title}</Text>
                 <Text style={[s.text, on && { color: "rgba(255,255,255,0.72)" }]}>{k.text}</Text>
               </View>
-              </View>
-            ) : (
-              <Glass strong style={s.card}>
-              <Creature size={64} variant={k.kind === "anon" ? "p" : "e"} hue={k.kind === "anon" ? 40 : k.kind === "business" ? -50 : 0} live />
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={[s.title, on && { color: "#fff" }]}>{k.title}</Text>
-                <Text style={[s.text, on && { color: "rgba(255,255,255,0.72)" }]}>{k.text}</Text>
-              </View>
-              </Glass>
-            )}
+            </View>
           </Pressable>
         );
       })}

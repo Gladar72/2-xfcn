@@ -11,7 +11,7 @@ import { canCreateMoreEvents, maxGroupSize, PLAN_LIMITS } from "@/lib/subscripti
 import { guessBizCategory } from "@/lib/events/biz-categories";
 import { createEventSchema, type CreateEventInput } from "@/lib/validation/create-event";
 import { describeValidationError } from "@/lib/validation/describe-error";
-import { notifyTelegram } from "@/lib/telegram/notify";
+import { notifyUser } from "@/lib/notify/user";
 import { uploadEventPhoto } from "@/lib/photos/upload-event-photo";
 import { presetCoverUrl } from "@/lib/photos/preset-cover";
 import { moderateImage } from "@/lib/photos/moderate-image";
@@ -787,7 +787,8 @@ export async function POST(req: NextRequest) {
   // бизнеса" — по явному запросу пользователя: название, дата/время,
   // короткое описание (если есть), сколько человек и условия участия.
   if (input.isBusiness) {
-    await notifyTelegram(currentUser.telegramId, formatBusinessEventCreatedMessage(input));
+    const body = formatBusinessEventCreatedMessage(input);
+    await notifyUser(admin, currentUser.userId, { title: "Событие создано", body, telegramText: body, telegramId: currentUser.telegramId, url: "/event/" + createdEvent.id, data: { type: "business_event_created" } });
   }
 
   // Если у админа нет реальной подписки (типичный случай при тестировании),

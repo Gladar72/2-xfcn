@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyTelegram } from "@/lib/telegram/notify";
-import { sendPushPersonal } from "@/lib/push/expo";
+import { notifyUser } from "@/lib/notify/user";
 import { HEARTS_PER_DAY, HINTS_PER_DAY, hasHeart, isBlocked, sentToday } from "@/lib/likes";
 
 export const dynamic = "force-dynamic";
@@ -53,13 +52,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "limit", limit: HINTS_PER_DAY }, { status: 429 });
     }
     await admin.from("notifications").insert({ user_id: userId, type: "meet_hint", payload: { fromUserId: me.userId } });
-    void notifyTelegram(
-      target.telegram_id as number | null,
-      `👋 ${myName} намекает: хочет с тобой на встречу! Загляни в «Место» — позови ${she ? "её" : "его"} куда-нибудь или ответь сердечком.`
-    );
-    void sendPushPersonal(admin, [
-      { userId, message: { title: `👋 ${myName} хочет на встречу`, body: "Позови куда-нибудь или ответь сердечком", data: { url: `/people/${me.userId}`, type: "meet_hint" } } },
-    ]).catch(() => {});
+    await notifyUser(admin, userId, {
+      title: "👋 " + myName + " хочет на встречу", body: "Позови куда-нибудь или ответь сердечком",
+      url: "/people/" + me.userId, data: { type: "meet_hint" }, telegramId: target.telegram_id,
+      telegramText: `👋 ${myName} намекает: хочет с тобой на встречу! Загляни в «Место» — позови ${she ? "её" : "его"} куда-нибудь или ответь сердечком.`,
+    });
     return NextResponse.json({ ok: true });
   }
 
@@ -81,19 +78,19 @@ export async function POST(req: NextRequest) {
       { user_id: userId, type: "heart_mutual", payload: { fromUserId: me.userId } },
       { user_id: me.userId, type: "heart_mutual", payload: { fromUserId: userId } },
     ]);
-    void notifyTelegram(
-      target.telegram_id as number | null,
-      `💜 Это взаимно! ${myName} ${she ? "ответила" : "ответил"} тебе сердечком — самое время позвать на встречу.`
-    );
-    void notifyTelegram(me.telegramId, `💜 Это взаимно! ${otherName} тоже ${otherShe ? "поставила" : "поставил"} тебе сердечко — самое время позвать на встречу.`);
+    await Promise.all([
+      { recipient: userId, from: me.userId, name: myName, female: she, telegramId: target.telegram_id },
+      { recipient: me.userId, from: userId, name: otherName, female: otherShe, telegramId: me.telegramId },
+    ].map(person => {
+      const body = `${person.name} тоже ${person.female ? "поставила" : "поставил"} тебе сердечко — самое время позвать на встречу.`;
+      return notifyUser(admin, person.recipient, { title: "💜 Это взаимно!", body, telegramText: "💜 Это взаимно! " + body,
+        telegramId: person.telegramId, url: "/people/" + person.from, data: { type: "heart_mutual" } });
+    }));
   } else {
-    void notifyTelegram(
-      target.telegram_id as number | null,
-      `❤️ ${myName} ${she ? "поставила" : "поставил"} тебе сердечко в «Месте». Загляни в профиль — можно ответить или позвать на встречу.`
-    );
-    void sendPushPersonal(admin, [
-      { userId, message: { title: `❤️ ${myName} ${she ? "поставила" : "поставил"} сердечко`, body: "Ответь или позови на встречу", data: { url: "/profile", type: "heart" } } },
-    ]).catch(() => {});
+    await notifyUser(admin, userId, { title: `❤️ ${myName} ${she ? "поставила" : "поставил"} сердечко`,
+      body: "Ответь или позови на встречу", url: "/people/" + me.userId, data: { type: "heart" },
+      telegramId: target.telegram_id, telegramText: `❤️ ${myName} ${she ? "поставила" : "поставил"} тебе сердечко в «Месте». Загляни в профиль — можно ответить или позвать на встречу.`,
+    });
   }
   return NextResponse.json({ ok: true, mutual });
 }

@@ -1,3 +1,4 @@
+import { nativeRecipients } from "@/lib/push/expo";
 import { GrammyError } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
@@ -156,11 +157,12 @@ export async function sendDueMorningReminders(admin: Admin): Promise<{ sent: num
       // Push собираем со всей порции и отправляем одним запросом токенов +
       // одной пачкой в Expo, а не по запросу на каждого пользователя.
       const pushes: { userId: string; message: PushMessage }[] = [];
+      const native = await nativeRecipients(admin, slice.map(row => row.user_id));
       const results = await Promise.all(
         slice.map(async (row) => {
           const user = userById.get(row.user_id);
           if (!user) return "skipped" as const;
-          return sendOne(admin, row.id, user, pushes);
+          return sendOne(admin, row.id, user, pushes, native.has(user.id));
         })
       );
       for (const r of results) {
@@ -181,7 +183,8 @@ async function sendOne(
   admin: Admin,
   reminderId: string,
   user: ReminderUser,
-  pushes: { userId: string; message: PushMessage }[]
+  pushes: { userId: string; message: PushMessage }[],
+  native: boolean
 ): Promise<"sent" | "skipped"> {
   const { data: historyRows } = await admin
     .from("morning_reminders")
@@ -199,7 +202,7 @@ async function sendOne(
 
   try {
     // У пользователей мобильного приложения без Telegram — только push.
-    if (user.telegram_id) await sendReminderMessage(user.telegram_id, message.text);
+    if (user.telegram_id && !native) await sendReminderMessage(user.telegram_id, message.text);
     await admin
       .from("morning_reminders")
       .update({

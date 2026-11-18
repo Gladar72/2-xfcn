@@ -119,7 +119,7 @@ export default function ProfileEditScreen() {
     <View style={{ flex: 1 }}>
       <Aurora />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: insets.bottom + 110, gap: 14 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, gap: 14 }} keyboardShouldPersistTaps="handled">
           <RoundBtn onPress={() => router.back()}>
             <Icon name="back" />
           </RoundBtn>
@@ -248,5 +248,5 @@ const styles = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#fff", borderRadius: 999, paddingLeft: 5, paddingRight: 10, paddingVertical: 4 },
   chipText: { fontFamily: FONT, fontSize: 13.5, color: colors.ink },
-  footer: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
+  footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
 });

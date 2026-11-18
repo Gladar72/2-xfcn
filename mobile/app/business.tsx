@@ -97,7 +97,7 @@ export default function BusinessScreen() {
     <View style={{ flex: 1, backgroundColor: K.pearl }}>
       <PearlBg />
       <ScrollView
-        contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 110 }}
+        contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 74 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={K.ink} />}

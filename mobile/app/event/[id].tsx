@@ -6,6 +6,7 @@ import { useLocalSearchParams, useFocusEffect, router, type Href } from "expo-ro
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
+import { EventPin } from "@/components/map/EventPin";
 import { Camera, Map, Marker } from "@maplibre/maplibre-react-native";
 import { MAP_STYLE } from "@/lib/map";
 import { coverUri } from "@/lib/covers";
@@ -303,7 +304,7 @@ export default function EventScreen() {
             >
               <Camera initialViewState={{ center: [event.longitude!, event.latitude!], zoom: 15 }} />
               <Marker lngLat={[event.longitude!, event.latitude!]} anchor="bottom">
-                <Image source={{ uri: eventIcon(event) }} style={{ width: 54, height: 54 }} />
+                <EventPin photo={coverUri(event.isBusiness ? event.photoUrl : event.organizer?.avatarUrl)} icon={eventIcon(event)} />
               </Marker>
             </Map>
           </View>
@@ -499,10 +500,7 @@ export default function EventScreen() {
                         <Marker lngLat={[event.longitude!, event.latitude!]} anchor="bottom">
                           <View style={{ alignItems: "center" }}>
                             <View style={styles.pinTime}><Text style={styles.pinTimeText}>{event.eventTime.slice(0, 5)}</Text></View>
-                            <View style={styles.pin}>
-                              <Image source={{ uri: coverUri(event.isBusiness ? event.photoUrl ?? event.organizer?.avatarUrl : event.organizer?.avatarUrl) ?? eventIcon(event) }} style={{ width: 46, height: 46, borderRadius: 23 }} contentFit="cover" />
-                            </View>
-                            <View style={styles.pinTail} />
+                            <EventPin photo={coverUri(event.isBusiness ? event.photoUrl ?? event.organizer?.avatarUrl : event.organizer?.avatarUrl)} icon={eventIcon(event)} />
                           </View>
                         </Marker>
                       </Map>
@@ -639,8 +637,6 @@ const styles = StyleSheet.create({
   moreAvaText: { fontSize: 15, ...f("500"), color: "#fff" },
   actChip: { flexDirection: "row", alignItems: "center", gap: 8 },
   placeMap: { height: 240, marginTop: 14, marginHorizontal: -16, marginBottom: -14, overflow: "hidden", backgroundColor: "#EEECF3" },
-  pin: { width: 54, height: 54, borderRadius: 27, backgroundColor: "#17141F", borderWidth: 3, borderColor: "#fff", alignItems: "center", justifyContent: "center", overflow: "hidden" },
-  pinTail: { width: 0, height: 0, borderLeftWidth: 8, borderRightWidth: 8, borderTopWidth: 10, borderLeftColor: "transparent", borderRightColor: "transparent", borderTopColor: "#fff", marginTop: -2 },
   pinTime: { paddingHorizontal: 8, height: 22, borderRadius: 11, backgroundColor: "#fff", justifyContent: "center", marginBottom: 4 },
   pinTimeText: { fontSize: 12, ...f("600"), color: "#17141F" },
   pendingCta: { minHeight: 56, borderRadius: 28, paddingHorizontal: 10, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderWidth: 1.5, borderColor: "#fff", backgroundColor: "rgba(255,255,255,0.16)" },

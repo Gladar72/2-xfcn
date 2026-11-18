@@ -1,3 +1,4 @@
+import { nativeRecipients } from "@/lib/push/expo";
 import { InlineKeyboard } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
@@ -190,6 +191,7 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
   let claimed = 0;
   let skipped = 0;
   let failed = 0;
+  const native = await nativeRecipients(admin, ids);
   const pushUsers: { id: string; n: number; city: string }[] = [];
 
   await sendInBatches(due, async (u) => {
@@ -238,7 +240,7 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
     }
     claimed++;
     pushUsers.push({ id: uid, n: picked.length, city });
-    if (!u.telegram_id) return;
+    if (!u.telegram_id || native.has(uid)) return;
     const head = keys && keys.size ? "Подобрал по твоим интересам:" : "Новое в городе:";
     const text = `🗓 <b>Что интересного в городе</b>\n${head}\n\n${picked.map((e) => line(e, offset)).join("\n\n")}`;
     const kb = new InlineKeyboard();
