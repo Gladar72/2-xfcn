@@ -630,7 +630,6 @@ const styles = StyleSheet.create({
   tileHead: { flexDirection: "row", alignItems: "center", gap: 4 },
   tileLabel: { fontFamily: FONT, fontSize: 11.5, color: W60 },
   tileVal: { fontSize: 15, ...f("500"), color: W },
-  tileSub: { fontFamily: FONT, fontSize: 11, color: W60 },
   infoRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12 },
   infoSep: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: "rgba(255,255,255,0.15)" },
   infoIc: { width: 36, height: 36, borderRadius: 12, backgroundColor: "rgba(255,255,255,0.1)", alignItems: "center", justifyContent: "center" },
