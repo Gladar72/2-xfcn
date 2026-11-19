@@ -9,7 +9,7 @@ import { HeartBurst, pop, type HeartBurstRef } from "@/components/k/HeartBurst";
 import { Creature } from "@/components/k/Creature";
 import { Icon } from "@/components/Icon";
 import { ProfilePictures } from "./ProfilePictures";
-import { presenceLabel } from "@/lib/profilePresence";
+import { profileIsOnline } from "@/lib/profilePresence";
 import { InviteSheet } from "@/components/people/InviteSheet";
 import { ReportSheet } from "@/components/people/ReportSheet";
 import { api } from "@/lib/api";
@@ -178,7 +178,7 @@ export function PersonView({
     const timer = setInterval(() => refreshTime(t => t + 1), 30_000);
     return () => clearInterval(timer);
   }, [active, lastActiveAt]);
-  const presence = presenceLabel(lastActiveAt, p?.gender ?? preview?.gender);
+  const online = profileIsOnline(lastActiveAt);
   const distance = distanceLabel(p ? p.distanceKm : preview?.distanceKm, p ? p.distanceM : preview?.distanceM);
 
   const photos = p ? (p.photos.length ? p.photos : p.avatarUrl ? [p.avatarUrl] : []) : preview?.photos?.length ? preview.photos : preview?.avatarUrl ? [preview.avatarUrl] : [];
@@ -209,8 +209,12 @@ export function PersonView({
     }
   }
 
-  // Фото слегка увеличивается при оттягивании вниз и уезжает медленнее текста — «параллакс».
-  const photoScale = scrollY.interpolate({ inputRange: [-200, 0], outputRange: [1.4, 1], extrapolateRight: "clamp" });
+  // Затемнение остаётся на фотографии, включая область под кнопками.
+  const detailsShade = scrollY.interpolate({
+    inputRange: [0, Math.max(1, heroHeight * 0.6)],
+    outputRange: [0, 0.56],
+    extrapolate: "clamp",
+  });
 
   const common = p?.commonInterests ?? [];
   const other = (p?.interests ?? []).filter((i) => !common.includes(i));
@@ -218,7 +222,7 @@ export function PersonView({
   return (
     <View style={{ flex: 1, backgroundColor: "#17141F" }}>
       {/* Фото стоит на месте (как .gal в мини-аппе), карточка с «О себе» едет поверх него. */}
-      <Animated.View pointerEvents="none" style={[styles.photoBox, StyleSheet.absoluteFillObject, { transform: [{ scale: photoScale }] }]}>
+      <View pointerEvents="none" style={[styles.photoBox, StyleSheet.absoluteFillObject]}>
         {photos.length ? (
           <>
             <View style={[StyleSheet.absoluteFill, styles.noPhoto, { backgroundColor: "#242129" }]}>
@@ -231,8 +235,9 @@ export function PersonView({
             <Creature size={170} variant="e" />
           </LinearGradient>
         )}
-        <LinearGradient colors={["rgba(23,20,31,0.32)", "rgba(23,20,31,0)", "rgba(23,20,31,0)", "rgba(23,20,31,0.88)", "#17141F"]} locations={[0, 0.22, 0.5, 0.9, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
-      </Animated.View>
+        <LinearGradient colors={["rgba(23,20,31,0.32)", "rgba(23,20,31,0)", "rgba(23,20,31,0.08)", "rgba(23,20,31,0.70)", "#17141F"]} locations={[0, 0.22, 0.43, 0.78, 1]} style={StyleSheet.absoluteFill} />
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: "#17141F", opacity: detailsShade }]} />
+      </View>
 
       <Animated.ScrollView
         ref={scrollRef}
@@ -241,6 +246,9 @@ export function PersonView({
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         style={{ flex: 1, overflow: "hidden" }}
         contentInsetAdjustmentBehavior="never"
+        bounces={false}
+        overScrollMode="never"
+        contentContainerStyle={isMe ? { paddingBottom: Math.max(insets.bottom, 12) } : undefined}
         onLayout={(e) => setMeasuredHeight(e.nativeEvent.layout.height)}
       >
         {/* Первый экран — прозрачный: нажатия слева/справа листают фото. */}
@@ -249,15 +257,14 @@ export function PersonView({
             <Pressable style={{ flex: 1 }} onPress={() => flip(-1)} />
             <Pressable style={{ flex: 1 }} onPress={() => flip(1)} />
           </View>
-          <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.25)", "rgba(23,20,31,0.55)", "rgba(23,20,31,0.74)"]} locations={[0, 0.4, 0.75, 1]} style={styles.heroFade} />
           <View pointerEvents="box-none" style={styles.overlay}>
             <Text style={styles.name} numberOfLines={2}>
               {name}
               {age ? `, ${age}` : ""}
             </Text>
-            {presence && <View pointerEvents="none" style={styles.presence}>
-              {presence === "Онлайн" && <View style={styles.onlineDot} />}
-              <Text style={styles.presenceText}>{presence}</Text>
+            {(p || lastActiveAt) && <View pointerEvents="none" style={styles.presence}>
+              <View style={[styles.statusDot, { backgroundColor: online ? "#65D88F" : colors.danger }]} />
+              <Text style={styles.presenceText}>{online ? "Онлайн" : "Не онлайн"}</Text>
             </View>}
             {distance || (p && p.ratingAvg > 0) || common.length > 0 ? (
               <View style={styles.pills}>
@@ -321,7 +328,6 @@ export function PersonView({
             </>
           )}
         </View>
-        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0.74)", "rgba(23,20,31,0)"]} style={{ height: isMe ? Math.max(insets.bottom, 12) : 6 }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}
@@ -351,7 +357,6 @@ export function PersonView({
 
       {!isMe && p ? (
         <View style={[styles.bar2, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.82)"]} style={StyleSheet.absoluteFillObject} />
           {heartToast ? (
             <View pointerEvents="none" style={[styles.heartToast, { bottom: Math.max(insets.bottom, 12) + 64 }]}>
               <Text style={styles.heartToastText}>{heartToast}</Text>
@@ -417,11 +422,10 @@ const styles = StyleSheet.create({
   photoBox: { backgroundColor: "#17141F", overflow: "hidden" },
   noPhoto: { alignItems: "center", justifyContent: "center" },
   zones: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
-  heroFade: { position: "absolute", left: 0, right: 0, bottom: 0, height: 124 },
   overlay: { paddingHorizontal: 20, paddingBottom: 6, gap: 8 },
   name: { fontSize: 34, lineHeight: 38, ...f("600"), color: "#fff", letterSpacing: -1, paddingRight: 56 },
   presence: { flexDirection: "row", alignItems: "center", gap: 6, paddingRight: 50 },
-  onlineDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "#65D88F" },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
   presenceText: { flexShrink: 1, fontSize: 14, lineHeight: 19, ...f("500"), color: "#F5F4F6" },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingRight: 56 },
   pill: { flexDirection: "row", alignItems: "center", gap: 4, height: 30, paddingHorizontal: 12, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
@@ -443,7 +447,7 @@ const styles = StyleSheet.create({
   heartToastText: { fontFamily: FONT, fontSize: 14, color: "#17141F", textAlign: "center" },
   callBtn: { flex: 1, height: ACTION_HEIGHT, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
   callText: { color: colors.ink, fontSize: 14, lineHeight: 16, ...f("500"), textAlign: "center" },
-  body: { paddingHorizontal: 20, paddingTop: 10, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },
+  body: { paddingHorizontal: 20, paddingTop: 10, gap: 12 },
   card: { borderRadius: 24, padding: 16, gap: 10 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
