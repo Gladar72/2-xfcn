@@ -371,6 +371,8 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
   const mi = Math.round((form.startMin % 60) / 5) % 12;
   const formRef = useRef(form);
   formRef.current = form;
+  const pendingMapPoint = useRef<{ latitude: number; longitude: number } | null>(null);
+  useEffect(() => () => { pendingMapPoint.current = null; }, []);
   const [query, setQuery] = useState("");
   const [recs, setRecs] = useState<PlaceSuggestion[]>([]);
   const [drop, setDrop] = useState<PlaceSuggestion[]>([]);
@@ -378,23 +380,26 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    const p = qs({ category: form.categorySlug, type: form.trainingTypeSlug });
+    let current = true;
+    const p = qs({ category: form.categorySlug, type: form.trainingTypeSlug, city });
     api<{ items?: PlaceSuggestion[] }>(`/api/places?${p}`)
-      .then((d) => setRecs(Array.isArray(d.items) ? d.items.slice(0, 10) : []))
-      .catch(() => setRecs([]));
-  }, [form.categorySlug, form.trainingTypeSlug]);
+      .then((d) => current && setRecs(Array.isArray(d.items) ? d.items.slice(0, 10) : []))
+      .catch(() => current && setRecs([]));
+    return () => { current = false; };
+  }, [form.categorySlug, form.trainingTypeSlug, city]);
 
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
       setDrop([]);
       setAddrDrop([]);
+      setSearching(false);
       return;
     }
     let cancelled = false;
     setSearching(true);
     const t = setTimeout(() => {
-      const a = api<{ items?: PlaceSuggestion[] }>(`/api/places?${qs({ q, category: form.categorySlug })}`)
+      const a = api<{ items?: PlaceSuggestion[] }>(`/api/places?${qs({ q, category: form.categorySlug, city })}`)
         .then((d) => !cancelled && setDrop(Array.isArray(d.items) ? d.items.slice(0, 4) : []))
         .catch(() => !cancelled && setDrop([]));
       const b =
@@ -412,6 +417,7 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
   }, [query, form.categorySlug, city]);
 
   function pickPlace(p: { name: string; address: string; latitude: number; longitude: number }) {
+    pendingMapPoint.current = null;
     set({ placeName: p.name, address: p.address, latitude: p.latitude, longitude: p.longitude });
     setQuery("");
     setDrop([]);
@@ -489,7 +495,7 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
       ) : null}
       <View style={[st.field, G, { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 }]}>
         <KI n="search" size={20} color={K.ink3} />
-        <TextInput value={query} onChangeText={setQuery} placeholder="Название места или адрес" placeholderTextColor={K.ink3} autoCorrect={false} style={[st.input, { flex: 1 }]} />
+        <TextInput value={query} onChangeText={(text) => { setQuery(text); setDrop([]); setAddrDrop([]); }} placeholder="Название места или адрес" placeholderTextColor={K.ink3} autoCorrect={false} style={[st.input, { flex: 1 }]} />
       </View>
       {query.trim().length >= 2 ? (
         <View style={[st.sugg, G]}>
@@ -512,11 +518,15 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
       ) : null}
       <PlacePicker
         value={coords}
-        onPick={({ latitude, longitude }) => set({ latitude, longitude, placeName: "Точка на карте", address: "" })}
-        onAddress={(resolved) => {
+        onPick={(point) => {
+          pendingMapPoint.current = point;
+          set({ ...point, placeName: "Точка на карте", address: "" });
+        }}
+        onAddress={(resolved, point) => {
+          if (pendingMapPoint.current !== point) return;
+          pendingMapPoint.current = null;
           const short = resolved.split(",").map((x) => x.trim()).filter((x) => x && !/^(Россия|Тюмень|Тюменская область)$/i.test(x)).slice(0, 2).join(", ");
-          const n = formRef.current.placeName;
-          set({ address: resolved, placeName: !n || n === "Точка на карте" ? short || "Точка на карте" : n });
+          set({ address: resolved, placeName: short || "Точка на карте" });
         }}
         placeName={form.placeName}
         address={form.address}
