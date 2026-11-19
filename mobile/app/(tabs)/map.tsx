@@ -196,11 +196,11 @@ export default function MapScreen() {
                     <Text style={styles.pillText}>+ {c.items.length - visible.length}</Text>
                   </Pressable>
                 )}
-                <View style={{ width: width * visible.length, alignItems: "center" }}>
+                <View style={{ minWidth: width * visible.length, alignItems: "center" }}>
                   {visible.map((e, i) => {
                     const angle = (i - (visible.length - 1) / 2) * (visible.length === 2 ? 88 : 60);
                     const cityEvent = e.isCity || e.id.startsWith("city:");
-                    return <View key={e.id} pointerEvents="none" style={{ position: "absolute", bottom: 0, left: (width * visible.length - 56) / 2, opacity: !cityEvent && e.seatsLeft <= 0 ? 0.65 : 1 }}>
+                    return <View key={e.id} pointerEvents="none" style={{ position: "absolute", bottom: 0, left: "50%", marginLeft: -28, opacity: !cityEvent && e.seatsLeft <= 0 ? 0.65 : 1 }}>
                       <EventPin angle={angle} photo={coverUri(e.markerPhoto)} icon={eventIcon(e)} badge={e.isBusiness || cityEvent ? undefined : eventIcon(e)} />
                     </View>;
                   })}
@@ -209,9 +209,9 @@ export default function MapScreen() {
                       const cityEvent = e.isCity || e.id.startsWith("city:");
                       const label = cityEvent ? "в городе" : e.seatsLeft <= 0 ? "мест нет" : timePill(e.startsAt, e.endsAt);
                       return <Pressable key={e.id} onPress={() => open(e)} accessibilityRole="button" accessibilityLabel={e.title}
-                        style={{ width, height: visible.length === 1 ? 82 : 73, alignItems: "center" }}>
+                        style={{ minWidth: width, height: visible.length === 1 ? 82 : 73, alignItems: "center" }}>
                         <View style={[styles.pill, { backgroundColor: label === "сейчас" ? colors.live : "#17141F" }]}>
-                          <Text numberOfLines={1} adjustsFontSizeToFit style={styles.pillText}>{label}</Text>
+                          <Text numberOfLines={1} style={styles.pillText}>{label}</Text>
                         </View>
                       </Pressable>;
                     })}
@@ -336,12 +336,12 @@ const styles = StyleSheet.create({
   cluster: { minWidth: 46, height: 46, borderRadius: 23, paddingHorizontal: 6, borderWidth: 3, borderColor: "#fff", backgroundColor: "#17141F", alignItems: "center", justifyContent: "center" },
   clusterText: { ...f("600"), fontSize: 17, color: "#fff" },
   pin: { alignItems: "center" },
-  photoRow: { flexDirection: "row", alignItems: "flex-end" },
+  photoRow: { flexDirection: "row", alignItems: "flex-end", gap: 2 },
   addressEvent: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
   addressPhoto: { width: 46, height: 46, borderRadius: 12 },
   morePhotos: { minWidth: 44, height: 30, marginBottom: 2, paddingHorizontal: 8, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#17141F" },
-  pill: { borderRadius: 999, maxWidth: "98%", paddingHorizontal: 5, paddingVertical: 3, marginBottom: 2 },
-  pillText: { color: "#fff", fontSize: 11.5, ...f("500") },
+  pill: { borderRadius: 999, minHeight: 22, justifyContent: "center", paddingHorizontal: 6, marginBottom: 2 },
+  pillText: { color: "#fff", fontSize: 12, lineHeight: 16, includeFontPadding: false, ...f("500") },
   locate: { position: "absolute", right: 16 },
 });
 

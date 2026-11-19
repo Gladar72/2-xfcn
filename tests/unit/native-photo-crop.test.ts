@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { dragCropCorner, fitCropSelection, PORTRAIT_ASPECT } from "../../mobile/lib/photoCrop";
+import { cropCornerAt, dragCropCorner, fitCropSelection, PORTRAIT_ASPECT } from "../../mobile/lib/photoCrop";
 
 for (const left of [true, false]) {
   for (const top of [true, false]) {
@@ -20,4 +20,16 @@ it("clamps extreme drags to the remaining zoom range and keeps outward drags ins
   const corner = { left: true, top: true };
   expect(dragCropCorner(300, 400, corner, 2000, 900, 2)).toEqual({ x: 150, y: 200, width: 150, height: 200 });
   expect(dragCropCorner(300, 400, corner, -200, -90, 1)).toEqual({ x: 0, y: 0, width: 300, height: 400 });
+});
+
+it("accepts the first touch on either side of every visible crop handle", () => {
+  for (const x of [-16, 0, 24, 276, 300, 316]) {
+    for (const y of [-16, 0, 24, 376, 400, 416]) {
+      expect(cropCornerAt(300, 400, x, y)).toEqual({ left: x < 150, top: y < 200 });
+    }
+  }
+  expect(cropCornerAt(300, 400, -17, 0)).toBeNull();
+  expect(cropCornerAt(300, 400, 150, 0)).toBeNull();
+  expect(cropCornerAt(300, 400, 0, 200)).toBeNull();
+  expect(cropCornerAt(300, 400, 150, 200)).toBeNull();
 });
