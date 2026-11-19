@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { presenceLabel } from "@/lib/people/presence";
+import { profileIsOnline } from "@/lib/people/presence";
 
-export function PresenceLabel({ lastActiveAt, gender }: { lastActiveAt?: string | null; gender?: string | null }) {
+export function PresenceLabel({ lastActiveAt }: { lastActiveAt?: string | null }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!lastActiveAt) return;
@@ -12,6 +12,6 @@ export function PresenceLabel({ lastActiveAt, gender }: { lastActiveAt?: string 
     document.addEventListener("visibilitychange", update);
     return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", update); };
   }, [lastActiveAt]);
-  const label = presenceLabel(lastActiveAt, gender, now);
-  return label ? <span className="presence" title="Последняя активность в Месте">{label === "Онлайн" && <i aria-hidden />}{label}</span> : null;
+  const online = profileIsOnline(lastActiveAt, now);
+  return <span className="presence"><i aria-hidden="true" data-online={online} />{online ? "Онлайн" : "Не онлайн"}</span>;
 }

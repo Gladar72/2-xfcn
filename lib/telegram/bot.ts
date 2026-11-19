@@ -3,6 +3,7 @@ import { TELEGRAM_API_ROOT } from "@/lib/telegram/api-root";
 import { getSupportAiReply } from "@/lib/telegram/support-ai";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { recordBlock, trackBotSends } from "@/lib/telegram/bot-blocks";
+import { canPayStarsInvoice } from "@/lib/subscriptions/stars-checkout";
 import { activateSubscription } from "@/lib/subscriptions/server";
 import { isAdminTelegramId } from "@/lib/admin/is-admin";
 import { registerCityEventReview } from "@/lib/telegram/city-events-review";
@@ -11,7 +12,7 @@ import { handleRsvpAnswer } from "@/lib/telegram/event-reminders";
 import { respondToInvite } from "@/lib/invites/respond";
 import { EVENT_START_PREFIX, buildEventCard } from "@/lib/telegram/event-card";
 import { photoInput } from "@/lib/telegram/photo-input";
-import type { Plan } from "@/lib/subscriptions/limits";
+import { PLAN_LIMITS, type Plan } from "@/lib/subscriptions/limits";
 import {
   REFERRAL_START_PREFIX,
   applyForPartnership,
@@ -152,6 +153,7 @@ export function getBot(): Bot {
   function startKeyboard(isAdmin: boolean, botUsername?: string) {
     const kb = new InlineKeyboard();
     kb.webApp("🚀 Открыть МЕСТО", validatedAppUrl);
+    kb.row().text(PAY_BUTTON, "subscription_menu");
     if (botUsername) {
       const share = `https://t.me/share/url?url=${encodeURIComponent(`https://t.me/${botUsername}`)}&text=${encodeURIComponent(INVITE_TEXT)}`;
       kb.row().url("🎁 Пригласить друга", share);
@@ -169,13 +171,13 @@ export function getBot(): Bot {
   const PARTNER_BUTTON = "🤝 Партнёрская программа";
   const ADMIN_BUTTON = "📊 Админ-панель";
   const PAY_BUTTON = "💳 Оплатить подписку";
-  const PAY_TEXT =
-    "💳 Оплата разовая — на 30 дней, без автопродления: деньги сами не спишутся.\n" +
-    "Когда срок подойдёт к концу, напомним, — продлишь, только если захочешь.\n\n" +
-    "📱 Тариф действует везде: в Telegram и в приложениях «Место» для iPhone и Android (тот же аккаунт).\n" +
-    "Оплата картой, СБП или Telegram Stars.";
+  const PAY_TEXT = "Выбери тариф на 30 дней. Оплата в Telegram Stars, без автопродления. Тариф действует и в приложении, если войти с тем же аккаунтом.";
   function payKeyboard() {
-    return new InlineKeyboard().webApp("💳 Выбрать тариф и оплатить", `${validatedAppUrl}?goto=subscriptions`);
+    const kb = new InlineKeyboard();
+    for (const plan of ["start", "medium", "premium"] as const) {
+      kb.text(`${planTitle(plan)} · ${PLAN_LIMITS[plan].priceStars} ⭐`, `subscription_plan:${plan}`).row();
+    }
+    return kb;
   }
   function pinnedKeyboard(isAdmin: boolean) {
     const kb = new Keyboard().text(PAY_BUTTON).row().text(PARTNER_BUTTON);
@@ -190,6 +192,10 @@ export function getBot(): Bot {
     // Переход по партнёрской ссылке t.me/<bot>?start=ref_<code> —
     // закрепляем человека за блогером (первый переход решает).
     const payload = typeof ctx.match === "string" ? ctx.match.trim() : "";
+    if (payload === "subscribe") {
+      await ctx.reply(PAY_TEXT, { reply_markup: payKeyboard() });
+      return;
+    }
     // Вход в мобильное приложение: t.me/<bot>?start=login_<token> — подтверждаем Telegram-аккаунт.
     if (ctx.from && payload.startsWith("login_")) {
       const token = payload.slice(6);
@@ -577,6 +583,36 @@ export function getBot(): Bot {
     await ctx.reply("Открыть приложение:", { reply_markup: openAppKeyboard() });
   });
 
+  bot.callbackQuery("subscription_menu", async (ctx) => {
+    await ctx.answerCallbackQuery();
+    await ctx.reply(PAY_TEXT, { reply_markup: payKeyboard() });
+  });
+
+  bot.callbackQuery(/^subscription_plan:(start|medium|premium)$/, async (ctx) => {
+    await ctx.answerCallbackQuery();
+    if (ctx.chat?.type !== "private") {
+      await ctx.reply("Чтобы выбрать тариф для своего профиля, открой личный чат с ботом.", {
+        reply_markup: new InlineKeyboard().url(PAY_BUTTON, `https://t.me/${ctx.me.username}?start=subscribe`),
+      });
+      return;
+    }
+    const { data: user, error } = await createAdminClient().from("users").select("id").eq("telegram_id", ctx.from.id).maybeSingle();
+    if (error) {
+      await ctx.reply("Не удалось загрузить профиль. Попробуй ещё раз.", { reply_markup: payKeyboard() });
+      return;
+    }
+    if (!user) {
+      await ctx.reply("Сначала войди в свой профиль «МЕСТО» через Telegram. Затем вернись сюда и выбери тариф.", { reply_markup: openAppKeyboard() });
+      return;
+    }
+    const plan = ctx.match[1] as Plan;
+    const title = `Подписка «${planTitle(plan)}»`;
+    const payload = JSON.stringify({ userId: user.id, plan, telegramId: ctx.from.id });
+    await ctx.replyWithInvoice(title, "Доступ на 30 дней. Разовая оплата.", payload, "XTR", [
+      { label: title, amount: PLAN_LIMITS[plan].priceStars },
+    ], { start_parameter: "subscribe" });
+  });
+
   bot.command("subscribe", async (ctx) => {
     await ctx.reply(PAY_TEXT, { reply_markup: payKeyboard() });
     await ctx.reply("Кнопка оплаты всегда внизу 👇", { reply_markup: pinnedKeyboard(isAdminTelegramId(ctx.from?.id ?? 0)) }).catch(() => {});
@@ -621,12 +657,10 @@ export function getBot(): Bot {
     );
   });
 
-  // Оплата Telegram Stars — обязательное подтверждение ДО списания (10
-  // секунд на ответ, иначе Telegram сам отменит платёж). Мы уже проверили
-  // план и создали инвойс на сервере (см. create-invoice route), так что
-  // здесь просто подтверждаем без дополнительных проверок.
+  // Telegram ждёт подтверждения суммы и получателя до списания.
   bot.on("pre_checkout_query", async (ctx) => {
-    await ctx.answerPreCheckoutQuery(true).catch((err) => {
+    const valid = canPayStarsInvoice(ctx.preCheckoutQuery);
+    await ctx.answerPreCheckoutQuery(valid, valid ? undefined : { error_message: "Открой личный чат с ботом и выбери тариф заново." }).catch((err) => {
       console.error("answerPreCheckoutQuery failed:", err);
     });
   });

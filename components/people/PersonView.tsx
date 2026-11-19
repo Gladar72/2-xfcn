@@ -511,7 +511,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
             {person.age ? `, ${person.age}` : ""}
           </h1>
           </div>
-          {!pending && <PresenceLabel lastActiveAt={person.lastActiveAt} gender={person.gender} />}
+          {!pending && <PresenceLabel lastActiveAt={person.lastActiveAt} />}
           <p>
             {pending ? <span role="status">Загружаем профиль…</span> : <>
             {(person.distanceM !== undefined ? personDistanceLabel(person.distanceM) : distanceLabel(person.distanceKm)) && (
