@@ -10,7 +10,7 @@ import Svg, { Path } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { Press, kf } from "@/components/k";
 
-const MAX_SCALE = 4;
+import { dragCropCorner, fitCropSelection, MAX_PHOTO_ZOOM, PORTRAIT_ASPECT, type CropCorner, type CropRect } from "@/lib/photoCrop";
 
 export type EditedPhoto = { uri: string; data: string; source: Src };
 
@@ -30,10 +30,9 @@ function Tool({ d, label, onPress }: { d: string; label: string; onPress: () => 
 
 export function PhotoEditor({
   source,
-  aspect = 3 / 4,
+  aspect = PORTRAIT_ASPECT,
   title = "Обложка встречи",
-  hint = "Двигай фото пальцем, своди и разводи два пальца, чтобы изменить масштаб",
-  previewTitle,
+  hint = "Потяни за угол, чтобы обрезать. Двигай фото пальцем, меняй масштаб двумя.",
   onCancel,
   onDone,
   onReplace,
@@ -42,7 +41,6 @@ export function PhotoEditor({
   aspect?: number;
   title?: string;
   hint?: string;
-  previewTitle?: string;
   onCancel: () => void;
   onDone: (p: EditedPhoto) => void;
   onReplace?: () => void;
@@ -54,7 +52,8 @@ export function PhotoEditor({
   useEffect(() => setSrc(source), [source]);
 
   // Рамка — самая большая вертикальная рамка нужных пропорций, что влезает между шапкой и кнопками.
-  const stageH = Math.max(40, win.height - insets.top - insets.bottom - 56 - 142);
+  const [stageHeight, setStageHeight] = useState(0);
+  const stageH = stageHeight || Math.max(40, win.height - insets.top - insets.bottom - 56 - 142);
   let fw = Math.min(win.width - 32, 440);
   let fh = fw / aspect;
   if (fh > stageH) {
@@ -74,6 +73,11 @@ export function PhotoEditor({
   const grid = useRef(new Animated.Value(0)).current;
   const cur = useRef({ x: 0, y: 0, s: 1 });
   const g = useRef<{ x: number; y: number; s: number; fingers: string; dist: number; cx: number; cy: number } | null>(null);
+
+  const cornerDrag = useRef<{ corner: CropCorner; pageX: number; pageY: number; rect: CropRect } | null>(null);
+  const [selection, setSelection] = useState<CropRect | null>(null);
+  const fullFrame = { x: 0, y: 0, width: fw, height: fh };
+  const frame = selection ?? fullFrame;
 
   const clamp = (x: number, y: number, s: number) => {
     const mx = Math.max(0, (base.w * s - fw) / 2);
@@ -96,6 +100,8 @@ export function PhotoEditor({
   };
   const reset = () => apply({ x: 0, y: 0, s: 1 }, true);
   useEffect(() => {
+    cornerDrag.current = null;
+    setSelection(null);
     const crop = src?.crop;
     apply(crop ? clamp(crop.x * fw, crop.y * fh, crop.scale) : { x: 0, y: 0, s: 1 });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -106,6 +112,17 @@ export function PhotoEditor({
     if (!touches.length) { g.current = null; return; }
     const [a, second] = touches;
     const b = second ?? a!;
+    if (cornerDrag.current) {
+      if (!second) {
+        const drag = cornerDrag.current;
+        drag.rect = dragCropCorner(fw, fh, drag.corner, a!.pageX - drag.pageX, a!.pageY - drag.pageY, cur.current.s);
+        setSelection(drag.rect);
+        return;
+      }
+      cornerDrag.current = null;
+      setSelection(null);
+      rebase = true;
+    }
     const fingers = touches.map(t => t.identifier).sort().join(",");
     const cx = (a!.locationX + b.locationX - fw) / 2;
     const cy = (a!.locationY + b.locationY - fh) / 2;
@@ -116,12 +133,19 @@ export function PhotoEditor({
     }
     const start = g.current;
     if (!start) return;
-    const s = start.dist > 0 ? Math.max(1, Math.min(MAX_SCALE, start.s * dist / start.dist)) : start.s;
+    const s = start.dist > 0 ? Math.max(1, Math.min(MAX_PHOTO_ZOOM, start.s * dist / start.dist)) : start.s;
     // Keep the same pixel underneath the moving midpoint, including on zoom-out.
     apply(clamp(cx - (start.cx - start.x) * s / start.s, cy - (start.cy - start.y) * s / start.s, s));
   }
   const pan = useMemo(() => {
-    const end = () => {
+    const end = (commit: boolean) => {
+      const drag = cornerDrag.current;
+      if (drag && commit) {
+        const next = fitCropSelection(fw, fh, drag.rect, cur.current);
+        apply(clamp(next.x, next.y, next.s), true);
+      }
+      cornerDrag.current = null;
+      setSelection(null);
       g.current = null;
       Animated.timing(grid, { toValue: 0, duration: 200, useNativeDriver: true }).start();
     };
@@ -129,14 +153,23 @@ export function PhotoEditor({
       onStartShouldSetPanResponder: () => !busy,
       onMoveShouldSetPanResponder: () => !busy,
       onPanResponderGrant: (e) => {
+        const [touch] = e.nativeEvent.touches;
+        if (touch && e.nativeEvent.touches.length === 1) {
+          const nearSide = Math.min(touch.locationX, fw - touch.locationX) <= 28;
+          const nearEnd = Math.min(touch.locationY, fh - touch.locationY) <= 28;
+          if (nearSide && nearEnd) {
+            cornerDrag.current = { corner: { left: touch.locationX < fw / 2, top: touch.locationY < fh / 2 },
+              pageX: touch.pageX, pageY: touch.pageY, rect: fullFrame };
+          }
+        }
         track(e, true);
         Animated.timing(grid, { toValue: 1, duration: 120, useNativeDriver: true }).start();
       },
       onPanResponderStart: (e) => track(e, true),
       onPanResponderMove: (e) => track(e),
       onPanResponderEnd: (e) => track(e, true),
-      onPanResponderRelease: end,
-      onPanResponderTerminate: end,
+      onPanResponderRelease: () => end(true),
+      onPanResponderTerminate: () => end(false),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, fw, fh, busy]);
@@ -197,7 +230,7 @@ export function PhotoEditor({
           </Press>
         </View>
 
-        <View style={st.stage}>
+        <View style={st.stage} onLayout={e => setStageHeight(Math.max(1, e.nativeEvent.layout.height - 8))}>
           <View style={[st.frame, { width: fw, height: fh }]}>
             {src ? (
               <Animated.View
@@ -213,17 +246,19 @@ export function PhotoEditor({
                 <RNImage source={{ uri: src.uri }} style={{ width: base.w, height: base.h }} />
               </Animated.View>
             ) : null}
-            {previewTitle !== undefined ? (
-              <View pointerEvents="none" style={st.prevWrap}>
-                <Text style={kf("600", 18, { color: "#fff" })} numberOfLines={1}>{previewTitle || "Название встречи"}</Text>
-              </View>
-            ) : null}
-            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: grid }]}>
-              <View style={third("v", 1)} />
-              <View style={third("v", 2)} />
-              <View style={third("h", 1)} />
-              <View style={third("h", 2)} />
-            </Animated.View>
+            {selection && <Svg pointerEvents="none" width={fw} height={fh} style={StyleSheet.absoluteFill}>
+              <Path fill="rgba(0,0,0,0.60)" fillRule="evenodd" d={`M0 0H${fw}V${fh}H0Z M${frame.x} ${frame.y}h${frame.width}v${frame.height}h-${frame.width}Z`} />
+            </Svg>}
+            <View pointerEvents="none" style={{ position: "absolute", left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
+              <View style={[StyleSheet.absoluteFill, { borderColor: "rgba(255,255,255,.7)", borderWidth: StyleSheet.hairlineWidth }]} />
+              <Animated.View style={[StyleSheet.absoluteFill, { opacity: grid }]}>
+                <View style={third("v", 1)} /><View style={third("v", 2)} />
+                <View style={third("h", 1)} /><View style={third("h", 2)} />
+              </Animated.View>
+              <Svg width={frame.width} height={frame.height}>
+                <Path fill="none" stroke="#fff" strokeWidth={4} d={`M1 17V1H17 M${frame.width - 17} 1h16v16 M1 ${frame.height - 17}v16h16 M${frame.width - 17} ${frame.height - 1}h16v-16`} />
+              </Svg>
+            </View>
             <View collapsable={false} style={StyleSheet.absoluteFill} {...pan.panHandlers} />
           </View>
         </View>
@@ -263,18 +298,17 @@ const st = StyleSheet.create({
   head: { height: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
   pill: { height: 38, paddingHorizontal: 16, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", minWidth: 84 },
   stage: { flex: 1, alignItems: "center", justifyContent: "center" },
-  frame: { borderRadius: 22, overflow: "hidden", backgroundColor: "#000", borderWidth: 2, borderColor: "#fff" },
-  prevWrap: { position: "absolute", left: 14, right: 14, bottom: 14 },
+  frame: { overflow: "hidden", backgroundColor: "#000" },
   tools: { flexDirection: "row", justifyContent: "center", gap: 10, marginTop: 14, flexWrap: "wrap" },
   tool: { height: 40, paddingHorizontal: 16, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.12)", flexDirection: "row", alignItems: "center", gap: 8 },
 });
 
 /* ---------- Общий редактор для всего приложения: pickAndEdit() из любого экрана ---------- */
-type Req = { src: Src; aspect?: number; title?: string; hint?: string; previewTitle?: string; resolve: (p: EditedPhoto | null) => void };
+type Req = { src: Src; aspect?: number; title?: string; hint?: string; resolve: (p: EditedPhoto | null) => void };
 let pushReq: ((r: Req | null) => void) | null = null;
 
 /** Галерея → наш редактор 3:4 → готовое фото (или null, если передумал). */
-export async function pickAndEdit(opts: { source?: Src; aspect?: number; title?: string; hint?: string; previewTitle?: string } = {}): Promise<EditedPhoto | null> {
+export async function pickAndEdit(opts: { source?: Src; aspect?: number; title?: string; hint?: string; } = {}): Promise<EditedPhoto | null> {
   const src = opts.source ?? await pickSource();
   if (!src || !pushReq) return null;
   return new Promise((resolve) => pushReq?.({ src, ...opts, resolve }));
@@ -320,7 +354,6 @@ export function PhotoEditorHost() {
       aspect={req?.aspect}
       title={req?.title}
       hint={req?.hint}
-      previewTitle={req?.previewTitle}
       onCancel={() => close(null)}
       onDone={(p) => close(p)}
       onReplace={async () => {

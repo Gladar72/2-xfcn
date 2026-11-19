@@ -1,3 +1,4 @@
+import { PORTRAIT_ASPECT } from "@/lib/photoCrop";
 // Шаги мастера создания — перенос разметки CreateMeetingFlow мини-аппа один в один (app/k26.css: .k-cats, .k-own,
 // .k-cvg, .k-bizph, .k-dates, .k-wheel, .k-recp, .k-mapbox, .k-addr, .k-bigst, .k-plan, .k-prev).
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -271,7 +272,7 @@ export function CoverStep({
       <Lbl>Обложка</Lbl>
       <Text style={[kf("400", 12.5, { color: K.ink2 }), { marginTop: -2, marginHorizontal: 2 }]}>
         {business
-          ? "Загрузи своё фото — афишу, зал или сцену. Горизонтально, 3:2"
+          ? "Загрузи своё фото — афишу, зал или сцену. Вертикальный формат 3:4"
           : isOwn && !presetCover
             ? `Под «${form.own.trim() || form.title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото`
             : grid.length > 1
@@ -294,7 +295,7 @@ export function CoverStep({
                 <KI n="cam" size={20} color="#fff" />
               </View>
               <Text style={[kf("500", 16), { marginTop: 4 }]}>{business ? "Загрузить фото события" : "Загрузить фото"}</Text>
-              <Text style={kf("400", 12.5, { color: K.ink2 })}>{business ? "Афиша, зал или сцена · горизонтально, 3:2" : "Горизонтально, 3:2 — так встречу заметят"}</Text>
+              <Text style={kf("400", 12.5, { color: K.ink2 })}>{business ? "Афиша, зал или сцена · формат 3:4" : "Вертикальная обложка · 3:4"}</Text>
             </View>
           )}
         </Press>
@@ -721,9 +722,9 @@ const st = StyleSheet.create({
   field: { minHeight: 54, borderRadius: 27, paddingHorizontal: 18, justifyContent: "center" },
   ta: { borderRadius: 24, paddingVertical: 14, justifyContent: "flex-start" },
   input: { fontFamily: "Inter-Regular", fontSize: 16, color: K.ink, paddingVertical: 0 },
-  bizph: { marginTop: 10, width: "100%", aspectRatio: 3 / 2, borderRadius: 28, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  bizph: { marginTop: 10, width: "100%", aspectRatio: PORTRAIT_ASPECT, borderRadius: 28, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   bizphChip: { position: "absolute", left: 14, bottom: 14, flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: "rgba(23,20,31,0.55)" },
-  cv: { aspectRatio: 3 / 2, borderRadius: 16, overflow: "hidden", backgroundColor: "#2B2737" },
+  cv: { aspectRatio: PORTRAIT_ASPECT, borderRadius: 16, overflow: "hidden", backgroundColor: "#2B2737" },
   cvOn: { borderWidth: 2.5, borderColor: K.ink },
   dp: { width: 58, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 2 },
   calb: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 46, borderRadius: 23, marginTop: 8 },
@@ -738,6 +739,6 @@ const st = StyleSheet.create({
   tg2: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 58, borderRadius: 29, paddingLeft: 18, paddingRight: 8, paddingVertical: 8 },
   sw: { width: 52, height: 32, borderRadius: 16, backgroundColor: "rgba(23,20,31,0.15)", padding: 3 },
   swDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#fff" },
-  prev: { width: "100%", aspectRatio: 3 / 2, borderRadius: 32, overflow: "hidden", marginTop: 4, backgroundColor: "#2B2737" },
+  prev: { width: "100%", aspectRatio: PORTRAIT_ASPECT, borderRadius: 32, overflow: "hidden", marginTop: 4, backgroundColor: "#2B2737" },
   prevChip: { position: "absolute", top: 14, left: 14, height: 30, paddingHorizontal: 12, borderRadius: 15, justifyContent: "center", backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.45)" },
 });

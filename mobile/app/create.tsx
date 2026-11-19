@@ -291,7 +291,7 @@ export default function CreateScreen() {
   }
 
   async function uploadCover(edit = false) {
-    const p = await pickAndEdit({ source: edit ? form.ownPhoto?.source : undefined, aspect: 3 / 2, title: form.business ? "Фото события" : "Обложка встречи", hint: "Передвигай фото одним пальцем. Разведи два пальца, чтобы приблизить, или сведи, чтобы отдалить.", previewTitle: form.title });
+    const p = await pickAndEdit({ source: edit ? form.ownPhoto?.source : undefined, title: form.business ? "Фото события" : "Обложка встречи" });
     if (p) set({ ownPhoto: p, useOwnPhoto: true });
   }
 
