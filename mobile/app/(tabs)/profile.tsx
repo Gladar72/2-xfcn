@@ -14,7 +14,7 @@ import { interestIcon } from "@/lib/interests";
 import type { MyProfile } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { FadeImage } from "@/components/k/FadeImage";
-import { ProfilePhotoActions } from "@/components/ProfilePhotoActions";
+import { ProfilePhotoGallery } from "@/components/ProfilePhotoGallery";
 import { Sheet } from "@/components/Sheet";
 import { HeartsSheet } from "@/components/people/HeartsSheet";
 import { K, KChip, KGlass, KI, KPressGlass, KRb, KSec, KTitle, PearlBg, Press, kf } from "@/components/k";
@@ -32,7 +32,7 @@ export default function ProfileScreen() {
   const { hearts } = useLocalSearchParams<{ hearts?: string }>();
   const insets = useSafeAreaInsets();
   const [me, setMe] = useState<MyProfile | null>(null);
-  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [sub, setSub] = useState<Subscription | null>(null);
   const [follows, setFollows] = useState<FollowSummary | null>(null);
   const [open, setOpen] = useState<Tab | null>(null);
@@ -70,7 +70,6 @@ export default function ProfileScreen() {
   const main = me?.avatarUrl || photos[0] || null;
   const all = [main, ...photos.filter((u) => u !== main)].filter((u): u is string => !!u).slice(0, 6);
   const [first, ...rest] = (me?.name ?? "").split(" ");
-  const meetings = me ? me.eventsOrganizedCount + me.eventsAttendedCount : 0;
   const lim = sub?.events?.limit ?? null;
   const used = sub?.events?.used ?? 0;
   const pct = sub?.active ? (lim ? Math.min(100, Math.round((used / lim) * 100)) : 100) : 0;
@@ -104,7 +103,7 @@ export default function ProfileScreen() {
 
       </Animated.View>
 
-      <Animated.ScrollView
+      <Animated.ScrollView scrollEnabled={!dragging}
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: insets.bottom + 90 }}
         showsVerticalScrollIndicator={false}
@@ -123,7 +122,7 @@ export default function ProfileScreen() {
               style={{ textAlign: "center" }}
             />
             <Text style={[kf("400", 13, { color: K.ink2 }), { textAlign: "center", marginTop: 4 }]}>
-              {[me.city, `${meetings} ${plural(meetings, "встреча", "встречи", "встреч")}`, me.ratingAvg > 0 ? `${me.ratingAvg.toFixed(1).replace(".", ",")} ★` : null].filter(Boolean).join(" · ")}
+              {[me.city, me.ratingAvg > 0 ? `${me.ratingAvg.toFixed(1).replace(".", ",")} ★` : null].filter(Boolean).join(" · ")}
             </Text>
             {(me.interests ?? []).length > 0 ? (
               <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 6, marginTop: 12 }}>
@@ -180,19 +179,8 @@ export default function ProfileScreen() {
             ) : null}
 
             <KSec plain="Мои" em="фото" action="Изменить" onAction={() => router.push("/profile-edit")} />
-            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-              {all.map((u) => (
-                <Press key={u} photo accessibilityLabel={u === main ? "Главное фото" : "Действия с фото"} onPress={() => setSelectedPhoto(u)} style={{ width: PH_W, height: (PH_W * 4) / 3, borderRadius: 18, backgroundColor: "#2B2737" }}>
-                  <Image source={{ uri: u }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-                  {u === main && <View style={{ position: "absolute", left: 5, bottom: 6, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 12, backgroundColor: "rgba(23,20,31,0.76)" }}><Text style={kf("500", 11, { color: "#fff" })}>Главное</Text></View>}
-                </Press>
-              ))}
-              {all.length < 3 ? (
-                <KPressGlass onPress={() => router.push("/profile-edit")} style={{ width: PH_W, height: (PH_W * 4) / 3, borderRadius: 18, alignItems: "center", justifyContent: "center" }}>
-                  <Text style={kf("300", 30, { color: K.ink2 })}>+</Text>
-                </KPressGlass>
-              ) : null}
-            </View>
+            <ProfilePhotoGallery photos={all} onDrag={setDragging}
+              onSaved={gallery => setMe(current => current ? { ...current, ...gallery } : current)} />
 
             <KSec style={{ marginTop: 18 }} plain="Мои" em="встречи" sub={`${counts[0]} создано · ${counts[1]} посещено · ${counts[2]} состоялось`} action="Все" onAction={() => router.navigate("/(tabs)/meet")} />
             <View style={{ gap: 10, marginTop: 14 }}>
@@ -204,10 +192,6 @@ export default function ProfileScreen() {
           </>
         )}
       </Animated.ScrollView>
-      <ProfilePhotoActions photos={all} selected={selectedPhoto} onClose={() => setSelectedPhoto(null)}
-        onSaved={gallery => setMe(current => current ? { ...current, ...gallery } : current)}
-        editLabel="Редактировать профиль" onEdit={() => { setSelectedPhoto(null); router.push("/profile-edit"); }} />
-
       {/* .k-tbar: поделиться и настройки — стоят на месте поверх фото */}
       <View style={{ position: "absolute", top: insets.top + 8, left: 16, right: 16, flexDirection: "row", justifyContent: "space-between" }}>
         <KRb icon="share" tone="gw" onPress={shareProfile} accessibilityLabel="Поделиться профилем" />
@@ -219,7 +203,7 @@ export default function ProfileScreen() {
   );
 }
 
-const PH_W = Math.floor((SCREEN_W - 40 - 16) / 3);
+
 
 /** .k-row: строка меню (54 px, скругление 22, стрелка). */
 export function KRow({ label, onPress }: { label: string; onPress: () => void }) {

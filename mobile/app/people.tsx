@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Dimensions, Easing, PanResponder, StyleSheet, Text, View } from "react-native";
-import { Image } from "expo-image";
+import { ActivityIndicator, Animated, Dimensions, Easing, PanResponder, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import * as Location from "expo-location";
+import { dueLocationReminder, markLocationReminder, refreshLocationSilently, shareLocation } from "@/lib/location";
 import { Aurora, Btn, Glass, Mosya, RoundBtn } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { PersonView, TopBtn } from "@/components/people/PersonView";
 import { PeopleFilterSheet } from "@/components/people/PeopleFilterSheet";
 import { api } from "@/lib/api";
 import { animateNext, tapLight } from "@/lib/feedback";
+import { appendPeople } from "@/lib/peopleDeck";
 import { qs } from "@/lib/format";
 import { DEFAULT_PEOPLE_FILTERS, hasPeopleFilters, newVisitSeed, peopleFilterQuery, type PeopleFilters } from "@/lib/peopleFilters";
 import { colors, FONT, f } from "@/lib/theme";
@@ -19,30 +19,12 @@ import { useGuide } from "@/lib/guide";
 
 const { width: W } = Dimensions.get("window");
 
-type Page = { kind: "person"; p: PersonCard } | { kind: "end" };
-
 /**
  * «Люди рядом» — колода профилей (app/(app)/people в мини-приложении).
  * Листаем свайпом влево/вправо; полный профиль грузится для видимой
  * карточки и соседних.
  */
 type DeckResponse = { items: PersonCard[]; meHasLocation?: boolean; nextOffset?: number | null };
-
-/** Свежая точка без вопросов: только если доступ к геолокации уже дан. */
-async function refreshLocationQuietly(): Promise<void> {
-  try {
-    const perm = await Location.getForegroundPermissionsAsync();
-    if (perm.status !== "granted") return;
-    const pos = await Promise.race([
-      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-      new Promise<null>((r) => setTimeout(() => r(null), 4000)),
-    ]);
-    if (!pos) return;
-    await api("/api/me/location", { body: { lat: pos.coords.latitude, lon: pos.coords.longitude } });
-  } catch {
-    // Без точки колода всё равно откроется — просто без расстояний.
-  }
-}
 
 export default function PeopleScreen() {
   useGuide("people");
@@ -52,68 +34,85 @@ export default function PeopleScreen() {
   const [hasLocation, setHasLocation] = useState(true);
   const [index, setIndex] = useState(0);
   const [geoBusy, setGeoBusy] = useState(false);
-  const [geoHidden, setGeoHidden] = useState(false);
+  const [reminder, setReminder] = useState<string | null>(null);
   const [filters, setFilters] = useState<PeopleFilters>(DEFAULT_PEOPLE_FILTERS);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [deckKey, setDeckKey] = useState(0);
+  const [moreState, setMoreState] = useState<"idle" | "loading" | "error">("idle");
+  const dismissed = useRef(new Set<string>());
   // Новый заход — новая подборка; внутри захода порядок стабилен при подгрузке.
-  const seed = useRef(newVisitSeed()).current;
+  const [seed] = useState(newVisitSeed);
   const nextOffset = useRef<number | null>(null);
-  const loadingMore = useRef(false);
-  const located = useRef(false);
+  const loadingMore = useRef<number | null>(null);
+  const locationRefresh = useRef<Promise<boolean> | null>(null);
+  const deckRequest = useRef(0);
   // Выбранного в «Людях рядом» человека открываем первым — только при входе, не после фильтров.
   const startId = useRef<string | undefined>(start || undefined);
 
   const query = useCallback(
-    (offset: number) => `/api/people?${qs({ deck: 1, seed, offset, start: startId.current, ...peopleFilterQuery(filters) })}`,
+    (offset: number) => `/api/people?${qs({ deck: 1, gallery: 1, seed, offset, start: startId.current, ...peopleFilterQuery(filters) })}`,
     [seed, filters]
   );
 
   const load = useCallback(async (keepPlace = false) => {
+    const request = keepPlace ? deckRequest.current : ++deckRequest.current;
+    const location = locationRefresh.current ??= refreshLocationSilently();
+    const path = query(0);
     try {
-      if (!located.current) {
-        located.current = true;
-        await refreshLocationQuietly();
+      const r = await api<DeckResponse>(path);
+      if (request !== deckRequest.current) return;
+      if (keepPlace) {
+        const updated = new Map(r.items.map(person => [person.id, person]));
+        setItems(list => list?.map(person => updated.get(person.id) ?? person) ?? []);
+      } else {
+        nextOffset.current = r.nextOffset ?? null;
+        setItems(appendPeople([], r.items ?? [], dismissed.current));
       }
-      const r = await api<DeckResponse>(query(0));
-      nextOffset.current = r.nextOffset ?? null;
-      setItems(r.items ?? []);
       setHasLocation(r.meHasLocation !== false);
       // После разрешения геолокации остаёмся на той же карточке — порядок тот же (то же зерно).
       if (!keepPlace) setIndex(0);
+      if (!r.meHasLocation && await location && request === deckRequest.current) {
+        const fresh = await api<DeckResponse>(path).catch(() => null);
+        if (!fresh || request !== deckRequest.current) return;
+        const distances = new Map(fresh.items.map(person => [person.id, person]));
+        setItems(list => list?.map(person => distances.get(person.id) ?? person) ?? []);
+        setHasLocation(fresh.meHasLocation !== false);
+      }
     } catch {
+      if (request !== deckRequest.current || keepPlace) return;
       nextOffset.current = null;
       setItems([]);
     }
   }, [query]);
 
   useEffect(() => {
-    load();
+    void load();
+    return () => { deckRequest.current++; };
   }, [load]);
 
 
   // Подгружаем следующие анкеты заранее; уже показанные не повторяем.
   const loadMore = useCallback(async () => {
     const offset = nextOffset.current;
-    if (offset == null || loadingMore.current) return;
-    loadingMore.current = true;
+    const request = deckRequest.current;
+    if (offset == null || loadingMore.current === request) return;
+    loadingMore.current = request;
+    setMoreState("loading");
     try {
       const r = await api<DeckResponse>(query(offset));
-      nextOffset.current = r.nextOffset ?? null;
-      setItems((list) => {
-        const seen = new Set((list ?? []).map((x) => x.id));
-        return [...(list ?? []), ...(r.items ?? []).filter((x) => !seen.has(x.id))];
-      });
+      if (request !== deckRequest.current) return;
+      nextOffset.current = r.nextOffset != null && r.nextOffset > offset ? r.nextOffset : null;
+      setItems(list => appendPeople(list ?? [], r.items ?? [], dismissed.current));
+      setMoreState("idle");
     } catch {
-      // Следующая попытка — при следующем свайпе.
+      if (request === deckRequest.current) setMoreState("error");
     } finally {
-      loadingMore.current = false;
+      if (loadingMore.current === request) loadingMore.current = null;
     }
   }, [query]);
 
   useEffect(() => {
-    if (items && index >= items.length - 5) loadMore();
-  }, [index, items, loadMore]);
+    if (items && index >= items.length - 8 && moreState === "idle") void loadMore();
+  }, [index, items, loadMore, moreState]);
 
   function applyFilters(next: PeopleFilters) {
     setFiltersOpen(false);
@@ -121,8 +120,9 @@ export default function PeopleScreen() {
     nextOffset.current = null;
     animateNext();
     setItems(null);
-    setDeckKey((k) => k + 1);
-    setFilters(next);
+    deckRequest.current++;
+    setMoreState("idle");
+    setFilters({ ...next });
   }
 
   const filtersActive = hasPeopleFilters(filters);
@@ -143,27 +143,30 @@ export default function PeopleScreen() {
   );
   const filterSheet = <PeopleFilterSheet visible={filtersOpen} value={filters} onApply={applyFilters} onClose={() => setFiltersOpen(false)} />;
 
+  const canOfferLocation = !hasLocation && !!items?.[index];
+  useFocusEffect(useCallback(() => {
+    let active = true;
+    if (canOfferLocation) dueLocationReminder().then(key => {
+      if (active) setReminder(key);
+    }).catch(() => {});
+    return () => { active = false; setReminder(null); };
+  }, [canOfferLocation]));
+  useEffect(() => {
+    if (reminder) markLocationReminder(reminder).catch(() => {});
+  }, [reminder]);
+
   async function allowLocation() {
+    if (geoBusy) return;
     setGeoBusy(true);
     try {
-      const perm = await Location.requestForegroundPermissionsAsync();
-      if (perm.status !== "granted") {
-        setGeoHidden(true);
-        return;
-      }
-      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      await api("/api/me/location", { body: { lat: pos.coords.latitude, lon: pos.coords.longitude } });
-      animateNext();
-      setHasLocation(true);
-      load(true);
-    } catch {
-      Alert.alert("Не получилось", "Не удалось определить место. Попробуй позже");
-    } finally {
-      setGeoBusy(false);
-    }
+      const saved = await shareLocation();
+      setReminder(null);
+      if (saved) { animateNext(); setHasLocation(true); await load(true); }
+    } finally { setGeoBusy(false); }
   }
 
   function removePerson(id: string) {
+    dismissed.current.add(id);
     animateNext();
     setItems((list) => (list ? list.filter((x) => x.id !== id) : list));
   }
@@ -173,19 +176,29 @@ export default function PeopleScreen() {
   // Свайп карточки: тянется за пальцем с лёгким наклоном; дальше трети экрана или резкий рывок — улетает,
   // и показываем следующего (в любую сторону — как в мини-аппе). Вертикальная прокрутка «О себе» не мешает.
   // У каждой карточки своё смещение: новая появляется сразу на месте, без кадра «в полёте» — нет мигания и двойников.
-  const cardDx = useMemo(() => new Animated.Value(0), [index]);
+  const currentId = items?.[index]?.id;
+  const activeId = useRef(currentId);
+  activeId.current = currentId;
+  const departing = useRef<string | null>(null);
+  const cardDx = useMemo(() => new Animated.Value(0), [currentId]);
   const dxRef = useRef(cardDx);
   dxRef.current = cardDx;
   const advance = useRef<(dir: 1 | -1) => void>(() => {});
   advance.current = (dir) => {
+    const id = activeId.current;
+    if (!id || departing.current === id) return;
+    departing.current = id;
     Haptics.selectionAsync().catch(() => {});
-    Animated.timing(dxRef.current, { toValue: dir * W * 1.3, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(() => {
-      setIndex((i) => i + 1);
+    Animated.timing(dxRef.current, { toValue: dir * W * 1.2, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }).start(({ finished }) => {
+      if (departing.current === id) departing.current = null;
+      if (!finished || activeId.current !== id || dismissed.current.has(id)) return;
+      dismissed.current.add(id);
+      setIndex(i => i + 1);
     });
   };
   const pan = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, g) => Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
+      onMoveShouldSetPanResponderCapture: (_, g) => departing.current !== activeId.current && Math.abs(g.dx) > 14 && Math.abs(g.dx) > Math.abs(g.dy) * 1.6,
       onPanResponderMove: (_, g) => dxRef.current.setValue(g.dx),
       onPanResponderRelease: (_, g) => {
         if (Math.abs(g.dx) > W * 0.3 || Math.abs(g.vx) > 0.8) advance.current(g.dx > 0 ? 1 : -1);
@@ -205,6 +218,11 @@ export default function PeopleScreen() {
       </View>
     );
   }
+
+  if (!items[index] && nextOffset.current !== null) return <View style={[styles.center, { backgroundColor: "#17141F" }]}>
+    {moreState === "error" ? <Btn title="Загрузить ещё" onPress={() => { void loadMore(); }} /> : <ActivityIndicator color="#fff" />}
+    <Btn kind="w" title="Назад" onPress={back} />
+  </View>;
 
   if (items.length === 0) {
     return (
@@ -236,26 +254,23 @@ export default function PeopleScreen() {
   }
 
   const cur = items[index];
-  const nextP = items[index + 1];
+  const window = items.slice(index, index + 3).reverse();
 
   return (
     <View style={{ flex: 1, backgroundColor: "#17141F" }}>
-      {/* Как в мини-аппе: стопка — под карточкой уже видно следующего; свайп влево или вправо — следующий человек. */}
-      {nextP ? (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Image source={{ uri: nextP.avatarUrl ?? undefined }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(23,20,31,0.35)" }]} />
-        </View>
-      ) : null}
-      {cur ? (
-        <Animated.View key={cur.id} style={[StyleSheet.absoluteFill, { transform: [{ translateX: cardDx }, { rotate: cardDx.interpolate({ inputRange: [-W, 0, W], outputRange: ["-8deg", "0deg", "8deg"] }) }] }]} {...pan.panHandlers}>
-          {/* Фото этого человека (уже в кэше — его было видно под прошлой карточкой) — без мигания при смене */}
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: "#17141F" }]} pointerEvents="none">
-            {cur.avatarUrl ? <Image source={{ uri: cur.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" /> : null}
-          </View>
-          <PersonView id={cur.id} preview={cur} active onBack={back} onGone={removePerson} topAction={filterBtnDark} transparentBg />
-        </Animated.View>
-      ) : (
+      {window.map(person => {
+        const front = person.id === currentId;
+        return (
+          <Animated.View key={person.id} pointerEvents={front ? "auto" : "none"} accessibilityElementsHidden={!front}
+            importantForAccessibility={front ? "auto" : "no-hide-descendants"}
+            style={[StyleSheet.absoluteFill, { backgroundColor: "#17141F" }, front && { transform: [{ translateX: cardDx },
+              { rotate: cardDx.interpolate({ inputRange: [-W, 0, W], outputRange: ["-8deg", "0deg", "8deg"] }) }] }]}
+            {...(front ? pan.panHandlers : {})}>
+            <PersonView id={person.id} preview={person} active={front} preload warmPhotos={person.id === items[index + 1]?.id ? 2 : 1} onBack={back} onGone={removePerson} topAction={filterBtnDark} />
+          </Animated.View>
+        );
+      })}
+      {!cur && (
         <View style={[styles.end, { flex: 1, paddingTop: insets.top + 60 }]}>
           <Aurora />
           <Mosya pose="wave" size={150} />
@@ -266,20 +281,20 @@ export default function PeopleScreen() {
           <Text style={styles.endTitle}>Пока всё</Text>
           <Text style={styles.endText}>Ты посмотрел всех, кто рядом. Создай встречу — и люди с похожими интересами найдут тебя сами.</Text>
           <Btn title="Создать встречу" onPress={() => router.push("/create")} style={{ alignSelf: "stretch", marginTop: 10 }} />
-          <Btn kind="o" title="Смотреть сначала" onPress={() => setIndex(0)} style={{ alignSelf: "stretch" }} />
+          <Btn kind="o" title="Смотреть сначала" onPress={() => { dismissed.current.clear(); setIndex(0); }} style={{ alignSelf: "stretch" }} />
           <Btn kind="o" title="Назад" onPress={back} style={{ alignSelf: "stretch" }} />
         </View>
       )}
 
-      {!hasLocation && !geoHidden && cur ? (
+      {!hasLocation && reminder && cur ? (
         <Glass strong style={[styles.geo, { bottom: insets.bottom + 96 }]}>
           <View style={styles.geoIc}>
             <Icon name="nav" size={18} color={colors.violet} />
           </View>
-          <Text style={styles.geoText}>Покажем, кто ближе к тебе. Видно только примерное расстояние — точное место никто не узнает.</Text>
+          <Text style={styles.geoText}>Показывать расстояние? В профиле будет видно, сколько примерно километров между вами.</Text>
           <View style={{ gap: 6 }}>
             <Btn title="Разрешить" onPress={allowLocation} loading={geoBusy} style={styles.geoBtn} />
-            <Text onPress={() => setGeoHidden(true)} style={styles.geoLater}>
+            <Text onPress={() => setReminder(null)} style={styles.geoLater}>
               Не сейчас
             </Text>
           </View>

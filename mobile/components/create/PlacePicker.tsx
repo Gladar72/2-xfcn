@@ -1,6 +1,6 @@
 // Карта в шаге «Когда и где?» — как LocationPicker мини-аппа: видна сразу (230 px),
 // нажал — метка встала, адрес подставился сам; ⤢ — карта на весь экран с кнопкой «Готово».
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { Camera, Map, Marker, type CameraRef } from "@maplibre/maplibre-react-native";
 import * as Location from "expo-location";
@@ -21,7 +21,7 @@ export function PlacePicker({
 }: {
   value: Coords | null;
   onPick: (c: Coords) => void;
-  onAddress: (address: string) => void;
+  onAddress: (address: string, point: Coords) => void;
   placeName?: string;
   address?: string;
 }) {
@@ -44,7 +44,7 @@ export function PlacePicker({
   );
 }
 
-function FullMap({ value, onPick, onAddress, onClose, placeName, address }: { value: Coords | null; onPick: (c: Coords) => void; onAddress: (a: string) => void; onClose: () => void; placeName?: string; address?: string }) {
+function FullMap({ value, onPick, onAddress, onClose, placeName, address }: { value: Coords | null; onPick: (c: Coords) => void; onAddress: (a: string, point: Coords) => void; onClose: () => void; placeName?: string; address?: string }) {
   const insets = useSafeAreaInsets();
   return (
     <View style={{ flex: 1, backgroundColor: K.pearl }}>
@@ -67,18 +67,28 @@ function FullMap({ value, onPick, onAddress, onClose, placeName, address }: { va
   );
 }
 
-function PickerMap({ value, onPick, onAddress, controlsTop = 12 }: { value: Coords | null; onPick: (c: Coords) => void; onAddress: (a: string) => void; controlsTop?: number }) {
+function PickerMap({ value, onPick, onAddress, controlsTop = 12 }: { value: Coords | null; onPick: (c: Coords) => void; onAddress: (a: string, point: Coords) => void; controlsTop?: number }) {
   const camera = useRef<CameraRef>(null);
   const zoom = useRef(value ? 16 : 13);
   const seq = useRef(0);
+  const lastPick = useRef<Coords | null>(value);
+  const latitude = value?.latitude;
+  const longitude = value?.longitude;
+  useEffect(() => {
+    if (latitude === undefined || longitude === undefined) return;
+    if (latitude === lastPick.current?.latitude && longitude === lastPick.current?.longitude) return;
+    lastPick.current = { latitude, longitude };
+    camera.current?.flyTo({ center: [longitude, latitude], zoom: 16, duration: 350 });
+  }, [latitude, longitude]);
 
   const pick = (c: Coords) => {
     tapLight();
+    lastPick.current = c;
     onPick(c);
     const my = ++seq.current;
     api<{ address?: string | null }>(`/api/geocode?lat=${c.latitude}&lng=${c.longitude}`)
       .then((r) => {
-        if (my === seq.current && r.address) onAddress(r.address);
+        if (my === seq.current && r.address) onAddress(r.address, c);
       })
       .catch(() => {});
   };

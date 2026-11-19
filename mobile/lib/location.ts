@@ -1,41 +1,65 @@
 import * as Location from "expo-location";
-import { api } from "./api";
+import * as SecureStore from "expo-secure-store";
+import { Alert, AppState, Linking } from "react-native";
+import { api, getToken } from "./api";
+import { getMyId } from "./me";
 
-/**
- * Примерная геопозиция для «Люди рядом» и «встречи рядом». На сервер уходит точка,
- * которую он сразу огрубляет до сетки ~500 м (/api/me/location) — точный адрес нигде не хранится.
- */
-let sentAt = 0;
-const EVERY_MS = 10 * 60e3;
+const REFRESH_MS = 10 * 60_000;
+const REMINDER_MS = 7 * 24 * 60 * 60_000;
+let lastUpdate: { user: string; at: number } | null = null;
+let pending: { session: string; work: Promise<boolean> } | null = null;
 
-async function send(): Promise<boolean> {
-  const pos =
-    (await Location.getLastKnownPositionAsync({ maxAge: 10 * 60e3 }).catch(() => null)) ??
-    (await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }));
-  await api("/api/me/location", { body: { lat: pos.coords.latitude, lon: pos.coords.longitude } });
-  sentAt = Date.now();
+/** Saving a coarse point is permitted only while the app is in use, in the same signed-in session. */
+async function savePosition(session: string): Promise<boolean> {
+  const pos = await Location.getLastKnownPositionAsync({ maxAge: REFRESH_MS }).catch(() => null)
+    ?? await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+  if (AppState.currentState !== "active" || session !== await getToken()) return false;
+  const grid = (n: number) => Math.round(n / 0.005) * 0.005;
+  await api("/api/me/location", { body: { lat: grid(pos.coords.latitude), lon: grid(pos.coords.longitude) } });
+  lastUpdate = { user: session, at: Date.now() };
   return true;
 }
 
-/** Тихо обновить точку: только если разрешение уже дано и прошло больше 10 минут. true — точка обновилась. */
 export async function refreshLocationSilently(): Promise<boolean> {
-  if (Date.now() - sentAt < EVERY_MS) return false;
   try {
-    const perm = await Location.getForegroundPermissionsAsync();
-    if (perm.status !== "granted") return false;
-    return await send();
-  } catch {
-    return false;
-  }
+    if (AppState.currentState !== "active") return false;
+    const session = await getToken();
+    if (!session || (lastUpdate?.user === session && Date.now() - lastUpdate.at < REFRESH_MS)) return false;
+    if (pending?.session === session) return pending.work;
+    const work = (async () => {
+      const perm = await Location.getForegroundPermissionsAsync();
+      return perm.granted ? savePosition(session) : false;
+    })().catch(() => false);
+    pending = { session, work };
+    try { return await work; } finally { if (pending?.work === work) pending = null; }
+  } catch { return false; }
 }
 
-/** По нажатию «Показать, кто рядом»: спросить разрешение (если нужно) и отправить точку. */
+/** An in-app reminder precedes the OS request. Only an explicit tap requests permission. */
+export async function dueLocationReminder(): Promise<string | null> {
+  const [user, perm] = await Promise.all([getMyId(), Location.getForegroundPermissionsAsync()]);
+  if (!user || perm.status !== "undetermined" || !perm.canAskAgain) return null;
+  const key = `location_reminder_${user}`;
+  const shown = Number(await SecureStore.getItemAsync(key)) || 0;
+  return !shown || Date.now() - shown >= REMINDER_MS ? key : null;
+}
+export async function markLocationReminder(key: string) {
+  await SecureStore.setItemAsync(key, String(Date.now()));
+}
+
 export async function shareLocation(): Promise<boolean> {
   try {
-    const perm = await Location.requestForegroundPermissionsAsync();
-    if (perm.status !== "granted") return false;
-    return await send();
-  } catch {
-    return false;
-  }
+    const current = await Location.getForegroundPermissionsAsync();
+    if (!current.granted && !current.canAskAgain) {
+      Alert.alert("Доступ к геопозиции", "Чтобы показывать расстояние, разреши «Месту» доступ при использовании приложения.", [
+        { text: "Не сейчас", style: "cancel" },
+        { text: "Настройки", onPress: () => { Linking.openSettings().catch(() => {}); } },
+      ]);
+      return false;
+    }
+    const perm = current.granted ? current : await Location.requestForegroundPermissionsAsync();
+    if (!perm.granted) return false;
+    const session = await getToken();
+    return session ? await savePosition(session) : false;
+  } catch { return false; }
 }
