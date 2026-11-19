@@ -1,7 +1,7 @@
 // Редактор фото перед загрузкой — как PhotoCropModal мини-аппа и как в Instagram:
 // фото двигается пальцем, двумя пальцами — приближается, пока двигаешь — видна сетка третей.
 // «Повернуть», «Сбросить», «Заменить». Сохраняет кадр в пропорциях переданной рамки.
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Image as RNImage, Modal, PanResponder, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
@@ -10,7 +10,7 @@ import Svg, { Path } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { Press, kf } from "@/components/k";
 
-import { dragCropCorner, fitCropSelection, MAX_PHOTO_ZOOM, PORTRAIT_ASPECT, type CropCorner, type CropRect } from "@/lib/photoCrop";
+import { CROP_TOUCH_MARGIN, cropCornerAt, dragCropCorner, fitCropSelection, MAX_PHOTO_ZOOM, PORTRAIT_ASPECT, type CropCorner, type CropRect } from "@/lib/photoCrop";
 
 export type EditedPhoto = { uri: string; data: string; source: Src };
 
@@ -49,12 +49,12 @@ export function PhotoEditor({
   const win = useWindowDimensions();
   const [src, setSrc] = useState<Src | null>(source);
   const [busy, setBusy] = useState(false);
-  useEffect(() => setSrc(source), [source]);
+  useLayoutEffect(() => setSrc(source), [source]);
 
   // Рамка — самая большая вертикальная рамка нужных пропорций, что влезает между шапкой и кнопками.
   const [stageHeight, setStageHeight] = useState(0);
   const stageH = stageHeight || Math.max(40, win.height - insets.top - insets.bottom - 56 - 142);
-  let fw = Math.min(win.width - 32, 440);
+  let fw = Math.min(win.width - 2 * CROP_TOUCH_MARGIN, 440);
   let fh = fw / aspect;
   if (fh > stageH) {
     fh = stageH;
@@ -99,7 +99,8 @@ export function PhotoEditor({
     }
   };
   const reset = () => apply({ x: 0, y: 0, s: 1 }, true);
-  useEffect(() => {
+  useLayoutEffect(() => {
+    g.current = null;
     cornerDrag.current = null;
     setSelection(null);
     const crop = src?.crop;
@@ -124,8 +125,8 @@ export function PhotoEditor({
       rebase = true;
     }
     const fingers = touches.map(t => t.identifier).sort().join(",");
-    const cx = (a!.locationX + b.locationX - fw) / 2;
-    const cy = (a!.locationY + b.locationY - fh) / 2;
+    const cx = (a!.locationX + b.locationX - fw) / 2 - CROP_TOUCH_MARGIN;
+    const cy = (a!.locationY + b.locationY - fh) / 2 - CROP_TOUCH_MARGIN;
     const dist = Math.hypot(a!.pageX - b.pageX, a!.pageY - b.pageY);
     if (rebase || fingers !== g.current?.fingers) {
       g.current = { ...cur.current, fingers, cx, cy, dist };
@@ -138,10 +139,15 @@ export function PhotoEditor({
     apply(clamp(cx - (start.cx - start.x) * s / start.s, cy - (start.cy - start.y) * s / start.s, s));
   }
   const pan = useMemo(() => {
-    const end = (commit: boolean) => {
+    const end = (release?: GestureResponderEvent) => {
       const drag = cornerDrag.current;
-      if (drag && commit) {
-        const next = fitCropSelection(fw, fh, drag.rect, cur.current);
+      if (drag && release) {
+        // A short first drag can finish before the first move event arrives.
+        const last = release.nativeEvent.changedTouches?.[0];
+        const rect = last
+          ? dragCropCorner(fw, fh, drag.corner, last.pageX - drag.pageX, last.pageY - drag.pageY, cur.current.s)
+          : drag.rect;
+        const next = fitCropSelection(fw, fh, rect, cur.current);
         apply(clamp(next.x, next.y, next.s), true);
       }
       cornerDrag.current = null;
@@ -152,14 +158,13 @@ export function PhotoEditor({
     return PanResponder.create({
       onStartShouldSetPanResponder: () => !busy,
       onMoveShouldSetPanResponder: () => !busy,
+      onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: (e) => {
         const [touch] = e.nativeEvent.touches;
         if (touch && e.nativeEvent.touches.length === 1) {
-          const nearSide = Math.min(touch.locationX, fw - touch.locationX) <= 28;
-          const nearEnd = Math.min(touch.locationY, fh - touch.locationY) <= 28;
-          if (nearSide && nearEnd) {
-            cornerDrag.current = { corner: { left: touch.locationX < fw / 2, top: touch.locationY < fh / 2 },
-              pageX: touch.pageX, pageY: touch.pageY, rect: fullFrame };
+          const corner = cropCornerAt(fw, fh, touch.locationX - CROP_TOUCH_MARGIN, touch.locationY - CROP_TOUCH_MARGIN);
+          if (corner) {
+            cornerDrag.current = { corner, pageX: touch.pageX, pageY: touch.pageY, rect: fullFrame };
           }
         }
         track(e, true);
@@ -168,8 +173,8 @@ export function PhotoEditor({
       onPanResponderStart: (e) => track(e, true),
       onPanResponderMove: (e) => track(e),
       onPanResponderEnd: (e) => track(e, true),
-      onPanResponderRelease: () => end(true),
-      onPanResponderTerminate: () => end(false),
+      onPanResponderRelease: (e) => end(e),
+      onPanResponderTerminate: () => end(),
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [base, fw, fh, busy]);
@@ -230,36 +235,38 @@ export function PhotoEditor({
           </Press>
         </View>
 
-        <View style={st.stage} onLayout={e => setStageHeight(Math.max(1, e.nativeEvent.layout.height - 8))}>
-          <View style={[st.frame, { width: fw, height: fh }]}>
-            {src ? (
-              <Animated.View
-                style={{
-                  position: "absolute",
-                  left: (fw - base.w) / 2,
-                  top: (fh - base.h) / 2,
-                  width: base.w,
-                  height: base.h,
-                  transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }],
-                }}
-              >
-                <RNImage source={{ uri: src.uri }} style={{ width: base.w, height: base.h }} />
-              </Animated.View>
-            ) : null}
-            {selection && <Svg pointerEvents="none" width={fw} height={fh} style={StyleSheet.absoluteFill}>
-              <Path fill="rgba(0,0,0,0.60)" fillRule="evenodd" d={`M0 0H${fw}V${fh}H0Z M${frame.x} ${frame.y}h${frame.width}v${frame.height}h-${frame.width}Z`} />
-            </Svg>}
-            <View pointerEvents="none" style={{ position: "absolute", left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
-              <View style={[StyleSheet.absoluteFill, { borderColor: "rgba(255,255,255,.7)", borderWidth: StyleSheet.hairlineWidth }]} />
-              <Animated.View style={[StyleSheet.absoluteFill, { opacity: grid }]}>
-                <View style={third("v", 1)} /><View style={third("v", 2)} />
-                <View style={third("h", 1)} /><View style={third("h", 2)} />
-              </Animated.View>
-              <Svg width={frame.width} height={frame.height}>
-                <Path fill="none" stroke="#fff" strokeWidth={4} d={`M1 17V1H17 M${frame.width - 17} 1h16v16 M1 ${frame.height - 17}v16h16 M${frame.width - 17} ${frame.height - 1}h16v-16`} />
-              </Svg>
+        <View style={st.stage} onLayout={e => setStageHeight(Math.max(1, e.nativeEvent.layout.height - 2 * CROP_TOUCH_MARGIN))}>
+          <View style={{ padding: CROP_TOUCH_MARGIN }}>
+            <View pointerEvents="none" style={[st.frame, { width: fw, height: fh }]}>
+              {src ? (
+                <Animated.View
+                  style={{
+                    position: "absolute",
+                    left: (fw - base.w) / 2,
+                    top: (fh - base.h) / 2,
+                    width: base.w,
+                    height: base.h,
+                    transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }],
+                  }}
+                >
+                  <RNImage source={{ uri: src.uri }} style={{ width: base.w, height: base.h }} />
+                </Animated.View>
+              ) : null}
+              {selection && <Svg pointerEvents="none" width={fw} height={fh} style={StyleSheet.absoluteFill}>
+                <Path fill="rgba(0,0,0,0.60)" fillRule="evenodd" d={`M0 0H${fw}V${fh}H0Z M${frame.x} ${frame.y}h${frame.width}v${frame.height}h-${frame.width}Z`} />
+              </Svg>}
+              <View pointerEvents="none" style={{ position: "absolute", left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
+                <View style={[StyleSheet.absoluteFill, { borderColor: "rgba(255,255,255,.7)", borderWidth: StyleSheet.hairlineWidth }]} />
+                <Animated.View style={[StyleSheet.absoluteFill, { opacity: grid }]}>
+                  <View style={third("v", 1)} /><View style={third("v", 2)} />
+                  <View style={third("h", 1)} /><View style={third("h", 2)} />
+                </Animated.View>
+                <Svg width={frame.width} height={frame.height}>
+                  <Path fill="none" stroke="#fff" strokeWidth={4} d={`M1 17V1H17 M${frame.width - 17} 1h16v16 M1 ${frame.height - 17}v16h16 M${frame.width - 17} ${frame.height - 1}h16v-16`} />
+                </Svg>
+              </View>
             </View>
-            <View collapsable={false} style={StyleSheet.absoluteFill} {...pan.panHandlers} />
+            {stageHeight > 0 && src && <View collapsable={false} style={StyleSheet.absoluteFill} {...pan.panHandlers} />}
           </View>
         </View>
 

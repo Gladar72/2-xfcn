@@ -1,8 +1,19 @@
 export const PORTRAIT_ASPECT = 3 / 4;
 export const MAX_PHOTO_ZOOM = 4;
+export const CROP_TOUCH_MARGIN = 16;
 
 export type CropCorner = { left: boolean; top: boolean };
 export type CropRect = { x: number; y: number; width: number; height: number };
+
+/** Frame-relative coordinates include the touchable margin outside the photo. */
+export function cropCornerAt(width: number, height: number, x: number, y: number): CropCorner | null {
+  const left = x < width / 2;
+  const top = y < height / 2;
+  const dx = left ? x : width - x;
+  const dy = top ? y : height - y;
+  if (dx < -CROP_TOUCH_MARGIN || dy < -CROP_TOUCH_MARGIN || dx > 32 || dy > 32) return null;
+  return { left, top };
+}
 
 /** Project the dragged corner onto the diagonal to keep the opposite corner fixed. */
 export function dragCropCorner(width: number, height: number, corner: CropCorner, dx: number, dy: number, zoom: number): CropRect {
