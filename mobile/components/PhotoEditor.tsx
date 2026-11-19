@@ -2,7 +2,7 @@
 // фото двигается пальцем, двумя пальцами — приближается, пока двигаешь — видна сетка третей.
 // «Повернуть», «Сбросить», «Заменить». Сохраняет кадр в пропорциях переданной рамки.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Image as RNImage, Modal, PanResponder, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
+import { ActivityIndicator, Alert, Animated, Image as RNImage, Modal, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
@@ -10,7 +10,7 @@ import Svg, { Path } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { Press, kf } from "@/components/k";
 
-import { CROP_TOUCH_MARGIN, cropCornerAt, dragCropCorner, fitCropSelection, MAX_PHOTO_ZOOM, PORTRAIT_ASPECT, type CropCorner, type CropRect } from "@/lib/photoCrop";
+import { CROP_TOUCH_MARGIN, cropCornerAt, resizeSelection, initialSelection, restoreCrop, fitCropSelection, MAX_PHOTO_ZOOM, PORTRAIT_ASPECT, type CropCorner, type CropRect, type PhotoTransform } from "@/lib/photoCrop";
 
 export type EditedPhoto = { uri: string; data: string; source: Src };
 
@@ -74,110 +74,98 @@ export function PhotoEditor({
   const cur = useRef({ x: 0, y: 0, s: 1 });
   const g = useRef<{ x: number; y: number; s: number; fingers: string; dist: number; cx: number; cy: number } | null>(null);
 
-  const cornerDrag = useRef<{ corner: CropCorner; pageX: number; pageY: number; rect: CropRect } | null>(null);
-  const [selection, setSelection] = useState<CropRect | null>(null);
-  const fullFrame = { x: 0, y: 0, width: fw, height: fh };
-  const frame = selection ?? fullFrame;
+  const initial = useMemo(() => initialSelection(fw, fh), [fw, fh]);
+  const [frame, setFrame] = useState(initial);
+  const selection = useRef(initial);
+  const drag = useRef<{ corner: CropCorner; pageX: number; pageY: number; start: CropRect; image: PhotoTransform } | null>(null);
 
-  const clamp = (x: number, y: number, s: number) => {
-    const mx = Math.max(0, (base.w * s - fw) / 2);
-    const my = Math.max(0, (base.h * s - fh) / 2);
-    return { x: Math.max(-mx, Math.min(mx, x)), y: Math.max(-my, Math.min(my, y)), s };
-  };
-  const apply = (v: { x: number; y: number; s: number }, animated = false) => {
-    cur.current = v;
-    if (animated) {
-      Animated.parallel([
-        Animated.spring(tx, { toValue: v.x, useNativeDriver: true, friction: 8 }),
-        Animated.spring(ty, { toValue: v.y, useNativeDriver: true, friction: 8 }),
-        Animated.spring(sc, { toValue: v.s, useNativeDriver: true, friction: 8 }),
-      ]).start();
-    } else {
-      tx.setValue(v.x);
-      ty.setValue(v.y);
-      sc.setValue(v.s);
-    }
-  };
-  const reset = () => apply({ x: 0, y: 0, s: 1 }, true);
+  function updateFrame(next: CropRect) {
+    selection.current = next;
+    setFrame(next);
+  }
+
+  // Translation is measured from canvas centre. Keep the selected rectangle covered.
+  function apply(v: PhotoTransform, rect = selection.current) {
+    const minScale = rect.width / fw;
+    const s = Math.min(minScale * MAX_PHOTO_ZOOM, Math.max(minScale, v.s));
+    const cx = rect.x + rect.width / 2 - fw / 2;
+    const cy = rect.y + rect.height / 2 - fh / 2;
+    const mx = Math.max(0, (base.w * s - rect.width) / 2);
+    const my = Math.max(0, (base.h * s - rect.height) / 2);
+    const x = Math.max(cx - mx, Math.min(cx + mx, v.x));
+    const y = Math.max(cy - my, Math.min(cy + my, v.y));
+    cur.current = { x, y, s };
+    tx.setValue(x);
+    ty.setValue(y);
+    sc.setValue(s);
+  }
+
+  function reset() {
+    updateFrame(initial);
+    apply(restoreCrop(fw, fh, initial), initial);
+  }
+
   useLayoutEffect(() => {
     g.current = null;
-    cornerDrag.current = null;
-    setSelection(null);
-    const crop = src?.crop;
-    apply(crop ? clamp(crop.x * fw, crop.y * fh, crop.scale) : { x: 0, y: 0, s: 1 });
+    drag.current = null;
+    updateFrame(initial);
+    apply(restoreCrop(fw, fh, initial, src?.crop), initial);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src, fw, fh]);
+  }, [src, initial]);
 
-  function track(e: GestureResponderEvent, rebase = false) {
-    const touches = e.nativeEvent.touches.slice(0, 2);
-    if (!touches.length) { g.current = null; return; }
-    const [a, second] = touches;
-    const b = second ?? a!;
-    if (cornerDrag.current) {
-      if (!second) {
-        const drag = cornerDrag.current;
-        drag.rect = dragCropCorner(fw, fh, drag.corner, a!.pageX - drag.pageX, a!.pageY - drag.pageY, cur.current.s);
-        setSelection(drag.rect);
-        return;
-      }
-      cornerDrag.current = null;
-      setSelection(null);
-      rebase = true;
+  type Touch = GestureResponderEvent["nativeEvent"]["touches"][number];
+  function moveCorner(touch: Touch) {
+    const d = drag.current;
+    if (!d) return;
+    const next = resizeSelection(fw, fh, d.start, d.corner, touch.pageX - d.pageX, touch.pageY - d.pageY, d.image.s);
+    updateFrame(next);
+    apply(d.image, next);
+  }
+
+  function track(event: GestureResponderEvent, begin = false) {
+    const [a, b] = event.nativeEvent.touches;
+    if (!a) return;
+    const fingers = b ? [a.identifier, b.identifier].sort().join(",") : String(a.identifier);
+    const same = fingers === g.current?.fingers;
+    const cx = (a.locationX + (b ?? a).locationX - fw) / 2 - CROP_TOUCH_MARGIN;
+    const cy = (a.locationY + (b ?? a).locationY - fh) / 2 - CROP_TOUCH_MARGIN;
+    const dist = b ? Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY) : 0;
+    if (begin && !g.current && !b) {
+      const r = selection.current;
+      const corner = cropCornerAt(r.width, r.height, a.locationX - CROP_TOUCH_MARGIN - r.x, a.locationY - CROP_TOUCH_MARGIN - r.y);
+      if (corner) drag.current = { corner, pageX: a.pageX, pageY: a.pageY, start: r, image: cur.current };
     }
-    const fingers = touches.map(t => t.identifier).sort().join(",");
-    const cx = (a!.locationX + b.locationX - fw) / 2 - CROP_TOUCH_MARGIN;
-    const cy = (a!.locationY + b.locationY - fh) / 2 - CROP_TOUCH_MARGIN;
-    const dist = Math.hypot(a!.pageX - b.pageX, a!.pageY - b.pageY);
-    if (rebase || fingers !== g.current?.fingers) {
+    if (b) drag.current = null;
+    if (!same || !g.current) {
       g.current = { ...cur.current, fingers, cx, cy, dist };
+      grid.setValue(1);
       return;
     }
+    if (drag.current) { moveCorner(a); return; }
     const start = g.current;
-    if (!start) return;
-    const s = start.dist > 0 ? Math.max(1, Math.min(MAX_PHOTO_ZOOM, start.s * dist / start.dist)) : start.s;
-    // Keep the same pixel underneath the moving midpoint, including on zoom-out.
-    apply(clamp(cx - (start.cx - start.x) * s / start.s, cy - (start.cy - start.y) * s / start.s, s));
+    const minScale = selection.current.width / fw;
+    const s = start.dist > 0 ? Math.max(minScale, Math.min(MAX_PHOTO_ZOOM * minScale, start.s * dist / start.dist)) : start.s;
+    apply({ x: cx - (start.cx - start.x) * s / start.s, y: cy - (start.cy - start.y) * s / start.s, s });
   }
-  const pan = useMemo(() => {
-    const end = (release?: GestureResponderEvent) => {
-      const drag = cornerDrag.current;
-      if (drag && release) {
-        // A short first drag can finish before the first move event arrives.
-        const last = release.nativeEvent.changedTouches?.[0];
-        const rect = last
-          ? dragCropCorner(fw, fh, drag.corner, last.pageX - drag.pageX, last.pageY - drag.pageY, cur.current.s)
-          : drag.rect;
-        const next = fitCropSelection(fw, fh, rect, cur.current);
-        apply(clamp(next.x, next.y, next.s), true);
-      }
-      cornerDrag.current = null;
-      setSelection(null);
-      g.current = null;
-      Animated.timing(grid, { toValue: 0, duration: 200, useNativeDriver: true }).start();
-    };
-    return PanResponder.create({
-      onStartShouldSetPanResponder: () => !busy,
-      onMoveShouldSetPanResponder: () => !busy,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: (e) => {
-        const [touch] = e.nativeEvent.touches;
-        if (touch && e.nativeEvent.touches.length === 1) {
-          const corner = cropCornerAt(fw, fh, touch.locationX - CROP_TOUCH_MARGIN, touch.locationY - CROP_TOUCH_MARGIN);
-          if (corner) {
-            cornerDrag.current = { corner, pageX: touch.pageX, pageY: touch.pageY, rect: fullFrame };
-          }
-        }
-        track(e, true);
-        Animated.timing(grid, { toValue: 1, duration: 120, useNativeDriver: true }).start();
-      },
-      onPanResponderStart: (e) => track(e, true),
-      onPanResponderMove: (e) => track(e),
-      onPanResponderEnd: (e) => track(e, true),
-      onPanResponderRelease: (e) => end(e),
-      onPanResponderTerminate: () => end(),
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [base, fw, fh, busy]);
+
+  function finish(event: GestureResponderEvent) {
+    if (event.nativeEvent.touches.length) { track(event); return; }
+    const last = event.nativeEvent.changedTouches?.[0];
+    if (last && drag.current) moveCorner(last);
+    drag.current = null;
+    g.current = null;
+    grid.setValue(0);
+  }
+
+  function cancelGesture() {
+    if (drag.current) {
+      updateFrame(drag.current.start);
+      apply(drag.current.image, drag.current.start);
+    }
+    drag.current = null;
+    g.current = null;
+    grid.setValue(0);
+  }
 
   async function rotate() {
     if (!src || busy) return;
@@ -197,10 +185,10 @@ export function PhotoEditor({
   }
 
   async function done() {
-    if (!src || busy) return;
+    if (!src || busy || !stageHeight) return;
     setBusy(true);
     try {
-      const { x, y, s } = cur.current;
+      const { x, y, s } = fitCropSelection(fw, fh, selection.current, cur.current);
       const k = base.k * s; // пикселей экрана на пиксель фото
       const cw = Math.max(1, Math.min(src.w, Math.round(fw / k)));
       const ch = Math.max(1, Math.min(src.h, Math.round(fh / k)));
@@ -236,7 +224,10 @@ export function PhotoEditor({
         </View>
 
         <View style={st.stage} onLayout={e => setStageHeight(Math.max(1, e.nativeEvent.layout.height - 2 * CROP_TOUCH_MARGIN))}>
-          <View style={{ padding: CROP_TOUCH_MARGIN }}>
+          {stageHeight > 0 && src && <View collapsable={false} style={{ padding: CROP_TOUCH_MARGIN }}
+            onStartShouldSetResponder={() => !busy} onResponderTerminationRequest={() => false}
+            onResponderGrant={e => track(e, true)} onResponderStart={e => track(e, true)}
+            onResponderMove={e => track(e)} onResponderEnd={finish} onResponderTerminate={cancelGesture}>
             <View pointerEvents="none" style={[st.frame, { width: fw, height: fh }]}>
               {src ? (
                 <Animated.View
@@ -252,9 +243,9 @@ export function PhotoEditor({
                   <RNImage source={{ uri: src.uri }} style={{ width: base.w, height: base.h }} />
                 </Animated.View>
               ) : null}
-              {selection && <Svg pointerEvents="none" width={fw} height={fh} style={StyleSheet.absoluteFill}>
+              <Svg pointerEvents="none" width={fw} height={fh} style={StyleSheet.absoluteFill}>
                 <Path fill="rgba(0,0,0,0.60)" fillRule="evenodd" d={`M0 0H${fw}V${fh}H0Z M${frame.x} ${frame.y}h${frame.width}v${frame.height}h-${frame.width}Z`} />
-              </Svg>}
+              </Svg>
               <View pointerEvents="none" style={{ position: "absolute", left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
                 <View style={[StyleSheet.absoluteFill, { borderColor: "rgba(255,255,255,.7)", borderWidth: StyleSheet.hairlineWidth }]} />
                 <Animated.View style={[StyleSheet.absoluteFill, { opacity: grid }]}>
@@ -266,8 +257,7 @@ export function PhotoEditor({
                 </Svg>
               </View>
             </View>
-            {stageHeight > 0 && src && <View collapsable={false} style={StyleSheet.absoluteFill} {...pan.panHandlers} />}
-          </View>
+          </View>}
         </View>
 
         <Text style={[kf("400", 13, { lh: 1.4, color: "rgba(255,255,255,0.65)" }), { textAlign: "center", marginHorizontal: 20 }]}>{hint}</Text>
