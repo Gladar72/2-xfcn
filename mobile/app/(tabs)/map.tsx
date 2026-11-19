@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
 import { Camera, Map, Marker, UserLocation, type CameraRef } from "@maplibre/maplibre-react-native";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams, type Href } from "expo-router";
@@ -18,7 +18,8 @@ import { coverUri } from "@/lib/covers";
 import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { MAP_STYLE, TYUMEN_CENTER } from "@/lib/map";
-import { ADDRESS_ZOOM, MAX_MAP_ZOOM, clusterize, groupLocations, type MapGroup } from "@/lib/cluster";
+import { ADDRESS_ZOOM, MAX_MAP_ZOOM, markerMode, photoOffset, clusterize, groupLocations, type MapGroup } from "@/lib/cluster";
+import { addressSchedule } from "@/lib/addressSchedule";
 import { openRoute } from "@/lib/route";
 import { K, KGlass, KI, Press, kf } from "@/components/k";
 import { catIcon } from "@/lib/theme";
@@ -113,7 +114,7 @@ export default function MapScreen() {
           setTimeout(() => {
             if (id !== reqId.current) return;
             setSelected([f]);
-            camera.current?.flyTo({ center: [target?.lng ?? f.longitude, target?.lat ?? f.latitude], zoom: ADDRESS_ZOOM, duration: 600 });
+            camera.current?.flyTo({ center: [target?.lng ?? f.longitude, target?.lat ?? f.latitude], zoom: 18, duration: 600 });
           }, 50);
         } else if (items.length && items.every((e) => e.latitude === items[0]!.latitude && e.longitude === items[0]!.longitude)) {
           camera.current?.flyTo({ center: [items[0].longitude, items[0].latitude], zoom: 14, duration: 600 });
@@ -155,10 +156,14 @@ export default function MapScreen() {
   useEffect(() => { setSelected(null); setAddressOpen(false); }, [shown]);
   const carousel = selected ?? shown.slice(0, 30);
 
+  const schedule = useMemo(() => addressOpen && selected ? addressSchedule(selected) : [], [addressOpen, selected]);
+  const addressTitle = selected?.find(e => !e.organizerHidden && e.address)?.address
+    ?? selected?.find(e => !e.organizerHidden && e.placeName)?.placeName ?? "События по этому адресу";
+
   function zoomToCluster(group: MapGroup<MapEvent & { isCity?: boolean }>) {
     tapLight();
     setSelected(group.items);
-    const nextZoom = group.locationCount === 1 ? ADDRESS_ZOOM : Math.min(ADDRESS_ZOOM, zoom + 2);
+    const nextZoom = group.locationCount === 1 ? 18 : Math.min(ADDRESS_ZOOM, zoom + 2);
     camera.current?.flyTo({ center: [group.lng, group.lat], zoom: nextZoom, duration: 450 });
   }
 
@@ -176,50 +181,38 @@ export default function MapScreen() {
         <Camera ref={camera} initialViewState={{ center: TYUMEN_CENTER, zoom: 11 }} />
         {located ? <UserLocation /> : null}
         {clusters.map((c) => {
-          if (c.items.length > 1 && zoom < ADDRESS_ZOOM) {
+          const mode = markerMode(c, zoom);
+          if (mode !== "photos") {
             return (
-              <Marker key={`group:${c.id}`} id={`group:${c.id}`} lngLat={[c.lng, c.lat]} anchor="center">
-                <Pressable style={styles.cluster} onPress={() => zoomToCluster(c)} accessibilityRole="button" accessibilityLabel={`Показать события: ${c.items.length}`}>
-                  <Text style={styles.clusterText}>{c.items.length}</Text>
+              <Marker key={`group:${c.id}`} id={`group:${c.id}`} lngLat={[c.lng, c.lat]} anchor="bottom">
+                <Pressable accessibilityRole="button" accessibilityLabel={`${mode === "schedule" ? "События по адресу" : "Приблизить карту"}: ${c.items.length}`}
+                  onPress={() => {
+                    if (mode === "zoom") { zoomToCluster(c); return; }
+                    tapLight();
+                    setSelected(c.items);
+                    setAddressOpen(true);
+                  }}>
+                  <EventPin count={c.items.length} />
                 </Pressable>
               </Marker>
             );
           }
-          const visible = c.items.length > 3 ? c.items.slice(0, 2) : c.items;
-          const width = visible.length === 3 ? 48 : 60;
-          return (
-            <Marker key={`photos:${c.id}`} id={`photos:${c.id}`} lngLat={[c.lng, c.lat]} anchor="bottom">
-              <View collapsable={false} style={styles.pin}>
-                {visible.length < c.items.length && (
-                  <Pressable accessibilityRole="button" accessibilityLabel={`Все события по адресу: ${c.items.length}`}
-                    style={styles.morePhotos} onPress={() => { setSelected(c.items); setAddressOpen(true); }}>
-                    <Text style={styles.pillText}>+ {c.items.length - visible.length}</Text>
-                  </Pressable>
-                )}
-                <View style={{ minWidth: width * visible.length, alignItems: "center" }}>
-                  {visible.map((e, i) => {
-                    const angle = (i - (visible.length - 1) / 2) * (visible.length === 2 ? 88 : 60);
-                    const cityEvent = e.isCity || e.id.startsWith("city:");
-                    return <View key={e.id} pointerEvents="none" style={{ position: "absolute", bottom: 0, left: "50%", marginLeft: -28, opacity: !cityEvent && e.seatsLeft <= 0 ? 0.65 : 1 }}>
-                      <EventPin angle={angle} photo={coverUri(e.markerPhoto)} icon={eventIcon(e)} badge={e.isBusiness || cityEvent ? undefined : eventIcon(e)} />
-                    </View>;
-                  })}
-                  <View style={styles.photoRow}>
-                    {visible.map(e => {
-                      const cityEvent = e.isCity || e.id.startsWith("city:");
-                      const label = cityEvent ? "в городе" : e.seatsLeft <= 0 ? "мест нет" : timePill(e.startsAt, e.endsAt);
-                      return <Pressable key={e.id} onPress={() => open(e)} accessibilityRole="button" accessibilityLabel={e.title}
-                        style={{ minWidth: width, height: visible.length === 1 ? 82 : 73, alignItems: "center" }}>
-                        <View style={[styles.pill, { backgroundColor: label === "сейчас" ? colors.live : "#17141F" }]}>
-                          <Text numberOfLines={1} style={styles.pillText}>{label}</Text>
-                        </View>
-                      </Pressable>;
-                    })}
+          return c.items.map((e, index) => {
+            const cityEvent = e.isCity || e.id.startsWith("city:");
+            const label = timePill(e.startsAt, e.endsAt);
+            return (
+              <Marker key={`event:${e.id}`} id={`event:${e.id}`} lngLat={[c.lng, c.lat]} anchor="bottom"
+                offset={photoOffset(c.items.length, index, zoom)}>
+                <Pressable onPress={() => open(e)} accessibilityRole="button" accessibilityLabel={`${e.title}, ${label}`}
+                  style={[styles.pin, { opacity: !cityEvent && e.seatsLeft <= 0 ? 0.65 : 1 }]}>
+                  <View style={[styles.pill, { backgroundColor: label === "сейчас" ? colors.live : "#17141F" }]}>
+                    <Text numberOfLines={1} style={styles.pillText}>{label}</Text>
                   </View>
-                </View>
-              </View>
-            </Marker>
-          );
+                  <EventPin photo={coverUri(e.markerPhoto)} icon={eventIcon(e)} badge={e.isBusiness || cityEvent ? undefined : eventIcon(e)} />
+                </Pressable>
+              </Marker>
+            );
+          });
         })}
       </Map>
 
@@ -283,14 +276,20 @@ export default function MapScreen() {
       ) : null}
 
       <Sheet visible={addressOpen} onClose={() => setAddressOpen(false)}>
-        <Text style={kf("600", 18)}>События по этому адресу</Text>
-        <FlatList style={{ maxHeight: 420, flexShrink: 1 }} data={selected ?? []} keyExtractor={(e) => e.id}
-          renderItem={({ item }) => <Pressable style={styles.addressEvent} onPress={() => { setAddressOpen(false); open(item); }}>
-            <Image source={{ uri: coverUri(item.markerPhoto) ?? eventIcon(item) }} style={styles.addressPhoto} contentFit="cover" />
-            <View style={{ flex: 1 }}>
-              <Text style={kf("500", 15)}>{item.title}</Text>
-              <Text style={kf("400", 13, { color: colors.grey })}>{timePill(item.startsAt, item.endsAt)}{item.placeName ? ` · ${item.placeName}` : ""}</Text>
-            </View>
+        <View style={styles.addressHeading}>
+          <View style={{ flex: 1 }}>
+            <Text style={kf("600", 20)}>{addressTitle}</Text>
+            <Text style={kf("400", 14, { color: colors.grey })}>{selected?.length} {plural(selected?.length ?? 0, "событие", "события", "событий")}</Text>
+          </View>
+          <Press onPress={() => setAddressOpen(false)} accessibilityLabel="Закрыть список" style={styles.addressClose}><KI n="x" size={16} /></Press>
+        </View>
+        <SectionList style={{ maxHeight: 420, flexShrink: 1 }} sections={schedule} stickySectionHeadersEnabled={false}
+          keyExtractor={({ event }) => event.id}
+          renderSectionHeader={({ section }) => <Text style={[kf("600", 15), { marginTop: 12 }]}>{section.title}</Text>}
+          renderItem={({ item: { event, time } }) => <Pressable style={styles.addressEvent} onPress={() => { setAddressOpen(false); open(event); }}>
+            <Image source={{ uri: coverUri(event.markerPhoto) ?? eventIcon(event) }} style={styles.addressPhoto} contentFit="cover" />
+            <Text style={[kf("500", 15), { flex: 1 }]}>{event.title}</Text>
+            <Text style={kf("400", 14, { color: colors.grey })}>{time}</Text>
           </Pressable>} />
       </Sheet>
       <BizCatSheet visible={catSheet} onClose={() => setCatSheet(false)} counts={bizCounts} value={bizCat} onChange={setBizCat} total={events.length} />
@@ -333,13 +332,11 @@ const styles = StyleSheet.create({
   noteText: { fontFamily: FONT, fontSize: 13, color: colors.ink2 },
   retry: { alignSelf: "flex-start", backgroundColor: colors.ink, borderRadius: 999, paddingHorizontal: 16, height: 38, justifyContent: "center" },
   retryText: { fontSize: 14, ...f("600"), color: "#fff" },
-  cluster: { minWidth: 46, height: 46, borderRadius: 23, paddingHorizontal: 6, borderWidth: 3, borderColor: "#fff", backgroundColor: "#17141F", alignItems: "center", justifyContent: "center" },
-  clusterText: { ...f("600"), fontSize: 17, color: "#fff" },
   pin: { alignItems: "center" },
-  photoRow: { flexDirection: "row", alignItems: "flex-end", gap: 2 },
+  addressClose: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(23,20,31,0.06)" },
+  addressHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
   addressEvent: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
   addressPhoto: { width: 46, height: 46, borderRadius: 12 },
-  morePhotos: { minWidth: 44, height: 30, marginBottom: 2, paddingHorizontal: 8, borderRadius: 15, alignItems: "center", justifyContent: "center", backgroundColor: "#17141F" },
   pill: { borderRadius: 999, minHeight: 22, justifyContent: "center", paddingHorizontal: 6, marginBottom: 2 },
   pillText: { color: "#fff", fontSize: 12, lineHeight: 16, includeFontPadding: false, ...f("500") },
   locate: { position: "absolute", right: 16 },

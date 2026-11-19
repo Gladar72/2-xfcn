@@ -83,6 +83,8 @@ export interface EventDetail extends Omit<FeedEvent, "isHighlighted" | "isMine" 
 }
 
 export interface MapEvent {
+  /** Hours east of UTC at the venue, when supplied by the map API. */
+  utcOffset?: number;
   address?: string | null;
   id: string;
   title: string;
