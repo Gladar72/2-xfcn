@@ -16,6 +16,45 @@ def api(path):
         return json.loads(r.read())
 
 
+
+def verify_testflight_build(number):
+    if not number.isdecimal():
+        raise SystemExit("Expected a numeric build")
+    query = f"/v1/builds?filter[app]={APP}&filter[version]={number}&include=preReleaseVersion&limit=10"
+    deadline = time.monotonic() + 35 * 60
+    while time.monotonic() < deadline:
+        result = api(query)
+        versions = {v["id"]: v["attributes"]["version"] for v in result.get("included", [])
+                    if v["type"] == "preReleaseVersions"}
+        for build in result["data"]:
+            pre = build["relationships"]["preReleaseVersion"]["data"]["id"]
+            if versions.get(pre) != os.environ.get("NEW_VERSION"):
+                continue
+            state = build["attributes"]["processingState"]
+            print("VERSION", versions[pre], "BUILD", number, "PROCESSING", state, flush=True)
+            if state in ("FAILED", "INVALID"):
+                raise SystemExit("Apple reported a processing failure")
+            if state != "VALID":
+                continue
+            bid = build["id"]
+            detail = api(f"/v1/builds/{bid}/buildBetaDetail")["data"]["attributes"]
+            internal = detail.get("internalBuildState")
+            groups = api(f"/v1/builds/{bid}/betaGroups?limit=100")["data"]
+            team = any(g["attributes"].get("isInternalGroup") and g["attributes"].get("name") == "Команда"
+                       for g in groups)
+            print("INTERNAL", internal, "TEAM_ACCESS", team, flush=True)
+            if internal == "IN_BETA_TESTING" and team:
+                return
+            if internal in ("MISSING_EXPORT_COMPLIANCE", "EXPIRED"):
+                raise SystemExit(internal)
+        time.sleep(40)
+    raise SystemExit("TestFlight availability has not been confirmed")
+
+
+if os.environ.get("BUILD"):
+    verify_testflight_build(os.environ["BUILD"])
+    raise SystemExit(0)
+
 vs = api(f"/v1/apps/{APP}/appStoreVersions?filter[platform]=IOS&limit=5&include=build")
 builds = {b["id"]: b["attributes"]["version"] for b in vs.get("included", []) if b["type"] == "builds"}
 for v in vs["data"]:
