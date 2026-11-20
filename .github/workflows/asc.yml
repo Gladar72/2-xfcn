@@ -1,25 +1,15 @@
-name: App Store Connect
-
-# Подставить свежую сборку в версию App Store и обновить заметки для проверяющих
-# (.github/review-notes.txt). На проверку не отправляет.
+name: Submit iOS 0.5.2 (60) for manual release
 on:
-  workflow_dispatch:
-    inputs:
-      build:
-        description: "Номер сборки (пусто — самая свежая)"
-        required: false
-      submit:
-        description: "Отправить на проверку"
-        type: boolean
-        default: false
-      status:
-        description: "Только показать статус версий"
-        type: boolean
-        default: false
-      testflight:
-        description: "Выдать сборку в TestFlight (без отправки на проверку)"
-        type: boolean
-        default: false
+  push:
+    branches: [release/ios-052-60-manual-review]
+    paths:
+      - .github/workflows/asc.yml
+      - .github/scripts/asc.py
+permissions:
+  contents: read
+concurrency:
+  group: ios-052-60-review
+  cancel-in-progress: false
 
 jobs:
   update:
@@ -32,14 +22,16 @@ jobs:
           KID: ${{ secrets.ASC_KEY_ID }}
           ISS: ${{ secrets.ASC_ISSUER_ID }}
           P8: ${{ secrets.ASC_KEY_P8 }}
-          BUILD: ${{ inputs.build }}
+          BUILD: "60"
           NOTES_FILE: .github/review-notes.txt
           WHATS_NEW_FILE: .github/whats-new.txt
-          SUBMIT: ${{ inputs.submit }}
+          SUBMIT: "true"
         run: |
+          umask 077
           export KEY="$RUNNER_TEMP/AuthKey.p8"
+          trap 'rm -f "$KEY"' EXIT
           printf '%s\n' "$P8" > "$KEY"
           pip install -q pyjwt cryptography
           export NEW_VERSION="$(python3 -c "import json;print(json.load(open('mobile/app.json'))['expo']['version'])")"
-          if [ "${{ inputs.testflight }}" = "true" ]; then python3 .github/scripts/asc_tf.py; elif [ "${{ inputs.status }}" = "true" ]; then python3 .github/scripts/asc_status.py; else python3 .github/scripts/asc.py; fi
+          python3 .github/scripts/asc.py
           rm -f "$KEY"
