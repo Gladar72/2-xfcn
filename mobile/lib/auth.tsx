@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { api, getToken, setToken, setUnauthorizedHandler } from "./api";
 import { unregisterPush } from "./push";
 import { resetMyId } from "./me";
+import { cancelTelegramLogin, finishTelegramLogin } from "./telegramLogin";
 import { resetRealtime } from "./realtime";
 
 /**
@@ -37,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ticketKind, setTicketKind] = useState<"phone" | "email" | "telegram" | "apple" | null>(null);
 
   const signOut = useCallback(async () => {
+    await cancelTelegramLogin().catch(() => {});
     await unregisterPush().catch(() => {});
     await setToken(null);
     resetMyId();
@@ -53,7 +55,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = await Promise.race([getToken().catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 4000))]);
       if (token) {
         try {
-          await api("/api/me");
+          await api("/api/me", { timeoutMs: 5000 });
           setSignedIn(true);
         } catch (e) {
           // Нет сети — всё равно пускаем внутрь с сохранённой сессией.
@@ -77,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setPrefillName(r.telegramProfile?.firstName ?? prefill ?? null);
       setPrefillPhoto(r.telegramProfile?.photoUrl ?? null);
     }
+    if (source === "telegram") await finishTelegramLogin().catch(() => {});
   }, []);
 
   const value = useMemo(

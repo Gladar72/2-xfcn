@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import Constants from "expo-constants";
@@ -9,7 +9,7 @@ import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { appleLoginAvailable, loginWithApple } from "@/lib/appleLogin";
-import { loginWithTelegram, resumeTelegramLogin } from "@/lib/telegramLogin";
+import { cancelTelegramLogin, loginWithTelegram, resumeTelegramLogin } from "@/lib/telegramLogin";
 import { colors, FONT, f } from "@/lib/theme";
 
 // Вход через Apple (app.json → extra.appleLogin). App Store требует его, если есть вход через Telegram.
@@ -24,20 +24,33 @@ export default function LoginScreen() {
   useEffect(() => {
     if (APPLE_ENABLED) appleLoginAvailable().then(setAppleReady);
   }, []);
-  // Вернулись из Telegram по кнопке бота — экран мог пересоздаться: подхватываем начатый вход.
-  useEffect(() => {
-    const p = resumeTelegramLogin();
-    if (!p) return;
-    setLoading("tg");
-    p.then((r) => (r ? handleAuthResult(r, "telegram") : undefined))
-      .catch((e) => setError((e as Error).message))
-      .finally(() => setLoading(null));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
   const [error, setError] = useState<string | null>(null);
+  const attempt = useRef(0);
+  const busy = useRef(false);
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
+  useEffect(() => {
+    const n = ++attempt.current;
+    setLoading("tg");
+    resumeTelegramLogin()
+      .then(r => r && attempt.current === n ? handleAuthResult(r, "telegram") : undefined)
+      .catch(e => { if (attempt.current === n) setError((e as Error).message); })
+      .finally(() => { if (attempt.current === n) setLoading(null); });
+    return () => { ++attempt.current; };
+  }, [handleAuthResult]);
+
+  async function switchMethod(next: "buttons" | "email") {
+    if (busy.current) return;
+    ++attempt.current;
+    setMode(next);
+    setLoading(null);
+    setError(null);
+    await cancelTelegramLogin().catch(() => {});
+  }
+
   async function sendCode() {
+    if (busy.current || !emailOk) return;
+    busy.current = true;
     setError(null);
     setLoading("email");
     try {
@@ -47,32 +60,40 @@ export default function LoginScreen() {
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      busy.current = false;
       setLoading(null);
     }
   }
 
   async function telegramLogin() {
+    if (busy.current) return;
+    const n = ++attempt.current;
     setError(null);
     setLoading("tg");
     try {
       const r = await loginWithTelegram();
-      if (r) await handleAuthResult(r, "telegram");
+      if (r && n === attempt.current) await handleAuthResult(r, "telegram");
     } catch (e) {
-      setError((e as Error).message);
+      if (n === attempt.current) setError((e as Error).message);
     } finally {
-      setLoading(null);
+      if (n === attempt.current) setLoading(null);
     }
   }
 
   async function appleLogin() {
+    if (busy.current) return;
+    busy.current = true;
+    ++attempt.current;
     setError(null);
     setLoading("apple");
     try {
+      await cancelTelegramLogin().catch(() => {});
       const r = await loginWithApple();
       if (r) await handleAuthResult(r.result, "apple", r.firstName);
     } catch (e) {
       setError((e as Error).message);
     } finally {
+      busy.current = false;
       setLoading(null);
     }
   }
@@ -101,7 +122,7 @@ export default function LoginScreen() {
         </View>
         <Btn title="Получить код" onPress={sendCode} loading={loading === "email"} disabled={!emailOk} />
         {err}
-        <Pressable onPress={() => setMode("buttons")} hitSlop={8}>
+        <Pressable onPress={() => switchMethod("buttons")} hitSlop={8}>
           <Text style={styles.back}>Другие способы входа</Text>
         </Pressable>
       </AuthShell>
@@ -111,6 +132,9 @@ export default function LoginScreen() {
   return (
     <AuthShell plain={"Есть куда пойти.\n"} em="Найдём, с кем" sub="Встречи рядом, люди, которые идут туда же">
       <Btn kind="w" title="Войти через Telegram" icon={<Icon name="tg" color={colors.tg} size={20} />} onPress={telegramLogin} loading={loading === "tg"} />
+      {loading === "tg" && <Pressable onPress={() => switchMethod("buttons")} hitSlop={8}>
+        <Text style={styles.back}>Отменить ожидание Telegram</Text>
+      </Pressable>}
       {appleReady ? (
         loading === "apple" ? (
           <Btn kind="apple" title="" loading />
@@ -120,7 +144,7 @@ export default function LoginScreen() {
           <Btn kind="w" title="Войти через Apple" icon={<AppleGlyph />} onPress={appleLogin} />
         )
       ) : null}
-      <GlassBtn title="Войти по почте" icon={<Icon name="mail" size={20} color="#fff" />} onPress={() => setMode("email")} />
+      <GlassBtn title="Войти по почте" icon={<Icon name="mail" size={20} color="#fff" />} onPress={() => switchMethod("email")} />
       {err}
       <Text style={styles.hint}>Уже в «Месте» через Telegram? Входи через Telegram — всё сохранится</Text>
     </AuthShell>

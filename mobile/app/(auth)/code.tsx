@@ -13,6 +13,8 @@ export default function CodeScreen() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [resendIn, setResendIn] = useState(60);
+  const verifying = useRef(false);
+  const resending = useRef(false);
   const input = useRef<TextInput>(null);
 
   useEffect(() => {
@@ -21,6 +23,8 @@ export default function CodeScreen() {
   }, []);
 
   async function verify(value: string) {
+    if (verifying.current || resending.current) return;
+    verifying.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -30,17 +34,23 @@ export default function CodeScreen() {
       setError((e as Error).message);
       setCode("");
     } finally {
+      verifying.current = false;
       setBusy(false);
     }
   }
 
   async function resend() {
+    if (resending.current || verifying.current || resendIn > 0) return;
+    resending.current = true;
     setError(null);
     try {
       await api("/api/auth/mobile/email/send", { body: { email }, auth: false });
+      setCode("");
       setResendIn(60);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      resending.current = false;
     }
   }
 

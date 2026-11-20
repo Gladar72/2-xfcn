@@ -15,7 +15,8 @@ let onUnauthorized: (() => void) | null = null;
 
 export async function getToken(): Promise<string | null> {
   if (cachedToken !== undefined) return cachedToken;
-  cachedToken = await SecureStore.getItemAsync(TOKEN_KEY);
+  const stored = await SecureStore.getItemAsync(TOKEN_KEY);
+  if (cachedToken === undefined) cachedToken = stored;
   return cachedToken;
 }
 
@@ -37,7 +38,7 @@ export class ApiError extends Error {
 
 export async function api<T = unknown>(
   path: string,
-  options: { method?: string; body?: unknown; auth?: boolean } = {}
+  options: { method?: string; body?: unknown; auth?: boolean; timeoutMs?: number; signal?: AbortSignal } = {}
 ): Promise<T> {
   if (UI_SMOKE) return smokeApi(path) as T;
   const headers: Record<string, string> = { Accept: "application/json", "X-App-Platform": Platform.OS };
@@ -46,19 +47,38 @@ export async function api<T = unknown>(
     const token = await getToken();
     if (token) headers.Authorization = `Bearer ${token}`;
   }
+  const timeout = options.timeoutMs ?? (path.startsWith("/api/auth/mobile/") ? 15000 : undefined);
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  const timer = timeout === undefined ? undefined : setTimeout(abort, timeout);
+  options.signal?.addEventListener("abort", abort);
+  if (options.signal?.aborted) abort();
   let res: Response;
+  let data: Record<string, unknown> | null;
   try {
     res = await fetch(`${API_URL}${path}`, {
       method: options.method ?? (options.body !== undefined ? "POST" : "GET"),
       headers,
+      signal: controller.signal,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });
+    const raw = await res.text();
+    try {
+      data = raw ? JSON.parse(raw) : null;
+    } catch {
+      data = null;
+    }
   } catch {
-    throw new ApiError(0, "network", "Нет связи с сервером. Проверь интернет");
+    throw new ApiError(0, "network", "Нет связи с сервером. Проверь интернет и попробуй ещё раз.");
+  } finally {
+    clearTimeout(timer);
+    options.signal?.removeEventListener("abort", abort);
   }
-  const data = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (res.ok && !data && path.startsWith("/api/auth/mobile/")) {
+    throw new ApiError(502, "invalid_response", "Сервис входа временно недоступен. Попробуй ещё раз.");
+  }
   if (!res.ok) {
-    if (res.status === 401 && options.auth !== false) onUnauthorized?.();
+    if (res.status === 401 && headers.Authorization && headers.Authorization === `Bearer ${cachedToken}`) onUnauthorized?.();
     const code = (data?.error as string) ?? `http_${res.status}`;
     const message = (data?.message as string) ?? humanError(code);
     throw new ApiError(res.status, code, message, data);
