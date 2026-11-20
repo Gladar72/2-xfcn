@@ -39,10 +39,12 @@ def verify_testflight_build(number):
             bid = build["id"]
             detail = api(f"/v1/builds/{bid}/buildBetaDetail")["data"]["attributes"]
             internal = detail.get("internalBuildState")
-            groups = api(f"/v1/builds/{bid}/betaGroups?limit=100")["data"]
+            print("INTERNAL", internal, flush=True)
+            groups = api(f"/v1/apps/{APP}/betaGroups?limit=50")["data"]
             team = any(g["attributes"].get("isInternalGroup") and g["attributes"].get("name") == "Команда"
+                       and g["attributes"].get("hasAccessToAllBuilds")
                        for g in groups)
-            print("INTERNAL", internal, "TEAM_ACCESS", team, flush=True)
+            print("INTERNAL", internal, "TEAM_AUTO_ACCESS", team, flush=True)
             if internal == "IN_BETA_TESTING" and team:
                 return
             if internal in ("MISSING_EXPORT_COMPLIANCE", "EXPIRED"):
