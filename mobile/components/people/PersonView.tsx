@@ -59,6 +59,7 @@ export function PersonView({
   preview,
   self,
   active = true,
+  openedFromHeart = false,
   onBack,
   onGone,
   topAction,
@@ -72,6 +73,7 @@ export function PersonView({
   self?: boolean;
   /** В колоде грузим только видимую карточку и соседние. */
   active?: boolean;
+  openedFromHeart?: boolean;
   onBack: () => void;
   /** Человека заблокировали — колода убирает карточку. */
   onGone?: (id: string) => void;
@@ -80,6 +82,11 @@ export function PersonView({
 }) {
   const insets = useSafeAreaInsets();
   const [p, setP] = useState<Person | null>(null);
+  useEffect(() => {
+    if (openedFromHeart && active && p?.id === id) {
+      api("/api/me/hearts/inbox", { method: "PATCH", body: { senderId: id } }).catch(() => {});
+    }
+  }, [active, openedFromHeart, id, p?.id]);
   const [error, setError] = useState<string | null>(null);
   const [photo, setPhoto] = useState(0);
   const [invite, setInvite] = useState(false);
