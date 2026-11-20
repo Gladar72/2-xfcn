@@ -1,3 +1,4 @@
+import { heartDestination } from "./hearts";
 import { useEffect } from "react";
 import { AppState, Platform } from "react-native";
 import * as Device from "expo-device";
@@ -145,10 +146,11 @@ function openFromResponse(response: Notifications.NotificationResponse | null | 
   const id = response.notification.request.identifier;
   if (handled.has(id)) return;
   handled.add(id);
-  const data = response.notification.request.content.data as { url?: unknown; type?: unknown; eventId?: unknown } | undefined;
+  const data = response.notification.request.content.data as { url?: unknown; type?: unknown; eventId?: unknown; fromUserId?: unknown } | undefined;
   let url = typeof data?.url === "string" ? data.url : "/notifications";
   // «Оцени встречу» — сразу на оценку, а не на страницу встречи.
   if (data?.type === "review_request" && typeof data.eventId === "string") url = `/reviews?event=${data.eventId}`;
+  if (data?.type === "heart" || data?.type === "heart_mutual") url = heartDestination(data.fromUserId, data.url);
   if (!url.startsWith("/")) return;
   // Небольшая пауза — чтобы навигатор успел смонтироваться при холодном старте.
   setTimeout(() => {
