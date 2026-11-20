@@ -43,7 +43,7 @@
       }
     },
     "android": {
-      "versionCode": 58,
+      "versionCode": 59,
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
