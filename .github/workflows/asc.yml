@@ -2,7 +2,7 @@ name: App Store Connect (read TestFlight status)
 on:
   push:
     branches: [qa/testflight-59-status]
-    paths: [.github/workflows/asc.yml]
+    paths: [.github/workflows/asc.yml, .github/scripts/asc_status.py]
 permissions:
   contents: read
 jobs:
