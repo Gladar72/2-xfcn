@@ -23,7 +23,7 @@ let cache: { at: number; keys: AppleJwk[] } | null = null;
 
 async function appleKeys(force = false): Promise<AppleJwk[]> {
   if (!force && cache && Date.now() - cache.at < 60 * 60 * 1000) return cache.keys;
-  const res = await fetch(KEYS_URL, { cache: "no-store" });
+  const res = await fetch(KEYS_URL, { cache: "no-store", signal: AbortSignal.timeout(6000) });
   if (!res.ok) throw new Error(`apple_keys_${res.status}`);
   const data = (await res.json()) as { keys?: AppleJwk[] };
   cache = { at: Date.now(), keys: data.keys ?? [] };

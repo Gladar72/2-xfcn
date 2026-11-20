@@ -30,24 +30,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_apple_login", message: "Не удалось подтвердить вход через Apple" }, { status: 401 });
   }
 
-  const admin = createAdminClient();
-  let { data: user } = await admin
+  const admin = createAdminClient({ noStore: true });
+  let { data: user, error: lookupError } = await admin
     .from("users")
     .select("id, telegram_id, moderation_status")
     .eq("apple_sub", apple.sub)
     .maybeSingle();
 
+  if (lookupError) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   // Первый вход через Apple, но почта (подтверждённая Apple) уже есть в профиле — это тот же человек.
   const email = apple.email && apple.emailVerified && !apple.privateEmail ? apple.email : null;
   if (!user && email) {
-    const { data: byEmail } = await admin
+    const { data: byEmail, error } = await admin
       .from("users")
       .select("id, telegram_id, moderation_status")
       .eq("email", email)
       .maybeSingle();
+    if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
     if (byEmail && byEmail.moderation_status !== "banned") {
       const linked = await attachAppleId(admin, byEmail.id, apple.sub);
-      if (linked.ok) user = byEmail;
+      if (!linked.ok) return NextResponse.json({ error: linked.error, message: linked.message }, { status: linked.status });
+      user = byEmail;
     } else if (byEmail) {
       user = byEmail;
     }

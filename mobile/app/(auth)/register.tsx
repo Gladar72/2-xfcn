@@ -25,7 +25,7 @@ import { RegHint } from "@/components/register/RegHint";
 import { API_URL } from "@/lib/config";
 import { api, type ApiError } from "@/lib/api";
 import { useAuth, type AuthResult } from "@/lib/auth";
-import { loginWithTelegram } from "@/lib/telegramLogin";
+import { finishTelegramLogin, loginWithTelegram } from "@/lib/telegramLogin";
 import { detectCity } from "@/lib/geoCity";
 import { refreshLocationSilently } from "@/lib/location";
 import { interestIcon } from "@/lib/interests";
@@ -210,7 +210,10 @@ export default function RegisterScreen() {
       const r = await loginWithTelegram(ticket);
       if (!r) return;
       if (r.status === "authenticated") await handleAuthResult(r);
-      else setNudge("Профиль с этим Telegram не найден — давай создадим новый");
+      else {
+        await finishTelegramLogin();
+        setNudge("Профиль с этим Telegram не найден — давай создадим новый");
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {

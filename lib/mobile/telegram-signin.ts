@@ -21,12 +21,13 @@ export async function telegramSignIn(
   tg: TelegramIdentity,
   tickets: { phoneTicket?: unknown; emailTicket?: unknown }
 ): Promise<[Record<string, unknown>, number]> {
-  const { data: user } = await admin
+  const { data: user, error: lookupError } = await admin
     .from("users")
     .select("id, telegram_id, moderation_status, telegram_username")
     .eq("telegram_id", tg.id)
     .maybeSingle();
 
+  if (lookupError) return [{ error: "unavailable" }, 503];
   if (!user) {
     return [
       {

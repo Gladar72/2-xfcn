@@ -17,15 +17,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_input", message: "Введи 4 цифры из письма" }, { status: 422 });
   }
 
-  const admin = createAdminClient();
-  const check = await checkAndConsumeEmailOtp(admin, email, code);
-  if (!check.ok) return NextResponse.json({ error: check.error, message: check.message }, { status: check.status });
-
-  const { data: user } = await admin
+  const admin = createAdminClient({ noStore: true });
+  const { data: user, error } = await admin
     .from("users")
     .select("id, telegram_id, moderation_status")
     .eq("email", email)
     .maybeSingle();
+
+  if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+  const check = await checkAndConsumeEmailOtp(admin, email, code);
+  if (!check.ok) return NextResponse.json({ error: check.error, message: check.message }, { status: check.status });
 
   if (!user) {
     return NextResponse.json({ status: "needs_registration", ticket: issueRegistrationTicket({ kind: "email", email }) });
