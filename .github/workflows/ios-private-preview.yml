@@ -1,4 +1,4 @@
-name: One private iPhone announcement preview
+name: Update the private iPhone announcement
 on:
   push:
     branches: [promo/ios-test-20261120]
@@ -9,19 +9,18 @@ permissions:
 
 jobs:
   preview:
-    if: github.event.before == '022f8d068a7cea4c32c39b5b0247ef82b990f946' && github.run_attempt == '1'
+    if: github.event.before == '5e40cc3ea7b03ed16a387b078c02c3922853a7fb' && github.run_attempt == '1'
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: 022f8d068a7cea4c32c39b5b0247ef82b990f946
           persist-credentials: false
           sparse-checkout-cone-mode: false
           sparse-checkout: |
             /public/promo/ios-launch-20261120.jpg
             /public/promo/ios-launch-20261120.txt
-      - name: Verify the private chat and send the approved photo once
+      - name: Update the verified private preview
         env:
           BOT_TOKEN: ${{ secrets.YC_BOT_TOKEN }}
           RECIPIENT: ${{ vars.YC_ADMIN_IDS }}
@@ -54,7 +53,12 @@ jobs:
               throw new Error(method + ': network error');
             }
             const data = await response.json();
-            if (!response.ok || !data.ok) throw new Error(method + ': Telegram error ' + response.status);
+            if (!response.ok || !data.ok) {
+              const error = new Error(method + ': Telegram error ' + response.status);
+              error.status = response.status;
+              error.description = data.description || '';
+              throw error;
+            }
             return data.result;
           }
 
@@ -66,15 +70,47 @@ jobs:
             throw new Error('Private recipient did not match');
           }
           console.log('Verified sender and one private recipient.');
-          const form = new FormData();
-          form.set('chat_id', id);
-          form.set('caption', caption);
-          form.set('photo', new Blob([photo], { type: 'image/jpeg' }), 'mesto.jpg');
-          form.set('reply_markup', JSON.stringify({ inline_keyboard: [[{ text: label, url }]] }));
-          const sent = await api('sendPhoto', form);
-          assert.ok(String(sent.chat.id) === id && sent.message_id > 0 && sent.photo?.length);
-          assert.ok(sent.caption === caption && sent.reply_markup.inline_keyboard.length === 1);
-          const row = sent.reply_markup.inline_keyboard[0];
+          const markup = { inline_keyboard: [[{ text: label, url }]] };
+          const oldCaption = "🎉 «Место» теперь официально в App Store!\n\nСкачай приложение на iPhone. Оно стало быстрее и удобнее, а твои встречи и чаты уже на месте.\n\n🎁 Скачать приложение можно бесплатно. При первом входе получишь 30 дней тарифа «Старт» в подарок.\n\nЕсли захочешь продлить подписку, нажми «Оплатить подписку» в Telegram-боте.";
+          const sourceMessage = 371045;
+          const send = (method, fields) => {
+            const body = new URLSearchParams();
+            for (const [key,value] of Object.entries(fields)) body.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+            return api(method, body);
+          };
+          // A quoted reply matches the original caption even when clients and bots use different message IDs.
+          let target;
+          try {
+            const menu = await send('sendMessage', {
+              chat_id: id, disable_notification: true,
+              text: '💳 Чтобы оформить подписку, нажми «Оплатить подписку» внизу, рядом с «🤝 Партнёрская программа».',
+              reply_parameters: { message_id: sourceMessage, quote: oldCaption.split('\n')[0], quote_position: 0, allow_sending_without_reply: false },
+              reply_markup: { keyboard: [[{text:'💳 Оплатить подписку'}],[{text:'🤝 Партнёрская программа'}],[{text:'📊 Админ-панель'}]], resize_keyboard:true, is_persistent:true }
+            });
+            const original = menu.reply_to_message;
+            if (String(original?.chat?.id) === id && original?.from?.id === me.id && original?.photo?.length && original?.caption === oldCaption) {
+              target = original.message_id;
+            }
+          } catch (error) {
+            if (error.status !== 400 || !/not found|quote|MESSAGE_ID_INVALID|message identifier/i.test(error.description)) throw error;
+          }
+          let result;
+          if (target) {
+            result = await send('editMessageCaption', { chat_id: id, message_id: target, caption, reply_markup: markup });
+            assert.ok(result.message_id === target);
+            console.log('Updated original preview.');
+          } else {
+            const form = new FormData();
+            form.set('chat_id', id);
+            form.set('caption', caption);
+            form.set('photo', new Blob([photo], { type: 'image/jpeg' }), 'mesto.jpg');
+            form.set('reply_markup', JSON.stringify(markup));
+            result = await api('sendPhoto', form);
+            console.log('Delivered revised private preview as a new message.');
+          }
+          assert.ok(String(result.chat.id) === id && result.message_id > 0 && result.photo?.length);
+          assert.ok(result.caption === caption && result.reply_markup.inline_keyboard.length === 1);
+          const row = result.reply_markup.inline_keyboard[0];
           assert.ok(row.length === 1 && row[0].text === label && row[0].url === url);
-          console.log('Telegram confirmed one photo, the approved caption and the App Store button.');
+          console.log('Confirmed private preview and its App Store button. Message ' + result.message_id);
           JS
