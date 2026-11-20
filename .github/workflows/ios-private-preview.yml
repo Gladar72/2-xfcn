@@ -1,0 +1,80 @@
+name: One private iPhone announcement preview
+on:
+  push:
+    branches: [promo/ios-test-20261120]
+    paths: [.github/workflows/ios-private-preview.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    if: github.event.before == '022f8d068a7cea4c32c39b5b0247ef82b990f946' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 022f8d068a7cea4c32c39b5b0247ef82b990f946
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /public/promo/ios-launch-20261120.jpg
+            /public/promo/ios-launch-20261120.txt
+      - name: Verify the private chat and send the approved photo once
+        env:
+          BOT_TOKEN: ${{ secrets.YC_BOT_TOKEN }}
+          RECIPIENT: ${{ vars.YC_ADMIN_IDS }}
+        run: |
+          node --input-type=module <<'JS'
+          import { createHash } from 'node:crypto';
+          import { readFile } from 'node:fs/promises';
+          import assert from 'node:assert/strict';
+
+          const id = (process.env.RECIPIENT || '').trim();
+          if (!/^[1-9]\d*$/.test(id)) throw new Error('Expected exactly one private chat ID');
+          if (!process.env.BOT_TOKEN) throw new Error('Bot credential unavailable');
+          const url = 'https://apps.apple.com/ru/app/id6833348222';
+          const label = 'Скачать в App Store';
+          const base = 'public/promo/ios-launch-20261120';
+          const copy = (await readFile(base + '.txt', 'utf8')).trim();
+          const footer = '\n\n📱 ' + label + '\n' + url;
+          assert.ok(copy.endsWith(footer), 'Approved button or URL changed');
+          const caption = copy.slice(0, -footer.length);
+          assert.ok(caption.length > 0 && caption.length <= 1024);
+          const photo = await readFile(base + '.jpg');
+
+          async function api(method, body) {
+            let response;
+            try {
+              response = await fetch('https://api.telegram.org/bot' + process.env.BOT_TOKEN + '/' + method, {
+                method: 'POST', body, redirect: 'error', signal: AbortSignal.timeout(40000)
+              });
+            } catch {
+              throw new Error(method + ': network error');
+            }
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error(method + ': Telegram error ' + response.status);
+            return data.result;
+          }
+
+          const me = await api('getMe', new URLSearchParams());
+          if (me.username?.toLowerCase() !== 'mesto_people_bot') throw new Error('Wrong sender');
+          const chat = await api('getChat', new URLSearchParams({ chat_id: id }));
+          const nameHash = createHash('sha256').update((chat.username || '').toLowerCase()).digest('hex');
+          if (chat.type !== 'private' || String(chat.id) !== id || nameHash !== '7f0ca19279d8c80910e72763aa0c84f81a8ac63cb70dc13507f2c1734a7e105a') {
+            throw new Error('Private recipient did not match');
+          }
+          console.log('Verified sender and one private recipient.');
+          const form = new FormData();
+          form.set('chat_id', id);
+          form.set('caption', caption);
+          form.set('photo', new Blob([photo], { type: 'image/jpeg' }), 'mesto.jpg');
+          form.set('reply_markup', JSON.stringify({ inline_keyboard: [[{ text: label, url }]] }));
+          const sent = await api('sendPhoto', form);
+          assert.ok(String(sent.chat.id) === id && sent.message_id > 0 && sent.photo?.length);
+          assert.ok(sent.caption === caption && sent.reply_markup.inline_keyboard.length === 1);
+          const row = sent.reply_markup.inline_keyboard[0];
+          assert.ok(row.length === 1 && row[0].text === label && row[0].url === url);
+          console.log('Telegram confirmed one photo, the approved caption and the App Store button.');
+          JS
