@@ -1,3 +1,5 @@
+import { plural } from "@/lib/format";
+import { heartDestination } from "@/lib/hearts";
 import { useCallback, useMemo, useState } from "react";
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -95,8 +97,8 @@ function timeAgo(iso: string): string {
 /** Куда ведёт тап — как на веб-экране уведомлений, но по маршрутам приложения. */
 function targetOf(item: NotificationItem): string {
   if (item.type === "subscription_expiring" || item.type === "subscription_expired") return "/profile";
-  if (item.type === "heart") return "/profile?hearts=1";
-  if ((item.type === "heart_mutual" || item.type === "meet_hint" || item.type === "new_follower") && item.linkUserId) return `/person/${item.linkUserId}`;
+  if (item.type === "heart" || item.type === "heart_mutual") return heartDestination(item.linkUserId);
+  if ((item.type === "meet_hint" || item.type === "new_follower") && item.linkUserId) return `/person/${item.linkUserId}`;
   if (item.type === "review_request") return item.linkEventId ? `/reviews?event=${item.linkEventId}` : "/reviews";
   if (item.type === "new_message") return item.linkConversationId ? `/chat/${item.linkConversationId}` : "/chats";
   if (item.linkEventId) return `/event/${item.linkEventId}`;
@@ -104,7 +106,7 @@ function targetOf(item: NotificationItem): string {
   return "/chats";
 }
 
-type Row = { kind: "label"; key: string; label: string } | { kind: "item"; key: string; item: NotificationItem };
+type Row = { kind: "hearts"; key: string; count: number } | { kind: "label"; key: string; label: string } | { kind: "item"; key: string; item: NotificationItem };
 
 export default function NotificationsScreen() {
   useGuide("notifications");
@@ -143,13 +145,27 @@ export default function NotificationsScreen() {
         : items.filter((n) => MEETING_TYPES.has(n.type));
     const out: Row[] = [];
     let last = "";
-    for (const item of filtered) {
+    for (let i = 0; i < filtered.length; i++) {
+      const item = filtered[i];
       const label = dayLabel(item.createdAt);
       if (label !== last) {
         out.push({ kind: "label", key: `l-${label}-${item.id}`, label });
         last = label;
       }
       out.push({ kind: "item", key: item.id, item });
+      if (item.type === "heart") {
+        let end = i + 1;
+        const senders = new Set<string>();
+        while (end < filtered.length && filtered[end].type === "heart" && dayLabel(filtered[end].createdAt) === label) {
+          const sender = filtered[end].linkUserId;
+          if (sender && sender !== item.linkUserId) senders.add(sender);
+          end++;
+        }
+        if (senders.size > 1) {
+          out.push({ kind: "hearts", key: `hearts-${item.id}`, count: senders.size });
+          i = end - 1;
+        }
+      }
     }
     return out;
   }, [items, tab]);
@@ -194,6 +210,14 @@ export default function NotificationsScreen() {
         }
         renderItem={({ item: row }) => {
           if (row.kind === "label") return <Text style={styles.label}>{row.label}</Text>;
+          if (row.kind === "hearts") return (
+            <Pressable accessibilityRole="button" onPress={() => router.push("/hearts")}>
+              <Glass strong style={styles.row}>
+                <View style={[styles.thumb, styles.iconBox]}><Icon name="heart" size={22} color="#FF4F8B" /></View>
+                <View style={{ flex: 1 }}><Text style={styles.text}>Ещё {row.count} {plural(row.count, "человек", "человека", "человек")} {plural(row.count, "поставил", "поставили", "поставили")} сердечко</Text><Text style={styles.time}>Посмотреть всех</Text></View>
+              </Glass>
+            </Pressable>
+          );
           const n = row.item;
           // Как в мини-аппе: «Ты в деле» / «Скоро встреча» — тёмная карточка с розовым свечением и двумя кнопками.
           const rich = n.event && (n.type === "application_accepted" || n.type === "event_soon") && n.event.status !== "cancelled";
