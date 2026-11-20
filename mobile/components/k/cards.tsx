@@ -8,7 +8,7 @@ import { coverUri } from "@/lib/covers";
 import { costShort, dayShort, plural } from "@/lib/format";
 import { interestIcon, distanceShort } from "@/lib/interests";
 import type { FeedEvent, PersonCard } from "@/lib/types";
-import { K, KGlass, KPressGlass, PhotoShade, Press, kem, kf } from "./index";
+import { K, KI, KGlass, KPressGlass, PhotoShade, Press, kem, kf } from "./index";
 
 const SCREEN_W = Dimensions.get("window").width;
 /** .k-hs > .k-hc: две карточки на экран — (100% − 16) / 2, не шире 220, пропорция 3 : 4.2. */
@@ -97,7 +97,20 @@ export function KInv({ text, onPress, width = HC_W }: { text: string; onPress: (
 }
 
 /** Мозаика людей .k-mz: одна большая (58%) и две маленькие (42%), высота 268. */
-export function KMosaic({ people, city, onOpen }: { people: PersonCard[]; city?: string | null; onOpen: (p: PersonCard) => void }) {
+type MosaicPerson = Pick<PersonCard, "id" | "name" | "avatarUrl"> & {
+  age: number | null;
+  sharedCount?: number;
+  sharedInterests?: string[];
+  distanceM?: number | null;
+};
+
+export function KMosaic<P extends MosaicPerson>({ people, city, onOpen, isNew, subtitle }: {
+  people: P[];
+  city?: string | null;
+  onOpen: (p: P) => void;
+  isNew?: (p: P) => boolean;
+  subtitle?: (p: P) => string;
+}) {
   const m = people.slice(0, 3);
   if (!m.length) return null;
   const W = SCREEN_W - 40;
@@ -116,10 +129,15 @@ export function KMosaic({ people, city, onOpen }: { people: PersonCard[]; city?:
           <Press photo onPress={() => onOpen(q)} style={{ flex: 1, borderRadius: 26, backgroundColor: "#2B2737" }}>
             {q.avatarUrl ? <Image source={{ uri: q.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition={{ top: "30%" }} transition={150} cachePolicy="memory-disk" /> : null}
             <PhotoShade from={0.5} to={0.72} />
-            {q.sharedCount > 0 ? (
+            {isNew?.(q) ? (
+              <KGlass tone="gd" style={{ position: "absolute", top: 9, left: 9, height: 28, paddingHorizontal: 9, borderRadius: 14, flexDirection: "row", gap: 5, alignItems: "center" }}>
+                <View style={{ width: 15, height: 15, borderRadius: 8, backgroundColor: "#FF4F8B", alignItems: "center", justifyContent: "center" }}><KI n="heart" size={12} color="#fff" /></View>
+                <Text style={kf("500", 11.5, { color: "#fff" })}>Новое</Text>
+              </KGlass>
+            ) : (q.sharedCount ?? 0) > 0 ? (
               <KGlass tone="gw" style={{ position: "absolute", top: 9, left: 9, height: 28, borderRadius: 14 }}>
                 <View style={{ flexDirection: "row", alignItems: "center", gap: 3, height: 28, paddingLeft: 5, paddingRight: 9 }}>
-                  {q.sharedInterests.slice(0, 2).map((n) => (
+                  {(q.sharedInterests ?? []).slice(0, 2).map((n) => (
                     <Image key={n} source={{ uri: interestIcon(n) }} style={{ width: 18, height: 18 }} contentFit="contain" />
                   ))}
                   <Text style={kf("500", 11.5, { color: "#fff" })}>{q.sharedCount} общ.</Text>
@@ -127,9 +145,9 @@ export function KMosaic({ people, city, onOpen }: { people: PersonCard[]; city?:
               </KGlass>
             ) : null}
             <View style={{ position: "absolute", left: 12, right: 12, bottom: 11 }}>
-              <Text style={kf("500", 15, { color: "#fff" })} numberOfLines={1}>{q.name}, {q.age}</Text>
+              <Text style={kf("500", 15, { color: "#fff" })} numberOfLines={1}>{q.name}{q.age ? `, ${q.age}` : ""}</Text>
               <Text style={[kf("400", 11.5, { color: "#fff" }), { opacity: 0.85, marginTop: 2 }]} numberOfLines={1}>
-                {q.distanceM != null ? (q.distanceM <= 0 ? "рядом" : `≈ ${distanceShort(q.distanceM)}`) : city ?? ""}
+                {subtitle ? subtitle(q) : q.distanceM != null ? (q.distanceM <= 0 ? "рядом" : `≈ ${distanceShort(q.distanceM)}`) : city ?? ""}
               </Text>
             </View>
           </Press>
