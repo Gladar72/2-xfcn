@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
   if ((await sentToday(admin, me.userId, "heart")) >= HEARTS_PER_DAY) {
     return NextResponse.json({ error: "limit", limit: HEARTS_PER_DAY }, { status: 429 });
   }
-  await admin.from("notifications").insert({ user_id: userId, type: "heart", payload: { fromUserId: me.userId } });
+  await admin.from("notifications").insert({ user_id: userId, type: "heart", payload: { fromUserId: me.userId, profileViewed: false } });
   const mutual = await hasHeart(admin, userId, me.userId);
 
   if (mutual) {
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
       `❤️ ${myName} ${she ? "поставила" : "поставил"} тебе сердечко в «Месте». Загляни в профиль — можно ответить или позвать на встречу.`
     );
     void sendPushPersonal(admin, [
-      { userId, message: { title: `❤️ ${myName} ${she ? "поставила" : "поставил"} сердечко`, body: "Ответь или позови на встречу", data: { url: "/profile", type: "heart" } } },
+      { userId, message: { title: `❤️ ${myName} ${she ? "поставила" : "поставил"} сердечко`, body: "Ответь или позови на встречу", data: { url: `/person/${me.userId}?heart=1`, fromUserId: me.userId, type: "heart" } } },
     ]).catch(() => {});
   }
   return NextResponse.json({ ok: true, mutual });
