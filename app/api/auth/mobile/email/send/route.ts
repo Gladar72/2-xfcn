@@ -19,8 +19,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_email", message: "Проверь адрес почты" }, { status: 422 });
   }
 
-  const admin = createAdminClient();
-  const { data: prev } = await admin.from("email_otps").select("*").eq("email", email).maybeSingle();
+  const admin = createAdminClient({ noStore: true });
+  const { data: prev, error: lookupError } = await admin.from("email_otps").select("*").eq("email", email).maybeSingle();
+  if (lookupError) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   const now = Date.now();
 
   let sentCount = 1;
@@ -51,7 +52,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "email_failed", message: "Не получилось отправить письмо. Попробуй позже" }, { status: 502 });
   }
 
-  await admin.from("email_otps").upsert({
+  const { error: saveError } = await admin.from("email_otps").upsert({
     email,
     code_hash: hashOtp(email, code),
     expires_at: new Date(now + CODE_TTL_MINUTES * 60_000).toISOString(),
@@ -61,5 +62,6 @@ export async function POST(req: NextRequest) {
     last_sent_at: new Date(now).toISOString(),
   });
 
+  if (saveError) return NextResponse.json({ error: "unavailable", message: "Не удалось сохранить код. Запроси новый." }, { status: 503 });
   return NextResponse.json({ status: "sent", email, resendIn: RESEND_SECONDS });
 }
