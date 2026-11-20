@@ -1,4 +1,4 @@
-name: Android store build
+name: Android APK
 
 # Сборка Android-приложения «Место» для RuStore прямо в GitHub (облако Expo/EAS из России недоступно).
 # Запуск: Actions → Android APK → Run workflow. Готовый APK — в разделе Artifacts внизу страницы запуска.
@@ -10,24 +10,15 @@ name: Android store build
 # Ключ подписи терять нельзя: обновления в RuStore принимаются только с тем же ключом.
 
 on:
-  push:
-    branches: [release/hearts-mobile-052]
-    paths: [.github/workflows/android.yml]
   workflow_dispatch:
-    inputs:
-      store:
-        description: Магазин
-        type: choice
-        options: [rustore, googleplay]
-        default: rustore
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      EXPO_PUBLIC_STORE: ${{ github.event_name == 'push' && 'googleplay' || inputs.store || 'rustore' }}
-      EXPO_PUBLIC_RUSTORE_PUSH_PROJECT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.store != 'googleplay' && vars.RUSTORE_PUSH_PROJECT_ID || '' }}
+      EXPO_PUBLIC_STORE: rustore
+      EXPO_PUBLIC_RUSTORE_PUSH_PROJECT_ID: ${{ vars.RUSTORE_PUSH_PROJECT_ID }}
       KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
     defaults:
       run:
@@ -97,14 +88,12 @@ jobs:
           PY
 
       - name: Сборка APK
-        if: env.EXPO_PUBLIC_STORE == 'rustore'
         working-directory: mobile/android
         run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
 
       # Своё имя файла с версией: иначе на Mac повторные скачивания дают «app-release.apk 3»,
       # а RuStore такой файл не принимает («Неверное расширение»).
       - name: Имя APK с версией
-        if: env.EXPO_PUBLIC_STORE == 'rustore'
         id: apkname
         run: |
           V=$(node -p "require('./app.json').expo.version")
@@ -113,25 +102,8 @@ jobs:
           echo "name=$N" >> "$GITHUB_OUTPUT"
 
       - name: APK в Artifacts
-        if: env.EXPO_PUBLIC_STORE == 'rustore'
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.apkname.outputs.name }}
           path: mobile/android/app/build/outputs/apk/release/*.apk
-          retention-days: 30
-
-      - name: Signed Android App Bundle for Google Play
-        if: env.EXPO_PUBLIC_STORE == 'googleplay'
-        working-directory: mobile/android
-        run: |
-          ./gradlew bundleRelease --no-daemon
-          jarsigner -verify app/build/outputs/bundle/release/app-release.aab
-
-      - name: Google Play AAB
-        if: env.EXPO_PUBLIC_STORE == 'googleplay'
-        uses: actions/upload-artifact@v4
-        with:
-          name: mesto-googleplay-${{ github.run_number }}
-          path: mobile/android/app/build/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
           retention-days: 30
