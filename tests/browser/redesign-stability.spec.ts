@@ -156,7 +156,18 @@ test("profile shows real activity and distance, and its action buttons fit 320 p
     ...people[0], gender: "female", distanceM: 1400, lastActiveAt: new Date(Date.now() - 5 * 60_000).toISOString(),
   } }));
   await page.goto("/people/stable-0");
-  await expect(active(page).getByText("Была 5 минут назад", { exact: true })).toBeVisible();
+  await expect(active(page).locator(".presence")).toHaveText("Не онлайн");
+  await expect(active(page).locator(".presence i")).toHaveCSS("background-color", "rgb(229, 72, 77)");
+  const profile = active(page);
+  await profile.locator(".body").evaluate(el => el.scrollTo(0, el.scrollHeight));
+  await expect.poll(() => profile.evaluate(el => {
+    const report = el.querySelector(".report")!.getBoundingClientRect();
+    const invite = el.querySelector(".pinv")!.getBoundingClientRect();
+    return Math.round(invite.top - report.bottom);
+  })).toBeGreaterThanOrEqual(0);
+  const gap = await profile.evaluate(el => el.querySelector(".pinv")!.getBoundingClientRect().top
+    - el.querySelector(".report")!.getBoundingClientRect().bottom);
+  expect(gap).toBeLessThanOrEqual(12);
   await expect(active(page).locator(".dist")).toContainText("1,4");
   await expect(active(page).getByRole("button", { name: "Подписаться на события" })).toBeVisible();
   await expect.poll(() => active(page).evaluate(el => Math.round(el.getBoundingClientRect().left))).toBe(0);

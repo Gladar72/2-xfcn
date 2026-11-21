@@ -222,7 +222,7 @@
    «Пожаловаться или заблокировать» — настоящая кнопка. */
 .P .people-deck .aurora,.P .people-deck .scr{background:#17141F!important}
 .P .people-deck .sk{background:rgba(255,255,255,.06)!important}
-.P .pr.pr2 .body{bottom:calc(var(--bot) + 72px);overflow-y:auto}
+.P .pr.pr2 .body{bottom:calc(var(--bot) + 66px);overflow-y:auto;overscroll-behavior-y:none}
 .P .pr.pr2 .sheet2{padding-bottom:0!important}
 .P .pr.pr2 .cta .btn{height:52px}
 .P .pr.pr2 .sheet2 .report{justify-self:stretch;height:46px;border-radius:23px;background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px rgba(255,255,255,.16);color:rgba(255,255,255,.85)!important;font:500 14px var(--disp);margin-top:4px}
@@ -286,6 +286,7 @@
 .P .pr.pr2 .cta .btn>.ic{display:none}
 .P .pr.pr2 .presence{display:block;margin-top:6px;font:500 14px/1.35 var(--disp);color:#F5F4F6}
 .P .pr.pr2 .presence i{display:inline-block;width:6px;height:6px;background:#69D9A0;border-radius:50%;margin-right:6px;vertical-align:middle}
+.P .pr.pr2 .presence i[data-online=false]{background:#E5484D}
 .P .pr.pr2 .body,.P .pr.pr2 .gal{-webkit-tap-highlight-color:transparent}
 /* Keep details lower over the original background cover. */
 .K .k-ev .k-spacer{height:clamp(400px,62dvh,540px)}
@@ -355,9 +356,9 @@
 .P .people-deck .pr.pr2{background:transparent!important}
 .P .deck-under img{object-position:50% 0%}
 .P .pr.pr2 .gal>img{object-position:50% 0%}
-.P .pr.pr2 .gal::after{background:linear-gradient(180deg,rgba(23,20,31,.32),transparent 22%,transparent 50%,rgba(23,20,31,.88) 90%,#17141F)}
+.P .pr.pr2 .gal::after{background:linear-gradient(180deg,rgba(23,20,31,.32),transparent 22%,rgba(23,20,31,.15) 43%,rgba(23,20,31,.78) 78%,#17141F)}
 .P .pr.pr2 .evbg{background:#17141F;filter:none;inset:0}
-.P .pr.pr2 .sheet2::before{background:linear-gradient(180deg,transparent,#17141F 40px);-webkit-backdrop-filter:none;backdrop-filter:none;-webkit-mask-image:none;mask-image:none}
+.P .pr.pr2 .sheet2::before{background:none;-webkit-backdrop-filter:none;backdrop-filter:none;-webkit-mask-image:none;mask-image:none}
 .P .pr.pr2 .sheet2 .about{min-height:0;height:auto;color:#F5F4F7;background:#2B2833}
 .P .pr.pr2 .sheet2 .blk-h span{color:#C6C3CD}
 .P .pr.pr2 .sheet2 .itag,.P .pr.pr2 .sheet2 .itag.common{background:#2B2833;-webkit-backdrop-filter:none;backdrop-filter:none}
