@@ -8,7 +8,7 @@ permissions:
   statuses: write
 jobs:
   private:
-    if: github.event.before == 'c42091f1a4f9d7a5074e4fed819b9964f90f10b8' && github.run_attempt == '1'
+    if: github.event.before == 'de26ad940da58788d1d3d8b44bc430071121468c' && github.run_attempt == '1'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
