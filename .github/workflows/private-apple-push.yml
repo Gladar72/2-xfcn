@@ -1,0 +1,40 @@
+name: Private Apple Push test for the configured owner
+on:
+  push:
+    branches: [ops/andrey-private-apns-60]
+    paths: [.github/workflows/private-apple-push.yml]
+permissions:
+  contents: read
+  statuses: write
+jobs:
+  private:
+    if: github.event.before == 'c42091f1a4f9d7a5074e4fed819b9964f90f10b8' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check live signing and send at most one push
+        id: device
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+          SSH_KEY: ${{ secrets.YC_SSH_KEY }}
+          RECIPIENT: ${{ vars.YC_ADMIN_IDS }}
+        run: |
+          set -euo pipefail
+          [[ "$RECIPIENT" =~ ^[1-9][0-9]*$ ]]
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -T 10 -H "$HOST" >> ~/.ssh/known_hosts
+          ssh -o BatchMode=yes deploy@"$HOST" "sudo docker exec -i mesto-app-1 node - $RECIPIENT" < .github/scripts/one-private-apns-test.cjs
+      - name: Record check outcome
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.device.outcome }}
+        run: |
+          state=failure
+          if [ "$OUTCOME" = success ]; then state=success; fi
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -f state="$state" -f context=mesto/private-apple-test -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --silent
