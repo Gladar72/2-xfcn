@@ -52,7 +52,7 @@ async function main() {
         req.on("data",part=>body+=part);req.on("error",reject);
         req.on("close",()=>clearTimeout(stop));
         req.on("end",()=>resolve({status,body}));
-        req.end(JSON.stringify({aps:{alert:{title:"МЕСТО",body:"Андрей, это тестовое уведомление на твой iPhone."},sound:"default"},body:{url:"/notifications"}}));
+        req.end(JSON.stringify({aps:{alert:{title:"❤️ Кто-то поставил тебе сердечко",body:"Ответь или позови на встречу"},sound:"default"},body:{url:"/hearts",type:"heart"}}));
       });
       if(result.status===200) console.log("APPLE_ACCEPTED_ONE_PRIVATE_PUSH");
       else {
