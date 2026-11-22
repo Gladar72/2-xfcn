@@ -1,0 +1,21 @@
+name: Compare browser regressions with production
+on:
+  push:
+    branches: [qa/telegram60-mobile-regression]
+permissions:
+  contents: read
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: e8ec4628e5dc5f57c01f522969b95cc2b9efd820
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test --project=chromium-mobile --grep "slow response for the old selection|current portrait loads before the next|profile shows real activity|business event shows five|share card aligns" --timeout=35000 --reporter=line
