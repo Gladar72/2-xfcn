@@ -124,3 +124,10 @@
 /* Closely spaced actions stay in place throughout touch hit-testing on WebKit. */
 .P .sheetx.stationary-actions { transition: opacity .18s ease; opacity: 0; visibility: hidden; }
 .P .sheetx.stationary-actions.on { opacity: 1; visibility: visible; }
+
+/* A touch must reach the same action at touchstart and touchend. Moving
+   the entire sheet under a finger can select a neighbouring event in iOS. */
+@media (pointer: coarse) {
+  .P .sheetx { transition: opacity .18s ease; opacity: 0; visibility: hidden; }
+  .P .sheetx.on { opacity: 1; visibility: visible; }
+}
