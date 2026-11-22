@@ -77,8 +77,11 @@ jobs:
           set -euo pipefail
           ssh deploy@"$HOST" 'install -d -m 700 /opt/mesto/apns'
           if [ -n "$APNS_KEY" ]; then
-            printf '%s\n' "$APNS_KEY" | openssl pkey -check -noout >/dev/null
-            printf '%s\n' "$APNS_KEY" | ssh deploy@"$HOST" 'set -eu; umask 077; cd /opt/mesto/apns; key=$(mktemp); trap "rm -f -- \"\$key\"" EXIT; cat > "$key"; mv -f "$key" provider.p8'
+            umask 077
+            key_file=$(mktemp)
+            trap 'rm -f -- "$key_file"' EXIT
+            node deploy/yandex/normalize-apns-key.mjs > "$key_file"
+            ssh deploy@"$HOST" 'set -eu; umask 077; cd /opt/mesto/apns; key=$(mktemp); trap "rm -f -- \"\$key\"" EXIT; cat > "$key"; test -s "$key"; mv -f "$key" provider.p8' < "$key_file"
           fi
 
       - name: Run ${{ env.TASK }}
