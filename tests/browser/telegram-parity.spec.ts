@@ -87,3 +87,19 @@ test("a different main photo persists through the existing gallery API", async (
   await page.reload();
   await expect(page.getByRole("button", { name: "Главное фото", exact: true }).locator("img")).toHaveAttribute("src", original[1]!);
 });
+
+test("an incoming like appears on return to the open hearts screen", async ({ page }) => {
+  let hasLike = false;
+  const person = { id: "new-like", name: "Марина", age: 27, avatarUrl: null, unread: true, createdAt: new Date().toISOString() };
+  await page.route("**/api/**", route => route.fulfill({
+    json: new URL(route.request().url()).pathname === "/api/me/hearts/inbox"
+      ? { items: hasLike ? [person] : [], nextCursor: null }
+      : { items: [], count: 0 },
+  }));
+  await page.goto("/hearts");
+  await expect(page.getByText("Пока нет сердечек")).toBeVisible();
+  hasLike = true;
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await expect(page.getByRole("button", { name: "Новые · 1" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Марина/ })).toHaveAttribute("href", "/people/new-like?heart=1");
+});

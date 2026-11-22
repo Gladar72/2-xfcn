@@ -37,6 +37,8 @@ async function fixture(page: Page) {
     const json = path === "/api/me" ? { userId: "me" }
       : path === "/api/me/profile" ? { ...person, id: "me", name: "Андрей" }
       : path.startsWith("/api/users/") ? person
+      : path === "/api/me/follows" ? { followers: 1, following: 0, followersPreview: [person], followingPreview: [] }
+      : path === "/api/me/hearts/inbox" ? { items: [{ ...person, unread: true, createdAt: new Date().toISOString() }], nextCursor: null }
       : path === "/api/me/pending-applications" ? { count: 2 }
       : path === "/api/events" || path === "/api/city-events" || path === "/api/me/events" ? { items: events, events }
       : /^\/api\/events\/test-\d+$/.test(path) ? events[0]

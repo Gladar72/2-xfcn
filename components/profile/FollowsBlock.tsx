@@ -24,7 +24,11 @@ export function FollowsBlock() {
   const load = useCallback(() => {
     fetch("/api/me/follows?summary=1", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: Summary | null) => d && setSum(d))
+      .then((d: Summary | null) => {
+        if (d && typeof d.followers === "number" && typeof d.following === "number") {
+          setSum({ ...d, followersPreview: d.followersPreview ?? [], followingPreview: d.followingPreview ?? [] });
+        }
+      })
       .catch(() => {});
   }, []);
   useEffect(load, [load]);
