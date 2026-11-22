@@ -61,3 +61,29 @@ test("account linking confirms the code for the selected contact", async ({ page
     { path: "/api/me/email", data: { email: "test@example.com", code: "1234" } },
   ]);
 });
+
+test("a different main photo persists through the existing gallery API", async ({ page }) => {
+  const original = ["/brand/covers/coffee.webp", "/brand/covers/walk.webp"];
+  let photos = [...original];
+  let before: string[] = [];
+  await page.addInitScript(() => localStorage.setItem("mesto_guide_v1", JSON.stringify({ active: false, seen: ["profile"] })));
+  await page.route("**/api/**", async route => {
+    const req = route.request();
+    const path = new URL(req.url()).pathname;
+    if (path === "/api/me/profile") return route.fulfill({ json: { name: "Андрей", avatarUrl: photos[0], photos } });
+    if (path === "/api/me/photos" && req.method() === "PATCH") {
+      const change = req.postDataJSON();
+      before = change.before;
+      photos = change.photos;
+      return route.fulfill({ json: { avatarUrl: photos[0], photos } });
+    }
+    return route.fulfill({ json: { items: [] } });
+  });
+  await page.goto("/profile/edit");
+  await page.getByRole("button", { name: "Фото 2", exact: true }).click();
+  await page.getByRole("button", { name: "Сделать главным" }).click();
+  await expect.poll(() => photos[0]).toBe(original[1]);
+  expect(before).toEqual(original);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Главное фото", exact: true }).locator("img")).toHaveAttribute("src", original[1]!);
+});

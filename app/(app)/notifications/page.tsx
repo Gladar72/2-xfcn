@@ -114,7 +114,7 @@ export default function NotificationsPage() {
 
   function handlePress(item: NotificationItem) {
     if (item.type === "heart" || item.type === "heart_mutual") {
-      router.push(item.linkUserId ? `/people/${encodeURIComponent(item.linkUserId)}?heart=1` : "/hearts");
+      router.push(item.linkUserId && /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i.test(item.linkUserId) ? `/people/${encodeURIComponent(item.linkUserId)}?heart=1` : "/hearts");
     } else if ((item.type === "meet_hint" || item.type === "new_follower") && item.linkUserId) {
       router.push(`/people/${item.linkUserId}`);
     } else if (item.type === "subscription_expiring" || item.type === "subscription_expired") {
