@@ -1,7 +1,7 @@
 name: Update the private iPhone announcement
 on:
   push:
-    branches: [promo/ios-test-20261120]
+    branches: [promo/private-052-preview-20261122]
     paths: [.github/workflows/ios-private-preview.yml]
 
 permissions:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   preview:
-    if: github.event.before == '5e40cc3ea7b03ed16a387b078c02c3922853a7fb' && github.run_attempt == '1'
+    if: github.event.before == 'bdb718390a9441c514df9ad88c667f95bb062d49' && github.run_attempt == '1'
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
@@ -39,7 +39,7 @@ jobs:
           const copy = (await readFile(base + '.txt', 'utf8')).trim();
           const footer = '\n\n📱 ' + label + '\n' + url;
           assert.ok(copy.endsWith(footer), 'Approved button or URL changed');
-          const caption = copy.slice(0, -footer.length);
+          const caption = copy.slice(0, -footer.length).replace('📱 Скачай приложение на iPhone.', '❤️ В версии 0.5.2 в профиле видно, кто поставил тебе сердечко. Открой вкладку «Новые», чтобы посмотреть входящие симпатии.\n\n📱 Скачай приложение на iPhone.');
           assert.ok(caption.length > 0 && caption.length <= 1024);
           const photo = await readFile(base + '.jpg');
 
@@ -71,43 +71,13 @@ jobs:
           }
           console.log('Verified sender and one private recipient.');
           const markup = { inline_keyboard: [[{ text: label, url }]] };
-          const oldCaption = "🎉 «Место» теперь официально в App Store!\n\nСкачай приложение на iPhone. Оно стало быстрее и удобнее, а твои встречи и чаты уже на месте.\n\n🎁 Скачать приложение можно бесплатно. При первом входе получишь 30 дней тарифа «Старт» в подарок.\n\nЕсли захочешь продлить подписку, нажми «Оплатить подписку» в Telegram-боте.";
-          const sourceMessage = 371045;
-          const send = (method, fields) => {
-            const body = new URLSearchParams();
-            for (const [key,value] of Object.entries(fields)) body.set(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
-            return api(method, body);
-          };
-          // A quoted reply matches the original caption even when clients and bots use different message IDs.
-          let target;
-          try {
-            const menu = await send('sendMessage', {
-              chat_id: id, disable_notification: true,
-              text: '💳 Чтобы оформить подписку, нажми «Оплатить подписку» внизу, рядом с «🤝 Партнёрская программа».',
-              reply_parameters: { message_id: sourceMessage, quote: oldCaption.split('\n')[0], quote_position: 0, allow_sending_without_reply: false },
-              reply_markup: { keyboard: [[{text:'💳 Оплатить подписку'}],[{text:'🤝 Партнёрская программа'}],[{text:'📊 Админ-панель'}]], resize_keyboard:true, is_persistent:true }
-            });
-            const original = menu.reply_to_message;
-            if (String(original?.chat?.id) === id && original?.from?.id === me.id && original?.photo?.length && original?.caption === oldCaption) {
-              target = original.message_id;
-            }
-          } catch (error) {
-            if (error.status !== 400 || !/not found|quote|MESSAGE_ID_INVALID|message identifier/i.test(error.description)) throw error;
-          }
-          let result;
-          if (target) {
-            result = await send('editMessageCaption', { chat_id: id, message_id: target, caption, reply_markup: markup });
-            assert.ok(result.message_id === target);
-            console.log('Updated original preview.');
-          } else {
             const form = new FormData();
             form.set('chat_id', id);
             form.set('caption', caption);
             form.set('photo', new Blob([photo], { type: 'image/jpeg' }), 'mesto.jpg');
             form.set('reply_markup', JSON.stringify(markup));
-            result = await api('sendPhoto', form);
+            const result = await api('sendPhoto', form);
             console.log('Delivered revised private preview as a new message.');
-          }
           assert.ok(String(result.chat.id) === id && result.message_id > 0 && result.photo?.length);
           assert.ok(result.caption === caption && result.reply_markup.inline_keyboard.length === 1);
           const row = result.reply_markup.inline_keyboard[0];
