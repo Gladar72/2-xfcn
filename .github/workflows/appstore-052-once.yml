@@ -1,0 +1,68 @@
+name: Approved private-chat App Store campaign
+on:
+  push:
+    branches: [promo/appstore-052-20261122-all]
+    paths: [.github/workflows/appstore-052-once.yml]
+permissions:
+  contents: read
+concurrency:
+  group: yandex-server
+  cancel-in-progress: false
+jobs:
+  broadcast:
+    if: github.event.before == '4be388fb706708791ce448041c6088cf755e4239' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Send approved announcement through the standard broadcast endpoint
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+          DEPLOY_KEY: ${{ secrets.YC_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -T 15 -H "$HOST" >> ~/.ssh/known_hosts
+          banner=public/promo/ios-launch-20261120.jpg
+          test "$(git hash-object "$banner")" = "$(git rev-parse HEAD:"$banner")"
+          ssh deploy@"$HOST" 'sudo docker exec -i mesto-app-1 sh -ec "cat > /app/public/promo/ios-052-approved-97109.jpg"' < "$banner"
+          expected=$(sha256sum "$banner" | cut -d' ' -f1)
+          actual=$(ssh deploy@"$HOST" 'sudo docker exec mesto-app-1 sha256sum /app/public/promo/ios-052-approved-97109.jpg' | cut -d' ' -f1)
+          test "$actual" = "$expected"
+          ssh deploy@"$HOST" 'python3 -' <<'PY'
+          import json, subprocess, urllib.request
+          from pathlib import Path
+          body = "{\"key\":\"ios_052_launch_20261122\",\"text\":\"🎉 «Место» теперь официально в App Store!\\n\\nСтавь ❤️ тем, кто рядом, зови на встречу и знакомься! Нас уже 1 500.\\n\\n📱 Скачай приложение на iPhone. Оно стало намного удобнее и быстрее. И самое главное — скачать его можно бесплатно!\\n\\n🎁 При первом входе получишь 30 дней тарифа «Старт» абсолютно бесплатно.\\n\\n💳 Через 30 дней, если захочешь продлить подписку, нажми «Оплатить подписку» в меню нашего Telegram-бота.\\n\\n🙏 Не забудь поставить 5 звёзд — это поможет нам быть первыми в поиске.\\n⭐⭐⭐⭐⭐\",\"photo\":\"/promo/ios-052-approved-97109.jpg\",\"links\":[{\"text\":\"Скачать в App Store\",\"url\":\"https://apps.apple.com/ru/app/id6833348222\"}],\"button\":false}"
+          body = json.loads(body)
+          key = body["key"]
+          def db(sql):
+              return subprocess.check_output(["sudo","docker","exec","supabase-db","psql","-XAt","-v","ON_ERROR_STOP=1","-U","postgres","-d","postgres","-c",sql], text=True).strip()
+          def setting(name):
+              lines = Path("/opt/mesto/.env").read_text().splitlines()
+              return next(x.split("=",1)[1].strip().strip(chr(34)).strip(chr(39)) for x in reversed(lines) if x.startswith(name+"="))
+          def call(body):
+              req = urllib.request.Request("http://127.0.0.1:3000/api/cron/broadcast",data=json.dumps(body).encode(),headers={"Content-Type":"application/json","Authorization":"Bearer "+setting("CRON_SECRET")})
+              with urllib.request.urlopen(req,timeout=850) as resp:
+                  data=json.load(resp)
+              assert data.get("key")==key
+              return data
+          summary=call({**body,"dry":True})
+          print("Preflight:",json.dumps({k:summary[k] for k in ("users","blocked","alreadySent","toSend")}),flush=True)
+          admin=setting("ADMIN_TELEGRAM_IDS").strip()
+          assert admin.isdecimal(), "Expected the single private preview recipient"
+          rows=db("SELECT DISTINCT u.telegram_id FROM public.users u WHERE u.telegram_id > 0 AND u.telegram_id <> "+admin+" AND COALESCE((SELECT status FROM public.bot_blocks b WHERE b.telegram_id=u.telegram_id ORDER BY at DESC,id DESC LIMIT 1),'') <> 'blocked' AND NOT EXISTS(SELECT 1 FROM public.broadcast_sends s WHERE s.telegram_id=u.telegram_id AND s.key='"+key+"') ORDER BY u.telegram_id")
+          ids=[int(n) for n in rows.splitlines()]
+          print("Eligible excluding the private preview and recorded attempts:",len(ids),flush=True)
+          sent=failed=attempts=0
+          for i in range(0,len(ids),200):
+              batch=ids[i:i+200]
+              data=call({**body,"only":batch})
+              assert data["users"]<=len(batch) and data["sent"]+data["failed"]==data["toSend"]
+              sent+=data["sent"]; failed+=data["failed"]; attempts+=data["toSend"]
+              print("Cumulative attempts, accepted, errors:",attempts,sent,failed,flush=True)
+          print("Ledger OK and failed:",db("SELECT count(*) FILTER(WHERE ok),count(*) FILTER(WHERE NOT ok) FROM public.broadcast_sends WHERE key='"+key+"'"),flush=True)
+          PY
