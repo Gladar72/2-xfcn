@@ -52,7 +52,6 @@ export function ShareSheet({
   title,
   when,
   version = "",
-  photo,
   chip,
   meta,
   description,
@@ -227,19 +226,14 @@ export function ShareSheet({
       {mode === "list" ? (
         <>
           <h2 className="t" style={{ margin: "0 0 4px" }}>
-            Поделиться <em>встречей</em>
+            Поделиться <em>событием</em>
           </h2>
           {/* Превью сторис — как в прототипе. */}
           <div className="K" style={{ display: "contents" }}>
-            <div className="k-story" style={photo ? { backgroundImage: `url(${photo})` } : { background: "linear-gradient(160deg,#3A3646,#17141F)" }}>
+            <div className="share-preview gl">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="k-swm" src="/brand/auth/wordmark-white.svg" alt="" />
-              <span className="k-schip">{chip ?? when}</span>
-              <div className="k-sdetails">
-                {title && <p className="k-sdescription k-stitle">{title}</p>}
-                {meta && <span className="k-sme">{meta}</span>}
-              </div>
-              <span className="k-slink" aria-hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg></span>
+              <img src={storyUrl} width={92} height={164} alt="Карточка встречи для сторис" />
+              <div><b>Мося собрал картинку для сторис</b><p>Обложка, время, место и сколько свободно. Друзья увидят и откроют событие по ссылке.</p></div>
             </div>
             <div className="k-shr2">
               {TARGETS.map((t) => (

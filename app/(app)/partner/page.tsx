@@ -36,7 +36,11 @@ export default function PartnerPage() {
     const controller = new AbortController();
     setError("");
     getJson<PartnerInfo>("/api/partner", controller.signal)
-      .then(result => { if (!controller.signal.aborted) setInfo(result); })
+      .then(result => { if (controller.signal.aborted) return;
+        if (!Number.isFinite(result.rate) || !["none", "pending", "approved", "rejected"].includes(result.status)) {
+          throw new Error("Invalid partner response");
+        }
+        setInfo(result); })
       .catch(() => { if (!controller.signal.aborted) setError("Не удалось загрузить данные партнёра."); });
     return () => controller.abort();
   }, [attempt]);
@@ -72,6 +76,13 @@ export default function PartnerPage() {
   }
 
   const stats = info?.stats;
+  const percent = info ? Math.round(info.rate * 100) : 0;
+  const perks = [
+    ["wallet", percent + "% с каждой оплаты", "Со всех подписок приведённых людей, включая продления, без ограничения по сроку"],
+    ["star", "«Премиум» бесплатно", "Все функции приложения без ограничений, пока ты партнёр"],
+    ["people", "Новая аудитория", "Тебя увидят люди из города, а твои встречи, тренировки и события — на карте"],
+    ["pin", "Навсегда за тобой", "Кто пришёл по твоей ссылке, закрепляется за тобой навсегда"],
+  ] as const;
   return <Screen id="partner">
     <button className="rb gl" aria-label="Назад" onClick={() => goBack(router, "/profile")}><Ic n="back" /></button>
     <div className="partner-content">
@@ -82,9 +93,10 @@ export default function PartnerPage() {
       {error && <div role="alert">{error} <button className="btn o" disabled={busy} onClick={() => setAttempt(n => n + 1)}>Обновить</button></div>}
       {notice && <p role="status">{notice}</p>}
       {info && info.status !== "approved" && <>
-        <p>Рекомендуй МЕСТО своей аудитории и получай {Math.round(info.rate * 100)}% с оплат подписок, включая продления.</p>
-        <div className="partner-card k-g"><b>«Премиум» бесплатно</b><p>Все функции приложения доступны, пока ты партнёр.</p></div>
-        <div className="partner-card k-g"><b>Новая аудитория</b><p>Твои встречи будут видны на карте. Люди, пришедшие по ссылке, закрепляются за тобой.</p></div>
+        <p>Рекомендуй МЕСТО своей аудитории и получай {percent}% с каждой оплаты подписки приведённых людей.</p>
+        {perks.map(([icon, title, description]) => <div key={icon} className="partner-perk k-g">
+          <span aria-hidden><Ic n={icon}/></span><div><b>{title}</b><p>{description}</p></div>
+        </div>)}
         {info.status === "pending" && <p>Заявка на рассмотрении</p>}
         {info.status === "rejected" && <><p>Заявка отклонена</p><Link className="btn o" href="/support">Написать в поддержку</Link></>}
         {info.status === "none" && <button className="btn v" disabled={busy} onClick={() => act("apply")}>Подать заявку</button>}

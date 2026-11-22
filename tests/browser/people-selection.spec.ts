@@ -63,10 +63,9 @@ test("a slow response for the old selection cannot replace the newly selected pe
   const pending = new Promise<void>((resolve) => { release = resolve; });
   let started = false;
   let aborted = false;
-  page.on("requestfailed", (r) => {
-    if (r.url().includes(`/api/people?deck=1&start=${anna.id}`)) aborted = true;
-  });
-  await page.route(`**/api/people?deck=1&start=${anna.id}&**`, async (r) => {
+  const isAnna = (url: URL) => url.pathname === "/api/people" && url.searchParams.get("deck") === "1" && url.searchParams.get("start") === anna.id;
+  page.on("requestfailed", r => { if (isAnna(new URL(r.url()))) aborted = true; });
+  await page.route(isAnna, async (r) => {
     started = true;
     await pending;
     await r.fulfill({ json: { items: [anna], meHasLocation: true } }).catch(() => {});

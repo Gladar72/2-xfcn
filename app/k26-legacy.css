@@ -115,3 +115,8 @@
   width: 100%; border: 1px solid rgba(255,255,255,.9); border-radius: 18px; padding: 14px 16px;
   background: rgba(255,255,255,.84); font: 400 16px var(--disp); color: var(--ink);
 }
+
+.P .share-preview { display: flex; align-items: center; gap: 14px; padding: 12px; border-radius: 20px; }
+.P .share-preview > img { width: 92px; height: 164px; flex: none; object-fit: cover; border-radius: 12px; background: #1b1230; }
+.P .share-preview b { font-size: 15.5px; line-height: 20px; }
+.P .share-preview p { margin: 6px 0 0; font-size: 13.5px; line-height: 19px; }

@@ -470,8 +470,10 @@ function PersonViewContent({ id, initial, deck, pending = false, openedFromHeart
 
   // The full profile can replace the preview's URL. Keep that loaded image
   // mounted until a photo from the new set is ready, scoped to this person only.
-  // Start with the requested image, then warm both neighbours in this three-photo gallery.
-  const visiblePhotos = photos;
+  // Give the visible portrait priority; once ready, warm the next swipe.
+  const nextPhoto = photos[(photoIndex + 1) % photos.length];
+  const visiblePhotos = photos.filter(src =>
+    src === requestedPhoto || readyPhotos.has(src) || (requestedPhoto && readyPhotos.has(requestedPhoto) && src === nextPhoto));
   const renderedPhotos = shownPhoto && photos.length && !visiblePhotos.includes(shownPhoto) ? [shownPhoto, ...visiblePhotos] : visiblePhotos;
   const pendingPhoto = !!requestedPhoto && !readyPhotos.has(requestedPhoto);
   const photoFailed = !!requestedPhoto && failedPhotos.has(requestedPhoto);

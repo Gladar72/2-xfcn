@@ -76,7 +76,7 @@ export function ProfileGallery({ avatar, photos, onChange, flash }: {
       {ordered.length < 3 && <button className="gallery-add gl" aria-label="Добавить фото" disabled={locked} onClick={() => photo.pick(ordered.length)}>+</button>}
     </div>
     {photo.ui}
-    <Sheet open={selected !== null} onClose={() => setSelected(null)}>
+    <Sheet cls="gallery-action-sheet" open={selected !== null} onClose={() => setSelected(null)}>
       <h2>Фото профиля</h2>
       {selected && <div className="gallery-actions">
         <button className="btn v" disabled={locked} onClick={() => edit(selected)}>Изменить кадр</button>

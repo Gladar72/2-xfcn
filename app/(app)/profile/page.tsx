@@ -94,9 +94,14 @@ export default function ProfilePage({ searchParams }: { searchParams: { hearts?:
     if (!profile) return;
     const link = `${window.location.origin}/people/${profile.id}`;
     try {
+      if (navigator.share) {
+        await navigator.share({ url: link });
+        return;
+      }
       await navigator.clipboard.writeText(link);
       flash("Ссылка на профиль скопирована");
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
       flash(link);
     }
   }

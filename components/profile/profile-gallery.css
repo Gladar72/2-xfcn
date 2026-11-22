@@ -7,3 +7,7 @@
 .gallery-grip { top: 3px; right: 3px; min-width: 36px; min-height: 36px; font-size: 20px; touch-action: none; }
 .gallery-add { font-size: 30px; }
 .gallery-actions { display: grid; gap: 8px; margin-top: 16px; }
+
+/* Keep photo actions stationary as soon as a tap can reach them in WebKit. */
+.P .gallery-action-sheet { transition: opacity .18s ease; opacity: 0; visibility: hidden; }
+.P .gallery-action-sheet.on { opacity: 1; visibility: visible; }

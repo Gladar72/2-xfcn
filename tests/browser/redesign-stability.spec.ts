@@ -156,7 +156,7 @@ test("profile shows real activity and distance, and its action buttons fit 320 p
     ...people[0], gender: "female", distanceM: 1400, lastActiveAt: new Date(Date.now() - 5 * 60_000).toISOString(),
   } }));
   await page.goto("/people/stable-0");
-  await expect(active(page).getByText("Была 5 минут назад", { exact: true })).toBeVisible();
+  await expect(active(page).getByText(/^Была в сети сегодня в [0-2]\d:[0-5]\d$/)).toBeVisible();
   await expect(active(page).locator(".dist")).toContainText("1,4");
   await expect(active(page).getByRole("button", { name: "Подписаться на события" })).toBeVisible();
   await expect.poll(() => active(page).evaluate(el => Math.round(el.getBoundingClientRect().left))).toBe(0);
@@ -174,7 +174,7 @@ for (const isBusiness of [false, true]) {
     await page.setViewportSize({ width: 320, height: 740 });
     await fixture(page);
     await page.route("**/api/events/meeting", r => r.fulfill({ json: {
-      ...event, isBusiness, status: "published", viewerStatus: "none", seatsTotal: 25, seatsTaken: 18,
+      ...event, isBusiness, hasChat: true, status: "published", viewerStatus: "none", seatsTotal: 25, seatsTaken: 18,
       description: "Ждём всех", costType: "free", category: { slug: "coffee", name: "Кофе" },
       participants: Array.from({ length: 17 }, (_, i) => ({ id: `guest-${i}`, name: `Гость ${i}`, avatarUrl: cover, anonymous: i === 16 })),
     } }));
@@ -489,7 +489,7 @@ test('holding a photo before scrolling the feed does not trigger the press anima
   }
 });
 
-test("share card aligns its text, shows the description and removes the duplicate title and arrow", async ({ page }, info) => {
+test("share preview shows the same generated artwork that is handed off to Instagram", async ({ page }, info) => {
   await fixture(page);
   const description = "Встречаемся у входа в парк. Лёгкая пробежка и кофе после тренировки.";
   await page.route("**/api/events/meeting", r => r.fulfill({ json: {
@@ -499,25 +499,15 @@ test("share card aligns its text, shows the description and removes the duplicat
   } }));
   await page.goto("/events/meeting");
   await page.getByRole("button", { name: "Поделиться", exact: true }).first().tap();
-  const story = page.locator(".k-story");
+  const story = page.getByRole("img", { name: "Карточка встречи для сторис" });
   await expect(story).toBeVisible();
-  await expect(story.locator(".k-sdescription")).toHaveText(description);
-  await expect(story).not.toContainText("Бегаем 20");
-  await expect(story.locator(".k-scta")).toHaveText("Пойти со мной");
-  await expect(story.locator(".k-sme")).toHaveText("Арена, улица Ленина, 10 · 1 из 4");
-  const layout = await story.evaluate(el => {
-    const logo = el.querySelector(".k-swm")!.getBoundingClientRect();
-    return [".k-schip", ".k-sdescription", ".k-sme"].map(selector => {
-      const node = el.querySelector(selector)!;
-      return { left: node.getBoundingClientRect().left - logo.left, font: getComputedStyle(node).fontSize,
-        fits: node.scrollHeight <= node.clientHeight + 1 };
-    });
-  });
-  for (const item of layout) { expect(Math.abs(item.left)).toBeLessThan(1); expect(item.font).toBe("10.5px"); expect(item.fits).toBe(true); }
+  await expect(story).toHaveAttribute("src", /\/api\/events\/meeting\/story\.png\?v=.+$/);
+  const preview = await story.getAttribute("src");
+  await expect(page.getByText("Мося собрал картинку для сторис")).toBeVisible();
   await page.screenshot({ path: info.outputPath("share-card.png"), animations: "disabled" });
   await page.getByRole("button", { name: "Instagram", exact: true }).tap();
   await expect(page.getByText("Вставь скопированную ссылку и размести стикер поверх значка внизу")).toBeVisible();
-  await expect(page.getByAltText("Сторис для Instagram")).toHaveAttribute("src", /story\.png\?v=.+&ig=1$/);
+  await expect(page.getByAltText("Сторис для Instagram")).toHaveAttribute("src", preview + "&ig=1");
 });
 
 for (const status of ["missed", "silent", "added", "unsupported"] as const) {

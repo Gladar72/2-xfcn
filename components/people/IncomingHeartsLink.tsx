@@ -16,7 +16,7 @@ export function IncomingHeartsLink() {
     } catch { /* Keep the last successful preview. */ }
   }), []);
   return <Link className="k-row k-g k-pr" href="/hearts" style={{ marginTop: 14, borderRadius: 22 }}>
-    <span style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, position: "relative", ...(latest?.avatarUrl ? bg(latest.avatarUrl, 92) : {}) }}>
+    <span style={{ width: 44, height: 44, borderRadius: "50%", flex: "0 0 44px", position: "relative", ...(latest?.avatarUrl ? bg(latest.avatarUrl, 92) : {}) }}>
       {!latest?.avatarUrl && <Creature size={44}/>}
       <span aria-hidden style={{ position: "absolute", right: -2, bottom: -2, borderRadius: "50%", background: "#ff4f8b", color: "#fff", padding: "0 4px", border: "2px solid white" }}>♥</span>
     </span>
