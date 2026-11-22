@@ -152,11 +152,13 @@ test("a slow next photo keeps the original visible, without zoom or a blue press
 test("profile shows real activity and distance, and its action buttons fit 320 pixels", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await fixture(page);
+  await page.clock.setFixedTime(new Date("2026-11-22T12:05:00Z"));
   await page.route("**/api/users/stable-0", r => r.fulfill({ json: {
-    ...people[0], gender: "female", distanceM: 1400, lastActiveAt: new Date(Date.now() - 5 * 60_000).toISOString(),
+    ...people[0], gender: "female", distanceM: 1400, lastActiveAt: "2026-11-22T12:00:00Z",
   } }));
   await page.goto("/people/stable-0");
-  await expect(active(page).getByText("Была 5 минут назад", { exact: true })).toBeVisible();
+  const time = await page.evaluate(() => new Date("2026-11-22T12:00:00Z").toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" }));
+  await expect(active(page).getByText(`Была в сети сегодня в ${time}`, { exact: true })).toBeVisible();
   await expect(active(page).locator(".dist")).toContainText("1,4");
   await expect(active(page).getByRole("button", { name: "Подписаться на события" })).toBeVisible();
   await expect.poll(() => active(page).evaluate(el => Math.round(el.getBoundingClientRect().left))).toBe(0);
@@ -174,7 +176,7 @@ for (const isBusiness of [false, true]) {
     await page.setViewportSize({ width: 320, height: 740 });
     await fixture(page);
     await page.route("**/api/events/meeting", r => r.fulfill({ json: {
-      ...event, isBusiness, status: "published", viewerStatus: "none", seatsTotal: 25, seatsTaken: 18,
+      ...event, isBusiness, hasChat: false, status: "published", viewerStatus: "none", seatsTotal: 25, seatsTaken: 18,
       description: "Ждём всех", costType: "free", category: { slug: "coffee", name: "Кофе" },
       participants: Array.from({ length: 17 }, (_, i) => ({ id: `guest-${i}`, name: `Гость ${i}`, avatarUrl: cover, anonymous: i === 16 })),
     } }));
@@ -183,8 +185,8 @@ for (const isBusiness of [false, true]) {
     await expect(screen.locator(".k-title")).toContainText("Очень длинное");
     expect(await screen.locator(".k-spacer").evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThan(360);
     if (isBusiness) {
-      const chat = screen.getByRole("button", { name: "Чат встречи", exact: true });
-      await expect(chat).toContainText("Чат события");
+      const chat = screen.getByRole("button", { name: "Задать вопрос организатору", exact: true });
+      await expect(chat).toBeVisible();
       const bounds = await chat.boundingBox();
       expect(bounds!.width).toBeGreaterThan(260);
       expect(bounds!.height).toBeGreaterThanOrEqual(48);
@@ -489,7 +491,7 @@ test('holding a photo before scrolling the feed does not trigger the press anima
   }
 });
 
-test("share card aligns its text, shows the description and removes the duplicate title and arrow", async ({ page }, info) => {
+test("share card aligns the title and location and shows the link sticker", async ({ page }, info) => {
   await fixture(page);
   const description = "Встречаемся у входа в парк. Лёгкая пробежка и кофе после тренировки.";
   await page.route("**/api/events/meeting", r => r.fulfill({ json: {
@@ -501,19 +503,19 @@ test("share card aligns its text, shows the description and removes the duplicat
   await page.getByRole("button", { name: "Поделиться", exact: true }).first().tap();
   const story = page.locator(".k-story");
   await expect(story).toBeVisible();
-  await expect(story.locator(".k-sdescription")).toHaveText(description);
-  await expect(story).not.toContainText("Бегаем 20");
-  await expect(story.locator(".k-scta")).toHaveText("Пойти со мной");
+  await expect(story.getByText("Бегаем 20", { exact: true })).toHaveCount(1);
+  await expect(story.locator(".k-stitle")).toHaveText("Бегаем 20");
+  await expect(story.locator(".k-slink svg")).toBeVisible();
   await expect(story.locator(".k-sme")).toHaveText("Арена, улица Ленина, 10 · 1 из 4");
   const layout = await story.evaluate(el => {
     const logo = el.querySelector(".k-swm")!.getBoundingClientRect();
-    return [".k-schip", ".k-sdescription", ".k-sme"].map(selector => {
+    return [".k-schip", ".k-stitle", ".k-sme"].map(selector => {
       const node = el.querySelector(selector)!;
-      return { left: node.getBoundingClientRect().left - logo.left, font: getComputedStyle(node).fontSize,
+      return { selector, left: node.getBoundingClientRect().left - logo.left, font: getComputedStyle(node).fontSize,
         fits: node.scrollHeight <= node.clientHeight + 1 };
     });
   });
-  for (const item of layout) { expect(Math.abs(item.left)).toBeLessThan(1); expect(item.font).toBe("10.5px"); expect(item.fits).toBe(true); }
+  for (const item of layout) { expect(Math.abs(item.left)).toBeLessThan(1); expect(item.font).toBe(item.selector === ".k-stitle" ? "18px" : "10.5px"); expect(item.fits).toBe(true); }
   await page.screenshot({ path: info.outputPath("share-card.png"), animations: "disabled" });
   await page.getByRole("button", { name: "Instagram", exact: true }).tap();
   await expect(page.getByText("Вставь скопированную ссылку и размести стикер поверх значка внизу")).toBeVisible();
@@ -531,7 +533,7 @@ for (const status of ["missed", "silent", "added", "unsupported"] as const) {
       localStorage.setItem("mesto_launches", "3");
       const listeners = new Map<string, () => void>();
       window.Telegram = { WebApp: {
-        initData: "test", platform: "ios", ready() {}, expand() {}, isVersionAtLeast: () => true,
+        initData: "test", platform: "android", ready() {}, expand() {}, isVersionAtLeast: () => true,
         addToHomeScreen() { listeners.get("homeScreenAdded")?.(); },
         checkHomeScreenStatus(cb: (s: string) => void) { if (status !== "silent") cb(status); },
         onEvent(name: string, cb: () => void) { listeners.set(name, cb); }, offEvent(name: string) { listeners.delete(name); },
@@ -549,3 +551,22 @@ for (const status of ["missed", "silent", "added", "unsupported"] as const) {
     }
   });
 }
+
+test("iPhone offers the App Store even with an existing home screen shortcut", async ({ page }) => {
+  await fixture(page);
+  await page.route("https://telegram.org/js/**", r => r.fulfill({ contentType: "application/javascript", body: "" }));
+  await page.goto("/feed");
+  await expect(page.locator('[data-id="home"] .k-mt').first()).toBeVisible();
+  await page.evaluate(() => {
+    window.Telegram = { WebApp: {
+      initData: "test", platform: "ios", ready() {}, expand() {},
+      onEvent() {}, offEvent() {},
+      openLink(url: string) { document.body.dataset.storeLink = url; },
+    } as unknown as NonNullable<typeof window.Telegram>["WebApp"] };
+  });
+  const offer = page.getByRole("dialog", { name: "Приложение «Место»" });
+  await expect(offer).toBeVisible({ timeout: 8000 });
+  await offer.getByRole("button", { name: "Скачать в App Store" }).click();
+  await expect(page.locator("body")).toHaveAttribute("data-store-link", "https://apps.apple.com/ru/app/id6833348222");
+  await expect(offer).toHaveCount(0);
+});

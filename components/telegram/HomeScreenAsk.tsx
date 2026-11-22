@@ -34,17 +34,13 @@ function write(k: string, v: string) {
 /** Ссылка на «Место» в App Store. На iPhone вместо ярлыка предлагаем скачать приложение. */
 export const APP_STORE_URL = "https://apps.apple.com/ru/app/id6833348222";
 export const RUSTORE_URL = "https://www.rustore.ru/catalog/app/ru.mesto.app";
-/**
- * Предлагать скачать приложение вместо ярлыка. Выключено, пока в магазинах нет версии
- * с новым входом через Telegram (0.4.1): в старой вход через Telegram не возвращает в приложение.
- * Включить: STORE_PROMPT = true.
- */
-export const STORE_PROMPT = false;
+// Предложение RuStore включается отдельно после выхода Android-версии.
+const ANDROID_STORE_PROMPT = false;
 export function isTelegramIos(): boolean {
-  return STORE_PROMPT && getTelegramWebApp()?.platform === "ios";
+  return getTelegramWebApp()?.platform === "ios";
 }
 export function isTelegramAndroid(): boolean {
-  return STORE_PROMPT && getTelegramWebApp()?.platform === "android";
+  return ANDROID_STORE_PROMPT && getTelegramWebApp()?.platform === "android";
 }
 function openExternal(url: string) {
   const w = getTelegramWebApp();
@@ -74,7 +70,7 @@ export function HomeScreenAsk() {
   const [native, setNative] = useState(false);
   // На телефоне вместо ярлыка — приложение: iPhone → App Store, Android → RuStore.
   const [store, setStore] = useState<"ios" | "android" | null>(null);
-  const ios = store !== null;
+  const showStoreOffer = store !== null;
 
   useEffect(() => {
     let disposed = false;
@@ -94,7 +90,7 @@ export function HomeScreenAsk() {
       }
       const n = Number(read(LAUNCHES) ?? "0") + 1;
       write(LAUNCHES, String(n));
-      if (STORE_PROMPT && (w.platform === "ios" || w.platform === "android")) {
+      if (isTelegramIos() || isTelegramAndroid()) {
         // Телефон: предлагаем скачать приложение. Ярлык не проверяем.
         setStore(w.platform === "ios" ? "ios" : "android");
         const IOS_KEY = "mesto_appstore_ask";
@@ -185,18 +181,20 @@ export function HomeScreenAsk() {
   useEffect(() => { if (busy) setOpen(false); }, [busy]);
 
   function later() {
-    write(ios ? "mesto_appstore_ask" : KEY, String(Date.now()));
+    write(showStoreOffer ? "mesto_appstore_ask" : KEY, String(Date.now()));
     setOpen(false);
   }
 
-  if (ios) {
+  if (showStoreOffer) {
     return (
       <Sheet open={open && !busy} onClose={later} label="Приложение «Место»">
         <h2 className="t">
-          «Место» для <em>{store === "ios" ? "iPhone" : "Android"}</em>
+          Скачай «Место» на <em>{store === "ios" ? "iPhone" : "Android"}</em>
         </h2>
         <p className="muted" style={{ margin: "-4px 0 0", fontSize: 14.5, lineHeight: 1.5 }}>
-          Скачай приложение из {store === "ios" ? "App Store" : "RuStore"} — быстрее, с уведомлениями о заявках и сообщениях. Вход тот же, все встречи и чаты на месте.
+          {store === "ios"
+            ? "В приложении «Место» работает быстрее. Смотри, кто поставил тебе сердечко, и получай уведомления о заявках и сообщениях."
+            : "В приложении «Место» работает быстрее. Получай уведомления о заявках и сообщениях."} Твои встречи и чаты уже там.
         </p>
         <div className="gl" style={{ display: "flex", alignItems: "center", gap: 14, padding: 12, borderRadius: 24 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}

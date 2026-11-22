@@ -22,6 +22,7 @@ async function fixture(page: Page) {
   await page.route("**/api/**", async (route) => {
     const path = new URL(route.request().url()).pathname;
     const json = path === "/api/me/profile" || path === "/api/users/other" ? person
+      : path === "/api/me/follows" ? { followers: 0, following: 0, followersPreview: [], followingPreview: [] }
       : path === "/api/events/test" ? meeting
         : path === "/api/events" ? { items: Array.from({ length: 12 }, (_, i) => ({ ...meeting, id: `test-${i}` })) }
           : path === "/api/categories" ? { categories: [meeting.category], trainingTypes: [] }
