@@ -1,0 +1,67 @@
+name: МЕСТО — вечерняя сводка
+on:
+  schedule:
+    - cron: '55 16 * * *'  # 21:55 в Тюмени
+  workflow_dispatch:
+  push:
+    branches: [report/apple-first-downloads]
+    paths:
+      - .github/workflows/evening-report.yml
+      - .github/scripts/asc_downloads.py
+      - deploy/yandex/health.sh
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: mesto-evening-report
+  cancel-in-progress: false
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Проверить скрипты
+        run: |
+          bash -n deploy/yandex/health.sh
+          python -m py_compile .github/scripts/asc_downloads.py
+      - id: apple
+        name: Прочитать первые скачивания МЕСТО
+        env:
+          KID: ${{ secrets.ASC_KEY_ID }}
+          ISS: ${{ secrets.ASC_ISSUER_ID }}
+          P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          python -m pip install -q 'PyJWT[crypto]>=2.8,<3'
+          python .github/scripts/asc_downloads.py > "$RUNNER_TEMP/mesto-downloads"
+      - name: Личная сводка штатного бота
+        if: always() && !cancelled() && github.event_name == 'schedule' && github.run_attempt == '1'
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+          DEPLOY_KEY: ${{ secrets.YC_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -T 15 -H "$HOST" >> ~/.ssh/known_hosts
+          if [ ! -s "$RUNNER_TEMP/mesto-downloads" ]; then printf "%s\n" "📲 App Store · данные Apple временно недоступны" > "$RUNNER_TEMP/mesto-downloads"; fi
+          { cat "$RUNNER_TEMP/mesto-downloads"; cat deploy/yandex/health.sh; } |
+            ssh -o BatchMode=yes deploy@"$HOST" 'IFS= read -r MESTO_DOWNLOADS_LINE && export MESTO_DOWNLOADS_LINE && bash -s -- --evening'
+      - name: Итог без показателей аудитории
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          METRIC: ${{ steps.apple.outputs.availability }}
+          RESULT: ${{ job.status }}
+        run: |
+          state=success
+          if [ "$RESULT" != success ] || [ "$METRIC" = forbidden ] || [ "$METRIC" = unavailable ] || [ "$METRIC" = inactive ]; then state=failure; fi
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+            -f state="$state" -f context='mesto/evening-analytics' -f description="Apple: ${METRIC:-unknown}" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --silent
