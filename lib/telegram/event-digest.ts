@@ -125,13 +125,24 @@ function line(e: DigestEvent, offsetH: number): string {
  */
 export async function sendDueDigests(admin: Admin): Promise<{ users: number; sent: number; claimed: number; skipped: number; failed: number }> {
   const nowMs = Date.now();
-  const { data: users, error: usersError } = await admin
-    .from("users")
-    .select("id, telegram_id, city, announce_every_days, last_digest_at")
-    .eq("event_announcements", true)
-    .not("city", "is", null);
-  if (usersError) throw new Error(`event-digest: users unavailable (${usersError.code})`);
-  const due = (users ?? []).filter((u) => {
+  // Keyset pagination also includes recipients beyond PostgREST's row limit.
+  const users: { id: string; telegram_id: number | null; city: string; announce_every_days: number; last_digest_at: string | null }[] = [];
+  const pageSize = 500;
+  let afterId: string | undefined;
+  for (;;) {
+    let query = admin.from("users")
+      .select("id, telegram_id, city, announce_every_days, last_digest_at")
+      .eq("event_announcements", true)
+      .not("city", "is", null)
+      .order("id").limit(pageSize);
+    if (afterId) query = query.gt("id", afterId);
+    const { data: rows, error } = await query;
+    if (error) throw new Error(`event-digest: users unavailable (${error.code})`);
+    users.push(...(rows ?? []));
+    if (!rows || rows.length < pageSize) break;
+    afterId = rows[rows.length - 1]!.id;
+  }
+  const due = users.filter((u) => {
     const offset = eventUtcOffsetHours({ city: u.city as string, longitude: null });
     const localHour = new Date(nowMs + offset * 3600_000).getUTCHours();
     if (localHour !== DIGEST_LOCAL_HOUR) return false;
@@ -185,12 +196,10 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
   const joined = new Set((members ?? []).map((m) => `${m.user_id}:${m.event_id}`));
 
   const appUrl = process.env.APP_URL ?? "";
-  const api = getBot().api;
   let sent = 0;
   let claimed = 0;
   let skipped = 0;
   let failed = 0;
-  const pushUsers: { id: string; n: number; city: string }[] = [];
 
   await sendInBatches(due, async (u) => {
     const uid = u.id as string;
@@ -237,7 +246,12 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
       return;
     }
     claimed++;
-    pushUsers.push({ id: uid, n: picked.length, city });
+    const only = picked.length === 1 ? picked[0] : undefined;
+    await sendPushToUsers(admin, [uid], {
+      title: `Новое в городе · ${city}`,
+      body: picked.map((event) => event.title).join(" · ").slice(0, 150),
+      data: only ? { url: `/event/${only.id}`, eventId: only.id, type: "event_digest" } : { url: "/", type: "event_digest" },
+    });
     if (!u.telegram_id) return;
     const head = keys && keys.size ? "Подобрал по твоим интересам:" : "Новое в городе:";
     const text = `🗓 <b>Что интересного в городе</b>\n${head}\n\n${picked.map((e) => line(e, offset)).join("\n\n")}`;
@@ -245,7 +259,7 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
     if (appUrl) kb.webApp("👀 Смотреть все", appUrl).row();
     kb.text("🔕 Реже", DIGEST_LESS).text("Отключить", ANNOUNCE_OFF);
     try {
-      await api.sendMessage(u.telegram_id as number, text, { parse_mode: "HTML", reply_markup: kb, link_preview_options: { is_disabled: true } });
+      await getBot().api.sendMessage(u.telegram_id as number, text, { parse_mode: "HTML", reply_markup: kb, link_preview_options: { is_disabled: true } });
       sent++;
     } catch (err) {
       failed++;
@@ -253,14 +267,6 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
     }
   });
 
-  // Push в мобильное приложение — короткое «что нового».
-  for (const p of pushUsers) {
-    await sendPushToUsers(admin, [p.id], {
-      title: "Что интересного в городе",
-      body: p.n === 1 ? "Новая встреча по твоим интересам" : `${p.n} новых встреч по твоим интересам`,
-      data: { url: "/", type: "event_digest" },
-    }).catch(() => {});
-  }
   const result = { users: due.length, sent, claimed, skipped, failed };
   console.info("event-digest: delivery result", result);
   return result;

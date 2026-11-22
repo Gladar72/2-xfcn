@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createHash } from "node:crypto";
 import { notifyTelegram } from "@/lib/telegram/notify";
-import { sendPushPersonal } from "@/lib/push/expo";
+import { notifyUser } from "@/lib/notify/user";
 import { HEARTS_PER_DAY, HINTS_PER_DAY, hasHeart, isBlocked, sentToday } from "@/lib/likes";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
   const me = await getCurrentUser();
   if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const body = await req.json().catch(() => null);
-  const userId = typeof body?.userId === "string" ? body.userId : "";
+  const userId = typeof body?.userId === "string" ? body.userId.toLowerCase() : "";
   const kind = body?.kind === "hint" ? "hint" : "heart";
   if (!UUID.test(userId) || userId === me.userId) return NextResponse.json({ error: "bad_request" }, { status: 400 });
 
@@ -52,14 +53,16 @@ export async function POST(req: NextRequest) {
     if ((await sentToday(admin, me.userId, "meet_hint")) >= HINTS_PER_DAY) {
       return NextResponse.json({ error: "limit", limit: HINTS_PER_DAY }, { status: 429 });
     }
-    await admin.from("notifications").insert({ user_id: userId, type: "meet_hint", payload: { fromUserId: me.userId } });
-    void notifyTelegram(
-      target.telegram_id as number | null,
-      `👋 ${myName} намекает: хочет с тобой на встречу! Загляни в «Место» — позови ${she ? "её" : "его"} куда-нибудь или ответь сердечком.`
-    );
-    void sendPushPersonal(admin, [
-      { userId, message: { title: `👋 ${myName} хочет на встречу`, body: "Позови куда-нибудь или ответь сердечком", data: { url: `/people/${me.userId}`, type: "meet_hint" } } },
-    ]).catch(() => {});
+    const { error } = await admin.from("notifications").insert({ user_id: userId, type: "meet_hint", payload: { fromUserId: me.userId } });
+    if (error) return NextResponse.json({ error: "create_failed" }, { status: 500 });
+    await notifyUser(admin, userId, {
+      title: `👋 ${myName} хочет на встречу`,
+      body: "Позови куда-нибудь или ответь сердечком",
+      url: `/person/${me.userId}`,
+      data: { fromUserId: me.userId, type: "meet_hint" },
+      telegramId: target.telegram_id,
+      telegramText: `👋 ${myName} намекает: хочет с тобой на встречу! Загляни в «Место» — позови ${she ? "её" : "его"} куда-нибудь или ответь сердечком.`,
+    });
     return NextResponse.json({ ok: true });
   }
 
@@ -70,7 +73,16 @@ export async function POST(req: NextRequest) {
   if ((await sentToday(admin, me.userId, "heart")) >= HEARTS_PER_DAY) {
     return NextResponse.json({ error: "limit", limit: HEARTS_PER_DAY }, { status: 429 });
   }
-  await admin.from("notifications").insert({ user_id: userId, type: "heart", payload: { fromUserId: me.userId, profileViewed: false } });
+  // Postgres accepts 32 hex digits for UUIDs. The same directional heart
+  // uses the same primary key, including when two requests race the read.
+  const heartId = createHash("sha256").update(`mesto:heart:${me.userId}:${userId}`).digest("hex").slice(0, 32);
+  const { error } = await admin.from("notifications").insert({
+    id: heartId, user_id: userId, type: "heart", payload: { fromUserId: me.userId, profileViewed: false },
+  });
+  if (error?.code === "23505") {
+    return NextResponse.json({ ok: true, already: true, mutual: await hasHeart(admin, userId, me.userId) });
+  }
+  if (error) return NextResponse.json({ error: "create_failed" }, { status: 500 });
   const mutual = await hasHeart(admin, userId, me.userId);
 
   if (mutual) {
@@ -81,20 +93,19 @@ export async function POST(req: NextRequest) {
       { user_id: userId, type: "heart_mutual", payload: { fromUserId: me.userId } },
       { user_id: me.userId, type: "heart_mutual", payload: { fromUserId: userId } },
     ]);
-    void notifyTelegram(
-      target.telegram_id as number | null,
-      `💜 Это взаимно! ${myName} ${she ? "ответила" : "ответил"} тебе сердечком — самое время позвать на встречу.`
-    );
-    void notifyTelegram(me.telegramId, `💜 Это взаимно! ${otherName} тоже ${otherShe ? "поставила" : "поставил"} тебе сердечко — самое время позвать на встречу.`);
-  } else {
-    void notifyTelegram(
-      target.telegram_id as number | null,
-      `❤️ ${myName} ${she ? "поставила" : "поставил"} тебе сердечко в «Месте». Загляни в профиль — можно ответить или позвать на встречу.`
-    );
-    void sendPushPersonal(admin, [
-      { userId, message: { title: `❤️ ${myName} ${she ? "поставила" : "поставил"} сердечко`, body: "Ответь или позови на встречу", data: { url: `/person/${me.userId}?heart=1`, fromUserId: me.userId, type: "heart" } } },
-    ]).catch(() => {});
+    await notifyTelegram(me.telegramId, `💜 Это взаимно! ${otherName} тоже ${otherShe ? "поставила" : "поставил"} тебе сердечко — самое время позвать на встречу.`);
   }
+  // Each incoming heart alerts its recipient once, also when it completes a match.
+  await notifyUser(admin, userId, {
+    title: mutual ? "💜 Это взаимно!" : `❤️ ${myName} ${she ? "поставила" : "поставил"} сердечко`,
+    body: mutual ? `${myName} тоже ${she ? "поставила" : "поставил"} тебе сердечко` : "Ответь или позови на встречу",
+    url: `/person/${me.userId}?heart=1`,
+    data: { fromUserId: me.userId, type: mutual ? "heart_mutual" : "heart" },
+    telegramId: target.telegram_id,
+    telegramText: mutual
+      ? `💜 Это взаимно! ${myName} ${she ? "ответила" : "ответил"} тебе сердечком — самое время позвать на встречу.`
+      : `❤️ ${myName} ${she ? "поставила" : "поставил"} тебе сердечко в «Месте». Загляни в профиль — можно ответить или позвать на встречу.`,
+  });
   return NextResponse.json({ ok: true, mutual });
 }
 

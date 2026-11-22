@@ -11,8 +11,8 @@ vi.mock("@/lib/push/expo", () => ({ sendPushToUsers: vi.fn().mockResolvedValue(u
 const NOW = Date.parse("2026-10-31T13:00:00Z"); // 18:00 in Tyumen
 const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
 
-function database(options: { last?: string | null; every?: number; writeError?: boolean; readError?: boolean; empty?: boolean } = {}) {
-  const snapshot = { id: "user-1", telegram_id: 123, city: "Тюмень", announce_every_days: options.every ?? 1, last_digest_at: options.last ?? null };
+function database(options: { last?: string | null; every?: number; writeError?: boolean; readError?: boolean; empty?: boolean; appOnly?: boolean; laterPage?: boolean } = {}) {
+  const snapshot = { id: "user-1", telegram_id: options.appOnly ? null : 123, city: "Тюмень", announce_every_days: options.every ?? 1, last_digest_at: options.last ?? null };
   const stored = { ...snapshot, event_announcements: true };
   const patches: URL[] = [];
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -32,6 +32,10 @@ function database(options: { last?: string | null; every?: number; writeError?: 
           url.searchParams.get("city") !== `eq.${stored.city}`) return reply([]);
       Object.assign(stored, JSON.parse(String(init.body)));
       return reply([{ id: stored.id }]);
+    }
+    if (table === "users" && options.laterPage && !url.searchParams.has("id")) {
+      // Ineligible recipients on the first page (local 16:00 in Moscow).
+      return reply(Array.from({ length: 500 }, (_, i) => ({ ...snapshot, id: `first-${String(i).padStart(3, "0")}`, city: "Москва" })));
     }
     if (table === "users") return options.readError ? reply({ code: "08006" }, 503) : reply([{ ...snapshot }]);
     if (table === "events") return reply(options.empty ? [] : [{
@@ -65,6 +69,16 @@ describe("event digest delivery guard", () => {
     }
     expect(sendMessage).toHaveBeenCalledTimes(1);
     expect(sendPushToUsers).toHaveBeenCalledTimes(1);
+  });
+  it("pushes the matching event to an app-only recipient on a later page", async () => {
+    const { admin } = database({ appOnly: true, laterPage: true });
+    expect(await sendDueDigests(admin)).toMatchObject({ users: 1, claimed: 1, sent: 0 });
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(getBot).not.toHaveBeenCalled();
+    expect(sendPushToUsers).toHaveBeenCalledTimes(1);
+    expect(sendPushToUsers).toHaveBeenCalledWith(admin, ["user-1"], expect.objectContaining({
+      data: { url: "/event/event-1", eventId: "event-1", type: "event_digest" },
+    }));
   });
   it("only one concurrent worker owns a delivery", async () => {
     const { admin } = database({ last: "2026-10-30T13:00:00Z" });
