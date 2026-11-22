@@ -1,0 +1,55 @@
+name: Check one private iPhone notification
+on:
+  push:
+    branches: [ops/private-iphone-push-20261122]
+    paths: [.github/workflows/private-iphone-check.yml]
+permissions:
+  contents: read
+  statuses: write
+jobs:
+  check:
+    if: github.event.before == '4245ad45094fc0bf84c098194b0d137502d91eef' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check just the configured admin's iPhone registration
+        id: device
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+          SSH_KEY: ${{ secrets.YC_SSH_KEY }}
+          RECIPIENT: ${{ vars.YC_ADMIN_IDS }}
+        run: |
+          set -euo pipefail
+          [[ "$RECIPIENT" =~ ^[1-9][0-9]*$ ]]
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -T 10 -H "$HOST" >> ~/.ssh/known_hosts
+          result=$(ssh -o BatchMode=yes deploy@"$HOST" "bash -s -- $RECIPIENT" <<'REMOTE'
+          set -eu
+          admin=$(sudo docker exec mesto-app-1 printenv ADMIN_TELEGRAM_IDS)
+          [ "$1" = "$admin" ]
+          sudo docker exec supabase-db psql -XAt -F '|' -v ON_ERROR_STOP=1 -U postgres -d postgres -c "
+            WITH target AS (SELECT id FROM public.users WHERE telegram_id = $1)
+            SELECT (SELECT count(*) FROM target),
+                   count(*) FILTER (WHERE platform='apns'),
+                   count(*) FILTER (WHERE platform='ios')
+            FROM public.push_tokens WHERE user_id IN (SELECT id FROM target);"
+          sudo docker exec mesto-app-1 node -e 'console.log(process.env.APNS_KEY_ID && process.env.APPLE_TEAM_ID && process.env.APNS_PRIVATE_KEY ? "configured" : "missing")'
+          REMOTE
+          )
+          counts=$(head -n1 <<<"$result")
+          provider=$(tail -n1 <<<"$result")
+          [[ "$counts" =~ ^[0-9]+\|[0-9]+\|[0-9]+$ ]]
+          [[ "$provider" = configured || "$provider" = missing ]]
+          echo "Registration counts (account|APNs|Expo iOS): $counts"
+          echo "Apple provider configuration: $provider"
+      - name: Record check completion
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.device.outcome }}
+        run: |
+          state=failure
+          if [ "$OUTCOME" = success ]; then state=success; fi
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -f state="$state" -f context=mesto/private-device -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --silent
