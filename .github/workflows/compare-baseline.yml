@@ -1,4 +1,4 @@
-name: Retest both mobile browsers on the Mini App changes
+name: Full mobile Mini App regression
 on:
   push:
     branches: [qa/telegram60-mobile-regression]
@@ -10,16 +10,17 @@ jobs:
       fail-fast: false
       matrix:
         project: [chromium-mobile, webkit-mobile]
+        shard: [1, 2]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: e3795e7bca1b2ae7f2168e85ed64692e90f8d932
+          ref: e747b5721b7fdd6ac6654e6744da4956a8facb2c
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
-      - run: npx playwright test --project=${{ matrix.project }} --grep "slow response for the old selection|current portrait loads before the next|profile shows real activity|business event shows five|share preview shows|different main photo|companion|an incoming like" --timeout=35000 --reporter=line
+      - run: npx playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}/2 --timeout=60000 --reporter=line
