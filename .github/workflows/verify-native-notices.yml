@@ -1,0 +1,41 @@
+name: Verify native notification delivery
+on:
+  push:
+    branches: [verify/native-notices-51]
+permissions:
+  contents: read
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 7850d5f46ffa48e9f869d2834c812d3296ce78b5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Server unit tests
+        run: npm test
+      - name: Typecheck
+        if: always()
+        run: npm run typecheck
+  baseline:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: d443554d4a746a256426479d2af89dccfb671013
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Reproduce six browser scenarios on the unmodified base
+        run: >
+          npx playwright test --timeout=60000 --reporter=line
+          tests/browser/people-selection.spec.ts:60 tests/browser/people-speed.spec.ts:65
+          tests/browser/redesign-stability.spec.ts:152 tests/browser/redesign-stability.spec.ts:173
+          tests/browser/redesign-stability.spec.ts:492 tests/browser/scroll-boundaries.spec.ts:100
