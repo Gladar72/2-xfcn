@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendApns } from "./apns";
 import { sendRuStore } from "@/lib/push/rustore";
 
 /**
@@ -157,21 +158,25 @@ function toExpo(token: string, message: PushMessage): ExpoMessage {
 
 /** Раскладывает сообщения по каналам: RuStore Push для токенов RuStore, Expo — для остальных. */
 async function dispatch(admin: Admin, items: { t: TokenRow; message: PushMessage }[]): Promise<void> {
+  const apple: { token: string; message: PushMessage }[] = [];
   const expo: ExpoMessage[] = [];
   const rustore: { token: string; title: string; body: string; url?: string; data?: Record<string, unknown> }[] = [];
   for (const { t, message } of items) {
-    if (t.platform === "rustore") {
+    if (t.platform === "apns") {
+      apple.push({ token: t.token, message });
+    } else if (t.platform === "rustore") {
       rustore.push({ token: t.token, title: message.title, body: message.body, url: message.data?.url, data: message.data });
     } else {
       expo.push(toExpo(t.token, message));
     }
   }
-  const [dead] = await Promise.all([sendRuStore(rustore), sendExpoMessages(admin, expo)]);
+  const [ruDead, appleDead] = await Promise.all([sendRuStore(rustore), sendApns(apple).catch(err => { console.error("APNs:", err.message); return []; }), sendExpoMessages(admin, expo)]);
+  const dead = [...ruDead, ...appleDead];
   if (dead.length > 0) {
     try {
       await admin.from("push_tokens").delete().in("token", dead);
     } catch (err) {
-      console.error("push: не удалось удалить токены RuStore", err);
+      console.error("push: не удалось удалить недействительные токены", err);
     }
   }
 }

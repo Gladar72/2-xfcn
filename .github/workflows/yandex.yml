@@ -69,6 +69,18 @@ jobs:
         run: |
           printf 'OLD_DB_URL=%s\n' "$OLD_DB_URL" | ssh deploy@"$HOST" 'umask 077 && cat > /opt/mesto/migrate.env'
 
+      - name: Install APNs signing key for the production app
+        if: env.TASK == 'deploy' && github.ref == 'refs/heads/main'
+        env:
+          APNS_KEY: ${{ secrets.APNS_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          ssh deploy@"$HOST" 'install -d -m 700 /opt/mesto/apns'
+          if [ -n "$APNS_KEY" ]; then
+            printf '%s\n' "$APNS_KEY" | openssl pkey -check -noout >/dev/null
+            printf '%s\n' "$APNS_KEY" | ssh deploy@"$HOST" 'set -eu; umask 077; cd /opt/mesto/apns; key=$(mktemp); trap "rm -f -- \"\$key\"" EXIT; cat > "$key"; mv -f "$key" provider.p8'
+          fi
+
       - name: Run ${{ env.TASK }}
         run: |
           set -o pipefail
