@@ -149,6 +149,16 @@ fi
 # Ежечасная проверка: молчим, если нет критичных проблем и ничего не чинили.
 if [ "$MODE" = "--alert" ] && [ ${#BAD[@]} -eq 0 ] && [ ${#FIXED[@]} -eq 0 ]; then exit 0; fi
 
+report_file=$(mktemp) || exit 1
+trap 'rm -f "$report_file"' EXIT
+
+CAMPAIGN=""
+if [ "$MODE" = "--evening" ] && [ "$(TZ=Asia/Yekaterinburg date +%F)" = "2026-11-22" ]; then
+  CAMPAIGN=$(sudo docker exec supabase-db psql -XAt -F ' ' -v ON_ERROR_STOP=1 -U postgres -d postgres -c "
+    SELECT count(*), count(*) FILTER (WHERE ok), count(*) FILTER (WHERE NOT ok)
+    FROM public.broadcast_sends WHERE key = 'ios_052_launch_20261122'" 2>/dev/null)
+fi
+
 # 9. Для ежедневной сводки — немного цифр за сутки.
 STATS=""
 if [ "$MODE" != "--alert" ]; then
@@ -219,6 +229,14 @@ fi
       echo ""
       echo "💰 Деньги за сутки: оплат $(dyn "$pays" "${pays0:-0}"), сумма $(dyn "$sum" "${sum0:-0}") ₽"
     fi
+    if [ "$MODE" = "--evening" ]; then
+      echo ""
+      echo "${MESTO_DOWNLOADS_LINE:-📲 App Store · данные Apple временно недоступны}"
+      if [ -n "$CAMPAIGN" ]; then
+        read -r attempted accepted failed <<<"$CAMPAIGN"
+        echo "Рассылка App Store · попыток $attempted, Telegram принял $accepted, ошибок $failed. Нажатия по ссылке не фиксировались."
+      fi
+    fi
     if [ -n "${DIGEST:-}" ]; then
       read -r dsent dopen <<<"$DIGEST"
       echo "🗓 Подборка встреч: получили $dsent, потом зашли в приложение $dopen"
@@ -233,7 +251,16 @@ fi
     [ "${unblocked:-0}" -gt 0 ] 2>/dev/null && echo "Разблокировали: $unblocked"
     echo "Ошибок в логах сайта за сутки: ${errs:-?}, задержек Telegram: ${tgto:-?}"
   fi
-} >/tmp/mesto-health.txt
+} >"$report_file"
+
+if [ "$MODE" = "--evening" ]; then
+  [ -n "$TOKEN" ] && [[ "$ADMINS" =~ ^[1-9][0-9]*$ ]] || { echo "Не задан единственный личный получатель"; exit 1; }
+  # In case of an ambiguous network response, avoid retrying a private report blindly.
+  curl -fsS --max-time 45 -o /dev/null "$ROOT_API/bot$TOKEN/sendMessage" \
+    --data-urlencode "chat_id=$ADMINS" --data-urlencode "text@$report_file" || exit 1
+  echo "Telegram принял вечернюю сводку"
+  exit 0
+fi
 
 # Логи GitHub публичные — сам текст (цифры по людям) туда не печатаем, только итог.
 echo "сводка: проблем ${#BAD[@]}, предупреждений ${#WARN[@]}"
@@ -242,7 +269,7 @@ echo "сводка: проблем ${#BAD[@]}, предупреждений ${#W
 for id in ${ADMINS//,/ }; do
   for try in 1 2 3 4 5; do
     code=$(curl -sS -m 30 -o /dev/null -w "%{http_code}" "$ROOT_API/bot$TOKEN/sendMessage" \
-      --data-urlencode "chat_id=$id" --data-urlencode "text@/tmp/mesto-health.txt" 2>/dev/null || true)
+      --data-urlencode "chat_id=$id" --data-urlencode "text@$report_file" 2>/dev/null || true)
     echo "$(date -u +%FT%TZ) отправлено админу: ${code:-000} (попытка $try)"
     [ "${code:-000}" = 200 ] && break
     sleep 60
