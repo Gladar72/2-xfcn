@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidN8nRequest } from "@/lib/n8n/auth";
@@ -54,6 +55,8 @@ export async function GET(req: NextRequest) {
       .filter(Boolean)
   );
 
+  const memberUsers = (members ?? []).map((m) => m.users as unknown as { id: string } | null);
+  const telegramUsers = await telegramNotificationUsers(admin, memberUsers.flatMap((u) => u ? [u.id] : []));
   const items = dueEvents
     .filter((e) => !alreadyNotifiedEventIds.has(e.id))
     .map((event) => {
@@ -66,10 +69,9 @@ export async function GET(req: NextRequest) {
         title: event.title,
         placeName: event.place_name,
         eventTime: event.event_time,
-        recipients: recipients.map((r) => r.telegram_id),
+        recipients: recipients.filter((r) => r.telegram_id && telegramUsers.has(r.id)).map((r) => r.telegram_id),
       };
-    })
-    .filter((item) => item.recipients.length > 0);
+    });
 
   // Помечаем как отправленные СРАЗУ (до реального успеха отправки в Telegram)
   // — сознательный компромисс: лучше пропустить редкое напоминание при сбое
@@ -118,5 +120,5 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ items });
+  return NextResponse.json({ items: items.filter((item) => item.recipients.length > 0) });
 }

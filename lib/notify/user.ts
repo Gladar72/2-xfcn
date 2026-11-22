@@ -1,3 +1,4 @@
+import { usesTelegramNotifications } from "@/lib/notify/channel";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { notifyTelegram } from "@/lib/telegram/notify";
 import { sendPushToUsers, type PushMessage } from "@/lib/push/expo";
@@ -25,8 +26,7 @@ export interface UserNotice {
 }
 
 /**
- * Единая точка уведомления пользователя: push в мобильное приложение +
- * (пока Mini App жив) прежнее сообщение от Telegram-бота.
+ * Доставляет уведомление через приложение или через Telegram для пользователей Mini App.
  * Никогда не бросает исключений.
  */
 export async function notifyUser(admin: Admin, userId: string | null | undefined, notice: UserNotice): Promise<void> {
@@ -37,22 +37,18 @@ export async function notifyUser(admin: Admin, userId: string | null | undefined
     data: { ...(notice.data ?? {}), ...(notice.url ? { url: notice.url } : {}) },
   };
 
-  const tasks: Promise<unknown>[] = [sendPushToUsers(admin, [userId], push)];
-
-  if (notice.telegramText) {
-    tasks.push(
-      (async () => {
-        let telegramId = notice.telegramId;
-        if (telegramId === undefined) {
-          const { data } = await admin.from("users").select("telegram_id").eq("id", userId).maybeSingle();
-          telegramId = (data?.telegram_id as number | null | undefined) ?? null;
-        }
-        if (telegramId) await notifyTelegram(Number(telegramId), notice.telegramText!);
-      })().catch((err) => console.error("notifyUser: telegram", err))
-    );
+  if (notice.telegramText && notice.telegramId !== null && await usesTelegramNotifications(admin, userId)) {
+    let telegramId = notice.telegramId;
+    if (telegramId === undefined) {
+      const { data } = await admin.from("users").select("telegram_id").eq("id", userId).maybeSingle();
+      telegramId = data?.telegram_id;
+    }
+    if (telegramId) {
+      await notifyTelegram(Number(telegramId), notice.telegramText);
+      return;
+    }
   }
-
-  await Promise.allSettled(tasks);
+  await sendPushToUsers(admin, [userId], push);
 }
 
 /** Короткое название встречи для заголовка push (без огромных строк). */

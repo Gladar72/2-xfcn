@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ sendMessage: vi.fn(), notifyUser: vi.fn() }));
+vi.mock("@/lib/notify/channel", () => ({ usesTelegramNotifications: () => true, notificationAccount: (_db: unknown, id?: string) => id ?? null }));
 vi.mock("@/lib/telegram/bot", () => ({ getBot: () => ({ api: { sendMessage: mocks.sendMessage } }) }));
 vi.mock("@/lib/notify/user", () => ({ notifyUser: mocks.notifyUser }));
 import { deliverAdminReply } from "@/lib/support/tickets";
@@ -21,7 +22,7 @@ describe("support replies from the MESTO bot", () => {
     expect(await deliverAdminReply(admin, "ticket", "Ответ")).toBe("delivered");
     expect(mocks.sendMessage).toHaveBeenCalledWith(42, "💬 Ответ поддержки МЕСТО:\n\nОтвет");
     expect(writes.at(-1)?.admin_telegram_message_id).toBe(123);
-    expect(mocks.notifyUser.mock.calls[0]![2].telegramText).toBeUndefined();
+    expect(mocks.notifyUser).not.toHaveBeenCalled();
   });
   it("reports saved, not delivered, when Telegram rejects a reply available in the app", async () => {
     mocks.sendMessage.mockRejectedValue(new Error("blocked"));

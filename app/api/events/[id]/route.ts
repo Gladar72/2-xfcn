@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { BIZ_KEYS } from "@/lib/events/biz-categories";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -625,11 +626,12 @@ async function notifyParticipantsOfChange(
     }
   } else {
     // Без общего чата (большая группа "Для бизнеса") — просто push каждому.
+    const telegramUsers = await telegramNotificationUsers(admin, (memberRows ?? []).map((m) => m.user_id));
     const { notifyTelegram } = await import("@/lib/telegram/notify");
     await Promise.allSettled(
       (memberRows ?? []).map((m) => {
         const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
-        return telegramId ? notifyTelegram(telegramId, text) : Promise.resolve();
+        return telegramId && telegramUsers.has(m.user_id) ? notifyTelegram(telegramId, text) : Promise.resolve();
       })
     );
   }

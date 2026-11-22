@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { InlineKeyboard } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
@@ -195,6 +196,7 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
   }
   const joined = new Set((members ?? []).map((m) => `${m.user_id}:${m.event_id}`));
 
+  const telegramUsers = await telegramNotificationUsers(admin, due.filter((u) => u.telegram_id).map((u) => u.id));
   const appUrl = process.env.APP_URL ?? "";
   let sent = 0;
   let claimed = 0;
@@ -246,13 +248,15 @@ export async function sendDueDigests(admin: Admin): Promise<{ users: number; sen
       return;
     }
     claimed++;
-    const only = picked.length === 1 ? picked[0] : undefined;
-    await sendPushToUsers(admin, [uid], {
-      title: `Новое в городе · ${city}`,
-      body: picked.map((event) => event.title).join(" · ").slice(0, 150),
-      data: only ? { url: `/event/${only.id}`, eventId: only.id, type: "event_digest" } : { url: "/", type: "event_digest" },
-    });
-    if (!u.telegram_id) return;
+    if (!u.telegram_id || !telegramUsers.has(uid)) {
+      const only = picked.length === 1 ? picked[0] : undefined;
+      await sendPushToUsers(admin, [uid], {
+        title: `Новое в городе · ${city}`,
+        body: picked.map((event) => event.title).join(" · ").slice(0, 150),
+        data: only ? { url: `/event/${only.id}`, eventId: only.id, type: "event_digest" } : { url: "/", type: "event_digest" },
+      });
+      return;
+    }
     const head = keys && keys.size ? "Подобрал по твоим интересам:" : "Новое в городе:";
     const text = `🗓 <b>Что интересного в городе</b>\n${head}\n\n${picked.map((e) => line(e, offset)).join("\n\n")}`;
     const kb = new InlineKeyboard();

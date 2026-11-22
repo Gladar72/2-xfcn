@@ -1,3 +1,4 @@
+import { notificationAccount, usesTelegramNotifications } from "@/lib/notify/channel";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { notifyUser } from "@/lib/notify/user";
 import { getBot } from "@/lib/telegram/bot";
@@ -51,12 +52,14 @@ export async function deliverAdminReply(admin: Admin, ticketId: string, reply: s
     .eq("id", ticketId);
   if (saveError) throw new Error("Could not save support reply");
 
-  if (ticket.user_id) {
-    await notifyUser(admin, ticket.user_id as string, {
+  const recipientId = await notificationAccount(admin, ticket.user_id, ticket.telegram_id);
+  if (recipientId && (!ticket.telegram_id || !(await usesTelegramNotifications(admin, recipientId)))) {
+    if (!repeated) await notifyUser(admin, recipientId, {
       title: "Ответ поддержки МЕСТО",
       body: text.length > 140 ? `${text.slice(0, 139)}…` : text,
       url: "/support",
     }).catch(() => console.error("Support: app notification unavailable"));
+    return "saved";
   }
   if (!ticket.telegram_id) return "saved";
   try {

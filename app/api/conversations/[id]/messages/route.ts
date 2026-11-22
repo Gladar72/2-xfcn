@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { invitationBlocked } from "@/lib/invites/access";
 import { NextRequest, NextResponse } from "next/server";
 import { runInBackground } from "@/lib/server/background";
@@ -472,9 +473,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         .filter((m) => !m.is_blocked)
         .filter((m) => !(m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000))
         .map((m) => m.user_id as string);
+      const telegramUsers = await telegramNotificationUsers(admin, pushRecipients);
       const pushPromise = sendPushPersonal(
         admin,
-        pushRecipients.map((userId) => ({
+        pushRecipients.filter((id) => !telegramUsers.has(id)).map((userId) => ({
           userId,
           message: {
             title: pushTitle,
@@ -488,7 +490,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         pushPromise,
         ...otherMembers.map(async (m) => {
           const telegramId = (m.users as unknown as { telegram_id: number } | null)?.telegram_id;
-          if (!telegramId || m.is_blocked) return;
+          if (!telegramId || !telegramUsers.has(m.user_id) || m.is_blocked) return;
           if (m.last_read_at && now - new Date(m.last_read_at as string).getTime() < 20_000) return;
           try {
             await getBot().api.sendMessage(telegramId, text, {

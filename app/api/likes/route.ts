@@ -1,3 +1,4 @@
+import { usesTelegramNotifications } from "@/lib/notify/channel";
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -93,7 +94,7 @@ export async function POST(req: NextRequest) {
       { user_id: userId, type: "heart_mutual", payload: { fromUserId: me.userId } },
       { user_id: me.userId, type: "heart_mutual", payload: { fromUserId: userId } },
     ]);
-    await notifyTelegram(me.telegramId, `💜 Это взаимно! ${otherName} тоже ${otherShe ? "поставила" : "поставил"} тебе сердечко — самое время позвать на встречу.`);
+    if (me.telegramId && await usesTelegramNotifications(admin, me.userId)) await notifyTelegram(me.telegramId, `💜 Это взаимно! ${otherName} тоже ${otherShe ? "поставила" : "поставил"} тебе сердечко — самое время позвать на встречу.`);
   }
   // Each incoming heart alerts its recipient once, also when it completes a match.
   await notifyUser(admin, userId, {

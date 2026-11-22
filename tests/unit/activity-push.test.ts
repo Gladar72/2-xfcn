@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { POST as like } from "@/app/api/likes/route";
 import { POST as apply } from "@/app/api/applications/route";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyTelegram } from "@/lib/telegram/notify";
 import { sendPushToUsers } from "@/lib/push/expo";
 
 const sender = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
@@ -20,14 +21,21 @@ function request(path: string, body: object) {
   return new NextRequest(`https://app.test/api/${path}`, { method: "POST", body: JSON.stringify(body) });
 }
 
-function database(options: { mutual?: boolean; failWrite?: boolean; alreadyApplied?: boolean } = {}) {
+function database(options: { mutual?: boolean; failWrite?: boolean; alreadyApplied?: boolean; channel?: "telegram" | "installed" | "token" | "lookupError" } = {}) {
   const hearts = new Set<string>();
   const fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const table = url.pathname.split("/").at(-1);
     const json = (value: unknown, status = 200) => new Response(JSON.stringify(value), { status, headers: { "Content-Type": "application/json" } });
     // maybeSingle() GET in PostgREST returns arrays for the client to unwrap.
-    if (table === "users") return json([{ id: recipient, name: "Саша", telegram_id: null }]);
+    if (table === "app_install_gifts") {
+      if (options.channel === "lookupError") return json({ code: "08006" }, 503);
+      return json(options.channel === "installed" ? [{ user_id: recipient }] : []);
+    }
+    if (table === "users" && url.searchParams.get("select")?.includes("push_tokens!inner")) {
+      return json(options.channel === "token" ? [{ id: recipient, push_tokens: [{ user_id: recipient }] }] : []);
+    }
+    if (table === "users") return json([{ id: recipient, name: "Саша", telegram_id: options.channel ? 321 : null }]);
     if (table === "events") return json([{ id: "event-1", title: "Кино", organizer_id: recipient, status: "published", seats_total: 4, seats_taken: 0 }]);
     if (table === "is_blocked_pair") return json(false);
     if (table === "applications") return options.alreadyApplied ? json({ code: "23505" }, 409) : json({ id: "application-1" }, 201);
@@ -60,6 +68,20 @@ describe("automatic activity push", () => {
     expect(sendPushToUsers).toHaveBeenCalledWith(client, [recipient], expect.objectContaining({
       data: { type: mutual ? "heart_mutual" : "heart", fromUserId: sender, url: `/person/${sender}?heart=1` },
     }));
+  });
+
+  it.each(["installed", "token", "lookupError"] as const)("keeps a linked profile out of Telegram (%s)", async (channel) => {
+    database({ channel });
+    await like(request("likes", { userId: recipient }));
+    await apply(request("applications", { eventId: "event-1" }));
+    expect(sendPushToUsers).toHaveBeenCalledTimes(2);
+    expect(notifyTelegram).not.toHaveBeenCalled();
+  });
+  it("keeps Telegram for a profile that only uses the bot", async () => {
+    database({ channel: "telegram" });
+    await like(request("likes", { userId: recipient }));
+    expect(notifyTelegram).toHaveBeenCalledWith(321, expect.stringContaining("сердечко"));
+    expect(sendPushToUsers).not.toHaveBeenCalled();
   });
 
   it("does not notify for an unsaved heart", async () => {

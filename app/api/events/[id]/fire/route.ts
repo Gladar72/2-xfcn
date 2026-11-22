@@ -1,3 +1,4 @@
+import { usesTelegramNotifications } from "@/lib/notify/channel";
 import { NextResponse } from "next/server";
 import { InlineKeyboard } from "grammy";
 import { getCurrentUser } from "@/lib/telegram/current-user";
@@ -89,7 +90,7 @@ async function notifyOrganizer(
     const text = `🔥 ${name} ${put} огонёк на твоё событие «${title}»${total}`;
     const tg = org?.telegram_id as number | null | undefined;
     const appUrl = process.env.APP_URL;
-    if (tg) {
+    if (tg && await usesTelegramNotifications(admin, organizerId)) {
       const kb = appUrl ? new InlineKeyboard().webApp("Открыть событие", `${appUrl}?goto=event_${eventId}`) : undefined;
       await getBot().api.sendMessage(tg, text, { reply_markup: kb }).catch(() => {});
     }

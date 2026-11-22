@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isValidN8nRequest } from "@/lib/n8n/auth";
@@ -48,7 +49,8 @@ export async function GET(req: NextRequest) {
 
   const fresh = dueSoonLowAttendance.filter((e) => !alreadyNotifiedEventIds.has(e.id));
 
-  const items = fresh
+  const telegramUsers = await telegramNotificationUsers(admin, fresh.map((e) => e.organizer_id));
+  const items = fresh.filter((e) => telegramUsers.has(e.organizer_id))
     .map((e) => ({
       eventId: e.id,
       title: e.title,

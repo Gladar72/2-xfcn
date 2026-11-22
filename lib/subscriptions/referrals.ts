@@ -1,3 +1,4 @@
+import { notificationAccount, usesTelegramNotifications } from "@/lib/notify/channel";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -294,15 +295,16 @@ export async function recordReferralCommission(
       return;
     }
 
-    if (partner.user_id) {
+    const recipientId = await notificationAccount(admin, partner.user_id, partner.telegram_id);
+    if (recipientId) {
       const { notifyUser } = await import("@/lib/notify/user");
-      await notifyUser(admin, partner.user_id, {
+      await notifyUser(admin, recipientId, {
         title: "Новая оплата по твоей ссылке",
         body: `Начислено +${formatMoney(commission, params.currency)} (30% от ${formatMoney(params.amount, params.currency)})`,
         url: "/partner",
       });
     }
-    if (partner.telegram_id) await notify?.(
+    if (partner.telegram_id && (!recipientId || await usesTelegramNotifications(admin, recipientId))) await notify?.(
       Number(partner.telegram_id),
       `💰 Новая оплата по твоей ссылке!\nНачислено: +${formatMoney(commission, params.currency)} (30% от ${formatMoney(
         params.amount,
