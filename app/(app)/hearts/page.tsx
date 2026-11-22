@@ -7,6 +7,7 @@ import { Screen } from "@/components/proto/ui";
 import { KI, bg } from "@/components/proto/k";
 import { Creature } from "@/components/brand/Creature";
 import { goBack } from "@/lib/nav/back";
+import { watchVisible } from "@/lib/http/watch-visible";
 import { heartTime, incomingHearts, type IncomingHeart } from "@/lib/people/heart-inbox";
 import "./hearts.css";
 
@@ -17,14 +18,17 @@ export default function HeartsPage() {
   const [attempt, setAttempt] = useState(0);
   const [onlyNew, setOnlyNew] = useState(false);
   useEffect(() => {
-    const controller = new AbortController();
+    let loaded = false;
     setStatus("loading");
-    incomingHearts(controller.signal).then(items => {
-      if (controller.signal.aborted) return;
-      setPeople(items);
-      setStatus("ready");
-    }).catch(() => { if (!controller.signal.aborted) setStatus("error"); });
-    return () => controller.abort();
+    return watchVisible(async signal => {
+      try {
+        const items = await incomingHearts(signal);
+        if (signal.aborted) return;
+        setPeople(items);
+        setStatus("ready");
+        loaded = true;
+      } catch { if (!loaded && !signal.aborted) setStatus("error"); }
+    });
   }, [attempt]);
 
   const unread = people.filter(person => person.unread);
