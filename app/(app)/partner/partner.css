@@ -1,0 +1,4 @@
+.K .partner-content, .K .partner-card { display: grid; gap: 12px; }
+.K .partner-content { padding-top: 12px; }
+.K .partner-content > img, .K .partner-content > h1 { justify-self: center; }
+.K .partner-card { border-radius: 24px; padding: 16px; }

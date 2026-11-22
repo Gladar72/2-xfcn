@@ -17,6 +17,8 @@ import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 
 interface ProfileSummary {
   name: string;
+  phone?: string | null;
+  email?: string | null;
   city: string;
   morningRemindersEnabled: boolean;
   profileHidden: boolean;
@@ -179,6 +181,15 @@ export default function SettingsPage() {
         {!ios && !android && homeOk && <Row i="home" t="На экран «Домой»" s="Открывать «Место» в одно касание" onClick={() => addToHome()} />}
       </div>
 
+      <span className="lbl">Вход</span>
+      <div className="menu gl" style={{ marginTop: 0 }}>
+        <Row i="mail" t="Почта" s={p?.email ?? "Привязать почту"} href="/settings/contact/email" />
+        <Row i="nav" t="Телефон" s={p?.phone ?? "Привязать телефон"} href="/settings/contact/phone" />
+      </div>
+      <span className="lbl">Приглашения</span>
+      <div className="menu gl" style={{ marginTop: 0 }}>
+        <Row i="gift" t="Код приглашения" href="/settings/contact/referral" />
+      </div>
       <span className="lbl">Помощь</span>
       <div className="menu gl" style={{ marginTop: 0 }}>
         <Row i="help" t="Задать вопрос Мосе" s="ИИ-помощник отвечает сразу" onClick={() => setSupOpen(true)} />

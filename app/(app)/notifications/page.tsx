@@ -6,6 +6,7 @@ import { photoThumb } from "@/lib/photos/thumb";
 import { EmptyIll, Ic, Screen } from "@/components/proto/ui";
 import { useRouter } from "next/navigation";
 import { goBack } from "@/lib/nav/back";
+import { groupHeartRows } from "@/lib/people/heart-inbox";
 import { getJson } from "@/lib/http/get-json";
 
 interface NotificationItem {
@@ -112,9 +113,9 @@ export default function NotificationsPage() {
   }, [filtered]);
 
   function handlePress(item: NotificationItem) {
-    if (item.type === "heart") {
-      router.push("/profile");
-    } else if ((item.type === "heart_mutual" || item.type === "meet_hint" || item.type === "new_follower") && item.linkUserId) {
+    if (item.type === "heart" || item.type === "heart_mutual") {
+      router.push(item.linkUserId ? `/people/${encodeURIComponent(item.linkUserId)}?heart=1` : "/hearts");
+    } else if ((item.type === "meet_hint" || item.type === "new_follower") && item.linkUserId) {
       router.push(`/people/${item.linkUserId}`);
     } else if (item.type === "subscription_expiring" || item.type === "subscription_expired") {
       router.push("/subscriptions");
@@ -174,7 +175,13 @@ export default function NotificationsPage() {
       {groups.map((g) => (
         <div key={g.label}>
           <span className="lbl">{g.label}</span>
-          {g.items.map((item) => {
+          {groupHeartRows(g.items).map(row => {
+            if (row.kind === "group") return (
+              <button key={row.key} className="nt gl" style={{ width: "100%", textAlign: "left" }} onClick={() => router.push("/hearts")}>
+                <Ic n="heart" /><div>Ещё {row.count} {new Intl.PluralRules("ru").select(row.count) === "few" ? "человека" : "человек"} {new Intl.PluralRules("ru").select(row.count) === "one" ? "поставил" : "поставили"} сердечко<small>Посмотреть всех</small></div>
+              </button>
+            );
+            const item = row.item;
             const rich = item.event && (item.type === "application_accepted" || item.type === "event_soon") && item.event.status !== "cancelled";
             if (rich && item.event) {
               const e = item.event;

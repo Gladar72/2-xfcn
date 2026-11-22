@@ -70,15 +70,23 @@ export interface DeckCtl {
  * в колоде свайп вбок — следующий человек. Внизу «Позвать на встречу»
  * (приглашение на свою встречу в личный чат + Telegram) и «Написать».
  */
-type PersonViewProps = { id: string; initial?: Person | null; deck?: DeckCtl; pending?: boolean };
+type PersonViewProps = { id: string; initial?: Person | null; deck?: DeckCtl; pending?: boolean; openedFromHeart?: boolean };
 
 export function PersonView({ id, ...props }: PersonViewProps) {
   return <PersonViewContent key={id} id={id} {...props} />;
 }
 
-function PersonViewContent({ id, initial, deck, pending = false }: PersonViewProps) {
+function PersonViewContent({ id, initial, deck, pending = false, openedFromHeart = false }: PersonViewProps) {
   const router = useRouter();
   const [person, setPerson] = useState<Person | null>(initial ?? null);
+  useEffect(() => {
+    if (openedFromHeart && person?.id === id) {
+      void fetch("/api/me/hearts/inbox", {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ senderId: id }),
+        keepalive: true,
+      }).catch(() => {});
+    }
+  }, [id, openedFromHeart, person?.id]);
   const [error, setError] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [busy, setBusy] = useState(false);

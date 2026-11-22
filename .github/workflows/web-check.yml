@@ -23,3 +23,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npx eslint app components lib --max-warnings=0 || npx eslint app components lib
+      - name: Test Telegram navigation and account linking
+        run: |
+          npx playwright install --with-deps chromium webkit
+          npx playwright test telegram-parity.spec.ts
