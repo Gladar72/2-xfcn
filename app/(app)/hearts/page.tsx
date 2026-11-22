@@ -50,7 +50,7 @@ export default function HeartsPage() {
     {rows.map(row => <div key={row[0]!.id} className="hearts-mosaic">
       {row.map(person => <Link key={person.id} href={`/people/${person.id}?heart=1`} prefetch={false}
         className="k-mt k-pr" style={bg(person.avatarUrl, 640, "center 30%")}>
-        {person.unread && <span className="k-cm k-gw">♥ Новое</span>}
+        {person.unread && <span className="k-cm k-gd"><span className="heart-dot" aria-hidden>♥</span>Новое</span>}
         <span className="k-mb"><b>{person.name}{person.age ? `, ${person.age}` : ""}</b>
           <small>{heartTime(person.createdAt)}</small></span>
       </Link>)}

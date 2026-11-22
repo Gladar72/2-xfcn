@@ -3,3 +3,4 @@
 .K .hearts-mosaic .k-mt { position: relative; min-width: 0; }
 .hearts-mosaic > :first-child, .hearts-mosaic > :nth-child(2):last-child { grid-row: span 2; }
 .hearts-mosaic > :only-child { grid-column: span 2; }
+.hearts-mosaic .heart-dot { display: grid; place-items: center; width: 15px; height: 15px; border-radius: 50%; background: #ff4f8b; color: white; }
