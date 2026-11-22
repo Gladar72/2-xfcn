@@ -20,6 +20,7 @@ import { goBack } from "@/lib/nav/back";
 import { ApiReadError, getJson } from "@/lib/http/get-json";
 import { markCachedChatRead } from "@/lib/chat/list-cache";
 import { ChatScrollbar } from "@/components/chat/ChatScrollbar";
+import { presenceLabel } from "@/lib/people/presence";
 import { hasReadMessage } from "@/lib/chat/read-status";
 
 interface ChatPageProps {
@@ -39,6 +40,7 @@ interface Member {
   gender: string | null;
   completedMeetingsCount: number;
   lastReadAt: string | null;
+  lastActiveAt?: string | null;
   /** Анонимная встреча: профиль скрыт — открывать нельзя. */
   anonymous?: boolean;
 }
@@ -650,6 +652,31 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
   }
 
   const isEventClosed = eventStatus === "completed" || eventStatus === "cancelled";
+  useEffect(() => {
+    if (!myUserId || isEventClosed) return;
+    const controller = new AbortController();
+    let loading = false;
+    async function refreshMembers() {
+      if (document.hidden || loading) return;
+      loading = true;
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}/messages?limit=1`, { signal: controller.signal, cache: "no-store" });
+        if (!res.ok) return;
+        const history: ChatHistory = await res.json();
+        if (history.members && !controller.signal.aborted) {
+          const fresh = history.members;
+          setMembers(previous => fresh.map(member => {
+            const read = previous.find(other => other.id === member.id)?.lastReadAt;
+            return read && Date.parse(read) > Date.parse(member.lastReadAt ?? "1970-01-01") ? { ...member, lastReadAt: read } : member;
+          }));
+        }
+      } catch { /* Keep the last known presence while reconnecting. */ }
+      finally { loading = false; }
+    }
+    const timer = window.setInterval(refreshMembers, 30000);
+    document.addEventListener("visibilitychange", refreshMembers);
+    return () => { controller.abort(); window.clearInterval(timer); document.removeEventListener("visibilitychange", refreshMembers); };
+  }, [conversationId, myUserId, isEventClosed]);
   const headerTitle = eventTitle ?? (members.length === 1 ? (members[0]?.name ?? "Чат") : "Чат");
   const soleMember = members.length === 1 ? members[0] : null;
   const categoryIcon = isBusiness ? "/brand/pi/biz.svg" : category ? CATEGORY_ICON[category.slug] : undefined;
@@ -696,10 +723,11 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
 
   const quick = eventTitle !== null ? ["Я в пути", "Опаздываю на 5 минут", "Уже на месте", "Кто во сколько?"] : ["Привет! Пойдёшь на кофе?", "Видел твою встречу, можно с вами?", "Привет 👋"];
   const headImg = eventTitle !== null ? eventPhotoUrl : soleMember?.avatarUrl ?? null;
+  const online = members.filter(m => !m.anonymous && presenceLabel(m.lastActiveAt) === "Онлайн").length;
   const headSub =
     eventTitle !== null
-      ? `${totalParticipantsCount} ${pluralizePeople(totalParticipantsCount)}${eventMeta?.date ? ` · ${formatDayLabel(eventMeta.date)}${eventMeta.time ? `, ${eventMeta.time.slice(0, 5)}` : ""}` : ""}`
-      : "личная переписка";
+      ? `${totalParticipantsCount} ${pluralizePeople(totalParticipantsCount)}${online ? ` · ${online} в сети` : ""}${eventMeta?.date ? ` · ${formatDayLabel(eventMeta.date)}${eventMeta.time ? `, ${eventMeta.time.slice(0, 5)}` : ""}` : ""}`
+      : (soleMember && !soleMember.anonymous && presenceLabel(soleMember.lastActiveAt, soleMember.gender)) || "личная переписка";
 
   return (
     <div className="P" style={{ height: liveHeight ? `${liveHeight}px` : undefined }}>
@@ -721,15 +749,16 @@ function ChatConversation({ conversationId }: { conversationId: string }) {
               )}
             </span>
           )}
-          <div>
+          <button style={{ flex: 1, minWidth: 0, textAlign: "left", color: "inherit" }} disabled={eventTitle === null && (!soleMember || soleMember.anonymous)}
+            onClick={() => eventTitle !== null ? openParticipants() : soleMember && router.push(`/people/${soleMember.id}`)}>
             <b>{headerTitle}</b>
             <span>{isEventClosed ? "Событие закрыто" : headSub}</span>
-          </div>
+          </button>
           {eventTitle !== null && eventMeta ? (
             <button className="rb gl" onClick={() => router.push(`/events/${eventMeta.id}`)} aria-label="О встрече" style={{ width: 40, height: 40 }}>
               <Ic n="cal" c="s" />
             </button>
-          ) : soleMember ? (
+          ) : soleMember && !soleMember.anonymous ? (
             <button className="rb gl" onClick={() => router.push(`/people/${soleMember.id}`)} aria-label="Профиль" style={{ width: 40, height: 40 }}>
               <Ic n="user" c="s" />
             </button>

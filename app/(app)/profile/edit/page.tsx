@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useProfilePhoto } from "@/components/profile/useProfilePhoto";
-import { photoThumb } from "@/lib/photos/thumb";
+import { ProfileGallery } from "@/components/profile/ProfileGallery";
 import { interestIcon } from "@/lib/data/interests";
 import { Ic, Screen, Toast } from "@/components/proto/ui";
 import { goBack } from "@/lib/nav/back";
@@ -28,7 +27,6 @@ export default function EditProfilePage() {
   const [birthText, setBirthText] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
@@ -52,33 +50,6 @@ export default function EditProfilePage() {
   function flash(t: string) {
     setToast(t);
     setTimeout(() => setToast(null), 2600);
-  }
-
-  // Выбор фото → вертикальный редактор 3:4 → загрузка.
-  const photo = useProfilePhoto({
-    onDone: (r) => {
-      if (!p) return;
-      if (r.main) setP({ ...p, avatarUrl: r.avatarUrl, photos: [r.avatarUrl, ...(p.photos ?? []).slice(1)] });
-      else setP({ ...p, photos: r.photos });
-      flash("Фото добавлено");
-    },
-    onError: flash,
-  });
-  const busySlot = photo.busySlot;
-
-  async function removeExtra(url: string) {
-    if (!p || deleting) return;
-    setDeleting(url);
-    try {
-      const res = await fetch("/api/me/photos", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ url }) });
-      const d = await res.json();
-      if (!res.ok || !Array.isArray(d.photos)) throw new Error("Photo was not deleted");
-      setP((current) => current ? { ...current, photos: d.photos } : current);
-    } catch {
-      flash("Не удалось удалить фото. Попробуй ещё раз.");
-    } finally {
-      setDeleting(null);
-    }
   }
 
   async function save() {
@@ -118,7 +89,6 @@ export default function EditProfilePage() {
     }
   }
 
-  const photos = p?.photos ?? (p?.avatarUrl ? [p.avatarUrl] : []);
 
   return (
     <>
@@ -142,55 +112,8 @@ export default function EditProfilePage() {
         <p className="muted" style={{ margin: "8px 0 14px", fontSize: 15, lineHeight: 1.5 }}>
           До 3 фото. Первое — главное, оно на аватарке и в ленте людей. Нажми «+», чтобы загрузить со своего устройства.
         </p>
-        <div className="phgrid">
-          {[0, 1, 2].map((i) => {
-            const src = photos[i];
-            if (busySlot === i)
-              return (
-                <div key={i} className="phs gl">
-                  <div className="sk" style={{ position: "absolute", inset: 0, borderRadius: 20 }} />
-                </div>
-              );
-            if (src)
-              return (
-                <div key={i} className="phs gl">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={photoThumb(src, 300)}
-                    alt=""
-                    onClick={() => {
-                      if (i === 0) {
-                        photo.pick(0);
-                      }
-                    }}
-                  />
-                  {i > 0 && (
-                    <button className="x" disabled={!!deleting} onClick={() => removeExtra(src)} aria-label="Удалить фото">
-                      <Ic n="close" c="xs" />
-                    </button>
-                  )}
-                  {i === 0 && <span className="tag">главное</span>}
-                </div>
-              );
-            return (
-              <button
-                key={i}
-                className="phs gl"
-                disabled={!p}
-                onClick={() => {
-                  photo.pick(i === 0 || !photos[0] ? 0 : i);
-                }}
-                aria-label="Добавить фото"
-              >
-                {i === 0 ? <div className="tgava">{(p?.name ?? "?").charAt(0).toUpperCase()}</div> : null}
-                <span className="add" style={i === 0 ? { position: "relative", zIndex: 2 } : undefined}>
-                  <Ic n="plus" c="s" />
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {photo.ui}
+        {p && <ProfileGallery avatar={p.avatarUrl} photos={p.photos} flash={flash}
+          onChange={next => setP(current => current ? { ...current, avatarUrl: next[0] ?? null, photos: next } : current)} />}
 
         <span className="lbl">Имя</span>
         <label className="field gl">

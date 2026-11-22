@@ -7,8 +7,9 @@ import { PLAN_LIMITS, type Plan } from "@/lib/subscriptions/limits";
 import { photoThumb } from "@/lib/photos/thumb";
 import { useGuide } from "@/lib/mosya/guide";
 import { Screen, Toast } from "@/components/proto/ui";
-import { KI, bg } from "@/components/proto/k";
+import { KI } from "@/components/proto/k";
 import { interestIcon } from "@/lib/data/interests";
+import { ProfileGallery } from "@/components/profile/ProfileGallery";
 import { IncomingHeartsLink } from "@/components/people/IncomingHeartsLink";
 import { FollowsBlock } from "@/components/profile/FollowsBlock";
 import type { IconName } from "@/components/brand/Icon";
@@ -85,8 +86,6 @@ export default function ProfilePage({ searchParams }: { searchParams: { hearts?:
   ];
 
   const main = profile?.avatarUrl ?? photos[0] ?? null;
-  // «Мои фото»: главное + дополнительные, всего до 6; показываем по 3 в ряд и ячейку «Добавить».
-  const all = [main, ...photos.filter((u) => u !== main)].filter((u): u is string => !!u).slice(0, 6);
   function flash(t: string) {
     setToast(t);
     setTimeout(() => setToast(null), 2400);
@@ -183,16 +182,8 @@ export default function ProfilePage({ searchParams }: { searchParams: { hearts?:
                 Изменить
               </Link>
             </div>
-            <div className="k-ph3">
-              {all.map(u => (
-                <Link key={u} href="/profile/edit" aria-label="Изменить фото" className="k-pr">
-                  <i style={bg(u, 400)} />
-                </Link>
-              ))}
-              {all.length < 6 && (
-                <Link href="/profile/edit" className="k-pr" aria-label="Добавить фото"><i className="k-g">+</i></Link>
-              )}
-            </div>
+            <ProfileGallery avatar={main} photos={photos} flash={flash}
+              onChange={next => setProfile(current => current ? { ...current, avatarUrl: next[0] ?? null, photos: next } : current)} />
 
             <div className="k-sec">
               <div>

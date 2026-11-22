@@ -1,0 +1,9 @@
+.profile-gallery { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-top: 10px; }
+.gallery-tile, .gallery-add { position: relative; overflow: hidden; border-radius: 18px; aspect-ratio: 3/4; }
+.gallery-tile[data-moving] { opacity: .65; }
+.gallery-image, .gallery-image img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.gallery-image span, .gallery-grip { position: absolute; color: white; border-radius: 12px; background: rgba(23,20,31,.75); }
+.gallery-image span { bottom: 8px; left: 6px; padding: 3px 7px; font-size: 11px; }
+.gallery-grip { top: 3px; right: 3px; min-width: 36px; min-height: 36px; font-size: 20px; touch-action: none; }
+.gallery-add { font-size: 30px; }
+.gallery-actions { display: grid; gap: 8px; margin-top: 16px; }

@@ -207,11 +207,13 @@ test("photo deletion failure keeps the photo visible and can be retried", async 
   await page.route("**/api/me/profile", route => route.fulfill({ json: { id: "me", name: "Андрей", birthDate: "1995-01-01", photos } }));
   await page.route("**/api/me/photos", route => failed ? route.abort() : route.fulfill({ json: { photos: photos.slice(0, 1) } }));
   await page.goto("/profile/edit");
+  await page.getByRole("button", { name: "Фото 2", exact: true }).click();
   await page.getByRole("button", { name: "Удалить фото", exact: true }).click();
   await expect(page.getByText("Не удалось удалить фото. Попробуй ещё раз.", { exact: true })).toBeVisible();
-  await expect(page.locator(".phgrid img")).toHaveCount(2);
+  await expect(page.locator(".profile-gallery img")).toHaveCount(2);
   failed = false;
+  await page.getByRole("button", { name: "Фото 2", exact: true }).click();
   await page.getByRole("button", { name: "Удалить фото", exact: true }).click();
-  await expect(page.locator(".phgrid img")).toHaveCount(1);
+  await expect(page.locator(".profile-gallery img")).toHaveCount(1);
   expect(errors).toEqual([]);
 });
