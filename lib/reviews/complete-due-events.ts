@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushPersonal } from "@/lib/push/expo";
 import { shortTitle } from "@/lib/notify/user";
@@ -149,11 +150,16 @@ export async function finalizeCompletedEvents(
     )
   );
 
+  const telegramUsers = await telegramNotificationUsers(admin, (members ?? []).flatMap((m) => {
+    const u = m.users as unknown as { id: string; telegram_id: number | null } | null;
+    return u?.telegram_id ? [u.id] : [];
+  }));
   return toNotify
     .map((event) => {
       const recipients = (members ?? [])
         .filter((m) => m.event_id === event.id)
-        .map((m) => (m.users as unknown as { telegram_id: number } | null)?.telegram_id)
+        .map((m) => m.users as unknown as { id: string; telegram_id: number } | null)
+        .map((u) => u && telegramUsers.has(u.id) ? u.telegram_id : null)
         .filter((id): id is number => typeof id === "number");
       return { eventId: event.id, title: event.title, recipients };
     })

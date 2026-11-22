@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { InlineKeyboard } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
@@ -38,7 +39,9 @@ export async function notifyFollowers(
     data: { url: `/event/${params.eventId}`, type: "follow_event", eventId: params.eventId },
   }).catch((err) => console.error("follow push:", err));
 
-  const { data: users } = await admin.from("users").select("telegram_id").in("id", ids);
+  const telegramUsers = await telegramNotificationUsers(admin, ids);
+  if (telegramUsers.size === 0) return;
+  const { data: users } = await admin.from("users").select("telegram_id").in("id", [...telegramUsers]);
   const telegramIds = (users ?? []).map((u) => u.telegram_id as number | null).filter((id): id is number => !!id);
   if (telegramIds.length === 0) return;
 

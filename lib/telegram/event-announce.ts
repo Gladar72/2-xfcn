@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { InlineKeyboard } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
@@ -54,7 +55,8 @@ export async function announceNewEvent(
     }
   ).catch((err) => console.error("announce push:", err));
 
-  const telegramIds = recipients.map((u) => u.telegram_id as number | null).filter((id): id is number => !!id);
+  const telegramUsers = await telegramNotificationUsers(admin, recipients.map((u) => u.id));
+  const telegramIds = recipients.filter((u) => telegramUsers.has(u.id)).map((u) => u.telegram_id as number | null).filter((id): id is number => !!id);
   if (telegramIds.length === 0) return;
 
   const card = await buildEventCard(admin, params.eventId);

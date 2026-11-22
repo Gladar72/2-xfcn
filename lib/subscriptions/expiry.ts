@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { InlineKeyboard, type Api } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { grantPartnerPremium, grantPartnerPremiumToUser } from "@/lib/subscriptions/referrals";
@@ -80,6 +81,7 @@ export async function processSubscriptionExpiry(
   }
 
   // 2. Скоро закончится — напоминаем один раз на каждый срок подписки.
+  const telegramUsers = await telegramNotificationUsers(admin, rest.map((s) => s.user_id));
   const upcoming = rest.filter((s) => new Date(s.current_period_end) > now);
   if (upcoming.length > 0) {
     const { data: already } = await admin
@@ -107,7 +109,7 @@ export async function processSubscriptionExpiry(
         payload: { subscriptionId: sub.id, periodEnd: sub.current_period_end },
       });
       if (lockError) continue;
-      if (sub.user?.telegram_id) {
+      if (sub.user?.telegram_id && telegramUsers.has(sub.user_id)) {
         await api
           .sendMessage(
             Number(sub.user.telegram_id),
@@ -153,7 +155,7 @@ export async function processSubscriptionExpiry(
       type: "subscription_expired",
       payload: { subscriptionId: sub.id },
     });
-    if (sub.user) {
+    if (sub.user?.telegram_id && telegramUsers.has(sub.user_id)) {
       await api
         .sendMessage(
           Number(sub.user.telegram_id),

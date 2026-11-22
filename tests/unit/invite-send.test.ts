@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({ current: vi.fn(), admin: vi.fn(), shared: vi.fn(), chat: vi.fn(), telegram: vi.fn(), push: vi.fn() }));
+vi.mock("@/lib/notify/channel", () => ({ usesTelegramNotifications: () => true }));
 vi.mock("@/lib/telegram/current-user", () => ({ getCurrentUser: mocks.current }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: mocks.admin }));
 vi.mock("@/lib/chat/can-direct", () => ({ findDirectConversation: mocks.chat, haveSharedEvent: mocks.shared }));

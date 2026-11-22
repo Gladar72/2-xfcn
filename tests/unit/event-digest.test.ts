@@ -11,14 +11,16 @@ vi.mock("@/lib/push/expo", () => ({ sendPushToUsers: vi.fn().mockResolvedValue(u
 const NOW = Date.parse("2026-10-31T13:00:00Z"); // 18:00 in Tyumen
 const sendMessage = vi.fn().mockResolvedValue({ message_id: 1 });
 
-function database(options: { last?: string | null; every?: number; writeError?: boolean; readError?: boolean; empty?: boolean } = {}) {
-  const snapshot = { id: "user-1", telegram_id: 123, city: "Тюмень", announce_every_days: options.every ?? 1, last_digest_at: options.last ?? null };
+function database(options: { last?: string | null; every?: number; writeError?: boolean; readError?: boolean; empty?: boolean; appOnly?: boolean; installed?: boolean; laterPage?: boolean } = {}) {
+  const snapshot = { id: "user-1", telegram_id: options.appOnly ? null : 123, city: "Тюмень", announce_every_days: options.every ?? 1, last_digest_at: options.last ?? null };
   const stored = { ...snapshot, event_announcements: true };
   const patches: URL[] = [];
   const fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     const table = url.pathname.split("/").at(-1);
     const reply = (data: unknown, status = 200) => new Response(JSON.stringify(data), { status, headers: { "Content-Type": "application/json" } });
+    if (table === "app_install_gifts") return reply(options.installed ? [{ user_id: snapshot.id }] : []);
+    if (table === "users" && url.searchParams.get("select")?.includes("push_tokens!inner")) return reply([]);
     if (table === "users" && init?.method === "PATCH") {
       patches.push(url);
       if (options.writeError) return reply({ code: "08006", message: "database unavailable" }, 503);
@@ -32,6 +34,10 @@ function database(options: { last?: string | null; every?: number; writeError?: 
           url.searchParams.get("city") !== `eq.${stored.city}`) return reply([]);
       Object.assign(stored, JSON.parse(String(init.body)));
       return reply([{ id: stored.id }]);
+    }
+    if (table === "users" && options.laterPage && !url.searchParams.has("id")) {
+      // Ineligible recipients on the first page (local 16:00 in Moscow).
+      return reply(Array.from({ length: 500 }, (_, i) => ({ ...snapshot, id: `first-${String(i).padStart(3, "0")}`, city: "Москва" })));
     }
     if (table === "users") return options.readError ? reply({ code: "08006" }, 503) : reply([{ ...snapshot }]);
     if (table === "events") return reply(options.empty ? [] : [{
@@ -64,6 +70,24 @@ describe("event digest delivery guard", () => {
       expect(await sendDueDigests(admin)).toMatchObject({ sent: 0, claimed: 0, skipped: 1 });
     }
     expect(sendMessage).toHaveBeenCalledTimes(1);
+    expect(sendPushToUsers).not.toHaveBeenCalled();
+  });
+  it("pushes the matching event to an app-only recipient on a later page", async () => {
+    const { admin } = database({ appOnly: true, laterPage: true });
+    expect(await sendDueDigests(admin)).toMatchObject({ users: 1, claimed: 1, sent: 0 });
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(getBot).not.toHaveBeenCalled();
+    expect(sendPushToUsers).toHaveBeenCalledTimes(1);
+    expect(sendPushToUsers).toHaveBeenCalledWith(admin, ["user-1"], expect.objectContaining({
+      data: { url: "/event/event-1", eventId: "event-1", type: "event_digest" },
+    }));
+  });
+  it("delivers the city digest only in the app for a linked Telegram account", async () => {
+    const { admin } = database({ installed: true });
+    expect(await sendDueDigests(admin)).toMatchObject({ sent: 0, claimed: 1 });
+    expect(sendPushToUsers).toHaveBeenCalledTimes(1);
+    expect(sendMessage).not.toHaveBeenCalled();
+    expect(await sendDueDigests(admin)).toMatchObject({ claimed: 0 });
     expect(sendPushToUsers).toHaveBeenCalledTimes(1);
   });
   it("only one concurrent worker owns a delivery", async () => {
@@ -71,7 +95,7 @@ describe("event digest delivery guard", () => {
     const results = await Promise.all([sendDueDigests(admin), sendDueDigests(admin), sendDueDigests(admin)]);
     expect(results.reduce((n, r) => n + r.claimed, 0)).toBe(1);
     expect(sendMessage).toHaveBeenCalledTimes(1);
-    expect(sendPushToUsers).toHaveBeenCalledTimes(1);
+    expect(sendPushToUsers).not.toHaveBeenCalled();
   });
   it("sends nothing when saving the delivery claim fails", async () => {
     expect(await sendDueDigests(database({ writeError: true }).admin)).toMatchObject({ sent: 0, failed: 1 });

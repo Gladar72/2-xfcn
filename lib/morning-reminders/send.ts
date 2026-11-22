@@ -1,3 +1,4 @@
+import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { GrammyError } from "grammy";
 import type { createAdminClient } from "@/lib/supabase/admin";
 import { getBot } from "@/lib/telegram/bot";
@@ -101,6 +102,7 @@ export async function sendDueMorningReminders(admin: Admin): Promise<{ sent: num
       .from("users")
       .select("id, telegram_id, morning_reminders_enabled, moderation_status")
       .in("id", userIds);
+    const telegramUsers = await telegramNotificationUsers(admin, userIds);
     const userById = new Map(((users ?? []) as ReminderUser[]).map((u) => [u.id, u]));
 
     const disabled = candidates.filter((r) => {
@@ -160,7 +162,7 @@ export async function sendDueMorningReminders(admin: Admin): Promise<{ sent: num
         slice.map(async (row) => {
           const user = userById.get(row.user_id);
           if (!user) return "skipped" as const;
-          return sendOne(admin, row.id, user, pushes);
+          return sendOne(admin, row.id, user, pushes, telegramUsers.has(user.id));
         })
       );
       for (const r of results) {
@@ -181,7 +183,8 @@ async function sendOne(
   admin: Admin,
   reminderId: string,
   user: ReminderUser,
-  pushes: { userId: string; message: PushMessage }[]
+  pushes: { userId: string; message: PushMessage }[],
+  useTelegram: boolean
 ): Promise<"sent" | "skipped"> {
   const { data: historyRows } = await admin
     .from("morning_reminders")
@@ -199,7 +202,7 @@ async function sendOne(
 
   try {
     // У пользователей мобильного приложения без Telegram — только push.
-    if (user.telegram_id) await sendReminderMessage(user.telegram_id, message.text);
+    if (useTelegram && user.telegram_id) await sendReminderMessage(user.telegram_id, message.text);
     await admin
       .from("morning_reminders")
       .update({
