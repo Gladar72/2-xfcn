@@ -5,104 +5,23 @@ on:
 permissions:
   contents: read
 jobs:
-  iphone:
-    runs-on: macos-15
-    timeout-minutes: 65
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: 7c2264b08e5296af1e55016dbfbb5e4e438bde4d
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: Build the released client for the simulator with fixture data
-        working-directory: mobile
-        env:
-          EXPO_PUBLIC_UI_SMOKE: "1"
-        run: |
-          set -euo pipefail
-          X=$(ls -d /Applications/Xcode_26*.app | sort -V | tail -1)
-          sudo xcode-select -s "$X/Contents/Developer"
-          npm install --no-audit --no-fund
-          # The screenshot driver controls navigation instead of the existing timed screen tour.
-          python3 - <<'PY'
-          from pathlib import Path
-          p = Path("app/_layout.tsx")
-          s = p.read_text()
-          old = 'seq.forEach((h, i) => setTimeout(() => router.replace(h), i * 16000));'
-          assert old in s
-          p.write_text(s.replace(old, 'void seq;'))
-          PY
-          npx expo prebuild --platform ios --clean
-          WS=$(ls -d ios/*.xcworkspace | head -1)
-          SCHEME=$(basename "$WS" .xcworkspace)
-          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/sim" CODE_SIGNING_ALLOWED=NO build > "$RUNNER_TEMP/build.log" || { tail -80 "$RUNNER_TEMP/build.log"; exit 1; }
-      - name: Capture sections of the iPhone client
-        run: |
-          set -euo pipefail
-          DT=$(xcrun simctl list devicetypes | grep -oE 'iPhone 1[0-9] Pro Max' | sort -V | tail -1)
-          RT=$(xcrun simctl list runtimes | grep -oE 'com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+' | sort -V | tail -1)
-          UDID=$(xcrun simctl create MestoScreens "$DT" "$RT")
-          xcrun simctl boot "$UDID"
-          xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl install "$UDID" "$(ls -d "$RUNNER_TEMP"/sim/Build/Products/Release-iphonesimulator/*.app | head -1)"
-          xcrun simctl launch "$UDID" ru.mesto.app
-          sleep 28
-          mkdir -p shots
-          while read -r name route; do
-            xcrun simctl openurl "$UDID" "mesto://$route"
-            sleep 4
-            xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/screen.png"
-            sips -Z 740 -s format jpeg -s formatOptions 78 "$RUNNER_TEMP/screen.png" --out "shots/$name.jpg" >/dev/null
-          done <<'SCREENS'
-          feed (tabs)
-          map map
-          meet meet
-          me profile
-          people people
-          chats chats
-          notif notifications
-          hearts hearts
-          search search
-          event event/e1
-          create create
-          settings settings
-          plans subscription
-          biz business
-          ticket ticket/e1
-          tickets tickets/e1
-          requests applications/e1
-          edit profile-edit
-          login login
-          onboarding register
-          offer legal/offer
-          privacy privacy
-          reviews reviews
-          partner partner
-          support support
-          interests interests
-          contact link-email
-          SCREENS
-      - uses: actions/upload-artifact@v4
-        with:
-          name: iphone60
-          path: shots/
-          retention-days: 3
   telegram:
     runs-on: ubuntu-24.04
     timeout-minutes: 28
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: d4b23efa71e034ed89eaf08c10a4517e74d64faf
+          ref: 6eb9112618607349bcca413df6d22ad5ebe938ef
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm ci
-      - run: npx playwright install --with-deps webkit
+      - run: npx playwright install --with-deps chromium webkit
+      - name: Test likes, account linking and gallery on both engines
+        run: npx playwright test telegram-parity.spec.ts --timeout=35000 --reporter=line
       - name: Capture screens at iPhone viewport size
+        if: always()
         run: |
           python3 - <<'PY'
           from pathlib import Path
