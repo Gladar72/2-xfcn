@@ -531,7 +531,7 @@ for (const status of ["missed", "silent", "added", "unsupported"] as const) {
       localStorage.setItem("mesto_launches", "3");
       const listeners = new Map<string, () => void>();
       window.Telegram = { WebApp: {
-        initData: "test", platform: "ios", ready() {}, expand() {}, isVersionAtLeast: () => true,
+        initData: "test", platform: "android", ready() {}, expand() {}, isVersionAtLeast: () => true,
         addToHomeScreen() { listeners.get("homeScreenAdded")?.(); },
         checkHomeScreenStatus(cb: (s: string) => void) { if (status !== "silent") cb(status); },
         onEvent(name: string, cb: () => void) { listeners.set(name, cb); }, offEvent(name: string) { listeners.delete(name); },
@@ -549,3 +549,22 @@ for (const status of ["missed", "silent", "added", "unsupported"] as const) {
     }
   });
 }
+
+test("iPhone offers the App Store even with an existing home screen shortcut", async ({ page }) => {
+  await fixture(page);
+  await page.route("https://telegram.org/js/**", r => r.fulfill({ contentType: "application/javascript", body: "" }));
+  await page.goto("/feed");
+  await expect(page.locator('[data-id="home"] .k-mt').first()).toBeVisible();
+  await page.evaluate(() => {
+    window.Telegram = { WebApp: {
+      initData: "test", platform: "ios", ready() {}, expand() {},
+      onEvent() {}, offEvent() {},
+      openLink(url: string) { document.body.dataset.storeLink = url; },
+    } as unknown as NonNullable<typeof window.Telegram>["WebApp"] };
+  });
+  const offer = page.getByRole("dialog", { name: "Приложение «Место»" });
+  await expect(offer).toBeVisible({ timeout: 8000 });
+  await offer.getByRole("button", { name: "Скачать в App Store" }).click();
+  await expect(page.locator("body")).toHaveAttribute("data-store-link", "https://apps.apple.com/ru/app/id6833348222");
+  await expect(offer).toHaveCount(0);
+});
