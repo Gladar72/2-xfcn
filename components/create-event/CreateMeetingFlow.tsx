@@ -778,7 +778,7 @@ export function CreateMeetingFlow({ business: businessProp = false, editId }: { 
                 ).map(([k, tint, name, text]) => (
                   <button key={k} className={`k-own k-opt3 k-g k-pr ${kind === k ? "k-on" : ""}`} onClick={() => pickKind(k)}>
                     <span className={`k-crw ${tint}`}>
-                      <Creature size={86} variant={k === "anon" ? "p" : "e"} />
+                      <Creature size={86} variant={k === "anon" ? "anonymous" : k === "business" ? "business" : "e"} />
                     </span>
                     <span>
                       <b>{name}</b>

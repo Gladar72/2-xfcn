@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { watchVisible } from "@/lib/http/watch-visible";
 import { useGuide } from "@/lib/mosya/guide";
 import { say } from "@/lib/mosya/peek";
 import { JoinFlow } from "@/components/events/JoinFlow";
@@ -132,6 +133,14 @@ function HomeScreen() {
     latest: { eventId: string; eventTitle: string; name: string; age: number | null; avatarUrl: string | null };
   } | null>(null);
   const [unreadNotif, setUnreadNotif] = useState(false);
+  useEffect(() => watchVisible(async signal => {
+    try {
+      const res = await fetch("/api/notifications", { signal, cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!signal.aborted && Array.isArray(data.items)) setUnreadNotif(data.items.some((n: { isRead: boolean }) => !n.isRead));
+    } catch { /* Keep the last known notification count while offline. */ }
+  }), []);
   const [trainOpen, setTrainOpen] = useState(false);
   useGuide("feed", { when: events !== null });
   useEffect(() => {
@@ -260,10 +269,6 @@ function HomeScreen() {
         setCategories(d.categories ?? []);
         setTrainingTypes(d.trainingTypes ?? []);
       })
-      .catch(() => {});
-    fetch("/api/notifications", { signal: requestController.current?.signal })
-      .then((r) => r.json())
-      .then((d) => setUnreadNotif((d.items ?? []).some((n: { isRead?: boolean }) => !n.isRead)))
       .catch(() => {});
     fetch("/api/me/pending-applications", { signal: requestController.current?.signal })
       .then((r) => r.json())

@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { PLAN_LIMITS, type Plan } from "@/lib/subscriptions/limits";
 import { photoThumb } from "@/lib/photos/thumb";
 import { useGuide } from "@/lib/mosya/guide";
 import { Screen, Toast } from "@/components/proto/ui";
-import { KI, bg } from "@/components/proto/k";
+import { KI } from "@/components/proto/k";
 import { interestIcon } from "@/lib/data/interests";
-import { useProfilePhoto } from "@/components/profile/useProfilePhoto";
-import { HeartsSheet } from "@/components/people/HeartsSheet";
+import { ProfileGallery } from "@/components/profile/ProfileGallery";
+import { IncomingHeartsLink } from "@/components/people/IncomingHeartsLink";
 import { FollowsBlock } from "@/components/profile/FollowsBlock";
 import type { IconName } from "@/components/brand/Icon";
 
@@ -39,7 +40,9 @@ interface SubscriptionStatus {
 const PLAN_TITLES: Record<Plan, string> = { start: "Старт", medium: "Медиум", premium: "Премьер" };
 
 /** Профиль (SCR.profile прототипа). */
-export default function ProfilePage() {
+export default function ProfilePage({ searchParams }: { searchParams: { hearts?: string } }) {
+  const router = useRouter();
+  useEffect(() => { if (searchParams.hearts === "1") router.replace("/hearts"); }, [router, searchParams.hearts]);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [sub, setSub] = useState<SubscriptionStatus | null>(null);
   const [counts, setCounts] = useState([0, 0, 0]);
@@ -78,25 +81,11 @@ export default function ProfilePage() {
   const MENU: [IconName, string, string][] = [
     ["bell", "Уведомления", "/notifications"],
     ["star", "Отзывы после встреч", "/reviews"],
-    ["gift", "Партнёрская программа", "https://t.me/Mesto_people_bot?start=partner"],
+    ["gift", "Партнёрская программа", "/partner"],
     ["lock", "Приватность и анонимность", "/settings/privacy"],
   ];
 
   const main = profile?.avatarUrl ?? photos[0] ?? null;
-  // «Мои фото»: главное + дополнительные, всего до 6; показываем по 3 в ряд и ячейку «Добавить».
-  const all = [main, ...photos.filter((u) => u !== main)].filter((u): u is string => !!u).slice(0, 6);
-  const photo = useProfilePhoto({
-    onDone: (r) => {
-      if (!profile) return;
-      if (r.main) setProfile({ ...profile, avatarUrl: r.avatarUrl, photos: [r.avatarUrl, ...photos.slice(1)] });
-      else setProfile({ ...profile, photos: r.photos });
-    },
-    onError: (t) => {
-      setToast(t);
-      setTimeout(() => setToast(null), 2600);
-    },
-  });
-
   function flash(t: string) {
     setToast(t);
     setTimeout(() => setToast(null), 2400);
@@ -105,9 +94,14 @@ export default function ProfilePage() {
     if (!profile) return;
     const link = `${window.location.origin}/people/${profile.id}`;
     try {
+      if (navigator.share) {
+        await navigator.share({ url: link });
+        return;
+      }
       await navigator.clipboard.writeText(link);
       flash("Ссылка на профиль скопирована");
-    } catch {
+    } catch (error) {
+      if (error instanceof Error && error.name === "AbortError") return;
       flash(link);
     }
   }
@@ -161,6 +155,7 @@ export default function ProfilePage() {
                   {sub?.active && sub.plan && <span>{PLAN_LIMITS[sub.plan].priceRub} ₽/мес</span>}
                 </b>
               </span>
+              <span className="k-pc">{sub?.active ? "Сменить" : "Выбрать"}</span>
               <span className="k-pu">
                 <span>
                   <i style={{ width: `${sub?.active ? (lim ? Math.min(100, Math.round((used / lim) * 100)) : 100) : 0}%` }} />
@@ -171,7 +166,6 @@ export default function ProfilePage() {
                     : "Подключи, чтобы создавать свои встречи"}
                 </small>
               </span>
-              <span className="k-pc">{sub?.active ? "Сменить" : "Выбрать"}</span>
             </Link>
 
             <div className="k-acts">
@@ -180,6 +174,7 @@ export default function ProfilePage() {
               </Link>
             </div>
 
+            <IncomingHeartsLink />
             <FollowsBlock />
 
             <div className="k-sec">
@@ -192,25 +187,8 @@ export default function ProfilePage() {
                 Изменить
               </Link>
             </div>
-            <div className="k-ph3">
-              {all.slice(0, all.length < 6 ? 5 : 6).map((u, k) =>
-                k === 0 ? (
-                  <button key={u} type="button" className="k-pr" onClick={() => photo.pick(0)} aria-label="Заменить главное фото" style={{ padding: 0 }}>
-                    <i style={{ ...bg(u, 400), display: "flex" }}>{photo.busySlot === 0 && <span className="mebusy" />}</i>
-                  </button>
-                ) : (
-                  <Link key={u} href="/profile/edit" aria-label="Фото — изменить в редактировании" className="k-pr">
-                    <i style={{ ...bg(u, 400), display: "flex" }} />
-                  </Link>
-                )
-              )}
-              {all.length < 6 && (
-                <button type="button" className="k-pr" onClick={() => photo.pick(all.length === 0 ? 0 : 1)} aria-label="Добавить фото" style={{ padding: 0 }}>
-                  <i className="k-g">{photo.busySlot !== null && photo.busySlot !== 0 ? <span className="mebusy" /> : "+"}</i>
-                </button>
-              )}
-            </div>
-            {photo.ui}
+            <ProfileGallery avatar={main} photos={photos} flash={flash}
+              onChange={next => setProfile(current => current ? { ...current, avatarUrl: next[0] ?? null, photos: next } : current)} />
 
             <div className="k-sec">
               <div>
@@ -244,7 +222,6 @@ export default function ProfilePage() {
                 <KI n="chev" />
               </Link>
             </div>
-            <HeartsSheet />
             <div style={{ height: 30 }} />
           </>
         )}

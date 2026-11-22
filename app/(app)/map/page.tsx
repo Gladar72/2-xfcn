@@ -33,6 +33,7 @@ function MapPageContent() {
   const forwardedParams = searchParams.toString();
 
   const [events, setEvents] = useState<MapEventItem[]>([]);
+  const [addressOpen, setAddressOpen] = useState(false);
   const [selected, setSelected] = useState<MapEventItem[] | null>(null);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const [error, setError] = useState<string | null>(null);
@@ -122,6 +123,7 @@ function MapPageContent() {
   }, [focusId, events]);
 
   function handleSelect(items: MapEventItem[]) {
+    setAddressOpen(items.length > 1 && groupLocations(items, resolvedCity).length === 1);
     setSelected(items);
     setVisibleCount(PAGE_SIZE);
   }
@@ -165,6 +167,16 @@ function MapPageContent() {
     setSelected(null);
     setBizCatState(k);
   }
+  const schedule = useMemo(() => {
+    const sections = new Map<string, MapEventItem[]>();
+    if (!addressOpen || !selected) return sections;
+    for (const event of [...selected].sort((a, b) => a.eventDate.localeCompare(b.eventDate) || a.eventTime.localeCompare(b.eventTime) || a.id.localeCompare(b.id))) {
+      const section = sections.get(event.eventDate);
+      if (section) section.push(event);
+      else sections.set(event.eventDate, [event]);
+    }
+    return sections;
+  }, [addressOpen, selected]);
   const carousel = (selected ?? shown).slice(0, visibleCount);
 
   return (
@@ -375,6 +387,18 @@ function MapPageContent() {
         </div>
       )}
 
+      <Sheet open={addressOpen && !!selected && selected.length > 1} onClose={() => setAddressOpen(false)} label="События по адресу">
+        <h2>{selected?.find(e => !e.organizerHidden && e.address)?.address ?? "События по адресу"}</h2>
+        <button className="sm" aria-label="Закрыть список" onClick={() => setAddressOpen(false)}>Закрыть</button>
+        <div style={{ maxHeight: "52dvh", overflowY: "auto" }}>
+          {Array.from(schedule, ([date, items]) => <section key={date}>
+            <h3>{dayShort(date)}</h3>
+            {items.map(e => <Link key={e.id} className="k-row k-g" href={e.id.startsWith("city:") ? `/city/${e.id.slice(5)}` : `/events/${e.id}`}>
+              <span>{e.title}</span><time>{e.eventTime.slice(0, 5)}</time>
+            </Link>)}
+          </section>)}
+        </div>
+      </Sheet>
       <div className="mcar">
         {carousel.map((e) => (
           <Link key={e.id} className="mcard gl" href={e.id.startsWith("city:") ? `/city/${e.id.slice(5)}` : `/events/${e.id}`}>

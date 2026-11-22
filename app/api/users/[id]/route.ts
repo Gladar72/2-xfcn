@@ -53,6 +53,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   return NextResponse.json({
     id: user.id,
+    isSelf: user.id === currentUser.userId,
     name: user.name,
     city: user.city,
     lastActiveAt: user.last_active_at ?? null,

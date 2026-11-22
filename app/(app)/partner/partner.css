@@ -1,0 +1,7 @@
+.K .partner-content, .K .partner-card { display: grid; gap: 12px; }
+.K .partner-content { padding-top: 12px; }
+.K .partner-content > img, .K .partner-content > h1 { justify-self: center; }
+.K .partner-card { border-radius: 24px; padding: 16px; }
+.K .partner-perk { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 22px; }
+.K .partner-perk > span { display: grid; place-items: center; flex: 0 0 42px; height: 42px; color: white; border-radius: 15px; background: linear-gradient(135deg,#c981fa,#8967fb); }
+.K .partner-perk p { margin: 4px 0 0; font-size: 13px; }

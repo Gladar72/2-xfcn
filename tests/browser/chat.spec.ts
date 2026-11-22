@@ -659,8 +659,12 @@ test("incoming history and a keyboard resize reset a short-chat pan", async ({ p
 
 test("empty-chat wheel and cancelled gestures settle without leaving an offset", async ({ page }) => {
   await openChat(page, { empty: true });
-  await page.locator(".msgs").dispatchEvent("wheel", { deltaY: 140, cancelable: true });
-  await expect.poll(() => elasticOffset(page)).toBeLessThan(-15);
+  // Sample the gesture in the same browser task, before the automatic spring returns.
+  await expect.poll(() => page.locator(".msgs").evaluate(el => {
+    el.dispatchEvent(new WheelEvent("wheel", { deltaY: 140, cancelable: true, bubbles: true }));
+    const transform = getComputedStyle(el).transform;
+    return transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m42;
+  })).toBeLessThan(-15);
   await expect.poll(async () => Math.abs(await elasticOffset(page))).toBeLessThan(0.5);
   await panShortChat(page, 130);
   await page.locator(".msgs").dispatchEvent("touchcancel", { touches: [] });

@@ -9,7 +9,6 @@ import { addToHome, isTelegramAndroid, isTelegramIos, openAppStore, openRuStore 
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 import { KI } from "@/components/proto/k";
 import { Ic, Screen, Sheet, Toast } from "@/components/proto/ui";
-import { SupportSheet } from "@/components/proto/SupportSheet";
 import type { IconName } from "@/components/brand/Icon";
 import { goBack } from "@/lib/nav/back";
 import { CityWheel } from "@/components/proto/pickers";
@@ -17,6 +16,8 @@ import { RUSSIAN_CITIES } from "@/lib/data/russian-cities";
 
 interface ProfileSummary {
   name: string;
+  phone?: string | null;
+  email?: string | null;
   city: string;
   morningRemindersEnabled: boolean;
   profileHidden: boolean;
@@ -28,7 +29,6 @@ interface Sub {
   periodEnd?: string;
 }
 const PLAN_TITLES = { start: "Старт", medium: "Медиум", premium: "Премьер" } as const;
-const SUPPORT_BOT_URL = "https://t.me/Mesto_people_bot";
 
 /** Настройки (SCR.settings прототипа). */
 export default function SettingsPage() {
@@ -36,7 +36,6 @@ export default function SettingsPage() {
   const [p, setP] = useState<ProfileSummary | null>(null);
   const [sub, setSub] = useState<Sub | null>(null);
   const [cityOpen, setCityOpen] = useState(false);
-  const [supOpen, setSupOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [delOpen, setDelOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -181,8 +180,14 @@ export default function SettingsPage() {
 
       <span className="lbl">Помощь</span>
       <div className="menu gl" style={{ marginTop: 0 }}>
-        <Row i="help" t="Задать вопрос Мосе" s="ИИ-помощник отвечает сразу" onClick={() => setSupOpen(true)} />
-        <Row i="tg" t="Написать в поддержку" s="@Mesto_people_bot" href={SUPPORT_BOT_URL} ext />
+        <Row i="help" t="Помощь и поддержка" s="Мося ответит сразу, команда — в течение дня" href="/support" />
+        <Row i="gift" t="Партнёрская программа" s="30% с каждой оплаты приведённых людей" href="/partner" />
+        <Row i="people" t="Ввести код приглашения" href="/settings/contact/referral" />
+      </div>
+      <span className="lbl">Вход</span>
+      <div className="menu gl" style={{ marginTop: 0 }}>
+        <Row i="mail" t="Почта" s={p?.email ?? "Привязать почту"} href="/settings/contact/email" />
+        <Row i="nav" t="Телефон" s={p?.phone ?? "Привязать телефон"} href="/settings/contact/phone" />
       </div>
 
       <span className="lbl">Документы</span>
@@ -239,7 +244,6 @@ export default function SettingsPage() {
         </h2>
         {cityOpen && <CityWheel value={p?.city ?? ""} cities={RUSSIAN_CITIES} onPick={saveCity} />}
       </Sheet>
-      <SupportSheet open={supOpen} onClose={() => setSupOpen(false)} />
       <Toast text={toast} />
     </Screen>
   );

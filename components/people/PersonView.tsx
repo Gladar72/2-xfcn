@@ -36,6 +36,7 @@ interface FollowInfo {
 }
 
 export interface Person {
+  isSelf?: boolean;
   id: string;
   name: string;
   avatarUrl: string | null;
@@ -70,15 +71,23 @@ export interface DeckCtl {
  * в колоде свайп вбок — следующий человек. Внизу «Позвать на встречу»
  * (приглашение на свою встречу в личный чат + Telegram) и «Написать».
  */
-type PersonViewProps = { id: string; initial?: Person | null; deck?: DeckCtl; pending?: boolean };
+type PersonViewProps = { id: string; initial?: Person | null; deck?: DeckCtl; pending?: boolean; openedFromHeart?: boolean };
 
 export function PersonView({ id, ...props }: PersonViewProps) {
   return <PersonViewContent key={id} id={id} {...props} />;
 }
 
-function PersonViewContent({ id, initial, deck, pending = false }: PersonViewProps) {
+function PersonViewContent({ id, initial, deck, pending = false, openedFromHeart = false }: PersonViewProps) {
   const router = useRouter();
   const [person, setPerson] = useState<Person | null>(initial ?? null);
+  useEffect(() => {
+    if (openedFromHeart && person?.id === id) {
+      void fetch("/api/me/hearts/inbox", {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ senderId: id }),
+        keepalive: true,
+      }).catch(() => {});
+    }
+  }, [id, openedFromHeart, person?.id]);
   const [error, setError] = useState<string | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -179,7 +188,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
     }
   }
   useEffect(() => {
-    if (pending || !person?.id) return;
+    if (pending || person?.isSelf || !person?.id) return;
     setLiked(false);
     const controller = new AbortController();
     const version = ++likeVersion.current;
@@ -188,7 +197,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
       .then((d) => { if (d && !controller.signal.aborted && version === likeVersion.current) setLiked(!!d.liked); })
       .catch(() => {});
     return () => controller.abort();
-  }, [person?.id, pending]);
+  }, [person?.id, person?.isSelf, pending]);
   // Подсказка Моси про сердечко — один раз, на втором человеке в колоде (первый — общий гид).
   const seenInDeck = useRef(0);
   useEffect(() => {
@@ -204,7 +213,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
     return;
   }, [deck, person?.id, person?.name]);
   async function heart() {
-    if (pending || !person || likePending.current) return;
+    if (pending || !person || person.isSelf || likePending.current) return;
     // A pending GET describes the state before this tap. Do not let it overwrite
     // the mutation, and serialize taps so POST/DELETE cannot finish backwards.
     likeVersion.current += 1;
@@ -407,7 +416,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
   // /people/<id>?invite=1 — пришли из карточки «Хочет на встречу»: сразу открываем «Позвать».
   const autoInvite = useRef(false);
   useEffect(() => {
-    if (!person || deck || autoInvite.current) return;
+    if (!person || person.isSelf || deck || autoInvite.current) return;
     if (new URLSearchParams(window.location.search).get("invite") !== "1") return;
     autoInvite.current = true;
     openInvite();
@@ -461,8 +470,10 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
 
   // The full profile can replace the preview's URL. Keep that loaded image
   // mounted until a photo from the new set is ready, scoped to this person only.
-  // Start with the requested image, then warm both neighbours in this three-photo gallery.
-  const visiblePhotos = photos;
+  // Give the visible portrait priority; once ready, warm the next swipe.
+  const nextPhoto = photos[(photoIndex + 1) % photos.length];
+  const visiblePhotos = photos.filter(src =>
+    src === requestedPhoto || readyPhotos.has(src) || (requestedPhoto && readyPhotos.has(requestedPhoto) && src === nextPhoto));
   const renderedPhotos = shownPhoto && photos.length && !visiblePhotos.includes(shownPhoto) ? [shownPhoto, ...visiblePhotos] : visiblePhotos;
   const pendingPhoto = !!requestedPhoto && !readyPhotos.has(requestedPhoto);
   const photoFailed = !!requestedPhoto && failedPhotos.has(requestedPhoto);
@@ -544,7 +555,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
         <button className="rb glass" onClick={() => goBack(router, "/feed")} aria-label="Назад">
           <Ic n="back" />
         </button>
-        {!deck && <button className="rb glass" onClick={() => setMoreOpen(true)} aria-label="Пожаловаться">
+        {!person.isSelf && !deck && <button className="rb glass" onClick={() => setMoreOpen(true)} aria-label="Пожаловаться">
           <Ic n="flag" />
         </button>}
       </div>
@@ -619,7 +630,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
           changePhoto(left ? -1 : 1);
         }}
       >
-        {deck && <button className="rb people-profile-menu" aria-label="Меню профиля" onClick={() => setMoreOpen(true)}><Ic n="more" /></button>}
+        {!person.isSelf && deck && <button className="rb people-profile-menu" aria-label="Меню профиля" onClick={() => setMoreOpen(true)}><Ic n="more" /></button>}
         <button
           className="upk"
           onClick={() => {
@@ -694,13 +705,13 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
               </div>
             </div>
           )}
-          <button className="report" onClick={() => setMoreOpen(true)}>
+          {!person.isSelf && <button className="report" onClick={() => setMoreOpen(true)}>
             Пожаловаться или заблокировать
-          </button>
+          </button>}
         </div>
       </div>
       </div>
-      <div className="cta" style={{ display: pending ? "none" : undefined }}>
+      {!person.isSelf && <div className="cta" style={{ display: pending ? "none" : undefined }}>
         <button className="rb gl" onClick={() =>
             person.canMessage === false
               ? say(NO_MEET_TEXT)
@@ -740,7 +751,7 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
           <Ic n="cal" />
           <span>Позвать на встречу</span>
         </button>
-      </div>
+      </div>}
 
       {burst && (
         <div aria-hidden style={{ position: "fixed", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none", zIndex: 60 }}>
