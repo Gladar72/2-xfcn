@@ -182,6 +182,8 @@ export default function HomeScreen() {
     <View style={{ flex: 1, backgroundColor: K.pearl }}>
       <PearlBg />
       <ScrollView
+        style={{ flex: 1 }}
+        directionalLockEnabled
         contentContainerStyle={{ paddingTop: insets.top + 14, paddingHorizontal: 20, paddingBottom: insets.bottom + 86 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={K.ink} />}
@@ -202,7 +204,7 @@ export default function HomeScreen() {
         <KTitle parts={["Найди ", { em: "компанию" }, "\nна сегодня"]} size={38} style={{ marginTop: 20 }} />
 
         {/* Один ряд: лупа → «Все» → категории → «Фильтры» (.k-hs, gap 8) */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginTop: 14 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
+        <ScrollView horizontal directionalLockEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginTop: 14 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 20 }}>
           <KChip icon="search" padH={11} onPress={() => router.push("/search")} />
           <KChip label="Все" on />
           {categories.map((c) => (
@@ -239,7 +241,7 @@ export default function HomeScreen() {
         )}
 
         <KSec plain="Личные" em="встречи" sub="Планы людей рядом — присоединяйся" action="Все" onAction={() => router.push("/search")} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginTop: 12 }} contentContainerStyle={{ gap: 16, paddingHorizontal: 20 }} snapToInterval={HC_W + 16} decelerationRate="fast">
+        <ScrollView horizontal directionalLockEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -20, marginTop: 12 }} contentContainerStyle={{ gap: 16, paddingHorizontal: 20 }} snapToInterval={HC_W + 16} decelerationRate="fast">
           {events === null
             ? [0, 1, 2].map((i) => <KHcSkeleton key={i} />)
             : popular.length === 0
@@ -260,7 +262,7 @@ export default function HomeScreen() {
 
         <KBiz>
           <KSec plain="Афиша" em="заведений" sub="События кафе, баров и площадок" action="Все" onAction={() => router.push("/business")} style={{ marginTop: 0 }} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -14, marginTop: 12 }} contentContainerStyle={{ gap: 16, paddingHorizontal: 14 }} snapToInterval={HC_W + 16} decelerationRate="fast">
+          <ScrollView horizontal directionalLockEnabled nestedScrollEnabled showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -14, marginTop: 12 }} contentContainerStyle={{ gap: 16, paddingHorizontal: 14 }} snapToInterval={HC_W + 16} decelerationRate="fast">
             {bizSorted.map((e) => <KHc key={e.id} e={e} />)}
             {cityEvents.map((c) => <KCityCard key={c.id} c={c} />)}
             <KInv text="Здесь может быть ваше бизнес‑событие" onPress={() => router.push({ pathname: "/create", params: { business: "true" } })} />

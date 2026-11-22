@@ -44,7 +44,7 @@ function NavTab({ label, icon, on, badge, onPress }: { label: string; icon: stri
       onPress={onPress}
       onPressIn={() => Animated.timing(press, { toValue: 0.9, duration: 120, useNativeDriver: true }).start()}
       onPressOut={() => Animated.timing(press, { toValue: 1, duration: 500, easing: SPRING, useNativeDriver: true }).start()}
-      style={{ width: 62, alignItems: "center", gap: 2 }}
+      style={{ flex: 1, height: 44, justifyContent: "center", alignItems: "center", gap: 2 }}
       accessibilityRole="tab"
       accessibilityState={{ selected: on }}
     >
@@ -97,7 +97,7 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
     tapLight();
     jelly.setValue(0);
     Animated.timing(jelly, { toValue: 1, duration: 700, easing: SPRING, useNativeDriver: true }).start();
-    router.push("/create");
+    router.navigate("/create");
   };
   // nav26jelly: 1 → (1.22, .8) → (.88, 1.14) → (1.06, .96) → 1
   const sx = jelly.interpolate({ inputRange: [0, 0.25, 0.5, 0.75, 1], outputRange: [1, 1.22, 0.88, 1.06, 1] });
@@ -108,16 +108,16 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
     <View
       pointerEvents="box-none"
       onLayout={(e) => setW(Math.round(e.nativeEvent.layout.width))}
-      style={{ position: "absolute", left: 16, right: 16, bottom: insets.bottom + 6, height: H }}
+      style={{ position: "absolute", left: 16, right: 16, bottom: insets.bottom + 2, height: H + 46 }}
     >
       {/* Плашка с вырезом: размытие под формой + светлая заливка + белая кромка, мягкая тень. */}
-      <View pointerEvents="none" style={[StyleSheet.absoluteFill, { shadowColor: "rgb(60,40,120)", shadowOpacity: 0.14, shadowRadius: 22, shadowOffset: { width: 0, height: 14 } }]}>
+      <View pointerEvents="none" style={{ position: "absolute", left: 0, right: 0, top: 42, height: H, shadowColor: "rgb(60,40,120)", shadowOpacity: 0.14, shadowRadius: 22, shadowOffset: { width: 0, height: 14 } }}>
         <MaskedBlur path={path} w={w} />
       </View>
-      <View style={{ flex: 1, flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingHorizontal: 4 }}>
+      <View pointerEvents="box-none" style={{ position: "absolute", top: 42, left: 0, right: 0, height: H, flexDirection: "row", alignItems: "center", paddingHorizontal: 4 }}>
         {tab("index")}
         {tab("map")}
-        <View style={{ width: 98 }} />
+        <View pointerEvents="none" style={{ width: 98 }} />
         {tab("meet")}
         {tab("profile")}
       </View>
@@ -126,7 +126,7 @@ function TabBar({ state, navigation }: BottomTabBarProps) {
         onPressIn={() => Animated.timing(pressBlob, { toValue: 0.92, duration: 120, useNativeDriver: true }).start()}
         onPressOut={() => Animated.timing(pressBlob, { toValue: 1, duration: 500, easing: SPRING, useNativeDriver: true }).start()}
         accessibilityLabel="Создать встречу"
-        style={{ position: "absolute", left: w / 2 - 52, top: -42, width: 104, height: 104 }}
+        style={{ position: "absolute", left: w / 2 - 52, top: 0, width: 104, height: 104 }}
       >
         <Animated.View
           style={{
@@ -166,7 +166,7 @@ function MaskedBlur({ path, w }: { path: string; w: number }) {
 export default function TabsLayout() {
   return (
     <>
-      <Tabs screenOptions={{ headerShown: false }} tabBar={(p) => <TabBar {...p} />}>
+      <Tabs screenOptions={{ headerShown: false, animation: "fade" }} tabBar={(p) => <TabBar {...p} />}>
         <Tabs.Screen name="index" />
         <Tabs.Screen name="map" />
         <Tabs.Screen name="meet" />

@@ -102,6 +102,7 @@ export default function CreateScreen() {
   const [me, setMe] = useState<{ name: string; avatarUrl: string | null; city: string | null } | null>(null);
   const [loading, setLoading] = useState(!!editId);
   const [busy, setBusy] = useState(false);
+  const publishing = useRef(false);
   const [banner, setBanner] = useState<{ text: string; plan?: boolean } | null>(null);
   const [invited, setInvited] = useState(false);
 
@@ -285,6 +286,8 @@ export default function CreateScreen() {
   }
 
   async function publish() {
+    if (publishing.current) return;
+    publishing.current = true;
     setBusy(true);
     const own = form.own.trim();
     const endTime = hhmm(form.startMin + form.duration);
@@ -336,6 +339,7 @@ export default function CreateScreen() {
       // Опубликовал встречу — удачный момент попросить оценку (не чаще раза в 3 месяца).
       if (!editId) maybeAskReview().catch(() => {});
     } catch (e) {
+      publishing.current = false;
       const err = e as ApiError;
       const data = (err.data ?? {}) as { field?: unknown };
       if (err instanceof ApiError && err.code === "profile_photo_required") {

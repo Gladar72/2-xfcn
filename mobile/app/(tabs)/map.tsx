@@ -105,6 +105,8 @@ export default function MapScreen() {
     if (!params.t) return;
     setChip(((params.date as DateChip) || "any") as DateChip);
     setBizOnly(params.business === "only");
+    setBizCat(null);
+    setSelected(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.t]);
   const reqId = useRef(0);
@@ -119,7 +121,7 @@ export default function MapScreen() {
       .then((r) => {
         if (id !== reqId.current) return; // пришёл ответ на старый фильтр
         const now = Date.now();
-        let items = r.items.filter((e) => e.latitude && e.longitude);
+        let items = r.items.filter((e) => Number.isFinite(e.latitude) && Number.isFinite(e.longitude));
         if (chip === "now") items = items.filter((e) => new Date(e.startsAt).getTime() <= now && now < new Date(e.endsAt).getTime());
         setEvents(items);
         if (r.city) setCity(r.city);
@@ -127,6 +129,7 @@ export default function MapScreen() {
         const f = params.focus ? items.find((e) => e.id === params.focus) : undefined;
         if (f) {
           setTimeout(() => {
+            if (id !== reqId.current) return;
             setSelected([f]);
             camera.current?.flyTo({ center: [f.longitude, f.latitude], zoom: 16, duration: 600 });
           }, 50);
@@ -142,7 +145,7 @@ export default function MapScreen() {
         }
       })
       .catch(() => id === reqId.current && setError("Не удалось загрузить карту"));
-  }, [chip, bizOnly, params.focus]);
+  }, [chip, bizOnly, params.focus, params.t]);
 
   useEffect(load, [load]);
 
