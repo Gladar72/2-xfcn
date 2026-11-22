@@ -1,4 +1,4 @@
-name: Compare browser regressions with production
+name: Retest both mobile browsers on the Mini App changes
 on:
   push:
     branches: [qa/telegram60-mobile-regression]
@@ -6,16 +6,20 @@ permissions:
   contents: read
 jobs:
   baseline:
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium-mobile, webkit-mobile]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: e8ec4628e5dc5f57c01f522969b95cc2b9efd820
+          ref: e3795e7bca1b2ae7f2168e85ed64692e90f8d932
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 20
       - run: npm ci
-      - run: npx playwright install --with-deps chromium
-      - run: npx playwright test --project=chromium-mobile --grep "slow response for the old selection|current portrait loads before the next|profile shows real activity|business event shows five|share card aligns" --timeout=35000 --reporter=line
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright test --project=${{ matrix.project }} --grep "slow response for the old selection|current portrait loads before the next|profile shows real activity|business event shows five|share preview shows|different main photo|companion|an incoming like" --timeout=35000 --reporter=line
