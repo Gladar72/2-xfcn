@@ -17,6 +17,11 @@ services:
     # every thumbnail after each new container.
     volumes:
       - image_cache:/app/.next/cache/images
+      - /opt/mesto/apns:/run/mesto-apns:ro
+    environment:
+      APNS_KEY_FILE: /run/mesto-apns/provider.p8
+      APNS_KEY_ID: ${APNS_KEY_ID:-8XG5C5XVXD}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-T9N7783SRR}
     image: mesto-app:latest
     env_file: /opt/mesto/.env
     ports:
