@@ -120,3 +120,7 @@
 .P .share-preview > img { width: 92px; height: 164px; flex: none; object-fit: cover; border-radius: 12px; background: #1b1230; }
 .P .share-preview b { font-size: 15.5px; line-height: 20px; }
 .P .share-preview p { margin: 6px 0 0; font-size: 13.5px; line-height: 19px; }
+
+/* Closely spaced actions stay in place throughout touch hit-testing on WebKit. */
+.P .sheetx.stationary-actions { transition: opacity .18s ease; opacity: 0; visibility: hidden; }
+.P .sheetx.stationary-actions.on { opacity: 1; visibility: visible; }

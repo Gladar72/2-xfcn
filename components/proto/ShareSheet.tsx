@@ -222,7 +222,7 @@ export function ShareSheet({
   );
 
   return (
-    <Sheet open={open} onClose={onClose}>
+    <Sheet cls="stationary-actions" open={open} onClose={onClose}>
       {mode === "list" ? (
         <>
           <h2 className="t" style={{ margin: "0 0 4px" }}>
