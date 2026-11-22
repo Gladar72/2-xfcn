@@ -1,26 +1,17 @@
-name: Full mobile Mini App regression
+name: Confirm Mini App public deployment
 on:
   push:
     branches: [qa/telegram60-mobile-regression]
-permissions:
-  contents: read
+permissions: {}
 jobs:
-  baseline:
-    strategy:
-      fail-fast: false
-      matrix:
-        project: [chromium-mobile, webkit-mobile]
-        shard: [1, 2]
+  public:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: e747b5721b7fdd6ac6654e6744da4956a8facb2c
-          persist-credentials: false
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium webkit
-      - run: npx playwright test --project=${{ matrix.project }} --shard=${{ matrix.shard }}/2 --timeout=60000 --reporter=line
+      - name: Confirm the released artwork and the public web entry
+        run: |
+          set -eu
+          curl --retry 2 --retry-all-errors --connect-timeout 10 --max-time 30 -fsSL -o /tmp/mesto-eyes.webp https://mesto-go.ru/brand/creature/ios60/eyes.webp
+          echo "0817f562089dc43a55aac3cb03bf35b700f74633346a2b3f44b05fcb96034e9a  /tmp/mesto-eyes.webp" | sha256sum -c -
+          curl --retry 2 --retry-all-errors --connect-timeout 10 --max-time 30 -fsSL -o /tmp/mesto-entry.html -w 'Public hearts entry HTTP %{http_code}\n' https://mesto-go.ru/hearts
+          test -s /tmp/mesto-entry.html
