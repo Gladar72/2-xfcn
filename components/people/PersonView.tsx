@@ -461,8 +461,12 @@ function PersonViewContent({ id, initial, deck, pending = false }: PersonViewPro
 
   // The full profile can replace the preview's URL. Keep that loaded image
   // mounted until a photo from the new set is ready, scoped to this person only.
-  // Start with the requested image, then warm both neighbours in this three-photo gallery.
-  const visiblePhotos = photos;
+  // Keep loaded images mounted and warm one successor after the selected photo is ready.
+  const preloadNext = requestedPhoto && readyPhotos.has(requestedPhoto);
+  const nextIndex = (photoIndex + 1) % (photos.length || 1);
+  const visiblePhotos = photos.filter((src, index) =>
+    src === requestedPhoto || readyPhotos.has(src) || (preloadNext && index === nextIndex)
+  );
   const renderedPhotos = shownPhoto && photos.length && !visiblePhotos.includes(shownPhoto) ? [shownPhoto, ...visiblePhotos] : visiblePhotos;
   const pendingPhoto = !!requestedPhoto && !readyPhotos.has(requestedPhoto);
   const photoFailed = !!requestedPhoto && failedPhotos.has(requestedPhoto);
