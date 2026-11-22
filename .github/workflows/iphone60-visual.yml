@@ -32,8 +32,8 @@ jobs:
           s = p.read_text()
           old = 'seq.forEach((h, i) => setTimeout(() => router.replace(h), i * 16000));'
           assert old in s
-          driver = "const routes: Href[] = [\"/(tabs)\",\"/(tabs)/map\",\"/(tabs)/meet\",\"/(tabs)/profile\",\"/people\",\"/(tabs)/chats\",\"/notifications\",\"/hearts\",\"/search\",\"/event/e1\",\"/create\",\"/settings\",\"/subscription\",\"/business\",\"/ticket/e1\",\"/tickets/e1\",\"/applications/e1\",\"/profile-edit\",\"/(auth)/login\",\"/(auth)/register\",\"/legal/offer\",\"/privacy\",\"/reviews\",\"/partner\",\"/support\",\"/interests\",\"/link-email\"] as Href[]; let last = -1; const show = () => { const n = Math.floor(Date.now() / 8000) % routes.length; if (n !== last) { last = n; router.replace(routes[n]!); } }; show(); setInterval(show, 250);"
-          p.write_text(s.replace(old, driver))
+          s = 'import { Settings } from "react-native";\n' + s
+          p.write_text(s.replace(old, 'const target = Settings.get("MestoQARoute"); if (typeof target === "string") setTimeout(() => router.replace(target as Href), 500);'))
           PY
           npx expo prebuild --platform ios --clean
           WS=$(ls -d ios/*.xcworkspace | head -1)
@@ -48,26 +48,43 @@ jobs:
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$(ls -d "$RUNNER_TEMP"/sim/Build/Products/Release-iphonesimulator/*.app | head -1)"
-          xcrun simctl launch "$UDID" ru.mesto.app
-          sleep 28
           mkdir -p shots
-          python3 - <<'PY'
-          import pathlib, time, subprocess, os
-          names=["feed","map","meet","me","people","chats","notif","hearts","search","event","create","settings","plans","biz","ticket","tickets","requests","edit","login","onboarding","offer","privacy","reviews","partner","support","interests","contact"]
-          seen=set()
-          udid=subprocess.check_output(["xcrun","simctl","list","devices","booted"],text=True)
-          import re
-          device=re.search(r"\(([0-9A-Fa-f-]{36})\) \(Booted\)",udid).group(1)
-          while len(seen)<len(names):
-              tick=time.time()
-              name=names[int(tick//8)%len(names)]
-              if name not in seen and 4 <= tick%8 < 6:
-                  raw=os.path.join(os.environ["RUNNER_TEMP"],"screen.png")
-                  subprocess.run(["xcrun","simctl","io",device,"screenshot",raw],check=True)
-                  subprocess.run(["sips","-Z","740","-s","format","jpeg","-s","formatOptions","78",raw,"--out",f"shots/{name}.jpg"],check=True,stdout=subprocess.DEVNULL)
-                  seen.add(name)
-              time.sleep(.3)
-          PY
+          mkdir -p shots
+          while read -r name route; do
+            xcrun simctl terminate "$UDID" ru.mesto.app >/dev/null 2>&1 || true
+            xcrun simctl launch "$UDID" ru.mesto.app -MestoQARoute "$route"
+            sleep 12
+            xcrun simctl io "$UDID" screenshot "$RUNNER_TEMP/screen.png"
+            sips -Z 740 -s format jpeg -s formatOptions 78 "$RUNNER_TEMP/screen.png" --out "shots/$name.jpg" >/dev/null
+          done <<'SCREENS'
+          feed /(tabs)
+          map /(tabs)/map
+          meet /(tabs)/meet
+          me /(tabs)/profile
+          people /people
+          chats /(tabs)/chats
+          notif /notifications
+          hearts /hearts
+          search /search
+          event /event/e1
+          create /create
+          settings /settings
+          plans /subscription
+          biz /business
+          ticket /ticket/e1
+          tickets /tickets/e1
+          requests /applications/e1
+          edit /profile-edit
+          login /(auth)/login
+          onboarding /(auth)/register
+          offer /legal/offer
+          privacy /privacy
+          reviews /reviews
+          partner /partner
+          support /support
+          interests /interests
+          contact /link-email
+          SCREENS
       - uses: actions/upload-artifact@v4
         with:
           name: iphone60
