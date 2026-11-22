@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   preview:
-    if: github.event.before == '0c64942158759ab21f1ffeba8fe31bfb1185bad7' && github.run_attempt == '1'
+    if: github.event.before == '815ad75bb5a6099388202e6be8a04d2f9bf94627' && github.run_attempt == '1'
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
@@ -39,9 +39,8 @@ jobs:
           const copy = (await readFile(base + '.txt', 'utf8')).trim();
           const footer = '\n\n📱 ' + label + '\n' + url;
           assert.ok(copy.endsWith(footer), 'Approved button or URL changed');
-          const caption = copy.slice(0, -footer.length).replace('📱 Скачай приложение на iPhone.', 'Ставь сердечко тем, кто рядом\n\n📱 Скачай приложение на iPhone.');
+          const caption = copy.slice(0, -footer.length).replace('📱 Скачай приложение на iPhone.', 'Ставь ❤️ тем, кто рядом, зови на встречу и знакомься! Нас уже 1 500.\n\n📱 Скачай приложение на iPhone.');
           assert.ok(caption.length > 0 && caption.length <= 1024);
-          const photo = await readFile(base + '.jpg');
 
           async function api(method, body) {
             let response;
@@ -71,13 +70,9 @@ jobs:
           }
           console.log('Verified sender and one private recipient.');
           const markup = { inline_keyboard: [[{ text: label, url }]] };
-            const form = new FormData();
-            form.set('chat_id', id);
-            form.set('caption', caption);
-            form.set('photo', new Blob([photo], { type: 'image/jpeg' }), 'mesto.jpg');
-            form.set('reply_markup', JSON.stringify(markup));
-            const result = await api('sendPhoto', form);
-            console.log('Delivered revised private preview as a new message.');
+          const form = new URLSearchParams({chat_id: id, message_id: '97109', caption, reply_markup: JSON.stringify(markup)});
+          const result = await api('editMessageCaption', form);
+          assert.equal(result.message_id, 97109);
           assert.ok(String(result.chat.id) === id && result.message_id > 0 && result.photo?.length);
           assert.ok(result.caption === caption && result.reply_markup.inline_keyboard.length === 1);
           const row = result.reply_markup.inline_keyboard[0];
