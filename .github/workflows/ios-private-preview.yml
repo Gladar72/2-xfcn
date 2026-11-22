@@ -9,10 +9,17 @@ permissions:
 
 jobs:
   preview:
-    if: github.event.before == '3a2d4e06939f500d32f69d5eb4f6645a5ec338ce' && github.run_attempt == '1'
+    if: github.event.before == '0c64942158759ab21f1ffeba8fe31bfb1185bad7' && github.run_attempt == '1'
     runs-on: ubuntu-latest
     timeout-minutes: 4
     steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /public/promo/ios-launch-20261120.jpg
+            /public/promo/ios-launch-20261120.txt
       - name: Update the verified private preview
         env:
           BOT_TOKEN: ${{ secrets.YC_BOT_TOKEN }}
@@ -20,6 +27,7 @@ jobs:
         run: |
           node --input-type=module <<'JS'
           import { createHash } from 'node:crypto';
+          import { readFile } from 'node:fs/promises';
           import assert from 'node:assert/strict';
 
           const id = (process.env.RECIPIENT || '').trim();
@@ -27,7 +35,13 @@ jobs:
           if (!process.env.BOT_TOKEN) throw new Error('Bot credential unavailable');
           const url = 'https://apps.apple.com/ru/app/id6833348222';
           const label = 'Скачать в App Store';
-          const message = '❤️ Ставь сердечки тем, кто рядом, зови на встречу и знакомься! Нас уже 1 500.\n\nПервые 30 дней тарифа «Старт» — бесплатно. Пользуйся!';
+          const base = 'public/promo/ios-launch-20261120';
+          const copy = (await readFile(base + '.txt', 'utf8')).trim();
+          const footer = '\n\n📱 ' + label + '\n' + url;
+          assert.ok(copy.endsWith(footer), 'Approved button or URL changed');
+          const caption = copy.slice(0, -footer.length).replace('📱 Скачай приложение на iPhone.', 'Ставь сердечко тем, кто рядом\n\n📱 Скачай приложение на iPhone.');
+          assert.ok(caption.length > 0 && caption.length <= 1024);
+          const photo = await readFile(base + '.jpg');
 
           async function api(method, body) {
             let response;
@@ -57,10 +71,15 @@ jobs:
           }
           console.log('Verified sender and one private recipient.');
           const markup = { inline_keyboard: [[{ text: label, url }]] };
-          const form = new URLSearchParams({chat_id: id, text: message, reply_markup: JSON.stringify(markup)});
-          const result = await api('sendMessage', form);
-          assert.ok(String(result.chat.id) === id && result.message_id > 0);
-          assert.ok(result.text === message && result.reply_markup.inline_keyboard.length === 1);
+            const form = new FormData();
+            form.set('chat_id', id);
+            form.set('caption', caption);
+            form.set('photo', new Blob([photo], { type: 'image/jpeg' }), 'mesto.jpg');
+            form.set('reply_markup', JSON.stringify(markup));
+            const result = await api('sendPhoto', form);
+            console.log('Delivered revised private preview as a new message.');
+          assert.ok(String(result.chat.id) === id && result.message_id > 0 && result.photo?.length);
+          assert.ok(result.caption === caption && result.reply_markup.inline_keyboard.length === 1);
           const row = result.reply_markup.inline_keyboard[0];
           assert.ok(row.length === 1 && row[0].text === label && row[0].url === url);
           console.log('Confirmed private preview and its App Store button. Message ' + result.message_id);
