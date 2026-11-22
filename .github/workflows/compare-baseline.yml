@@ -1,17 +1,25 @@
-name: Confirm Mini App public deployment
+name: Repeat tap selection and sharing for the mobile release
 on:
   push:
     branches: [qa/telegram60-mobile-regression]
-permissions: {}
+permissions:
+  contents: read
 jobs:
-  public:
+  baseline:
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium-mobile, webkit-mobile]
     runs-on: ubuntu-24.04
-    timeout-minutes: 6
+    timeout-minutes: 15
     steps:
-      - name: Confirm the released artwork and the public web entry
-        run: |
-          set -eu
-          curl --retry 2 --retry-all-errors --connect-timeout 10 --max-time 30 -fsSL -o /tmp/mesto-eyes.webp https://mesto-go.ru/brand/creature/ios60/eyes.webp
-          echo "0817f562089dc43a55aac3cb03bf35b700f74633346a2b3f44b05fcb96034e9a  /tmp/mesto-eyes.webp" | sha256sum -c -
-          curl --retry 2 --retry-all-errors --connect-timeout 10 --max-time 30 -fsSL -o /tmp/mesto-entry.html -w 'Public hearts entry HTTP %{http_code}\n' https://mesto-go.ru/hearts
-          test -s /tmp/mesto-entry.html
+      - uses: actions/checkout@v4
+        with:
+          ref: 05959e83c732aba4797a52f64f68a64be7b4755f
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npx playwright test --project=${{ matrix.project }} --grep "sends the selected business event|Instagram success|different main photo|empty-chat wheel" --repeat-each=3 --timeout=35000 --reporter=line
