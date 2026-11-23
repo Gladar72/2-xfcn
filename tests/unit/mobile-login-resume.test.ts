@@ -32,8 +32,17 @@ const client = ts.transpileModule(readFileSync("mobile/lib/telegramLogin.ts", "u
 }).outputText;
 
 // Новый экземпляр модуля имитирует холодный запуск iOS. Хранилище переживает перезапуск.
-function launchClient() {
+function launchClient(ticketSandbox = false) {
+  const configExports = {};
+  const compiledConfig = ts.transpileModule(readFileSync("mobile/lib/config.ts", "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  runInNewContext(compiledConfig, {
+    exports: configExports,
+    require: () => ({ default: { expoConfig: { extra: { ticketSandbox } } } }),
+  });
   const devices: Record<string, unknown> = {
+    "./config": configExports,
     "react-native": native, "expo-secure-store": storage, "./api": { api: network.call, ApiError: NetworkError },
   };
   const exports = {};
@@ -105,4 +114,13 @@ test("choosing another login method cancels the background attempt", async () =>
   expect(await result).toBeNull();
   expect(network.call).not.toHaveBeenCalled();
   expect(network.listeners.size).toBe(0);
+});
+
+
+test("TestFlight leaves a pending production Telegram login untouched", async () => {
+  const pending = JSON.stringify({ ...createTelegramAttempt(), expires: Date.now() + 60000 });
+  network.store.set(savedKey, pending);
+  expect(await launchClient(true).resumeTelegramLogin()).toBeNull();
+  expect(network.store.get(savedKey)).toBe(pending);
+  expect(network.call).not.toHaveBeenCalled();
 });
