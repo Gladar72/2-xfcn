@@ -114,7 +114,7 @@ export function InviteSheet({
             {tip.ideas.map((idea) => (
               <Pressable
                 key={idea.title}
-                onPress={() => createNew(idea.type ? { category: idea.category, type: idea.type } : { category: idea.category })}
+                onPress={() => createNew({ category: idea.category, ideaTitle: idea.title, ...(idea.type ? { type: idea.type } : {}) })}
                 style={({ pressed }) => [styles.idea, { transform: [{ scale: pressed ? 0.98 : 1 }] }]}
               >
                 <Image source={{ uri: idea.icon }} style={{ width: 34, height: 34 }} contentFit="contain" />

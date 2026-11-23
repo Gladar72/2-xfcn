@@ -8,7 +8,6 @@ import { Image } from "expo-image";
 import { Aurora, Glass, Mosya, RoundBtn, Title } from "@/components/brand";
 import { Icon, type IconName } from "@/components/Icon";
 import { Chip } from "@/components/ui";
-import Svg, { Defs, RadialGradient, Rect, Stop } from "react-native-svg";
 import { Creature } from "@/components/k/Creature";
 import { api } from "@/lib/api";
 import { colors, FONT, f } from "@/lib/theme";
@@ -170,12 +169,12 @@ export default function NotificationsScreen() {
     return out;
   }, [items, tab]);
 
-  function open(item: NotificationItem) {
+  function open(item: NotificationItem, target = targetOf(item)) {
     if (!item.isRead) {
       setItems((prev) => prev.map((n) => (n.id === item.id ? { ...n, isRead: true } : n)));
       api("/api/notifications", { method: "PATCH", body: { ids: [item.id] } }).catch(() => {});
     }
-    router.push(targetOf(item) as Href);
+    router.push(target as Href);
   }
 
   return (
@@ -219,34 +218,37 @@ export default function NotificationsScreen() {
             </Pressable>
           );
           const n = row.item;
-          // Как в мини-аппе: «Ты в деле» / «Скоро встреча» — тёмная карточка с розовым свечением и двумя кнопками.
           const rich = n.event && (n.type === "application_accepted" || n.type === "event_soon") && n.event.status !== "cancelled";
           if (rich && n.event) {
             const e = n.event;
+            const ticket = e.isBusiness ? n.ticketCode : null;
+            const confirmed = n.type === "application_accepted";
             return (
               <View style={styles.rich}>
-                <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 100 100">
-                  <Defs>
-                    <RadialGradient id="g" cx="100" cy="100" rx="70" ry="90" gradientUnits="userSpaceOnUse">
-                      <Stop offset="0" stopColor="rgb(255,140,190)" stopOpacity={0.95} />
-                      <Stop offset="0.7" stopColor="rgb(255,140,190)" stopOpacity={0} />
-                    </RadialGradient>
-                  </Defs>
-                  <Rect width="100" height="100" fill="url(#g)" />
-                </Svg>
-                <View style={styles.richPill}><Text style={styles.richPillText}>{n.type === "event_soon" ? "Скоро встреча" : "Ты в деле!"}</Text></View>
-                <Text style={styles.richTitle}>{n.type === "event_soon" ? "Встречаемся через 2 часа" : "Участие подтверждено"}</Text>
-                <Text style={styles.richSub}>{e.title} · {dayLabel(e.eventDate).toLowerCase()}, {e.eventTime.slice(0, 5)}</Text>
-                <View style={{ flexDirection: "row", gap: 8, marginTop: 10 }}>
-                  <Pressable onPress={() => router.push(`/event/${e.id}` as Href)} style={({ pressed }) => [styles.richBtn, pressed && { transform: [{ scale: 0.96 }] }]}>
+                <View style={styles.status}>
+                  <Icon name={confirmed ? "check" : "clock"} size={16} color={confirmed ? "#AAE7CE" : "#D7CBFF"} />
+                  <Text style={styles.statusText}>{confirmed ? "Участие подтверждено" : "Встреча через 2 часа"}</Text>
+                </View>
+                <Text style={styles.richTitle}>{e.title}</Text>
+                <Text style={styles.richSub}>{dayLabel(e.eventDate)}, {e.eventTime.slice(0, 5)}</Text>
+                {ticket && (
+                  <Pressable accessibilityRole="button" accessibilityLabel={`Открыть билет ${ticket}`} onPress={() => open(n, `/ticket/${e.id}`)}
+                    style={({ pressed }) => [styles.ticketPass, pressed && { opacity: 0.85 }]}>
+                    <Icon name="ticket" size={26} color={colors.ink} />
+                    <View style={{ flex: 1, gap: 2 }}>
+                      <Text style={styles.ticketCode}>Билет № {ticket}</Text>
+                      <Text style={styles.ticketAction}>Открыть билет</Text>
+                    </View>
+                    <Icon name="chev" size={18} color={colors.ink} />
+                  </Pressable>
+                )}
+                <View style={styles.richActions}>
+                  <Pressable accessibilityRole="button" onPress={() => open(n, `/event/${e.id}`)} style={styles.richBtn}>
                     <Text style={styles.richBtnText}>Открыть встречу</Text>
                   </Pressable>
-                  <Pressable
-                    onPress={() => (e.isBusiness && n.ticketCode ? router.push(`/ticket/${e.id}` as Href) : n.eventConversationId ? router.push(`/chat/${n.eventConversationId}` as Href) : router.navigate("/(tabs)/chats"))}
-                    style={({ pressed }) => [styles.richBtn, pressed && { transform: [{ scale: 0.96 }] }]}
-                  >
-                    <Text style={styles.richBtnText}>{e.isBusiness && n.ticketCode ? "Билет" : "Чат"}</Text>
-                  </Pressable>
+                  {!ticket && <Pressable accessibilityRole="button" onPress={() => open(n, n.eventConversationId ? `/chat/${n.eventConversationId}` : "/chats")} style={styles.richBtn}>
+                    <Icon name="chat" size={16} color="#fff" /><Text style={styles.richBtnText}>Чат</Text>
+                  </Pressable>}
                 </View>
               </View>
             );
@@ -299,11 +301,15 @@ const styles = StyleSheet.create({
   iconBox: { backgroundColor: "#EFE8FF", alignItems: "center", justifyContent: "center", overflow: "hidden" },
   // .ntrich
   rich: { borderRadius: 24, padding: 16, backgroundColor: "#17141F", overflow: "hidden", gap: 4 },
-  richPill: { alignSelf: "flex-start", height: 28, paddingHorizontal: 11, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.18)", borderWidth: 1, borderColor: "rgba(255,255,255,0.4)", justifyContent: "center", marginBottom: 6 },
-  richPillText: { color: "#fff", fontSize: 12.5, ...f("500") },
-  richTitle: { color: "#fff", fontSize: 19, ...f("500") },
-  richSub: { color: "rgba(255,255,255,0.9)", fontSize: 13.5, fontFamily: FONT },
-  richBtn: { flex: 1, height: 42, borderRadius: 21, backgroundColor: "rgba(255,255,255,0.22)", borderWidth: 1, borderColor: "rgba(255,255,255,0.55)", alignItems: "center", justifyContent: "center" },
+  status: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
+  statusText: { color: "#E7E3EC", fontSize: 13, ...f("500") },
+  richTitle: { color: "#fff", fontSize: 19, ...f("600") },
+  richSub: { color: "#D5D1DA", fontSize: 14, fontFamily: FONT },
+  ticketPass: { marginTop: 8, borderRadius: 16, paddingHorizontal: 14, paddingVertical: 12, backgroundColor: "#F4F1FA", flexDirection: "row", alignItems: "center", gap: 12 },
+  ticketCode: { color: colors.ink, ...f("600"), fontSize: 17 },
+  ticketAction: { color: "#554769", ...f("500"), fontSize: 13 },
+  richActions: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 6 },
+  richBtn: { minHeight: 44, flexDirection: "row", gap: 6, paddingHorizontal: 14, borderRadius: 22, borderWidth: 1, borderColor: "rgba(255,255,255,0.35)", alignItems: "center", justifyContent: "center" },
   richBtnText: { color: "#fff", fontSize: 14, ...f("500") },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 8 },
   title: { fontSize: 15.5, ...f("500"), color: colors.ink, flex: 1 },

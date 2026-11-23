@@ -50,7 +50,7 @@ export function BizCatSheet({ visible, onClose, counts, value, onChange, total }
   return (
     <Sheet visible={visible} onClose={onClose}>
       <Text style={styles.h}>Что ищем?</Text>
-      <View style={styles.grid}>
+      <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={styles.grid}>
         {[...BIZ_CATEGORIES, BIZ_OTHER].map((cat) => (
           <View key={cat.key} style={{ width: "48.5%" }}>
             <CatChip
@@ -65,7 +65,7 @@ export function BizCatSheet({ visible, onClose, counts, value, onChange, total }
             />
           </View>
         ))}
-      </View>
+      </ScrollView>
       <Pressable
         onPress={() => {
           onChange(null);

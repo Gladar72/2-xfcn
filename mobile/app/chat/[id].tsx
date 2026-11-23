@@ -14,7 +14,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { router, useLocalSearchParams } from "expo-router";
+import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import * as Clipboard from "expo-clipboard";
@@ -26,7 +26,7 @@ import { Icon } from "@/components/Icon";
 import { ConfirmSheet } from "@/components/Sheet";
 import { Bubble, ReplyQuote, type ReadState } from "@/components/chat/Bubble";
 import { ChatScrollbar, createScrollBus } from "@/components/chat/ChatScrollbar";
-import { MessageMenu, ReadersSheet, StickerPanel } from "@/components/chat/Panels";
+import { MembersSheet, MessageMenu, ReadersSheet, StickerPanel } from "@/components/chat/Panels";
 import {
   type ChatInfo,
   type ChatMember,
@@ -66,6 +66,7 @@ export default function ChatScreen() {
   const [readonly, setReadonly] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [live, setLive] = useState(false);
 
   const [text, setText] = useState("");
@@ -115,8 +116,8 @@ export default function ChatScreen() {
   // ---------- загрузка ----------
 
   const fetchPage = useCallback(
-    async (before?: string) => {
-      const params = { limit: PAGE, before, readonly: readonlyRef.current ? 1 : undefined };
+    async (before?: string, limit = PAGE) => {
+      const params = { limit, before, readonly: readonlyRef.current ? 1 : undefined };
       try {
         return await api<ChatInfo>(`/api/conversations/${id}/messages?${qs(params)}`);
       } catch (e) {
@@ -242,7 +243,7 @@ export default function ChatScreen() {
           }
           case "read": {
             const { userId, lastReadAt } = p as { userId: string; lastReadAt: string };
-            setMembers((prev) => prev.map((x) => (x.id === userId ? { ...x, lastReadAt, lastActiveAt: lastReadAt } : x)));
+            setMembers((prev) => prev.map((x) => (x.id === userId ? { ...x, lastReadAt, lastActiveAt: x.anonymous || ms(x.lastActiveAt) >= ms(lastReadAt) ? x.lastActiveAt : lastReadAt } : x)));
             break;
           }
           case "edit": {
@@ -305,6 +306,28 @@ export default function ChatScreen() {
       sub.remove();
     };
   }, [live, refresh, markRead]);
+
+  // Время в сети меняется и без сообщений. Обновляем только метаданные на видимом экране.
+  useFocusEffect(useCallback(() => {
+    if (!isGroup || !live) return;
+    let cancelled = false;
+    let pending = false;
+    async function syncMembers() {
+      if (pending || AppState.currentState !== "active") return;
+      pending = true;
+      try {
+        const page = await fetchPage(undefined, 1);
+        if (!cancelled) setMembers(page.members);
+      } catch {
+        // Последний успешный статус останется до следующего опроса.
+      } finally {
+        pending = false;
+      }
+    }
+    if (membersOpen) void syncMembers();
+    const timer = setInterval(syncMembers, 30000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [fetchPage, isGroup, live, membersOpen]));
 
   // «печатает…» гаснет само через 5 секунд.
   useEffect(() => {
@@ -579,7 +602,11 @@ export default function ChatScreen() {
   else if (isGroup) {
     const online = members.filter((m) => isOnline(m.lastActiveAt)).length;
     subtitle = `${members.length + 1} ${plural(members.length + 1, "участник", "участника", "участников")}${online ? `, ${online} в сети` : ""}`;
-  } else subtitle = lastSeenText(other?.lastActiveAt);
+    if (members.length === 1 && !members[0]!.anonymous && members[0]!.lastActiveAt) {
+      const m = members[0]!;
+      subtitle = `${m.name} · ${lastSeenText(m.lastActiveAt, m.gender)}`;
+    }
+  } else subtitle = other?.anonymous ? "" : lastSeenText(other?.lastActiveAt, other?.gender);
   const title = isGroup ? info?.eventTitle ?? "Встреча" : other?.name ?? "Чат";
   const subtitleLive = !!typingNames.length || (!isGroup && isOnline(other?.lastActiveAt));
 
@@ -628,7 +655,7 @@ export default function ChatScreen() {
   );
 
   const openHeader = () => {
-    if (info?.eventId) router.push(`/event/${info.eventId}`);
+    if (info?.eventId) { Keyboard.dismiss(); setMembersOpen(true); }
     else if (other) router.push(`/person/${other.id}`);
   };
 
@@ -643,7 +670,7 @@ export default function ChatScreen() {
         <RoundBtn onPress={() => router.back()} size={40}>
           <Icon name="back" />
         </RoundBtn>
-        <Pressable style={styles.headerMain} onPress={openHeader}>
+        <Pressable style={styles.headerMain} onPress={openHeader} accessibilityRole="button" accessibilityLabel={isGroup ? "Участники чата встречи" : undefined}>
           {isGroup ? (
             info?.eventPhotoUrl ? (
               <Image source={{ uri: info.eventPhotoUrl }} style={styles.headerPic} contentFit="cover" />
@@ -799,7 +826,7 @@ export default function ChatScreen() {
         ) : (
           <View style={[styles.readonly, { paddingBottom: Math.max(insets.bottom, 12) }]}>
             <Icon name="lock" size={16} color={colors.grey} />
-            <Text style={styles.readonlyText}>{blocked ? "Ты не можешь писать в этот чат" : "Встреча завершена — чат в архиве, писать нельзя"}</Text>
+            <Text style={styles.readonlyText}>{blocked ? "Ты не можешь писать в этот чат" : "Чат доступен только для чтения"}</Text>
           </View>
         )}
       </KeyboardAvoidingView>
@@ -827,6 +854,10 @@ export default function ChatScreen() {
         onDelete={setDeleteMsg}
         onReaders={setReadersMsg}
       />
+      <MembersSheet visible={membersOpen && isGroup} members={members} onClose={() => setMembersOpen(false)} onEvent={() => {
+        setMembersOpen(false);
+        if (info?.eventId) router.push(`/event/${info.eventId}`);
+      }} />
       <ReadersSheet msg={readersMsg} members={members} onClose={() => setReadersMsg(null)} />
       <ConfirmSheet
         visible={!!deleteMsg}

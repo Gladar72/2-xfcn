@@ -40,15 +40,6 @@ def setup():
     sh("openssl", "genrsa", "-out", key, "2048")
     sh("openssl", "req", "-new", "-key", key, "-out", csr, "-subj", "/CN=Mesto CI/O=Mesto/C=RU")
     csr_txt = open(csr).read()
-    # Лимит Apple — несколько сертификатов распространения; старые сборочные убираем,
-    # последний оставляем: им подписана сборка, которая уже в TestFlight.
-    old = api("GET", "/v1/certificates?filter[certificateType]=DISTRIBUTION&limit=50")["data"]
-    old.sort(key=lambda c: c["attributes"].get("expirationDate", ""))
-    for c in old[:-1] if len(old) >= 2 else []:
-        try:
-            api("DELETE", "/v1/certificates/" + c["id"]); print("убран старый сертификат", c["id"])
-        except Exception:
-            pass
     cert = api("POST", "/v1/certificates", {"data": {"type": "certificates", "attributes": {
         "certificateType": "DISTRIBUTION", "csrContent": csr_txt}}})["data"]
     cert_id = cert["id"]

@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { API_URL } from "./config";
+import { API_URL, sessionKey, TICKET_SANDBOX } from "./config";
 import { smokeApi, UI_SMOKE } from "./smoke";
 
 /**
@@ -8,7 +8,7 @@ import { smokeApi, UI_SMOKE } from "./smoke";
  * Сессия — тот же JWT, только хранится в защищённом хранилище телефона
  * и уходит в заголовке Authorization: Bearer.
  */
-const TOKEN_KEY = "mesto_session";
+const TOKEN_KEY = sessionKey("mesto_session");
 
 let cachedToken: string | null | undefined;
 let onUnauthorized: (() => void) | null = null;
@@ -59,6 +59,7 @@ export async function api<T = unknown>(
     res = await fetch(`${API_URL}${path}`, {
       method: options.method ?? (options.body !== undefined ? "POST" : "GET"),
       headers,
+      credentials: TICKET_SANDBOX ? "omit" : undefined,
       signal: controller.signal,
       body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
     });

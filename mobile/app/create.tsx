@@ -54,7 +54,7 @@ const FIELD_STEP: Record<string, number> = {
   isAnonymous: 4,
 };
 
-type Params = { id?: string; business?: string; category?: string; type?: string; invite?: string; inviteName?: string; fromCity?: string; smokeStep?: string };
+type Params = { id?: string; business?: string; category?: string; type?: string; invite?: string; inviteName?: string; ideaTitle?: string; fromCity?: string; smokeStep?: string };
 
 export default function CreateScreen() {
   const params = useLocalSearchParams<Params>();
@@ -62,14 +62,17 @@ export default function CreateScreen() {
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
 
-  const [form, setForm] = useState<Form>(() =>
-    initialForm(params.business === "1" || params.business === "true", params.category ?? null, params.type ?? null)
-  );
+  const ideaTitle = !editId && params.invite && params.category ? params.ideaTitle?.trim().slice(0, 100) || "" : "";
+  const [form, setForm] = useState<Form>(() => ({
+    ...initialForm(params.business === "1" || params.business === "true", params.category ?? null, params.type ?? null),
+    title: ideaTitle,
+  }));
+  const autoTitle = useRef(ideaTitle);
   const set = (patch: Partial<Form>) => setForm((f) => ({ ...f, ...patch }));
   const [minSeats, setMinSeats] = useState(1);
   // smokeStep — только для снимков экрана в тестовой сборке: сразу открыть нужный шаг.
   const smokeStep = process.env.EXPO_PUBLIC_UI_SMOKE === "1" && params.smokeStep ? Number(params.smokeStep) : 0;
-  const [step, setStep] = useState(smokeStep || (params.business === "1" || params.business === "true" ? 2 : 1));
+  const [step, setStep] = useState(smokeStep || (ideaTitle || params.business === "1" || params.business === "true" ? 2 : 1));
   // «Что создаём?» — пропускаем при правке, «Найти компанию» из афиши и приглашении человека.
   const skipKind = !!editId || !!params.fromCity || !!params.invite || !!smokeStep;
   const [chosen, setChosen] = useState(skipKind);
@@ -102,6 +105,7 @@ export default function CreateScreen() {
   const [me, setMe] = useState<{ name: string; avatarUrl: string | null; city: string | null } | null>(null);
   const [loading, setLoading] = useState(!!editId);
   const [busy, setBusy] = useState(false);
+  const publishing = useRef(false);
   const [banner, setBanner] = useState<{ text: string; plan?: boolean } | null>(null);
   const [invited, setInvited] = useState(false);
 
@@ -257,7 +261,14 @@ export default function CreateScreen() {
       flash(h);
       return;
     }
-    if (step === 1 && isOwn && !form.title) set({ title: form.own.trim() });
+    if (step === 1 && !editId && (!form.title.trim() || form.title === autoTitle.current)) {
+      const sport = form.trainingTypeSlug === "custom" ? form.own.trim() : trainingTypes.find(t => t.slug === form.trainingTypeSlug)?.name;
+      const label = categories.find(c => c.slug === form.categorySlug)?.name;
+      const title = form.categorySlug === "training" && sport ? `Тренировка · ${sport}`
+        : isOwn ? form.own.trim() : CATEGORY_SHORT[form.categorySlug ?? ""] ?? label ?? "";
+      autoTitle.current = title;
+      set({ title });
+    }
     if (step < 4) {
       setDir(1);
       setStep(step + 1);
@@ -270,7 +281,7 @@ export default function CreateScreen() {
 
   function back() {
     setBanner(null);
-    if (step > (form.business ? 2 : 1)) {
+    if (step > (form.business || ideaTitle ? 2 : 1)) {
       setDir(-1);
       setStep(step - 1);
     } else if (chosen && !skipKind) {
@@ -279,12 +290,14 @@ export default function CreateScreen() {
     } else router.back();
   }
 
-  async function uploadCover() {
-    const p = await pickAndEdit({ title: form.business ? "Фото события" : "Обложка встречи", hint: "Двигай фото пальцем, двумя пальцами — приблизить. Так обложка будет выглядеть на карточке", previewTitle: form.title });
+  async function uploadCover(edit = false) {
+    const p = await pickAndEdit({ source: edit ? form.ownPhoto?.source : undefined, title: form.business ? "Фото события" : "Обложка встречи" });
     if (p) set({ ownPhoto: p, useOwnPhoto: true });
   }
 
   async function publish() {
+    if (publishing.current) return;
+    publishing.current = true;
     setBusy(true);
     const own = form.own.trim();
     const endTime = hhmm(form.startMin + form.duration);
@@ -336,6 +349,7 @@ export default function CreateScreen() {
       // Опубликовал встречу — удачный момент попросить оценку (не чаще раза в 3 месяца).
       if (!editId) maybeAskReview().catch(() => {});
     } catch (e) {
+      publishing.current = false;
       const err = e as ApiError;
       const data = (err.data ?? {}) as { field?: unknown };
       if (err instanceof ApiError && err.code === "profile_photo_required") {
@@ -379,7 +393,7 @@ export default function CreateScreen() {
           <KRb icon="back" onPress={() => router.replace(`/event/${publishedId}`)} accessibilityLabel="Назад" />
         </View>
         <View style={{ flex: 1, alignItems: "center", paddingTop: "6%", paddingHorizontal: 24 }}>
-          <Creature size={220} variant="e" live />
+          <Creature size={220} variant="e" />
           <Text style={[kf("300", 36, { lh: 1.14, ls: -0.035 }), { textAlign: "center", marginTop: 26 }]}>
             {form.business ? "Событие" : "Встреча"}
             {"\n"}

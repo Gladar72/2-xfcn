@@ -4,11 +4,11 @@ import { router, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
 import { Aurora, Btn, Glass, RoundBtn, Title } from "@/components/brand";
+import { ProfilePhotoGallery } from "@/components/ProfilePhotoGallery";
 import { Icon } from "@/components/Icon";
 import { api, type ApiError } from "@/lib/api";
-import { animateNext, tapOk, tapWarn } from "@/lib/feedback";
+import { tapOk, tapWarn } from "@/lib/feedback";
 import { interestIcon } from "@/lib/interests";
-import { PHOTO_ERRORS, pickPhoto } from "@/lib/photos";
 import { colors, FONT, f } from "@/lib/theme";
 import type { MyProfile } from "@/lib/types";
 
@@ -21,10 +21,10 @@ const SAVE_ERRORS: Record<string, string> = {
 export default function ProfileEditScreen() {
   const insets = useSafeAreaInsets();
   const [me, setMe] = useState<MyProfile | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
   const [name, setName] = useState("");
   const [bio, setBio] = useState("");
-  const [uploading, setUploading] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const dirty = useRef(false);
 
@@ -43,58 +43,6 @@ export default function ProfileEditScreen() {
         .catch(() => {});
     }, [])
   );
-
-  async function upload(slot: number) {
-    const data = await pickPhoto();
-    if (!data) return;
-    setUploading(slot);
-    try {
-      if (slot === 0) {
-        const r = await api<{ avatarUrl: string }>("/api/me/avatar", { body: { photoBase64: data } });
-        animateNext();
-        setPhotos((p) => [r.avatarUrl, ...p.slice(1)]);
-      } else {
-        const r = await api<{ photos: string[] }>("/api/me/photos", { body: { photoBase64: data } });
-        animateNext();
-        setPhotos(r.photos);
-      }
-      tapOk();
-    } catch (e) {
-      tapWarn();
-      const code = (e as ApiError).code;
-      Alert.alert("Фото не добавлено", PHOTO_ERRORS[code] ?? "Попробуй другое фото");
-    } finally {
-      setUploading(null);
-    }
-  }
-
-  function photoMenu(slot: number) {
-    const url = photos[slot];
-    if (!url) return upload(slot);
-    if (slot === 0) {
-      Alert.alert("Главное фото", "Оно на аватарке и в ленте людей.", [
-        { text: "Заменить", onPress: () => void upload(0) },
-        { text: "Отмена", style: "cancel" },
-      ]);
-      return;
-    }
-    Alert.alert("Фото", "", [
-      {
-        text: "Удалить",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            const r = await api<{ photos: string[] }>("/api/me/photos", { method: "DELETE", body: { url } });
-            animateNext();
-            setPhotos(r.photos);
-          } catch {
-            Alert.alert("Не получилось", "Попробуй ещё раз");
-          }
-        },
-      },
-      { text: "Отмена", style: "cancel" },
-    ]);
-  }
 
   async function save() {
     if (!me) return;
@@ -119,7 +67,7 @@ export default function ProfileEditScreen() {
     <View style={{ flex: 1 }}>
       <Aurora />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: insets.bottom + 110, gap: 14 }} keyboardShouldPersistTaps="handled">
+        <ScrollView scrollEnabled={!dragging} contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 16, paddingBottom: 12, gap: 14 }} keyboardShouldPersistTaps="handled">
           <RoundBtn onPress={() => router.back()}>
             <Icon name="back" />
           </RoundBtn>
@@ -128,14 +76,8 @@ export default function ProfileEditScreen() {
 
           {me ? (
             <>
-              <Text style={styles.hint}>До 3 фото. Первое — главное, оно на аватарке и в ленте людей.</Text>
-              <View style={styles.photos}>
-                <Slot url={photos[0]} big loading={uploading === 0} onPress={() => photoMenu(0)} main />
-                <View style={{ flex: 1, gap: 10 }}>
-                  <Slot url={photos[1]} loading={uploading === 1} onPress={() => photoMenu(1)} disabled={!photos[0]} />
-                  <Slot url={photos[2]} loading={uploading === 2} onPress={() => photoMenu(photos[1] ? 2 : 1)} disabled={!photos[0]} />
-                </View>
-              </View>
+              <ProfilePhotoGallery photos={photos} onDrag={setDragging} removable
+                onSaved={gallery => { setPhotos(gallery.photos); setMe(current => current ? { ...current, ...gallery } : current); }} />
 
               <Glass strong style={styles.card}>
                 <Text style={styles.label}>Имя</Text>
@@ -204,41 +146,8 @@ export default function ProfileEditScreen() {
   );
 }
 
-function Slot({ url, big, main, loading, disabled, onPress }: { url?: string; big?: boolean; main?: boolean; loading?: boolean; disabled?: boolean; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled || loading}
-      style={({ pressed }) => [big ? styles.slotBig : styles.slot, { opacity: disabled ? 0.45 : 1, transform: [{ scale: pressed ? 0.97 : 1 }] }]}
-    >
-      {url ? <Image source={{ uri: url }} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} /> : null}
-      {loading ? (
-        <View style={styles.slotOverlay}>
-          <ActivityIndicator color="#fff" />
-        </View>
-      ) : !url ? (
-        <View style={styles.plus}>
-          <Icon name="plus" size={22} color={colors.violet} />
-        </View>
-      ) : null}
-      {main && url ? (
-        <View style={styles.mainBadge}>
-          <Text style={styles.mainText}>Главное</Text>
-        </View>
-      ) : null}
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   hint: { fontFamily: FONT, fontSize: 13.5, lineHeight: 19, color: colors.grey, marginLeft: 4 },
-  photos: { flexDirection: "row", gap: 10, height: 260 },
-  slotBig: { flex: 1.6, borderRadius: 24, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 1.5, borderColor: "rgba(23,20,31,0.18)", borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
-  slot: { flex: 1, borderRadius: 20, overflow: "hidden", backgroundColor: "rgba(255,255,255,0.75)", borderWidth: 1.5, borderColor: "rgba(23,20,31,0.18)", borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
-  slotOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(22,18,31,0.35)", alignItems: "center", justifyContent: "center" },
-  plus: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
-  mainBadge: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(255,255,255,0.9)", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  mainText: { fontSize: 12, ...f("600"), color: colors.violet },
   card: { borderRadius: 22, padding: 14, gap: 8 },
   labelRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   label: { fontSize: 13, ...f("600"), color: colors.grey, textTransform: "uppercase", letterSpacing: 0.6 },
@@ -248,5 +157,5 @@ const styles = StyleSheet.create({
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#fff", borderRadius: 999, paddingLeft: 5, paddingRight: 10, paddingVertical: 4 },
   chipText: { fontFamily: FONT, fontSize: 13.5, color: colors.ink },
-  footer: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 20, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
+  footer: { paddingHorizontal: 20, paddingTop: 12, backgroundColor: "rgba(246,242,255,0.92)" },
 });

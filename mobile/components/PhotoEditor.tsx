@@ -1,8 +1,8 @@
-// Вертикальный редактор фото перед загрузкой — как PhotoCropModal мини-аппа и как в Instagram:
+// Редактор фото перед загрузкой — как PhotoCropModal мини-аппа и как в Instagram:
 // фото двигается пальцем, двумя пальцами — приближается, пока двигаешь — видна сетка третей.
-// «Повернуть», «Сбросить», «Заменить». Сохраняет кадр 3:4 (обложки и фото профиля).
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Animated, Image as RNImage, Modal, PanResponder, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+// «Повернуть», «Сбросить», «Заменить». Сохраняет кадр в пропорциях переданной рамки.
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, Image as RNImage, Modal, StyleSheet, Text, View, useWindowDimensions, type GestureResponderEvent } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import * as ImagePicker from "expo-image-picker";
 import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
@@ -10,11 +10,12 @@ import Svg, { Path } from "react-native-svg";
 import * as Haptics from "expo-haptics";
 import { Press, kf } from "@/components/k";
 
-const MAX_SCALE = 4;
+import { CROP_TOUCH_MARGIN, cropCornerAt, resizeSelection, initialSelection, restoreCrop, fitCropSelection, MAX_PHOTO_ZOOM, PORTRAIT_ASPECT, type CropCorner, type CropRect, type PhotoTransform } from "@/lib/photoCrop";
 
-export type EditedPhoto = { uri: string; data: string };
+export type EditedPhoto = { uri: string; data: string; source: Src };
 
-type Src = { uri: string; w: number; h: number };
+export type PhotoSource = { uri: string; w: number; h: number; crop?: { x: number; y: number; scale: number } };
+type Src = PhotoSource;
 
 function Tool({ d, label, onPress }: { d: string; label: string; onPress: () => void }) {
   return (
@@ -29,10 +30,9 @@ function Tool({ d, label, onPress }: { d: string; label: string; onPress: () => 
 
 export function PhotoEditor({
   source,
-  aspect = 3 / 4,
+  aspect = PORTRAIT_ASPECT,
   title = "Обложка встречи",
-  hint = "Двигай фото пальцем, двумя пальцами — приблизить. Так обложка будет выглядеть на карточке",
-  previewTitle,
+  hint = "Потяни за угол, чтобы обрезать. Двигай фото пальцем, меняй масштаб двумя.",
   onCancel,
   onDone,
   onReplace,
@@ -41,7 +41,6 @@ export function PhotoEditor({
   aspect?: number;
   title?: string;
   hint?: string;
-  previewTitle?: string;
   onCancel: () => void;
   onDone: (p: EditedPhoto) => void;
   onReplace?: () => void;
@@ -50,11 +49,12 @@ export function PhotoEditor({
   const win = useWindowDimensions();
   const [src, setSrc] = useState<Src | null>(source);
   const [busy, setBusy] = useState(false);
-  useEffect(() => setSrc(source), [source]);
+  useLayoutEffect(() => setSrc(source), [source]);
 
   // Рамка — самая большая вертикальная рамка нужных пропорций, что влезает между шапкой и кнопками.
-  const stageH = win.height - insets.top - insets.bottom - 56 - 130;
-  let fw = Math.min(win.width - 32, 440);
+  const [stageHeight, setStageHeight] = useState(0);
+  const stageH = stageHeight || Math.max(40, win.height - insets.top - insets.bottom - 56 - 142);
+  let fw = Math.min(win.width - 2 * CROP_TOUCH_MARGIN, 440);
   let fh = fw / aspect;
   if (fh > stageH) {
     fh = stageH;
@@ -72,68 +72,100 @@ export function PhotoEditor({
   const sc = useRef(new Animated.Value(1)).current;
   const grid = useRef(new Animated.Value(0)).current;
   const cur = useRef({ x: 0, y: 0, s: 1 });
-  const g = useRef<{ x: number; y: number; s: number; dist: number; cx: number; cy: number } | null>(null);
+  const g = useRef<{ x: number; y: number; s: number; fingers: string; dist: number; cx: number; cy: number } | null>(null);
 
-  const clamp = (x: number, y: number, s: number) => {
-    const mx = Math.max(0, (base.w * s - fw) / 2);
-    const my = Math.max(0, (base.h * s - fh) / 2);
-    return { x: Math.max(-mx, Math.min(mx, x)), y: Math.max(-my, Math.min(my, y)), s };
-  };
-  const apply = (v: { x: number; y: number; s: number }, animated = false) => {
-    cur.current = v;
-    if (animated) {
-      Animated.parallel([
-        Animated.spring(tx, { toValue: v.x, useNativeDriver: true, friction: 8 }),
-        Animated.spring(ty, { toValue: v.y, useNativeDriver: true, friction: 8 }),
-        Animated.spring(sc, { toValue: v.s, useNativeDriver: true, friction: 8 }),
-      ]).start();
-    } else {
-      tx.setValue(v.x);
-      ty.setValue(v.y);
-      sc.setValue(v.s);
+  const initial = useMemo(() => initialSelection(fw, fh), [fw, fh]);
+  const [frame, setFrame] = useState(initial);
+  const selection = useRef(initial);
+  const drag = useRef<{ corner: CropCorner; pageX: number; pageY: number; start: CropRect; image: PhotoTransform } | null>(null);
+
+  function updateFrame(next: CropRect) {
+    selection.current = next;
+    setFrame(next);
+  }
+
+  // Translation is measured from canvas centre. Keep the selected rectangle covered.
+  function apply(v: PhotoTransform, rect = selection.current) {
+    const minScale = rect.width / fw;
+    const s = Math.min(minScale * MAX_PHOTO_ZOOM, Math.max(minScale, v.s));
+    const cx = rect.x + rect.width / 2 - fw / 2;
+    const cy = rect.y + rect.height / 2 - fh / 2;
+    const mx = Math.max(0, (base.w * s - rect.width) / 2);
+    const my = Math.max(0, (base.h * s - rect.height) / 2);
+    const x = Math.max(cx - mx, Math.min(cx + mx, v.x));
+    const y = Math.max(cy - my, Math.min(cy + my, v.y));
+    cur.current = { x, y, s };
+    tx.setValue(x);
+    ty.setValue(y);
+    sc.setValue(s);
+  }
+
+  function reset() {
+    updateFrame(initial);
+    apply(restoreCrop(fw, fh, initial), initial);
+  }
+
+  useLayoutEffect(() => {
+    g.current = null;
+    drag.current = null;
+    updateFrame(initial);
+    apply(restoreCrop(fw, fh, initial, src?.crop), initial);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src, initial]);
+
+  type Touch = GestureResponderEvent["nativeEvent"]["touches"][number];
+  function moveCorner(touch: Touch) {
+    const d = drag.current;
+    if (!d) return;
+    const next = resizeSelection(fw, fh, d.start, d.corner, touch.pageX - d.pageX, touch.pageY - d.pageY, d.image.s);
+    updateFrame(next);
+    apply(d.image, next);
+  }
+
+  function track(event: GestureResponderEvent, begin = false) {
+    const [a, b] = event.nativeEvent.touches;
+    if (!a) return;
+    const fingers = b ? [a.identifier, b.identifier].sort().join(",") : String(a.identifier);
+    const same = fingers === g.current?.fingers;
+    const cx = (a.locationX + (b ?? a).locationX - fw) / 2 - CROP_TOUCH_MARGIN;
+    const cy = (a.locationY + (b ?? a).locationY - fh) / 2 - CROP_TOUCH_MARGIN;
+    const dist = b ? Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY) : 0;
+    if (begin && !g.current && !b) {
+      const r = selection.current;
+      const corner = cropCornerAt(r.width, r.height, a.locationX - CROP_TOUCH_MARGIN - r.x, a.locationY - CROP_TOUCH_MARGIN - r.y);
+      if (corner) drag.current = { corner, pageX: a.pageX, pageY: a.pageY, start: r, image: cur.current };
     }
-  };
-  const reset = () => apply({ x: 0, y: 0, s: 1 }, true);
-  useEffect(() => {
-    apply({ x: 0, y: 0, s: 1 });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [src]);
+    if (b) drag.current = null;
+    if (!same || !g.current) {
+      g.current = { ...cur.current, fingers, cx, cy, dist };
+      grid.setValue(1);
+      return;
+    }
+    if (drag.current) { moveCorner(a); return; }
+    const start = g.current;
+    const minScale = selection.current.width / fw;
+    const s = start.dist > 0 ? Math.max(minScale, Math.min(MAX_PHOTO_ZOOM * minScale, start.s * dist / start.dist)) : start.s;
+    apply({ x: cx - (start.cx - start.x) * s / start.s, y: cy - (start.cy - start.y) * s / start.s, s });
+  }
 
-  const pan = useMemo(
-    () =>
-      PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: () => true,
-        onPanResponderGrant: () => {
-          g.current = null;
-          Animated.timing(grid, { toValue: 1, duration: 150, useNativeDriver: true }).start();
-        },
-        onPanResponderMove: (e, gs) => {
-          const t = e.nativeEvent.touches;
-          if (t.length >= 2) {
-            const a = t[0]!, b = t[1]!;
-            const dist = Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
-            const cx = (a.pageX + b.pageX) / 2, cy = (a.pageY + b.pageY) / 2;
-            if (!g.current || g.current.dist === 0) g.current = { ...cur.current, dist, cx, cy };
-            const s = Math.max(1, Math.min(MAX_SCALE, g.current.s * (dist / g.current.dist)));
-            apply(clamp(g.current.x + (cx - g.current.cx), g.current.y + (cy - g.current.cy), s));
-          } else {
-            if (!g.current || g.current.dist !== 0) g.current = { ...cur.current, dist: 0, cx: gs.moveX, cy: gs.moveY };
-            apply(clamp(g.current.x + (gs.moveX - g.current.cx), g.current.y + (gs.moveY - g.current.cy), cur.current.s));
-          }
-        },
-        onPanResponderRelease: () => {
-          g.current = null;
-          Animated.timing(grid, { toValue: 0, duration: 250, useNativeDriver: true }).start();
-        },
-        onPanResponderTerminate: () => {
-          g.current = null;
-          Animated.timing(grid, { toValue: 0, duration: 250, useNativeDriver: true }).start();
-        },
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [base, fw, fh]
-  );
+  function finish(event: GestureResponderEvent) {
+    if (event.nativeEvent.touches.length) { track(event); return; }
+    const last = event.nativeEvent.changedTouches?.[0];
+    if (last && drag.current) moveCorner(last);
+    drag.current = null;
+    g.current = null;
+    grid.setValue(0);
+  }
+
+  function cancelGesture() {
+    if (drag.current) {
+      updateFrame(drag.current.start);
+      apply(drag.current.image, drag.current.start);
+    }
+    drag.current = null;
+    g.current = null;
+    grid.setValue(0);
+  }
 
   async function rotate() {
     if (!src || busy) return;
@@ -145,18 +177,21 @@ export function PhotoEditor({
       const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.95 });
       Haptics.selectionAsync().catch(() => {});
       setSrc({ uri: out.uri, w: out.width, h: out.height });
+    } catch {
+      Alert.alert("Не удалось обработать фото", "Попробуй ещё раз или выбери другое фото.");
     } finally {
       setBusy(false);
     }
   }
 
   async function done() {
-    if (!src || busy) return;
+    if (!src || busy || !stageHeight) return;
     setBusy(true);
     try {
-      const { x, y, s } = cur.current;
+      const { x, y, s } = fitCropSelection(fw, fh, selection.current, cur.current);
       const k = base.k * s; // пикселей экрана на пиксель фото
-      const cw = fw / k, ch = fh / k;
+      const cw = Math.max(1, Math.min(src.w, Math.round(fw / k)));
+      const ch = Math.max(1, Math.min(src.h, Math.round(fh / k)));
       const originX = Math.max(0, Math.min(src.w - cw, src.w / 2 - x / k - cw / 2));
       const originY = Math.max(0, Math.min(src.h - ch, src.h / 2 - y / k - ch / 2));
       const ctx = ImageManipulator.manipulate(src.uri);
@@ -164,7 +199,9 @@ export function PhotoEditor({
       if (cw > 1080) ctx.resize({ width: 1080 });
       const img = await ctx.renderAsync();
       const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.85, base64: true });
-      if (out.base64) onDone({ uri: out.uri, data: `data:image/jpeg;base64,${out.base64}` });
+      if (out.base64) onDone({ uri: out.uri, source: { ...src, crop: { x: x / fw, y: y / fh, scale: s } }, data: `data:image/jpeg;base64,${out.base64}` });
+    } catch {
+      Alert.alert("Не удалось обработать фото", "Попробуй ещё раз или выбери другое фото.");
     } finally {
       setBusy(false);
     }
@@ -186,34 +223,41 @@ export function PhotoEditor({
           </Press>
         </View>
 
-        <View style={st.stage}>
-          <View style={[st.frame, { width: fw, height: fh }]} {...pan.panHandlers}>
-            {src ? (
-              <Animated.View
-                style={{
-                  position: "absolute",
-                  left: (fw - base.w) / 2,
-                  top: (fh - base.h) / 2,
-                  width: base.w,
-                  height: base.h,
-                  transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }],
-                }}
-              >
-                <RNImage source={{ uri: src.uri }} style={{ width: base.w, height: base.h }} />
-              </Animated.View>
-            ) : null}
-            {previewTitle !== undefined ? (
-              <View pointerEvents="none" style={st.prevWrap}>
-                <Text style={kf("600", 18, { color: "#fff" })} numberOfLines={1}>{previewTitle || "Название встречи"}</Text>
+        <View style={st.stage} onLayout={e => setStageHeight(Math.max(1, e.nativeEvent.layout.height - 2 * CROP_TOUCH_MARGIN))}>
+          {stageHeight > 0 && src && <View collapsable={false} style={{ padding: CROP_TOUCH_MARGIN }}
+            onStartShouldSetResponder={() => !busy} onResponderTerminationRequest={() => false}
+            onResponderGrant={e => track(e, true)} onResponderStart={e => track(e, true)}
+            onResponderMove={e => track(e)} onResponderEnd={finish} onResponderTerminate={cancelGesture}>
+            <View pointerEvents="none" style={[st.frame, { width: fw, height: fh }]}>
+              {src ? (
+                <Animated.View
+                  style={{
+                    position: "absolute",
+                    left: (fw - base.w) / 2,
+                    top: (fh - base.h) / 2,
+                    width: base.w,
+                    height: base.h,
+                    transform: [{ translateX: tx }, { translateY: ty }, { scale: sc }],
+                  }}
+                >
+                  <RNImage source={{ uri: src.uri }} style={{ width: base.w, height: base.h }} />
+                </Animated.View>
+              ) : null}
+              <Svg pointerEvents="none" width={fw} height={fh} style={StyleSheet.absoluteFill}>
+                <Path fill="rgba(0,0,0,0.60)" fillRule="evenodd" d={`M0 0H${fw}V${fh}H0Z M${frame.x} ${frame.y}h${frame.width}v${frame.height}h-${frame.width}Z`} />
+              </Svg>
+              <View pointerEvents="none" style={{ position: "absolute", left: frame.x, top: frame.y, width: frame.width, height: frame.height }}>
+                <View style={[StyleSheet.absoluteFill, { borderColor: "rgba(255,255,255,.7)", borderWidth: StyleSheet.hairlineWidth }]} />
+                <Animated.View style={[StyleSheet.absoluteFill, { opacity: grid }]}>
+                  <View style={third("v", 1)} /><View style={third("v", 2)} />
+                  <View style={third("h", 1)} /><View style={third("h", 2)} />
+                </Animated.View>
+                <Svg width={frame.width} height={frame.height}>
+                  <Path fill="none" stroke="#fff" strokeWidth={4} d={`M1 17V1H17 M${frame.width - 17} 1h16v16 M1 ${frame.height - 17}v16h16 M${frame.width - 17} ${frame.height - 1}h16v-16`} />
+                </Svg>
               </View>
-            ) : null}
-            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity: grid }]}>
-              <View style={third("v", 1)} />
-              <View style={third("v", 2)} />
-              <View style={third("h", 1)} />
-              <View style={third("h", 2)} />
-            </Animated.View>
-          </View>
+            </View>
+          </View>}
         </View>
 
         <Text style={[kf("400", 13, { lh: 1.4, color: "rgba(255,255,255,0.65)" }), { textAlign: "center", marginHorizontal: 20 }]}>{hint}</Text>
@@ -247,25 +291,45 @@ export async function pickSource(): Promise<Src | null> {
 }
 
 const st = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0C0716" },
+  root: { flex: 1, backgroundColor: "#101010" },
   head: { height: 56, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 16 },
   pill: { height: 38, paddingHorizontal: 16, borderRadius: 19, backgroundColor: "rgba(255,255,255,0.12)", alignItems: "center", justifyContent: "center", minWidth: 84 },
   stage: { flex: 1, alignItems: "center", justifyContent: "center" },
-  frame: { borderRadius: 22, overflow: "hidden", backgroundColor: "#000", borderWidth: 2, borderColor: "#fff" },
-  prevWrap: { position: "absolute", left: 14, right: 14, bottom: 14 },
+  frame: { overflow: "hidden", backgroundColor: "#000" },
   tools: { flexDirection: "row", justifyContent: "center", gap: 10, marginTop: 14, flexWrap: "wrap" },
   tool: { height: 40, paddingHorizontal: 16, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.12)", flexDirection: "row", alignItems: "center", gap: 8 },
 });
 
 /* ---------- Общий редактор для всего приложения: pickAndEdit() из любого экрана ---------- */
-type Req = { src: Src; title?: string; hint?: string; previewTitle?: string; resolve: (p: EditedPhoto | null) => void };
+type Req = { src: Src; aspect?: number; title?: string; hint?: string; resolve: (p: EditedPhoto | null) => void };
 let pushReq: ((r: Req | null) => void) | null = null;
 
 /** Галерея → наш редактор 3:4 → готовое фото (или null, если передумал). */
-export async function pickAndEdit(opts: { title?: string; hint?: string; previewTitle?: string } = {}): Promise<EditedPhoto | null> {
-  const src = await pickSource();
+export async function pickAndEdit(opts: { source?: Src; aspect?: number; title?: string; hint?: string; } = {}): Promise<EditedPhoto | null> {
+  const src = opts.source ?? await pickSource();
   if (!src || !pushReq) return null;
   return new Promise((resolve) => pushReq?.({ src, ...opts, resolve }));
+}
+
+/** Open the saved profile photo directly, including legacy absolute and relative image URLs. */
+export async function editExistingPhoto(url: string): Promise<EditedPhoto | null> {
+  const fs = await import("expo-file-system/legacy");
+  const { API_URL } = await import("@/lib/config");
+  const uri = new URL(url, API_URL).href;
+  const local = uri.startsWith("file:");
+  const path = local ? uri : `${fs.cacheDirectory}profile-edit-${Date.now()}.jpg`;
+  try {
+    if (!local) {
+      const download = await fs.downloadAsync(uri, path);
+      if (download.status !== 200) throw new Error("photo_unavailable");
+    }
+    const { width: w, height: h } = await RNImage.getSize(path);
+    const open = pushReq;
+    if (!open) return null;
+    return await new Promise<EditedPhoto | null>(resolve => open({ src: { uri: path, w, h }, title: "Фото профиля", resolve }));
+  } finally {
+    if (!local) await fs.deleteAsync(path, { idempotent: true }).catch(() => {});
+  }
 }
 
 /** Ставится один раз в корне приложения (app/_layout.tsx). */
@@ -284,9 +348,9 @@ export function PhotoEditorHost() {
   return (
     <PhotoEditor
       source={req?.src ?? null}
+      aspect={req?.aspect}
       title={req?.title}
       hint={req?.hint}
-      previewTitle={req?.previewTitle}
       onCancel={() => close(null)}
       onDone={(p) => close(p)}
       onReplace={async () => {

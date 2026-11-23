@@ -1,9 +1,9 @@
+import { PORTRAIT_ASPECT } from "@/lib/photoCrop";
 // Шаг 2. «Название и обложка» — обложку подбирает Мося, можно загрузить своё фото.
 import { useState } from "react";
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from "react-native";
 import { Image } from "expo-image";
-import * as ImagePicker from "expo-image-picker";
-import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import { pickAndEdit } from "@/components/PhotoEditor";
 import { Glass } from "@/components/brand";
 import { Icon } from "@/components/Icon";
 import { Field } from "@/components/ui";
@@ -11,19 +11,6 @@ import { coverUri } from "@/lib/covers";
 import { colors, f } from "@/lib/theme";
 import type { Form, SetForm } from "./model";
 import { Label, Muted, StepTitle } from "./parts";
-
-/** Фото из галереи: обрезка 3:2 в системном редакторе → 1200 px по ширине, JPEG 0.8 → data:URL (как шлёт веб). */
-async function pickPhoto(): Promise<{ uri: string; data: string } | null> {
-  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [3, 2], quality: 1 });
-  const asset = res.canceled ? null : res.assets[0];
-  if (!asset) return null;
-  const ctx = ImageManipulator.manipulate(asset.uri);
-  ctx.resize({ width: 1200 });
-  const img = await ctx.renderAsync();
-  const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.8, base64: true });
-  if (!out.base64) return null;
-  return { uri: out.uri, data: `data:image/jpeg;base64,${out.base64}` };
-}
 
 export function StepCover({ form, set, presetCover, coverSet = [], catLabel }: { form: Form; set: SetForm; presetCover: string | null; coverSet?: string[]; catLabel: string }) {
   const [loading, setLoading] = useState(false);
@@ -33,7 +20,7 @@ export function StepCover({ form, set, presetCover, coverSet = [], catLabel }: {
   async function upload() {
     setLoading(true);
     try {
-      const p = await pickPhoto();
+      const p = await pickAndEdit();
       if (p) set({ ownPhoto: p, useOwnPhoto: true });
     } catch {
       Alert.alert("Не получилось", "Не удалось открыть фото — попробуй другое.");
@@ -156,7 +143,7 @@ const st = StyleSheet.create({
   headLbl: { fontSize: 15, ...f("500"), color: colors.ink },
   tag: { backgroundColor: colors.lav, borderRadius: 999, paddingHorizontal: 10, height: 26, justifyContent: "center", flexShrink: 1 },
   tagText: { fontSize: 12, color: colors.violet, ...f("500") },
-  cover: { aspectRatio: 1.5, borderRadius: 22, overflow: "hidden", backgroundColor: "#ECE8F2", borderWidth: 3, borderColor: "transparent" },
+  cover: { aspectRatio: PORTRAIT_ASPECT, borderRadius: 22, overflow: "hidden", backgroundColor: "#ECE8F2", borderWidth: 3, borderColor: "transparent" },
   on: { borderColor: colors.violet },
   badge: { position: "absolute", left: 10, bottom: 10, backgroundColor: "rgba(255,255,255,0.88)", borderRadius: 999, paddingHorizontal: 10, height: 26, justifyContent: "center" },
   badgeText: { fontSize: 12, color: colors.violet, ...f("500") },
@@ -164,7 +151,7 @@ const st = StyleSheet.create({
   cell: { width: "32%" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   gcell: { width: "23%" },
-  gimg: { aspectRatio: 3 / 4, borderRadius: 16, overflow: "hidden", backgroundColor: "#ECE8F2", borderWidth: 2, borderColor: "transparent" },
+  gimg: { aspectRatio: PORTRAIT_ASPECT, borderRadius: 16, overflow: "hidden", backgroundColor: "#ECE8F2", borderWidth: 2, borderColor: "transparent" },
   gon: { borderColor: colors.ink },
   check: { position: "absolute", top: 5, right: 5, width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
   up: { aspectRatio: 1, borderRadius: 18, alignItems: "center", justifyContent: "center", gap: 6 },

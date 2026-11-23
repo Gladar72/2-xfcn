@@ -7,7 +7,7 @@ import { Icon, type IconName } from "@/components/Icon";
 import { tapLight } from "@/lib/feedback";
 import { INTEREST_STICKERS, MOSYA_STICKERS, REACTIONS, stickerUrl, type Sticker } from "@/lib/stickers";
 import { colors, FONT, f } from "@/lib/theme";
-import { type ChatMember, type ChatMessage, hasRead, timeOf } from "./types";
+import { type ChatMember, type ChatMessage, hasRead, isOnline, lastSeenText, timeOf } from "./types";
 
 /** Панель стикеров под полем ввода (вместо клавиатуры): вкладки «Мося» и «Интересы». */
 export function StickerPanel({ height, onPick }: { height: number; onPick: (slug: string) => void }) {
@@ -137,6 +137,35 @@ export function MessageMenu(p: MenuProps) {
 }
 
 /** «Кто прочитал»: участники, у которых last_read_at ≥ времени сообщения, и реакции. */
+export function MembersSheet({ visible, members, onClose, onEvent }: {
+  visible: boolean; members: ChatMember[]; onClose: () => void; onEvent: () => void;
+}) {
+  return (
+    <Sheet visible={visible} onClose={onClose}>
+      <Text style={styles.sheetTitle}>Участники чата</Text>
+      <FlatList
+        style={{ maxHeight: 420, flexShrink: 1 }}
+        data={members}
+        keyExtractor={(m) => m.id}
+        ListHeaderComponent={<Text style={[styles.readerName, { paddingVertical: 8 }]}>Вы</Text>}
+        renderItem={({ item: m }) => (
+          <View style={styles.reader}>
+            <Avatar uri={m.avatarUrl} name={m.name} size={36} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.readerName}>{m.name}</Text>
+              {!m.anonymous && <Text style={[styles.readerSub, isOnline(m.lastActiveAt) && { color: colors.ok }]}>{lastSeenText(m.lastActiveAt, m.gender)}</Text>}
+            </View>
+          </View>
+        )}
+      />
+      <Pressable accessibilityRole="button" onPress={onEvent} style={styles.reader}>
+        <Icon name="cal" size={18} color={colors.ink} />
+        <Text style={styles.readerName}>Открыть встречу</Text>
+      </Pressable>
+    </Sheet>
+  );
+}
+
 export function ReadersSheet({ msg, members, onClose }: { msg: ChatMessage | null; members: ChatMember[]; onClose: () => void }) {
   const read = msg ? members.filter((m) => hasRead(m, msg.createdAt)) : [];
   const unread = msg ? members.filter((m) => !hasRead(m, msg.createdAt)) : [];

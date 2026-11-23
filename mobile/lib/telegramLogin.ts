@@ -1,11 +1,12 @@
 import { AppState, Linking } from "react-native";
 import * as SecureStore from "expo-secure-store";
+import { sessionKey } from "./config";
 import { api, ApiError } from "./api";
 import type { AuthResult } from "./auth";
 
 export type TelegramLoginResult = AuthResult & { phoneLinked?: string | null; phoneError?: string | null };
 type Attempt = { token: string; proof?: string; expires: number; phoneTicket?: string | null };
-const KEY = "mesto_pending_telegram_login";
+const KEY = sessionKey("mesto_pending_telegram_login");
 const TTL = 10 * 60_000;
 let running: { controller: AbortController; promise: Promise<TelegramLoginResult | null> } | null = null;
 let writes: Promise<void> = Promise.resolve();

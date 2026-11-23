@@ -56,6 +56,9 @@ export interface FeedEvent {
 }
 
 export interface PersonCard {
+  photos?: string[];
+  gender?: "male" | "female";
+  lastActiveAt?: string | null;
   id: string;
   name: string;
   age: number;
@@ -80,6 +83,9 @@ export interface EventDetail extends Omit<FeedEvent, "isHighlighted" | "isMine" 
 }
 
 export interface MapEvent {
+  /** Hours east of UTC at the venue, when supplied by the map API. */
+  utcOffset?: number;
+  address?: string | null;
   id: string;
   title: string;
   latitude: number;

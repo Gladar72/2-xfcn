@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, Alert, Animated, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ActivityIndicator, Alert, Animated, AppState, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { router, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -8,6 +8,8 @@ import { Press } from "@/components/k";
 import { HeartBurst, pop, type HeartBurstRef } from "@/components/k/HeartBurst";
 import { Creature } from "@/components/k/Creature";
 import { Icon } from "@/components/Icon";
+import { ProfilePictures } from "./ProfilePictures";
+import { profileIsOnline } from "@/lib/profilePresence";
 import { InviteSheet } from "@/components/people/InviteSheet";
 import { ReportSheet } from "@/components/people/ReportSheet";
 import { api } from "@/lib/api";
@@ -29,26 +31,28 @@ export interface Person {
   bio: string | null;
   ratingAvg: number;
   completedMeetingsCount: number;
+  lastActiveAt?: string | null;
   distanceKm: number | null;
+  distanceM?: number | null;
   interests: string[];
   commonInterests: string[];
 }
 
 /** То, что уже известно из ленты/колоды — показываем сразу, пока грузится полный профиль. */
 export interface PersonPreview {
+  photos?: string[];
   id: string;
   name: string;
   age: number;
   avatarUrl: string | null;
+  distanceM?: number | null;
+  distanceKm?: number | null;
+  lastActiveAt?: string | null;
+  gender?: "male" | "female";
 }
 
+const ACTION_HEIGHT = 52;
 const NO_MEET = "Пока написать нельзя — у вас ещё не было общей встречи. Позови на свою встречу или создай новую 😉";
-// «screen», а не «window»: на Android окно не включает панель навигации — внизу оставалась светлая полоса.
-const { height: SCREEN_H } = Dimensions.get("screen");
-// Как в мини-приложении: фото на весь экран, имя внизу поверх, панель «♡ 🔔 Позвать на встречу».
-const PHOTO_H = SCREEN_H;
-const OVERLAY_H = 230;
-
 /**
  * Профиль человека (components/people/PersonView.tsx в мини-приложении):
  * фото на весь экран с листанием, «О себе», общие интересы,
@@ -60,20 +64,21 @@ export function PersonView({
   self,
   active = true,
   openedFromHeart = false,
+  preload = false,
+  warmPhotos = 1,
   onBack,
   onGone,
   topAction,
-  transparentBg,
 }: {
-  /** В колоде под карточкой уже лежит фото этого человека — свой фон не рисуем, чтобы не моргало. */
-  transparentBg?: boolean;
   id: string;
   preview?: PersonPreview;
   /** «Как меня видят» — без кнопок действий. */
   self?: boolean;
   /** В колоде грузим только видимую карточку и соседние. */
   active?: boolean;
+  preload?: boolean;
   openedFromHeart?: boolean;
+  warmPhotos?: number;
   onBack: () => void;
   /** Человека заблокировали — колода убирает карточку. */
   onGone?: (id: string) => void;
@@ -140,26 +145,50 @@ export function PersonView({
     }
   }
   const [isMe, setIsMe] = useState(!!self);
+  const { height: windowHeight } = useWindowDimensions();
+  const [measuredHeight, setMeasuredHeight] = useState(0);
+  const footerHeight = isMe ? 0 : ACTION_HEIGHT + 6 + Math.max(insets.bottom, 12);
+  const heroHeight = measuredHeight || Math.max(0, windowHeight - footerHeight);
 
   useEffect(() => {
     if (!self) getMyId().then((my) => setIsMe(my === id));
   }, [self, id]);
 
-  const load = useCallback(() => {
-    api<Person>(`/api/users/${id}`)
-      .then((x) => ({ ...x, photos: x.photos ?? [], interests: x.interests ?? [], commonInterests: x.commonInterests ?? [] }))
-      .then((r) => {
-        setP(r);
-        setError(null);
-      })
-      .catch(() => setError("Профиль недоступен"));
-  }, [id]);
-
+  const shouldLoad = active || preload;
+  const isActive = useRef(active);
+  isActive.current = active;
   useEffect(() => {
-    if (active && !p) load();
-  }, [active, p, load]);
+    if (!shouldLoad) return;
+    let current = true;
+    let pending = false;
+    async function refresh(initial = false) {
+      if (pending || (!initial && (!isActive.current || AppState.currentState !== "active"))) return;
+      pending = true;
+      try {
+        const r = await api<Person>(`/api/users/${id}`);
+        if (!current) return;
+        setP({ ...r, photos: r.photos ?? [], interests: r.interests ?? [], commonInterests: r.commonInterests ?? [] });
+        setError(null);
+      } catch {
+        if (current && initial) setError("Профиль недоступен");
+      } finally { pending = false; }
+    }
+    void refresh(true);
+    const timer = setInterval(() => { void refresh(); }, 60_000);
+    const listener = AppState.addEventListener("change", state => { if (state === "active") void refresh(); });
+    return () => { current = false; clearInterval(timer); listener.remove(); };
+  }, [shouldLoad, id, preview?.distanceM, preview?.distanceKm]);
+  const lastActiveAt = p ? p.lastActiveAt : preview?.lastActiveAt;
+  const [, refreshTime] = useState(0);
+  useEffect(() => {
+    if (!active || !lastActiveAt) return;
+    const timer = setInterval(() => refreshTime(t => t + 1), 30_000);
+    return () => clearInterval(timer);
+  }, [active, lastActiveAt]);
+  const online = profileIsOnline(lastActiveAt);
+  const distance = distanceLabel(p ? p.distanceKm : preview?.distanceKm, p ? p.distanceM : preview?.distanceM);
 
-  const photos = p ? (p.photos.length ? p.photos : p.avatarUrl ? [p.avatarUrl] : []) : preview?.avatarUrl ? [preview.avatarUrl] : [];
+  const photos = p ? (p.photos.length ? p.photos : p.avatarUrl ? [p.avatarUrl] : []) : preview?.photos?.length ? preview.photos : preview?.avatarUrl ? [preview.avatarUrl] : [];
   const name = p?.name ?? preview?.name ?? "";
   const age = p?.age ?? preview?.age;
 
@@ -187,79 +216,86 @@ export function PersonView({
     }
   }
 
-  // Фото слегка увеличивается при оттягивании вниз и уезжает медленнее текста — «параллакс».
-  const photoScale = scrollY.interpolate({ inputRange: [-200, 0], outputRange: [1.4, 1], extrapolateRight: "clamp" });
+  // Затемнение остаётся на фотографии, включая область под кнопками.
+  const detailsShade = scrollY.interpolate({
+    inputRange: [0, Math.max(1, heroHeight * 0.6)],
+    outputRange: [0, 0.56],
+    extrapolate: "clamp",
+  });
 
   const common = p?.commonInterests ?? [];
   const other = (p?.interests ?? []).filter((i) => !common.includes(i));
 
   return (
-    <View style={{ flex: 1, backgroundColor: transparentBg ? "transparent" : "#17141F" }}>
+    <View style={{ flex: 1, backgroundColor: "#17141F" }}>
       {/* Фото стоит на месте (как .gal в мини-аппе), карточка с «О себе» едет поверх него. */}
-        <Animated.View pointerEvents="none" style={[styles.photoBox, transparentBg && { backgroundColor: "transparent" }, StyleSheet.absoluteFillObject, { height: PHOTO_H, transform: [{ scale: photoScale }] }]}>
+      <View pointerEvents="none" style={[styles.photoBox, StyleSheet.absoluteFillObject]}>
         {photos.length ? (
-          <Image source={{ uri: photos[photo] ?? photos[0] }} style={StyleSheet.absoluteFill} contentFit="cover" transition={180} cachePolicy="memory-disk" />
+          <>
+            <View style={[StyleSheet.absoluteFill, styles.noPhoto, { backgroundColor: "#242129" }]}>
+              <Text style={{ color: "#ccc8ce", fontSize: 44 }}>{name.trim().slice(0, 1)}</Text>
+            </View>
+            <ProfilePictures key={id} photos={active ? photos : photos.slice(0, warmPhotos)} index={photo} />
+          </>
         ) : (
-          <LinearGradient colors={["#3F3A4E", "#AAA0FF", colors.milk]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
+          <LinearGradient colors={["#403C44", "#28252D", "#17141F"]} style={[StyleSheet.absoluteFill, styles.noPhoto]}>
             <Creature size={170} variant="e" />
           </LinearGradient>
         )}
-        <LinearGradient colors={["rgba(23,20,31,0.32)", "rgba(23,20,31,0)", "rgba(23,20,31,0)", "rgba(23,20,31,0.88)", "#17141F"]} locations={[0, 0.22, 0.5, 0.9, 1]} style={StyleSheet.absoluteFill} pointerEvents="none" />
-      </Animated.View>
+        <LinearGradient colors={["rgba(23,20,31,0.32)", "rgba(23,20,31,0)", "rgba(23,20,31,0.08)", "rgba(23,20,31,0.70)", "#17141F"]} locations={[0, 0.22, 0.43, 0.78, 1]} style={StyleSheet.absoluteFill} />
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: "#17141F", opacity: detailsShade }]} />
+      </View>
 
       <Animated.ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
-        contentContainerStyle={{ flexGrow: 1 }}
+        style={{ flex: 1, overflow: "hidden" }}
+        contentInsetAdjustmentBehavior="never"
+        bounces={false}
+        overScrollMode="never"
+        contentContainerStyle={isMe ? { paddingBottom: Math.max(insets.bottom, 12) } : undefined}
+        onLayout={(e) => setMeasuredHeight(e.nativeEvent.layout.height)}
       >
         {/* Первый экран — прозрачный: нажатия слева/справа листают фото. */}
-        <View style={{ minHeight: PHOTO_H, flexGrow: 1 }}>
+        <View style={{ minHeight: heroHeight, justifyContent: "flex-end" }}>
           <View style={styles.zones}>
             <Pressable style={{ flex: 1 }} onPress={() => flip(-1)} />
             <Pressable style={{ flex: 1 }} onPress={() => flip(1)} />
           </View>
-        </View>
-        {/* Как в действующем приложении: имя, «в сети» и плашки фактов внизу фото, справа — стрелка к «О себе». */}
-        <View style={[styles.overlay, { marginTop: -(OVERLAY_H + insets.bottom), height: OVERLAY_H + insets.bottom, paddingBottom: (isMe ? 24 : 92) + insets.bottom }]}>
-          <Text style={styles.name} numberOfLines={2}>
-            {name}
-            {age ? `, ${age}` : ""}
-          </Text>
-          {p ? (
-            <View style={styles.pills}>
-              {distanceLabel(p.distanceKm) ? (
-                <View style={styles.pill}>
-                  <Icon name="pin" size={13} color="#fff" />
-                  <Text style={styles.pillText}>{distanceLabel(p.distanceKm)}</Text>
-                </View>
-              ) : null}
-              {p.ratingAvg > 0 ? (
-                <View style={styles.pill}>
-                  <Text style={styles.pillText}>★ {p.ratingAvg.toFixed(1).replace(".", ",")}</Text>
-                </View>
-              ) : null}
-              <View style={styles.pill}>
-                <Text style={styles.pillText}>
-                  {p.completedMeetingsCount} {plural(p.completedMeetingsCount, "встреча", "встречи", "встреч")}
-                </Text>
+          <View pointerEvents="box-none" style={styles.overlay}>
+            <Text style={styles.name} numberOfLines={2}>
+              {name}
+              {age ? `, ${age}` : ""}
+            </Text>
+            {(p || lastActiveAt) && <View pointerEvents="none" style={styles.presence}>
+              <View style={[styles.statusDot, { backgroundColor: online ? "#65D88F" : colors.danger }]} />
+              <Text style={styles.presenceText}>{online ? "Онлайн" : "Не онлайн"}</Text>
+            </View>}
+            {distance || (p && p.ratingAvg > 0) || common.length > 0 ? (
+              <View style={styles.pills}>
+                {distance && <View style={styles.pill}><Icon name="pin" size={13} color="#fff" /><Text style={styles.pillText}>{distance}</Text></View>}
+                {p && p.ratingAvg > 0 ? (
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>★ {p.ratingAvg.toFixed(1).replace(".", ",")}</Text>
+                  </View>
+                ) : null}
+                {common.length ? (
+                  <View style={styles.pill}>
+                    <Text style={styles.pillText}>
+                      {common.length} {plural(common.length, "общий интерес", "общих интереса", "общих интересов")}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
-              {common.length ? (
-                <View style={styles.pill}>
-                  <Text style={styles.pillText}>
-                    {common.length} {plural(common.length, "общий интерес", "общих интереса", "общих интересов")}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-          <Pressable onPress={() => scrollRef.current?.scrollTo({ y: SCREEN_H * 0.55, animated: true })} style={[styles.upk, { bottom: (isMe ? 24 : 92) + insets.bottom }]} accessibilityLabel="О себе">
-            <Icon name="up" size={20} color="#fff" />
-          </Pressable>
+            ) : null}
+            <Pressable onPress={() => scrollRef.current?.scrollTo({ y: heroHeight * 0.55, animated: true })} style={styles.upk} accessibilityLabel="О себе">
+              <Icon name="up" size={20} color="#fff" />
+            </Pressable>
+          </View>
         </View>
 
-        <LinearGradient pointerEvents="none" colors={["rgba(23,20,31,0)", "rgba(23,20,31,0.25)", "rgba(23,20,31,0.55)", "rgba(23,20,31,0.74)"]} locations={[0, 0.4, 0.75, 1]} style={{ height: 150, marginTop: -150 }} />
         {/* «О себе» — тёмное стекло: фото просвечивает размыто, без плотной синевы */}
         <View style={styles.body}>
           {!p ? (
@@ -269,7 +305,9 @@ export function PersonView({
               {p.bio?.trim() ? (
                 <View style={styles.blk}>
                   <Text style={styles.blkH}>О себе</Text>
-                  <Text style={styles.about}>{p.bio.trim()}</Text>
+                  <View style={[styles.glassPill, styles.about]}>
+                    <Text style={[styles.chipText, styles.aboutText]}>{p.bio.trim()}</Text>
+                  </View>
                 </View>
               ) : null}
               {common.length ? (
@@ -290,15 +328,13 @@ export function PersonView({
                 </View>
               ) : null}
               {!isMe ? (
-                <Pressable onPress={() => setReport(true)} style={styles.reportLink} hitSlop={6}>
+                <Pressable onPress={() => setReport(true)} style={styles.reportLink} accessibilityRole="button">
                   <Text style={styles.reportText}>Пожаловаться или заблокировать</Text>
                 </Pressable>
               ) : null}
             </>
           )}
         </View>
-        {/* Тёмный низ до конца экрана — фото под карточкой не просвечивает */}
-        <View style={{ height: Math.max(insets.bottom, 12) + (isMe ? 8 : 58), backgroundColor: "rgba(23,20,31,0.74)" }} />
       </Animated.ScrollView>
 
       {/* Шапка поверх фото: назад, полоски фото, флажок. */}
@@ -353,7 +389,7 @@ export function PersonView({
             <Text style={styles.callText} numberOfLines={2}>Позвать на встречу</Text>
           </Press>
         </View>
-      ) : null}
+      ) : !isMe ? <View pointerEvents="none" style={{ height: footerHeight }} /> : null}
 
       {p ? (
         <>
@@ -378,7 +414,7 @@ function Chips({ items }: { items: string[] }) {
   return (
     <View style={styles.chips}>
       {items.map((i) => (
-        <View key={i} style={styles.chip}>
+        <View key={i} style={[styles.glassPill, styles.chip]}>
           <View style={styles.chipIc}>
             <Image source={{ uri: interestIcon(i) }} style={{ width: 16, height: 16 }} contentFit="contain" />
           </View>
@@ -390,38 +426,43 @@ function Chips({ items }: { items: string[] }) {
 }
 
 const styles = StyleSheet.create({
-  photoBox: { height: PHOTO_H, backgroundColor: colors.violet, overflow: "hidden" },
+  photoBox: { backgroundColor: "#17141F", overflow: "hidden" },
   noPhoto: { alignItems: "center", justifyContent: "center" },
   zones: { ...StyleSheet.absoluteFillObject, flexDirection: "row" },
-  overlay: { justifyContent: "flex-end", paddingHorizontal: 20, gap: 8 },
+  overlay: { paddingHorizontal: 20, paddingBottom: 6, gap: 8 },
   name: { fontSize: 34, lineHeight: 38, ...f("600"), color: "#fff", letterSpacing: -1, paddingRight: 56 },
+  presence: { flexDirection: "row", alignItems: "center", gap: 6, paddingRight: 50 },
+  statusDot: { width: 7, height: 7, borderRadius: 4 },
+  presenceText: { flexShrink: 1, fontSize: 14, lineHeight: 19, ...f("500"), color: "#F5F4F6" },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 6, paddingRight: 56 },
   pill: { flexDirection: "row", alignItems: "center", gap: 4, height: 30, paddingHorizontal: 12, borderRadius: 15, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)" },
   pillDark: { backgroundColor: "rgba(23,20,31,0.3)" },
   pillText: { fontSize: 13, ...f("500"), color: "#fff" },
-  upk: { position: "absolute", right: 20, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
+  upk: { position: "absolute", right: 20, bottom: 6, width: 44, height: 44, borderRadius: 22, backgroundColor: "rgba(255,255,255,0.22)", alignItems: "center", justifyContent: "center" },
   blk: { gap: 10, marginBottom: 6 },
   blkRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   blkH: { fontSize: 18, ...f("500"), color: "#fff", letterSpacing: -0.4 },
   blkSub: { fontFamily: FONT, fontSize: 13.5, color: "#C6C3CD" },
-  about: { fontFamily: FONT, fontSize: 15, lineHeight: 22, color: "#F5F4F7", backgroundColor: "#2B2833", borderRadius: 20, padding: 16, overflow: "hidden" },
+  about: { alignSelf: "flex-start", maxWidth: "100%", minHeight: 36, justifyContent: "center", paddingHorizontal: 13, paddingVertical: 6 },
+  aboutText: { lineHeight: 21 },
   chipIc: { width: 24, height: 24, borderRadius: 12, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
-  bar2: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingTop: 10 },
-  rb: { width: 48, height: 52, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.78)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
+  bar2: { flexShrink: 0, paddingTop: 6, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14 },
+  rb: { width: 48, height: ACTION_HEIGHT, borderRadius: 26, backgroundColor: "rgba(23,20,31,0.78)", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.14)" },
   rbOn: { backgroundColor: "rgba(255,255,255,0.94)" },
   rbHeart: { backgroundColor: "#FF4F8B", borderColor: "rgba(255,255,255,0.3)" },
   heartToast: { position: "absolute", left: 14, right: 14, minHeight: 42, borderRadius: 21, paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "rgba(255,255,255,0.95)", alignItems: "center", justifyContent: "center" },
   heartToastText: { fontFamily: FONT, fontSize: 14, color: "#17141F", textAlign: "center" },
-  callBtn: { flex: 1, height: 52, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
+  callBtn: { flex: 1, height: ACTION_HEIGHT, borderRadius: 999, backgroundColor: "#fff", flexDirection: "row", gap: 7, alignItems: "center", justifyContent: "center", paddingHorizontal: 10 },
   callText: { color: colors.ink, fontSize: 14, lineHeight: 16, ...f("500"), textAlign: "center" },
-  body: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, gap: 12, backgroundColor: "rgba(23,20,31,0.74)", overflow: "hidden" },
+  body: { paddingHorizontal: 20, paddingTop: 10, gap: 12 },
   card: { borderRadius: 24, padding: 16, gap: 10 },
   cardHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardTitle: { fontSize: 17, ...f("500"), color: colors.ink, letterSpacing: -0.3 },
   bio: { fontFamily: FONT, fontSize: 15.5, lineHeight: 22, color: colors.ink2 },
   muted: { fontFamily: FONT, fontSize: 13.5, color: colors.grey },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { flexDirection: "row", alignItems: "center", gap: 7, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", borderRadius: 999, paddingLeft: 5, paddingRight: 13, paddingVertical: 5 },
+  glassPill: { backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", borderRadius: 18 },
+  chip: { flexDirection: "row", alignItems: "center", gap: 7, paddingLeft: 5, paddingRight: 13, paddingVertical: 5 },
   chipText: { fontFamily: FONT, fontSize: 14, color: "#fff" },
   reportLink: { height: 46, borderRadius: 23, backgroundColor: "rgba(255,255,255,0.1)", borderWidth: 1, borderColor: "rgba(255,255,255,0.16)", alignItems: "center", justifyContent: "center", marginTop: 4 },
   reportText: { fontSize: 14, ...f("500"), color: "rgba(255,255,255,0.85)" },

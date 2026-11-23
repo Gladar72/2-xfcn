@@ -158,7 +158,11 @@ export function distanceShort(m: number | null | undefined): string | null {
 }
 
 /** «меньше 1 км от тебя» / «≈ N км от тебя» (lib/geo/approx-distance.ts). */
-export function distanceLabel(km: number | null | undefined): string | null {
+export function distanceLabel(km: number | null | undefined, meters?: number | null): string | null {
+  if (meters != null && Number.isFinite(meters) && meters >= 0) {
+    if (meters < 500) return "меньше 0,5 км от тебя";
+    return `≈ ${Number((meters / 1000).toFixed(1)).toLocaleString("ru-RU")} км от тебя`;
+  }
   if (km == null) return null;
   return km === 0 ? "меньше 1 км от тебя" : `≈ ${String(km).replace(".", ",")} км от тебя`;
 }

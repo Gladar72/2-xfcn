@@ -1,3 +1,4 @@
+import { PORTRAIT_ASPECT } from "@/lib/photoCrop";
 // Шаги мастера создания — перенос разметки CreateMeetingFlow мини-аппа один в один (app/k26.css: .k-cats, .k-own,
 // .k-cvg, .k-bizph, .k-dates, .k-wheel, .k-recp, .k-mapbox, .k-addr, .k-bigst, .k-plan, .k-prev).
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -12,6 +13,7 @@ import { coverUri } from "@/lib/covers";
 import { INTEREST_GROUPS } from "@/lib/interests";
 import { BIZ_SECTIONS, bizCategoryIcon } from "@/lib/bizCategories";
 import { Creature, K, KI, Press, kem, kf } from "@/components/k";
+import { creatureForKind } from "@/components/k/Creature";
 import { KWheel } from "./KWheel";
 import { PlacePicker } from "./PlacePicker";
 import { BIZ_PRICING, COSTS, type AddressSuggestion, type Category, type Form, type PlaceSuggestion, type SetForm, type TrainingType } from "./model";
@@ -82,10 +84,10 @@ function Chip({ label, icon, on, onPress }: { label: string; icon?: string; on: 
 
 /* ---------- «Что создаём?» ---------- */
 
-const KINDS: [Kind, number, string, string][] = [
-  ["open", 0, "Открытая встреча", "Кофе, спорт, кино, прогулка — все видят тебя и место встречи"],
-  ["anon", 40, "Анонимная встреча", "Имя, фото и точный адрес увидят только те, чью заявку ты примешь"],
-  ["business", -50, "Событие для бизнеса", "Афиша для заведения или своего дела: концерт, квиз, мастер‑класс. Гостей до 500, можно билеты"],
+const KINDS: [Kind, string, string][] = [
+  ["open", "Открытая встреча", "Кофе, спорт, кино, прогулка — все видят тебя и место встречи"],
+  ["anon", "Анонимная встреча", "Имя, фото и точный адрес увидят только те, чью заявку ты примешь"],
+  ["business", "Событие для бизнеса", "Афиша для заведения или своего дела: концерт, квиз, мастер‑класс. Гостей до 500, можно билеты"],
 ];
 
 export function KindStep({ value, onPick }: { value: Kind | null; onPick: (k: Kind) => void }) {
@@ -94,12 +96,12 @@ export function KindStep({ value, onPick }: { value: Kind | null; onPick: (k: Ki
       <H1 plain="Что " em="создаём" after="?" />
       <Sub>Выбери формат — дальше всё подскажу по шагам.</Sub>
       <View style={{ gap: 8, marginTop: 4 }}>
-        {KINDS.map(([k, hue, name, text]) => {
+        {KINDS.map(([k, name, text]) => {
           const on = value === k;
           return (
             <Press key={k} haptic dark={on} onPress={() => onPick(k)} style={[st.opt3, on ? st.on : G]}>
               <View style={{ width: 76, height: 76, alignItems: "center", justifyContent: "center" }}>
-                <Creature size={86} variant={k === "anon" ? "p" : "e"} hue={hue} />
+                <Creature size={86} variant={creatureForKind[k]} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={kf("500", 15, { color: on ? "#fff" : K.ink })}>{name}</Text>
@@ -213,7 +215,7 @@ export function CoverStep({
   covers: string[];
   catLabel: string;
   presetCover: string | null;
-  onUpload: () => void;
+  onUpload: (edit?: boolean) => void;
 }) {
   const business = form.business;
   const isOwn = form.categorySlug === "custom";
@@ -270,7 +272,7 @@ export function CoverStep({
       <Lbl>Обложка</Lbl>
       <Text style={[kf("400", 12.5, { color: K.ink2 }), { marginTop: -2, marginHorizontal: 2 }]}>
         {business
-          ? "Загрузи своё фото — афишу, зал или сцену. Вертикально, 3:4"
+          ? "Загрузи своё фото — афишу, зал или сцену. Вертикальный формат 3:4"
           : isOwn && !presetCover
             ? `Под «${form.own.trim() || form.title.trim() || "твою встречу"}» готовой обложки нет — загрузи своё фото`
             : grid.length > 1
@@ -278,13 +280,13 @@ export function CoverStep({
               : "Обложку подобрал Мося · или загрузи своё фото"}
       </Text>
       {bigUpload ? (
-        <Press onPress={onUpload} photo={!!bigBg} style={[st.bizph, !bigBg && G]}>
+        <Press onPress={() => onUpload(!!form.ownPhoto?.source)} photo={!!bigBg} style={[st.bizph, !bigBg && G]}>
           {bigBg ? (
             <>
               <Image source={{ uri: bigBg }} style={StyleSheet.absoluteFill} contentFit="cover" />
               <View style={st.bizphChip}>
                 <KI n="cam" size={16} color="#fff" />
-                <Text style={kf("500", 13, { color: "#fff" })}>{own ? "Заменить фото" : "Загрузить своё фото"}</Text>
+                <Text style={kf("500", 13, { color: "#fff" })}>{form.ownPhoto?.source ? "Изменить кадр" : own ? "Заменить фото" : "Загрузить своё фото"}</Text>
               </View>
             </>
           ) : (
@@ -293,7 +295,7 @@ export function CoverStep({
                 <KI n="cam" size={20} color="#fff" />
               </View>
               <Text style={[kf("500", 16), { marginTop: 4 }]}>{business ? "Загрузить фото события" : "Загрузить фото"}</Text>
-              <Text style={kf("400", 12.5, { color: K.ink2 })}>{business ? "Афиша, зал или сцена · вертикально, 3:4" : "Вертикально, 3:4 — так встречу заметят"}</Text>
+              <Text style={kf("400", 12.5, { color: K.ink2 })}>{business ? "Афиша, зал или сцена · формат 3:4" : "Вертикальная обложка · 3:4"}</Text>
             </View>
           )}
         </Press>
@@ -302,7 +304,7 @@ export function CoverStep({
           {grid.map((c, i) => {
             const on = selected === c;
             return (
-              <View key={c} style={{ width: "25%", padding: 4 }}>
+              <View key={c} style={{ width: "50%", padding: 4 }}>
                 <Press photo onPress={() => set({ cover: c, useOwnPhoto: false })} style={[st.cv, on && st.cvOn]} accessibilityLabel={`Обложка ${i + 1}`}>
                   <Image source={{ uri: coverUri(c) ?? undefined }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
                 </Press>
@@ -310,14 +312,14 @@ export function CoverStep({
             );
           })}
           {own ? (
-            <View style={{ width: "25%", padding: 4 }}>
-              <Press photo onPress={() => set({ useOwnPhoto: true })} style={[st.cv, selected === "own" && st.cvOn]} accessibilityLabel="Своё фото">
+            <View style={{ width: "50%", padding: 4 }}>
+              <Press photo onPress={() => selected === "own" ? onUpload(!!form.ownPhoto?.source) : set({ useOwnPhoto: true })} style={[st.cv, selected === "own" && st.cvOn]} accessibilityLabel="Своё фото">
                 <Image source={{ uri: own }} style={StyleSheet.absoluteFill} contentFit="cover" />
               </Press>
             </View>
           ) : null}
-          <View style={{ width: "25%", padding: 4 }}>
-            <Press onPress={onUpload} style={[st.cv, { backgroundColor: "rgba(23,20,31,0.05)", alignItems: "center", justifyContent: "center", gap: 2 }]}>
+          <View style={{ width: "50%", padding: 4 }}>
+            <Press onPress={() => onUpload()} style={[st.cv, { backgroundColor: "rgba(23,20,31,0.05)", alignItems: "center", justifyContent: "center", gap: 2 }]}>
               <Text style={kf("300", 26, { color: K.ink2 })}>+</Text>
               <Text style={kf("500", 10.5, { color: K.ink2 })}>Своё фото</Text>
             </Press>
@@ -369,6 +371,8 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
   const mi = Math.round((form.startMin % 60) / 5) % 12;
   const formRef = useRef(form);
   formRef.current = form;
+  const pendingMapPoint = useRef<{ latitude: number; longitude: number } | null>(null);
+  useEffect(() => () => { pendingMapPoint.current = null; }, []);
   const [query, setQuery] = useState("");
   const [recs, setRecs] = useState<PlaceSuggestion[]>([]);
   const [drop, setDrop] = useState<PlaceSuggestion[]>([]);
@@ -376,23 +380,26 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
   const [searching, setSearching] = useState(false);
 
   useEffect(() => {
-    const p = qs({ category: form.categorySlug, type: form.trainingTypeSlug });
+    let current = true;
+    const p = qs({ category: form.categorySlug, type: form.trainingTypeSlug, city });
     api<{ items?: PlaceSuggestion[] }>(`/api/places?${p}`)
-      .then((d) => setRecs(Array.isArray(d.items) ? d.items.slice(0, 10) : []))
-      .catch(() => setRecs([]));
-  }, [form.categorySlug, form.trainingTypeSlug]);
+      .then((d) => current && setRecs(Array.isArray(d.items) ? d.items.slice(0, 10) : []))
+      .catch(() => current && setRecs([]));
+    return () => { current = false; };
+  }, [form.categorySlug, form.trainingTypeSlug, city]);
 
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
       setDrop([]);
       setAddrDrop([]);
+      setSearching(false);
       return;
     }
     let cancelled = false;
     setSearching(true);
     const t = setTimeout(() => {
-      const a = api<{ items?: PlaceSuggestion[] }>(`/api/places?${qs({ q, category: form.categorySlug })}`)
+      const a = api<{ items?: PlaceSuggestion[] }>(`/api/places?${qs({ q, category: form.categorySlug, city })}`)
         .then((d) => !cancelled && setDrop(Array.isArray(d.items) ? d.items.slice(0, 4) : []))
         .catch(() => !cancelled && setDrop([]));
       const b =
@@ -410,6 +417,7 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
   }, [query, form.categorySlug, city]);
 
   function pickPlace(p: { name: string; address: string; latitude: number; longitude: number }) {
+    pendingMapPoint.current = null;
     set({ placeName: p.name, address: p.address, latitude: p.latitude, longitude: p.longitude });
     setQuery("");
     setDrop([]);
@@ -487,7 +495,7 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
       ) : null}
       <View style={[st.field, G, { marginTop: 8, flexDirection: "row", alignItems: "center", gap: 10 }]}>
         <KI n="search" size={20} color={K.ink3} />
-        <TextInput value={query} onChangeText={setQuery} placeholder="Название места или адрес" placeholderTextColor={K.ink3} autoCorrect={false} style={[st.input, { flex: 1 }]} />
+        <TextInput value={query} onChangeText={(text) => { setQuery(text); setDrop([]); setAddrDrop([]); }} placeholder="Название места или адрес" placeholderTextColor={K.ink3} autoCorrect={false} style={[st.input, { flex: 1 }]} />
       </View>
       {query.trim().length >= 2 ? (
         <View style={[st.sugg, G]}>
@@ -510,11 +518,15 @@ export function WhenStep({ form, set, catLabel, city, onCalendar, flash }: { for
       ) : null}
       <PlacePicker
         value={coords}
-        onPick={({ latitude, longitude }) => set({ latitude, longitude, placeName: "Точка на карте", address: "" })}
-        onAddress={(resolved) => {
+        onPick={(point) => {
+          pendingMapPoint.current = point;
+          set({ ...point, placeName: "Точка на карте", address: "" });
+        }}
+        onAddress={(resolved, point) => {
+          if (pendingMapPoint.current !== point) return;
+          pendingMapPoint.current = null;
           const short = resolved.split(",").map((x) => x.trim()).filter((x) => x && !/^(Россия|Тюмень|Тюменская область)$/i.test(x)).slice(0, 2).join(", ");
-          const n = formRef.current.placeName;
-          set({ address: resolved, placeName: !n || n === "Точка на карте" ? short || "Точка на карте" : n });
+          set({ address: resolved, placeName: short || "Точка на карте" });
         }}
         placeName={form.placeName}
         address={form.address}
@@ -632,7 +644,7 @@ export function WhoStep({
         </Press>
       </View>
       <Text style={[kf("400", 14, { lh: 1.5, color: K.ink2 }), { marginTop: 6, textAlign: "center" }]}>
-        {business ? (seats > 20 ? "Больше 20 гостей — общий чат не создаётся, только заявки" : `Гостей на событии: ${seats}`) : `Не считая тебя · на встрече будет ${seats + 1} чел.`}
+        {business ? (seats > 20 ? "Общий чат можно включить после публикации события" : `Гостей на событии: ${seats}`) : `Не считая тебя · на встрече будет ${seats + 1} чел.`}
       </Text>
       <Press onPress={onPlans} style={[st.plan, G]}>
         <View style={{ flex: 1, minWidth: 0 }}>
@@ -720,9 +732,9 @@ const st = StyleSheet.create({
   field: { minHeight: 54, borderRadius: 27, paddingHorizontal: 18, justifyContent: "center" },
   ta: { borderRadius: 24, paddingVertical: 14, justifyContent: "flex-start" },
   input: { fontFamily: "Inter-Regular", fontSize: 16, color: K.ink, paddingVertical: 0 },
-  bizph: { marginTop: 10, height: 300, borderRadius: 28, overflow: "hidden", alignItems: "center", justifyContent: "center" },
+  bizph: { marginTop: 10, width: "100%", aspectRatio: PORTRAIT_ASPECT, borderRadius: 28, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   bizphChip: { position: "absolute", left: 14, bottom: 14, flexDirection: "row", alignItems: "center", gap: 6, height: 34, paddingHorizontal: 12, borderRadius: 17, backgroundColor: "rgba(23,20,31,0.55)" },
-  cv: { aspectRatio: 3 / 4, borderRadius: 16, overflow: "hidden", backgroundColor: "#2B2737" },
+  cv: { aspectRatio: PORTRAIT_ASPECT, borderRadius: 16, overflow: "hidden", backgroundColor: "#2B2737" },
   cvOn: { borderWidth: 2.5, borderColor: K.ink },
   dp: { width: 58, height: 64, borderRadius: 20, alignItems: "center", justifyContent: "center", gap: 2 },
   calb: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 46, borderRadius: 23, marginTop: 8 },
@@ -737,6 +749,6 @@ const st = StyleSheet.create({
   tg2: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 58, borderRadius: 29, paddingLeft: 18, paddingRight: 8, paddingVertical: 8 },
   sw: { width: 52, height: 32, borderRadius: 16, backgroundColor: "rgba(23,20,31,0.15)", padding: 3 },
   swDot: { width: 26, height: 26, borderRadius: 13, backgroundColor: "#fff" },
-  prev: { height: 440, borderRadius: 32, overflow: "hidden", marginTop: 4, backgroundColor: "#2B2737" },
+  prev: { width: "100%", aspectRatio: PORTRAIT_ASPECT, borderRadius: 32, overflow: "hidden", marginTop: 4, backgroundColor: "#2B2737" },
   prevChip: { position: "absolute", top: 14, left: 14, height: 30, paddingHorizontal: 12, borderRadius: 15, justifyContent: "center", backgroundColor: "rgba(255,255,255,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.45)" },
 });

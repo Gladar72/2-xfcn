@@ -3,7 +3,7 @@
     "name": "Место",
     "slug": "mesto",
     "scheme": "mesto",
-    "version": "0.5.0",
+    "version": "0.5.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -23,7 +23,7 @@
         "webcredentials:mesto-go.ru"
       ],
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Чтобы показать встречи рядом с тобой на карте.",
+        "NSLocationWhenInUseUsageDescription": "Чтобы показывать встречи рядом и примерное расстояние между людьми в профилях.",
         "NSPhotoLibraryUsageDescription": "Чтобы выбрать фото для профиля и встречи.",
         "NSCameraUsageDescription": "Чтобы сделать фото для профиля и проверить QR-код билета.",
         "CFBundleDevelopmentRegion": "ru",
@@ -43,7 +43,7 @@
       }
     },
     "android": {
-      "versionCode": 12,
+      "versionCode": 60,
       "package": "ru.mesto.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -129,7 +129,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Чтобы показать встречи рядом с тобой на карте."
+          "locationWhenInUsePermission": "Чтобы показывать встречи рядом и примерное расстояние между людьми в профилях."
         }
       ],
       [
@@ -150,7 +150,8 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "https://mesto-go.ru",
+      "apiUrl": "https://mesto-go.ru/ticket-test",
+      "ticketSandbox": true,
       "eas": {
         "projectId": ""
       },

@@ -1,22 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, ScrollView, SectionList, StyleSheet, Text, View } from "react-native";
 import { Camera, Map, Marker, UserLocation, type CameraRef } from "@maplibre/maplibre-react-native";
 import * as Location from "expo-location";
 import { router, useLocalSearchParams, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Image } from "expo-image";
-import { Glass, Grad, RoundBtn } from "@/components/brand";
+import { Glass, RoundBtn } from "@/components/brand";
+import { EventPin } from "@/components/map/EventPin";
+import { Sheet } from "@/components/Sheet";
 import { Icon } from "@/components/Icon";
 import { Chip } from "@/components/ui";
 import { api } from "@/lib/api";
 import { tapLight } from "@/lib/feedback";
 import { plural, qs, timePill } from "@/lib/format";
-import { colors, eventIcon, FONT, pinIcon, f } from "@/lib/theme";
+import { colors, eventIcon, FONT, f } from "@/lib/theme";
 import { coverUri } from "@/lib/covers";
 import type { MapEvent } from "@/lib/types";
 import { useGuide } from "@/lib/guide";
 import { MAP_STYLE, TYUMEN_CENTER } from "@/lib/map";
-import { clusterize } from "@/lib/cluster";
+import { ADDRESS_ZOOM, MAX_MAP_ZOOM, markerMode, photoOffset, clusterize, groupLocations, type MapGroup } from "@/lib/cluster";
+import { addressSchedule } from "@/lib/addressSchedule";
 import { openRoute } from "@/lib/route";
 import { K, KGlass, KI, Press, kf } from "@/components/k";
 import { catIcon } from "@/lib/theme";
@@ -41,28 +44,6 @@ const SMOKE_EVENTS: MapEvent[] = [
   markerPhoto: i < 2 ? `/brand/covers/${slug}.webp` : null,
   category: { slug: slug as string, name: "" },
 }));
-
-/**
- * Метка на карте как в мини-приложении: белая капля с фото внутри — у людей аватар
- * (и значок категории в уголке), у заведений обложка события вместо значка-портфеля.
- * Нет фото — прежняя 3D-булавка категории.
- */
-function PinPhoto({ e }: { e: MapEvent }) {
-  const photo = coverUri(e.markerPhoto ?? null);
-  const [broken, setBroken] = useState(false);
-  if (!photo || broken) return <Image source={{ uri: pinIcon(e) }} style={styles.pinImg} contentFit="contain" />;
-  return (
-    <View style={styles.drop}>
-      <View style={[styles.dropShape, e.isBusiness && styles.dropBiz]} />
-      <Image source={{ uri: photo }} style={styles.dropImg} contentFit="cover" onError={() => setBroken(true)} />
-      {!e.isBusiness ? (
-        <View style={styles.badge}>
-          <Image source={{ uri: eventIcon(e) }} style={{ width: 19, height: 19 }} contentFit="contain" />
-        </View>
-      ) : null}
-    </View>
-  );
-}
 
 type DateChip = "any" | "now" | "today" | "tomorrow" | "weekend";
 const CHIPS: [DateChip, string][] = [
@@ -91,6 +72,7 @@ export default function MapScreen() {
   const [bizCat, setBizCat] = useState<string | null>(null);
   const [catSheet, setCatSheet] = useState(false);
   // Кластеры как в мини-аппе: при отдалении метки собираются в тёмные кружки с числом.
+  const [addressOpen, setAddressOpen] = useState(false);
   const [zoom, setZoom] = useState(11);
   const [selected, setSelected] = useState<(MapEvent & { isCity?: boolean })[] | null>(null);
   useEffect(() => {
@@ -105,6 +87,8 @@ export default function MapScreen() {
     if (!params.t) return;
     setChip(((params.date as DateChip) || "any") as DateChip);
     setBizOnly(params.business === "only");
+    setBizCat(null);
+    setSelected(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.t]);
   const reqId = useRef(0);
@@ -119,18 +103,20 @@ export default function MapScreen() {
       .then((r) => {
         if (id !== reqId.current) return; // пришёл ответ на старый фильтр
         const now = Date.now();
-        let items = r.items.filter((e) => e.latitude && e.longitude);
+        let items = r.items.filter((e) => Number.isFinite(e.latitude) && Number.isFinite(e.longitude));
         if (chip === "now") items = items.filter((e) => new Date(e.startsAt).getTime() <= now && now < new Date(e.endsAt).getTime());
         setEvents(items);
         if (r.city) setCity(r.city);
         // Пришли со страницы события (нажали на карту места) — сразу к нему, его карточка первой.
         const f = params.focus ? items.find((e) => e.id === params.focus) : undefined;
         if (f) {
+          const target = groupLocations(items.map(e => ({ ...e, lng: e.longitude, lat: e.latitude })), r.city ?? "").find(g => g.items.some(e => e.id === f.id));
           setTimeout(() => {
+            if (id !== reqId.current) return;
             setSelected([f]);
-            camera.current?.flyTo({ center: [f.longitude, f.latitude], zoom: 16, duration: 600 });
+            camera.current?.flyTo({ center: [target?.lng ?? f.longitude, target?.lat ?? f.latitude], zoom: 18, duration: 600 });
           }, 50);
-        } else if (items.length === 1) {
+        } else if (items.length && items.every((e) => e.latitude === items[0]!.latitude && e.longitude === items[0]!.longitude)) {
           camera.current?.flyTo({ center: [items[0].longitude, items[0].latitude], zoom: 14, duration: 600 });
         } else if (items.length > 1) {
           const lngs = items.map((e) => e.longitude);
@@ -142,7 +128,7 @@ export default function MapScreen() {
         }
       })
       .catch(() => id === reqId.current && setError("Не удалось загрузить карту"));
-  }, [chip, bizOnly, params.focus]);
+  }, [chip, bizOnly, params.focus, params.t]);
 
   useEffect(load, [load]);
 
@@ -161,27 +147,25 @@ export default function MapScreen() {
 
   // Карта заведений: категория (кафе, бары, концерты…) — фильтруем сразу, без загрузки.
   const bizCounts = useMemo(() => (bizOnly ? bizCategoryCounts(events) : []), [bizOnly, events]);
-  const shown = bizOnly && bizCat ? events.filter((e) => matchesBizCategory(e, bizCat)) : events;
+  const shown = useMemo(() => bizOnly && bizCat ? events.filter((e) => matchesBizCategory(e, bizCat)) : events, [events, bizOnly, bizCat]);
   const word = bizOnly ? plural(shown.length, "событие", "события", "событий") : plural(events.length, "встреча", "встречи", "встреч");
   const shownCount = shown.length;
 
-  const clusters = useMemo(() => clusterize(shown.map((e) => ({ ...e, lng: e.longitude, lat: e.latitude })), Math.round(zoom)), [shown, zoom]);
-  useEffect(() => setSelected(null), [shown]);
-  const carousel = (selected ?? shown).slice(0, 30);
+  const locations = useMemo(() => groupLocations(shown.map(e => ({ ...e, lng: e.longitude, lat: e.latitude })), city ?? ""), [shown, city]);
+  const clusters = useMemo(() => clusterize(locations, zoom), [locations, zoom]);
+  useEffect(() => { setSelected(null); setAddressOpen(false); }, [shown]);
+  const carousel = selected ?? shown.slice(0, 30);
 
-  function openCluster(leaves: (MapEvent & { isCity?: boolean })[]) {
+  const schedule = useMemo(() => addressOpen && selected ? addressSchedule(selected) : [], [addressOpen, selected]);
+  const addressTitle = selected?.find(e => !e.organizerHidden && e.address)?.address
+    ?? selected?.find(e => !e.organizerHidden && e.placeName)?.placeName ?? "События по этому адресу";
+
+  function zoomToCluster(group: MapGroup<MapEvent & { isCity?: boolean }>) {
     tapLight();
-    setSelected(leaves);
-    const lngs = leaves.map((e) => e.longitude);
-    const lats = leaves.map((e) => e.latitude);
-    const spread = Math.max(...lngs) - Math.min(...lngs) + Math.max(...lats) - Math.min(...lats);
-    if (spread < 0.0005) {
-      camera.current?.flyTo({ center: [lngs[0]!, lats[0]!], zoom: 17, duration: 500 });
-    } else {
-      camera.current?.fitBounds([Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)], { padding: { top: 220, right: 60, bottom: 260, left: 60 }, duration: 500 });
-    }
+    setSelected(group.items);
+    const nextZoom = group.locationCount === 1 ? 18 : Math.min(ADDRESS_ZOOM, zoom + 2);
+    camera.current?.flyTo({ center: [group.lng, group.lat], zoom: nextZoom, duration: 450 });
   }
-
 
   return (
     <View style={{ flex: 1 }}>
@@ -191,49 +175,44 @@ export default function MapScreen() {
         logo={false}
         compass={false}
         attributionPosition={{ bottom: insets.bottom + 96, left: 10 }}
-        onRegionDidChange={(e: unknown) => {
-          const ev = e as { nativeEvent?: { zoom?: number }; properties?: { zoomLevel?: number } };
-          const z = ev?.nativeEvent?.zoom ?? ev?.properties?.zoomLevel;
-          if (typeof z === "number") setZoom(z);
-        }}
+        onRegionIsChanging={(e) => setZoom(Math.floor(e.nativeEvent.zoom * 4) / 4)}
+        onRegionDidChange={(e) => setZoom(Math.floor(e.nativeEvent.zoom * 4) / 4)}
       >
         <Camera ref={camera} initialViewState={{ center: TYUMEN_CENTER, zoom: 11 }} />
         {located ? <UserLocation /> : null}
         {clusters.map((c) => {
-          if (c.items.length > 1) {
-            const n = c.items.length;
-            const label = n > 99 ? "99+" : String(n);
-            const size = (label.length >= 3 ? 50 : 42) + 4;
+          const mode = markerMode(c, zoom);
+          if (mode !== "photos") {
             return (
-              <Marker key={c.id} id={c.id} lngLat={[c.lng, c.lat]} anchor="center">
-                <Pressable onPress={() => openCluster(c.items)} accessibilityLabel={`Показать встречи: ${n}`}
-                  style={{ width: size, height: size, borderRadius: size / 2, borderWidth: 3, borderColor: "#fff", backgroundColor: "#17141F", alignItems: "center", justifyContent: "center", shadowColor: "#17141F", shadowOpacity: 0.55, shadowRadius: 11, shadowOffset: { width: 0, height: 10 } }}>
-                  <Text style={{ color: "#fff", fontSize: label.length >= 3 ? 16 : 17, ...f("600") }}>{label}</Text>
+              <Marker key={`group:${c.id}`} id={`group:${c.id}`} lngLat={[c.lng, c.lat]} anchor="bottom">
+                <Pressable accessibilityRole="button" accessibilityLabel={`${mode === "schedule" ? "События по адресу" : "Приблизить карту"}: ${c.items.length}`}
+                  onPress={() => {
+                    if (mode === "zoom") { zoomToCluster(c); return; }
+                    tapLight();
+                    setSelected(c.items);
+                    setAddressOpen(true);
+                  }}>
+                  <EventPin count={c.items.length} />
                 </Pressable>
               </Marker>
             );
           }
-          const e = c.items[0];
-          if (!e) return null;
-          const cityEv = e.isCity || e.id.startsWith("city:");
-          const full = !cityEv && e.seatsLeft <= 0;
-          const label = cityEv ? "в городе" : full ? "мест нет" : timePill(e.startsAt, e.endsAt);
-          return (
-            <Marker key={e.id} id={e.id} lngLat={[e.longitude, e.latitude]} anchor="bottom">
-              <Pressable onPress={() => open(e)} style={[styles.pin, full && { opacity: 0.6 }]}>
-                {label === "сейчас" ? (
-                  <View style={[styles.pill, { backgroundColor: colors.live }]}>
-                    <Text style={styles.pillText}>сейчас</Text>
+          return c.items.map((e, index) => {
+            const cityEvent = e.isCity || e.id.startsWith("city:");
+            const label = timePill(e.startsAt, e.endsAt);
+            return (
+              <Marker key={`event:${e.id}`} id={`event:${e.id}`} lngLat={[c.lng, c.lat]} anchor="bottom"
+                offset={photoOffset(c.items.length, index, zoom)}>
+                <Pressable onPress={() => open(e)} accessibilityRole="button" accessibilityLabel={`${e.title}, ${label}`}
+                  style={[styles.pin, { opacity: !cityEvent && e.seatsLeft <= 0 ? 0.65 : 1 }]}>
+                  <View style={[styles.pill, { backgroundColor: label === "сейчас" ? colors.live : "#17141F" }]}>
+                    <Text numberOfLines={1} style={styles.pillText}>{label}</Text>
                   </View>
-                ) : (
-                  <View style={[styles.pill, { backgroundColor: "#17141F" }]}>
-                    <Text style={styles.pillText}>{label}</Text>
-                  </View>
-                )}
-                <PinPhoto e={e} />
-              </Pressable>
-            </Marker>
-          );
+                  <EventPin photo={coverUri(e.markerPhoto)} icon={eventIcon(e)} badge={e.isBusiness || cityEvent ? undefined : eventIcon(e)} />
+                </Pressable>
+              </Marker>
+            );
+          });
         })}
       </Map>
 
@@ -244,8 +223,7 @@ export default function MapScreen() {
               <Icon name="search" size={18} color={colors.grey} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.title} numberOfLines={1}>
-                  {bizOnly ? "Заведения" : "Что рядом?"}
-                  {city ? ` · ${city}` : ""}
+                  {[bizOnly ? "Заведения" : "Что рядом?", city].filter(Boolean).join(" · ")}
                 </Text>
                 <Text style={styles.sub} numberOfLines={1}>{error ?? (shownCount ? `${shownCount} ${word} на карте` : events.length ? "В этой категории пусто" : "Загружаем…")}</Text>
               </View>
@@ -284,22 +262,40 @@ export default function MapScreen() {
 
       {/* .mcar: карточки встреч внизу карты (по кластеру — только его встречи) */}
       {carousel.length ? (
-        <ScrollView
+        <FlatList
+          data={carousel}
+          keyExtractor={(e) => e.id}
+          renderItem={({ item }) => <MapCard e={item} onPress={() => open(item)} />}
           horizontal
           showsHorizontalScrollIndicator={false}
           snapToInterval={310}
           decelerationRate="fast"
           style={{ position: "absolute", left: 0, right: 0, bottom: insets.bottom + 92 }}
           contentContainerStyle={{ gap: 10, paddingHorizontal: 20, paddingBottom: 6 }}
-        >
-          {carousel.map((e) => <MapCard key={e.id} e={e} onPress={() => open(e)} />)}
-        </ScrollView>
+        />
       ) : null}
 
+      <Sheet visible={addressOpen} onClose={() => setAddressOpen(false)}>
+        <View style={styles.addressHeading}>
+          <View style={{ flex: 1 }}>
+            <Text style={kf("600", 20)}>{addressTitle}</Text>
+            <Text style={kf("400", 14, { color: colors.grey })}>{selected?.length} {plural(selected?.length ?? 0, "событие", "события", "событий")}</Text>
+          </View>
+          <Press onPress={() => setAddressOpen(false)} accessibilityLabel="Закрыть список" style={styles.addressClose}><KI n="x" size={16} /></Press>
+        </View>
+        <SectionList style={{ maxHeight: 420, flexShrink: 1 }} sections={schedule} stickySectionHeadersEnabled={false}
+          keyExtractor={({ event }) => event.id}
+          renderSectionHeader={({ section }) => <Text style={[kf("600", 15), { marginTop: 12 }]}>{section.title}</Text>}
+          renderItem={({ item: { event, time } }) => <Pressable style={styles.addressEvent} onPress={() => { setAddressOpen(false); open(event); }}>
+            <Image source={{ uri: coverUri(event.markerPhoto) ?? eventIcon(event) }} style={styles.addressPhoto} contentFit="cover" />
+            <Text style={[kf("500", 15), { flex: 1 }]}>{event.title}</Text>
+            <Text style={kf("400", 14, { color: colors.grey })}>{time}</Text>
+          </Pressable>} />
+      </Sheet>
       <BizCatSheet visible={catSheet} onClose={() => setCatSheet(false)} counts={bizCounts} value={bizCat} onChange={setBizCat} total={events.length} />
       {/* .zm: приблизить / отдалить — справа посередине */}
       <View style={{ position: "absolute", right: 16, top: insets.top + 200, gap: 10 }}>
-        <RoundBtn size={44} onPress={() => camera.current?.zoomTo(Math.min(20, zoom + 1), { duration: 250 })}><KI n="plus" size={18} /></RoundBtn>
+        <RoundBtn size={44} onPress={() => camera.current?.zoomTo(Math.min(MAX_MAP_ZOOM, zoom + 1), { duration: 250 })}><KI n="plus" size={18} /></RoundBtn>
         <RoundBtn size={44} onPress={() => camera.current?.zoomTo(Math.max(3, zoom - 1), { duration: 250 })}><KI n="minus" size={18} /></RoundBtn>
       </View>
       {/* .locate2: создать встречу — тёмная круглая кнопка над «Где я» */}
@@ -330,49 +326,19 @@ const styles = StyleSheet.create({
   top: { position: "absolute", left: 16, right: 16, gap: 10 },
   bar: { flexDirection: "row", alignItems: "center", gap: 8 },
   titleBox: { borderRadius: 22, paddingHorizontal: 14, paddingVertical: 8, flexDirection: "row", alignItems: "center", gap: 10 },
-  title: { fontSize: 16, ...f("500"), color: colors.ink },
+  title: { ...f("500"), fontSize: 16, lineHeight: 21, includeFontPadding: false, color: colors.ink },
   sub: { fontFamily: FONT, fontSize: 12.5, color: colors.grey, marginTop: 1 },
   note: { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
   noteText: { fontFamily: FONT, fontSize: 13, color: colors.ink2 },
   retry: { alignSelf: "flex-start", backgroundColor: colors.ink, borderRadius: 999, paddingHorizontal: 16, height: 38, justifyContent: "center" },
   retryText: { fontSize: 14, ...f("600"), color: "#fff" },
   pin: { alignItems: "center" },
-  pill: { borderRadius: 999, paddingHorizontal: 9, paddingVertical: 3, marginBottom: 2 },
-  pillText: { color: "#fff", fontSize: 11.5, ...f("500") },
-  pinImg: { width: 48, height: 60 },
-  drop: { width: 52, height: 52, marginBottom: 10 },
-  dropShape: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    width: 52,
-    height: 52,
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    borderBottomRightRadius: 26,
-    borderBottomLeftRadius: 0,
-    transform: [{ rotate: "-45deg" }],
-    shadowColor: "#3C1E8C",
-    shadowOpacity: 0.35,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 6,
-  },
-  dropBiz: { borderWidth: 3, borderColor: colors.violet },
-  dropImg: { position: "absolute", left: 4, top: 4, width: 44, height: 44, borderRadius: 22, backgroundColor: "#F3EFFF" },
-  badge: {
-    position: "absolute",
-    right: -6,
-    bottom: -4,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 4,
-  },
+  addressClose: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(23,20,31,0.06)" },
+  addressHeading: { flexDirection: "row", alignItems: "center", gap: 8 },
+  addressEvent: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8 },
+  addressPhoto: { width: 46, height: 46, borderRadius: 12 },
+  pill: { borderRadius: 999, minHeight: 22, justifyContent: "center", paddingHorizontal: 6, marginBottom: 2 },
+  pillText: { color: "#fff", fontSize: 12, lineHeight: 16, includeFontPadding: false, ...f("500") },
   locate: { position: "absolute", right: 16 },
 });
 

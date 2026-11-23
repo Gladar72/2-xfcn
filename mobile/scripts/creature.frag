@@ -1,5 +1,7 @@
-// Сгенерировано из components/brand/Creature.tsx — тот же шейдер Моси, что в мини-аппе.
-export const CREATURE_FS = `precision highp float;uniform float t;uniform vec2 r;uniform float V;uniform float blink;uniform vec3 pk;uniform float hue;
+#version 330
+// Мося из мини-аппа. Координаты шума проходят замкнутый круг за 6 секунд.
+out vec4 pixel;
+uniform float t;uniform vec2 r;uniform float V;uniform float blink;uniform vec3 pk;uniform float hue;
 float h(vec3 p){p=fract(p*.3183+.1);p*=17.;return fract(p.x*p.y*p.z*(p.x+p.y+p.z));}
 float n(vec3 x){vec3 i=floor(x),f=fract(x);f=f*f*(3.-2.*f);
 return mix(mix(mix(h(i),h(i+vec3(1,0,0)),f.x),mix(h(i+vec3(0,1,0)),h(i+vec3(1,1,0)),f.x),f.y),
@@ -27,7 +29,7 @@ vec4 shade(vec2 uv){
  vec3 pink=pk,lil=vec3(.80,.62,1.),cy=vec3(.40,.98,1.);
  vec3 body=mix(pink,lil,smoothstep(.45,.9,y));
  body=mix(body,cy,smoothstep(.35,.05,y)*.8);
- body=mix(body,vec3(.62,.35,1.),.35*n(p*2.5+t*.4));
+ body=mix(body,vec3(.62,.35,1.),.35*n(p*2.5+.4*vec3(sin(t*TAU/6.),1.-cos(t*TAU/6.),0.)));
  float trans=exp(-th*1.1);
  vec3 ir=.5+.5*cos(TAU*(fr*1.2+n(p*1.7)*.45+vec3(0.,.33,.67)+t/6.));
  vec3 L=normalize(vec3(-.5,.8,.6));
@@ -64,5 +66,4 @@ void main(){
               .715-.715*co-.715*si,.715+.285*co+.140*si,.715-.715*co+.715*si,
               .072-.072*co+.928*si,.072-.072*co-.283*si,.072+.928*co+.072*si);
   c=clamp(m*c,0.,1.);}
- gl_FragColor=vec4(c*s.a,s.a);}`;
-export const CREATURE_VS = `attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
+ pixel=vec4(clamp(c,0.,1.),s.a);}

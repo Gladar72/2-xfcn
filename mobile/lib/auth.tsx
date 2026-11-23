@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, getToken, setToken, setUnauthorizedHandler } from "./api";
+import { unregisterPush } from "./push";
 import { resetMyId } from "./me";
 import { cancelTelegramLogin, finishTelegramLogin } from "./telegramLogin";
 import { resetRealtime } from "./realtime";
@@ -38,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await cancelTelegramLogin().catch(() => {});
+    await unregisterPush().catch(() => {});
     await setToken(null);
     resetMyId();
     resetRealtime();
