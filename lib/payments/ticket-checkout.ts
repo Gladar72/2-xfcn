@@ -27,13 +27,13 @@ export function ticketTestShopReady() {
   return !!process.env.TICKET_TEST_SHOP_ID && !!process.env.TICKET_TEST_SECRET_KEY?.startsWith("test_");
 }
 
-async function providerRequest(path: string, init: RequestInit = {}) {
-  const response = await fetch("https://api.yookassa.ru/v3/payments" + path, {
+export async function ticketProviderRequest(path: string, init: RequestInit = {}) {
+  const response = await fetch("https://api.yookassa.ru/v3/" + path, {
     ...init, cache: "no-store", signal: AbortSignal.timeout(15000),
     headers: { ...init.headers, Authorization: testAuthorization(), "Content-Type": "application/json" },
   });
   if (!response.ok) throw new Error("ticket_provider_unavailable");
-  return providerPayment.parse(await response.json());
+  return response.json();
 }
 
 export async function reconcileTicket(db: Db, order: TicketOrder, notifiedId?: string) {
@@ -45,8 +45,8 @@ export async function reconcileTicket(db: Db, order: TicketOrder, notifiedId?: s
   if (!knownId && Date.now() - Date.parse(order.attempted_at) > 23 * 3600_000)
     throw new Error("ticket_reconciliation_required");
   const origin = (process.env.APP_URL || "https://mesto-go.ru").replace(/\/$/, "");
-  const payment = knownId ? await providerRequest("/" + z.string().uuid().parse(knownId))
-    : await providerRequest("", {
+  const payment = providerPayment.parse(knownId ? await ticketProviderRequest("payments/" + z.string().uuid().parse(knownId))
+    : await ticketProviderRequest("payments", {
       method: "POST", headers: { "Idempotence-Key": order.attempt_id },
       body: JSON.stringify({
         amount: { value: amount, currency: "RUB" }, capture: true,
@@ -54,7 +54,7 @@ export async function reconcileTicket(db: Db, order: TicketOrder, notifiedId?: s
         confirmation: { type: "redirect", return_url: origin + "/e/" + order.event_id },
         metadata: { ticket_order: order.id, ticket_attempt: order.attempt_id },
       }),
-    });
+    }));
   if (!payment.test || (knownId && knownId !== payment.id) || payment.amount.value !== amount ||
       payment.metadata.ticket_order !== order.id || payment.metadata.ticket_attempt !== order.attempt_id ||
       (payment.status === "succeeded" && !payment.paid)) throw new Error("ticket_payment_mismatch");

@@ -525,7 +525,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const invitePending = !mine && active && event.myInvite?.status === "pending" && st !== "accepted";
 
   let ctaBtn: React.ReactNode;
-  if (invitePending) {
+  if (["paid","refunded","refund_pending","refund_review"].includes(event.onlineCheckout?.state || "")) {
+    ctaBtn = <Link className="btn o" href={`/events/${event.id}/ticket`}>Открыть билет</Link>;
+  } else if (invitePending) {
     ctaBtn = (
       <div style={{ display: "flex", gap: 8 }}>
         <button className="btn o" onClick={() => answerInvite("decline")} disabled={answering}>

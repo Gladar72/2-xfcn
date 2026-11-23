@@ -22,7 +22,7 @@ interface MyEvent {
   status: string;
   photoUrl: string | null;
   role: "organizer" | "participant";
-  myStatus?: "member" | "pending";
+  myStatus?: "member" | "pending" | "refunded";
   pendingApplicationsCount: number;
 }
 interface MeetHint { notificationId: string; userId: string; name: string; age: number | null; avatarUrl: string | null }
@@ -170,7 +170,7 @@ export default function MeetTab() {
             const past = scope === "archive";
             const rv = toRate.find((r) => r.eventId === e.id);
             const pill: [string, "ok" | "wait" | "own"] =
-              e.status === "cancelled" ? ["Отменена", "wait"]
+              e.myStatus==="refunded" ? ["Билет возвращён","ok"] : e.status === "cancelled" ? ["Отменена", "wait"]
               : past ? (rv ? ["Оставь отзыв", "wait"] : ["Завершена", "ok"])
               : e.role === "organizer"
                 ? e.pendingApplicationsCount > 0

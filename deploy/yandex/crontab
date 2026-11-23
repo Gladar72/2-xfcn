@@ -15,3 +15,5 @@ CRON_TZ=UTC
 7 * * * *    bash /opt/mesto/app/deploy/yandex/health.sh --alert
 # Резервная копия базы каждую ночь (хранится 14 дней в /opt/backups).
 40 23 * * *  bash /opt/mesto/app/deploy/yandex/backup.sh
+
+* * * * *    bash /opt/mesto/app/deploy/yandex/cron.sh /api/cron/ticket-refunds

@@ -203,7 +203,7 @@ export default function TicketsScreen() {
               </View>
               <Pressable
                 onPress={() => toggle(t)}
-                disabled={busyId === t.userId}
+                disabled={busyId === t.userId || (!!data?.onlineSales && !!t.checkedInAt)}
                 style={({ pressed }) => [styles.mark, ok ? styles.markOk : styles.markWait, { transform: [{ scale: pressed ? 0.95 : 1 }] }]}
               >
                 <Text style={[styles.markText, { color: ok ? "#fff" : colors.violet }]}>{ok ? "✓ Пришёл" : "Отметить"}</Text>

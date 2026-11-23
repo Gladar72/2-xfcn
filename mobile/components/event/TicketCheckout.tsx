@@ -7,7 +7,7 @@ import { api } from "@/lib/api";
 import { colors, FONT } from "@/lib/theme";
 
 export interface OnlineCheckout {
-  priceKopecks: number; supplier: string; terms: string; state: string | null;
+  priceKopecks: number; supplier: string; terms: string; termsVersion: string; state: string | null;
 }
 interface Result { state: string; confirmationUrl?: string | null }
 
@@ -15,6 +15,7 @@ export function TicketCheckout({ eventId, checkout, onPaid }: { eventId: string;
   const [open, setOpen] = useState(false);
   const [state, setState] = useState(checkout.state);
   const [email, setEmail] = useState("");
+  const [showTerms,setShowTerms] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -43,7 +44,7 @@ export function TicketCheckout({ eventId, checkout, onPaid }: { eventId: string;
     if (busy) return;
     setBusy(true); setError("");
     try {
-      const result = await api<Result>(endpoint, { body: { action: "pay", email, acceptedTerms: accepted } });
+      const result = await api<Result>(endpoint, { body: { action: "pay", email, acceptedTerms: accepted, termsVersion:checkout.termsVersion } });
       update(result);
       if (result.state === "pending" && result.confirmationUrl) await Linking.openURL(result.confirmationUrl);
     } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
@@ -62,11 +63,12 @@ export function TicketCheckout({ eventId, checkout, onPaid }: { eventId: string;
             <Btn title="Проверить статус" kind="o" onPress={refresh} />
           </> : state === "review" ? <Text>Платёж получен. Для проверки заказа обратись в поддержку.</Text> : <>
             {state === "canceled" && <Text>Предыдущая оплата отменена. Можно попробовать снова.</Text>}
-            <Text>{checkout.terms}</Text><Text>Тестовая почта для чека</Text>
+            <Btn title="Договор покупки билета" kind="o" onPress={() => setShowTerms(!showTerms)} />
+            {showTerms && <Text selectable>{checkout.terms}</Text>}<Text>Тестовая почта для чека</Text>
             <TextInput value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="buyer@example.invalid"
               style={{ backgroundColor: "#f4f1f6", borderRadius: 12, padding: 12 }} />
             <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: accepted }} onPress={() => setAccepted(!accepted)}>
-              <Text>{accepted ? "☑" : "☐"} Принимаю условия покупки и возврата</Text>
+              <Text>{accepted ? "☑" : "☐"} Принимаю договор покупки билета и правила возврата</Text>
             </Pressable>
             <Btn title={"Оплатить " + price} onPress={pay} loading={busy} disabled={!accepted || !email.trim() || busy} />
           </>}

@@ -13,7 +13,10 @@ import { formatEventDate } from "@/lib/format";
 import { openRoute } from "@/lib/route";
 import { brandGradient, colors, FONT, gradientEnd, gradientStart, f } from "@/lib/theme";
 
+import { TicketRefund, type RefundDetail } from "@/components/event/TicketRefund";
+
 interface TicketResp {
+  refund?: RefundDetail|null;
   ticketCode: string;
   paidKopecks?: number | null;
   qrImage?: string | null;
@@ -57,6 +60,10 @@ export default function TicketScreen() {
       load();
     }, [load])
   );
+  useFocusEffect(useCallback(() => {
+    if (!t?.refund || (t.refund.state!=="refund_pending" && !t.refund.inquiry && !(t.refund.state==="refunded" && !t.refund.receiptNumber))) return;
+    const timer=setInterval(load,10000);return ()=>clearInterval(timer);
+  },[load,t?.refund?.state,t?.refund?.inquiry?.created_at,t?.refund?.receiptNumber]));
   useEffect(() => {
     if (t) Animated.spring(pop, { toValue: 1, damping: 12, stiffness: 160, useNativeDriver: true }).start();
   }, [t, pop]);
@@ -116,7 +123,7 @@ export default function TicketScreen() {
               />
               <View style={[styles.badge, t.checkedInAt && { backgroundColor: colors.ok }]}>
                 <Icon name="check" size={14} color={t.checkedInAt ? "#fff" : colors.ok} />
-                <Text style={[styles.badgeText, t.checkedInAt && { color: "#fff" }]}>{t.checkedInAt ? "Отмечен на входе" : "Участие подтверждено"}</Text>
+                <Text style={[styles.badgeText, t.checkedInAt && { color: "#fff" }]}>{t.refund && t.refund.state!=="paid" ? "Билет закрыт для входа" : e.status==="completed" ? "Событие завершилось" : t.checkedInAt ? "Отмечен на входе" : "Участие подтверждено"}</Text>
               </View>
               <Text style={styles.title} numberOfLines={3}>
                 {e.title}
@@ -145,12 +152,12 @@ export default function TicketScreen() {
               <Text style={styles.code} selectable>
                 {t.ticketCode}
               </Text>
-              <Text style={styles.muted}>Назови номер организатору на входе</Text>
+              {(!t.refund || t.qrImage) && <Text style={styles.muted}>Назови номер организатору на входе</Text>}
             </Pressable>
           </Glass>
         </Animated.View>
 
-        {active && !t.checkedInAt ? (
+        {t.refund ? <TicketRefund info={t.refund} price={t.paidKopecks!} eventId={id} title={e.title} code={t.ticketCode} refresh={load} /> : active && !t.checkedInAt ? (
           <Pressable onPress={() => setConfirm(true)} style={styles.cancel} hitSlop={6}>
             <Text style={styles.cancelText}>Отменить участие</Text>
           </Pressable>

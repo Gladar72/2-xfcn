@@ -187,6 +187,8 @@ export default function EventScreen() {
   const catLabel = event.isBusiness ? "Для бизнеса" : event.trainingType?.name ?? (event.category ? CATEGORY_SHORT[event.category.slug] ?? event.category.name : "Встреча");
 
   const action = (() => {
+    if (["paid","refunded","refund_pending","refund_review"].includes(event.onlineCheckout?.state || ""))
+      return <Btn title="Открыть билет" onPress={() => router.push(`/ticket/${event.id}` as Href)} />;
     if (event.status === "completed") return <Btn kind="o" title="Встреча завершена" disabled />;
     if (event.status === "cancelled") return <Btn kind="o" title="Встреча отменена" disabled />;
     switch (event.viewerStatus) {

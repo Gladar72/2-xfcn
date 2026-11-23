@@ -10,6 +10,9 @@ await db.exec(`create role anon; create role authenticated; create role service_
   create table events(id uuid primary key, organizer_id uuid, title text, status text, is_business boolean, seats_total int, seats_taken int);
   create table applications(id uuid primary key,event_id uuid,user_id uuid,status text);
   create table event_members(id uuid default gen_random_uuid(),event_id uuid,user_id uuid,role text,joined_at timestamptz default now(), unique(event_id,user_id));
+  create table conversations(id uuid primary key,event_id uuid);
+  create table conversation_members(user_id uuid,conversation_id uuid);
+  create table support_tickets(id uuid primary key,created_at timestamptz default now());
   create table notifications(user_id uuid,type text,payload jsonb);`);
 for (const name of ["0013_accept_application_seat.sql","0037_event_tickets.sql","0038_ticket_numbers.sql","0091_event_ticket_checkout.sql"]) await db.exec(await read(name));
 const [host, guest, second, ev, app, other] = Array.from({length:6}, () => randomUUID());
@@ -54,7 +57,49 @@ assert.equal(await check(guest,order.qr_token),"invalid");
 assert.equal(await check(host,randomUUID()),"invalid");
 assert.equal(await check(host,order.qr_token),"checked");
 assert.equal(await check(host,order.qr_token),"already_checked");
+await db.exec("alter table events add biz_category text default 'party'");
+await db.exec(await read("0092_ticket_refunds.sql"));
+const request = async (user=guest) => (await readOne(
+  "select request_ticket_refund($1,$2,now()+interval '3 hours','{}'::jsonb) as state",[ev,user])).state;
+const claim = async () => (await db.query("select * from claim_ticket_refund_work(10)")).rows;
+assert.equal(await request(second),"missing");
+assert.equal(await request(),"support"); // already checked, no automatic refund
+await db.query("update events set status='cancelled' where id=$1",[ev]);
+const [job] = await claim();
+assert.equal(job.state,"refund_pending");
+assert.equal(job.archived_code,ticket.ticket_code);
+assert.equal((await claim()).length,0); // leased, even with a second worker
+assert.equal(await check(host,order.qr_token),"invalid");
+const rid=randomUUID();
+const finish=async (amount=150000) => (await readOne("select apply_ticket_refund($1,$2,$3,$4,'succeeded') as state",[order.id,rid,payment,amount])).state;
+await assert.rejects(finish(1));
+assert.equal(await finish(),"refunded");
+assert.equal(await finish(),"refunded");
+assert.equal(await count("event_members"),0);
+assert.equal((await readOne("select seats_taken from events")).seats_taken,0);
+assert.equal(await count("notifications"),3);
+assert.equal(await request(),"refunded");
+// Independent guest order. A missed or manually checked ticket never requests a refund on its own.
+await db.query("update events set status='published' where id=$1",[ev]);
+assert.equal(await approve(other,host),"approved");
+const future=new Date(Date.now()+3600_000).toISOString();
+const o2=await readOne("select * from accept_ticket_contract($1,$2,'buyer@example.invalid','accepted text',true,$3,'{}','Демонстрационные условия')",[ev,second,future]);
+assert.ok(o2.accepted_at);assert.equal(o2.accepted_terms,"accepted text");
+const pay2=randomUUID();
+await db.query("select apply_ticket_payment($1,$2,$3,150000,'paid',null)",[o2.id,o2.attempt_id,pay2]);
+const refundSecond=async()=> (await readOne("select request_ticket_refund($1,$2,$3,'{}') as state",[ev,second,future])).state;
+await db.query("update ticket_orders set full_refund_before_start=false where id=$1",[o2.id]);
+assert.equal(await refundSecond(),"support");
+await db.query("update ticket_orders set full_refund_before_start=true,purchased_start=now()-interval '1 hour' where id=$1",[o2.id]);
+const late=(await readOne("select request_ticket_refund($1,$2,purchased_start,'{}') as state from ticket_orders where id=$3",[ev,second,o2.id])).state;
+assert.equal(late,"support");
+await db.query("update ticket_orders set purchased_start=$2 where id=$1",[o2.id,future]);
+assert.equal(await refundSecond(),"refund_pending");assert.equal(await refundSecond(),"refund_pending");
+assert.equal(await check(host,o2.qr_token),"invalid");
+assert.equal((await readOne("select check_online_ticket($1,$2,$3,null) as r",[ev,host,second])).r.state,"invalid");
 await db.exec("set role authenticated");
+await assert.rejects(db.query("select * from claim_ticket_refund_work(10)"));
+
 await assert.rejects(db.query("select * from ticket_orders"));
 await assert.rejects(db.query("select start_ticket_attempt($1,$2,'x@example.org')",[ev,guest]));
 await db.close();

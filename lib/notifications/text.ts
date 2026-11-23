@@ -12,6 +12,8 @@ export function buildNotificationText(type: string, eventTitle: string | undefin
       return `Новый отклик на ${title}`;
     case "ticket_approved":
       return `Заявка на ${title} одобрена. Можно оплатить билет.`;
+    case "ticket_refunded":
+      return "Возврат за билет оформлен. Деньги направлены тем же способом, которым ты оплатил билет.";
     case "ticket_paid":
       return `Билет на ${title} оплачен и доступен в событии.`;
     case "application_accepted":

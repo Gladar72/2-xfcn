@@ -18,25 +18,28 @@ export async function GET(req: NextRequest) {
   const statuses = scope === "archive" ? ["completed", "cancelled"] : ["published", "closed"];
   // Ownership is authoritative even if a separate membership write once failed.
   // Accepted applications also keep the participant's event discoverable.
-  const [membership, applications, owned] = await Promise.all([
+  const [membership, applications, owned, refunds] = await Promise.all([
     admin.from("event_members").select("event_id, role").eq("user_id", currentUser.userId),
     admin.from("applications").select("event_id, status").eq("user_id", currentUser.userId)
       .in("status", scope === "archive" ? ["accepted"] : ["pending", "accepted"]),
     admin.from("events").select("id").eq("organizer_id", currentUser.userId).in("status", statuses),
+    admin.from("ticket_orders").select("event_id").eq("user_id",currentUser.userId).eq("state","refunded"),
   ]);
-  if (membership.error || applications.error || owned.error) {
+  if (membership.error || applications.error || owned.error || refunds.error) {
     return NextResponse.json({ error: "fetch_failed" }, { status: 503 });
   }
   const pendingIds = new Set((applications.data ?? []).filter(row => row.status === "pending").map(row => row.event_id));
   const roleByEventId = new Map((membership.data ?? []).map(row => [row.event_id, row.role]));
   for (const row of applications.data ?? []) if (row.status === "accepted" && !roleByEventId.has(row.event_id)) roleByEventId.set(row.event_id, "participant");
   for (const row of owned.data ?? []) roleByEventId.set(row.id, "organizer");
-  const eventIds = [...new Set([...roleByEventId.keys(), ...pendingIds])];
+  const returned = new Set((refunds.data ?? []).map(row => row.event_id as string));
+  const eventIds = [...new Set([...roleByEventId.keys(), ...pendingIds,...(scope==="archive" ? returned : [])])]
+    .filter(id=>scope==="archive" || !returned.has(id));
   if (!eventIds.length) return NextResponse.json({ items: [] });
 
   const ascending = scope !== "archive";
 
-  const { data: events, error } = await admin
+  const query = admin
     .from("events")
     .select(
       `
@@ -44,9 +47,9 @@ export async function GET(req: NextRequest) {
       category:categories(slug, name, emoji)
       `
     )
-    .in("id", eventIds)
-    .in("status", statuses)
-    .order("event_date", { ascending })
+    .in("id", eventIds);
+  const filtered = scope==="archive" && returned.size ? query.or(`status.in.(completed,cancelled),id.in.(${[...returned].join(",")})`) : query.in("status",statuses);
+  const {data:events,error}=await filtered.order("event_date", { ascending })
     .order("event_time", { ascending })
     .limit(100);
 
@@ -94,7 +97,7 @@ export async function GET(req: NextRequest) {
     photoUrl: e.photo_url ?? null,
     role: roleByEventId.get(e.id) === "organizer" ? "organizer" : "participant",
     // pending — заявка отправлена, организатор ещё не ответил
-    myStatus: roleByEventId.has(e.id) ? "member" : pendingIds.has(e.id) ? "pending" : "member",
+    myStatus: returned.has(e.id) ? "refunded" : roleByEventId.has(e.id) ? "member" : pendingIds.has(e.id) ? "pending" : "member",
     pendingApplicationsCount: pendingCountByEventId.get(e.id) ?? 0,
     pendingApplicantPreview: pendingPreviewByEventId.get(e.id) ?? null,
   }));
