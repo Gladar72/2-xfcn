@@ -5,6 +5,12 @@
 # APP_HOSTS="mesto-go.ru, www.mesto-go.ru, new.mesto-go.ru" в /opt/mesto/.env.
 {$APP_HOSTS} {
 	encode zstd gzip
+	handle_path /ticket-test/* {
+		reverse_proxy 127.0.0.1:3087 {
+			header_up -Cookie
+			header_down -Set-Cookie
+		}
+	}
 	reverse_proxy 127.0.0.1:3000
 }
 
