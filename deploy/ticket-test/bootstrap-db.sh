@@ -12,6 +12,7 @@ grep -q ' TABLE public events ' table.list
 pg_restore -L table.list --no-owner --no-privileges -f tables.sql schema.dump
 {
   cat bootstrap.sql tables.sql
+  printf '%s\n' 'set search_path = public, extensions, pg_catalog;'
   cat migrations/0009_seed_categories.sql migrations/0010_seed_interests.sql migrations/0052_redesign_categories.sql
   cat migrations/0013_accept_application_seat.sql
   sed -n '/^create or replace function /,/^\$\$;/p' migrations/0038_ticket_numbers.sql

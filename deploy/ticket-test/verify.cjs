@@ -29,6 +29,22 @@ async function check() {
     assert.equal(status.status, 200, "Mobile checkout status");
     assert.equal((await status.json()).state,"approved");
   }
+  const basic = Buffer.from(process.env.TICKET_TEST_SHOP_ID + ":" + process.env.TICKET_TEST_SECRET_KEY).toString("base64");
+  const bank = await fetch("https://api.yookassa.ru/v3/payments?limit=1", {
+    headers: {Authorization:"Basic " + basic}, signal: AbortSignal.timeout(15000),
+  });
+  assert.equal(bank.status,200,"Sandbox acquiring authentication");
+  const payments = (await bank.json()).items;
+  assert.ok(Array.isArray(payments) && payments.every(p => p.test === true),"Test transactions only");
+  if (process.env.ATOL_DEMO_PASSWORD) {
+    const receipt = await fetch("https://testonline.atol.ru/possystem/v4/getToken", {
+      method:"POST", headers:{"Content-Type":"application/json"}, signal:AbortSignal.timeout(15000),
+      body:JSON.stringify({login:"v4-online-atol-ru",pass:process.env.ATOL_DEMO_PASSWORD}),
+    });
+    assert.ok(receipt.ok && (await receipt.json()).token,"ATOL demo authentication");
+    console.log("ATOL demo authentication: OK");
+  }
+  console.log("YooKassa test authentication: OK");
   console.log("Authenticated iPhone API: both events, agreement, price and reservation status verified");
 }
 check().catch(e => {console.error(e.message); process.exitCode=1;});
