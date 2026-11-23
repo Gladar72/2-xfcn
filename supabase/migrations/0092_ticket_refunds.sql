@@ -50,10 +50,10 @@ begin
   select * into m from event_members where event_id=p_event and user_id=p_user and role='participant';
   if e.status <> 'cancelled' then
     if not (to_jsonb(e) @> p_event_snapshot) then return 'changed'; end if;
-    if o.state <> 'paid' or m.checked_in_at is not null then return 'support'; end if;
-    if o.purchased_start is not null and o.purchased_start<>p_start then null; -- changed date, guest can decline
-    elsif e.status not in ('published','closed') or not o.full_refund_before_start or now()>=p_start then return 'support';
-    end if;
+    if o.state <> 'paid' or m.checked_in_at is not null or e.status not in ('published','closed') or now()>=p_start
+      then return 'support'; end if;
+    if not o.full_refund_before_start and (o.purchased_start is null or o.purchased_start=p_start)
+      then return 'support'; end if;
   end if;
   update ticket_orders set state='refund_pending',refund_requested_at=now(),refund_check_at=now(),
     refund_reason=case when e.status='cancelled' then 'event_cancelled' else 'guest' end,archived_code=m.ticket_code

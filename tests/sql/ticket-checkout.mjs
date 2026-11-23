@@ -93,6 +93,8 @@ assert.equal(await refundSecond(),"support");
 await db.query("update ticket_orders set full_refund_before_start=true,purchased_start=now()-interval '1 hour' where id=$1",[o2.id]);
 const late=(await readOne("select request_ticket_refund($1,$2,purchased_start,'{}') as state from ticket_orders where id=$3",[ev,second,o2.id])).state;
 assert.equal(late,"support");
+const movedButOver = await readOne("select request_ticket_refund($1,$2,now()-interval '5 minutes','{}') as state",[ev,second]);
+assert.equal(movedButOver.state,"support");
 await db.query("update ticket_orders set purchased_start=$2 where id=$1",[o2.id,future]);
 assert.equal(await refundSecond(),"refund_pending");assert.equal(await refundSecond(),"refund_pending");
 assert.equal(await check(host,o2.qr_token),"invalid");

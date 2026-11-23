@@ -180,7 +180,11 @@ export default function MeetTab() {
             const pc = pill[1] === "ok" ? { bg: "rgba(47,168,106,0.12)", fg: "#1E7A4B" } : pill[1] === "wait" ? { bg: "rgba(240,166,58,0.15)", fg: "#9A5E0E" } : { bg: "rgba(124,92,255,0.14)", fg: "#5B3FD6" };
             const cover = coverUri(e.photoUrl);
             return (
-              <KPressGlass key={e.id} onPress={() => (past && rv ? setRating(rv) : router.push(`/event/${e.id}` as Href))} style={{ borderRadius: 26 }}>
+              <KPressGlass key={e.id} onPress={() => {
+                if (e.myStatus === "refunded") router.push(`/ticket/${e.id}` as Href);
+                else if (past && rv) setRating(rv);
+                else router.push(`/event/${e.id}` as Href);
+              }} style={{ borderRadius: 26 }}>
                 <View style={{ flexDirection: "row", gap: 12, alignItems: "center", padding: 10 }}>
                   {cover ? <Image source={{ uri: cover }} style={{ width: 74, height: 74, borderRadius: 20 }} contentFit="cover" /> : <View style={{ width: 74, height: 74, borderRadius: 20, backgroundColor: "#2B2737" }} />}
                   <View style={{ flex: 1, minWidth: 0, justifyContent: "center" }}>

@@ -52,7 +52,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const moved = !!o?.purchased_start && Date.parse(o.purchased_start) !== start;
   const active = ["published","closed"].includes(event.status);
   const canRefund = o?.state === "paid" && !member?.checked_in_at && active &&
-    (moved || (o.full_refund_before_start && Date.now()<start));
+    Date.now()<start && (moved || o.full_refund_before_start);
   const inquiry = o ? await admin.from("support_tickets").select("created_at,admin_reply").eq("ticket_order_id",o.id)
     .eq("user_id",currentUser.userId).order("created_at",{ascending:false}).limit(1).maybeSingle() : null;
   const organizer = event.organizer as unknown as { name: string } | null;
