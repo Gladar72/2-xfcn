@@ -142,6 +142,7 @@ export async function middleware(req: NextRequest) {
     return NextResponse.rewrite(new URL("/.well-known/assetlinks", req.url));
   }
   if (pathname.startsWith("/.well-known/")) return NextResponse.next();
+  if (pathname === "/ticket-test-health" && process.env.TICKET_SANDBOX === "1") return NextResponse.next();
   const isService = SERVICE_PREFIXES.some((p) => pathname.startsWith(p));
   const ua = req.headers.get("user-agent") ?? "";
 

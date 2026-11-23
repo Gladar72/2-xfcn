@@ -6,12 +6,12 @@ exec 9>deploy.lock
 flock 9
 release=$1
 [[ $release =~ ^[a-f0-9]{40}$ ]]
-export RELEASE_SHA=$release
+printf 'RELEASE_SHA=%s\n' "$release" > release.env
 install -m 600 "incoming-$release/payment.env" payment.env
 for f in compose.yml database.Caddyfile settings.py worker.cjs; do install -m 600 "incoming-$release/$f" "$f"; done
 python3 settings.py
 rm -f payment.env "incoming-$release/payment.env"
-dc() { sudo docker compose -p mesto-ticket-test --env-file database.env -f compose.yml "$@"; }
+dc() { sudo docker compose -p mesto-ticket-test --env-file database.env --env-file release.env -f compose.yml "$@"; }
 dc up -d db
 for _ in {1..60}; do dc exec -T db pg_isready -q -U postgres -d ticket_test && break; sleep 2; done
 dc exec -T db pg_isready -q -U postgres -d ticket_test
@@ -47,6 +47,7 @@ data=json.load(urllib.request.urlopen(u,timeout=8))
 assert data["environment"]=="ticket-test" and data["ready"] is True
 print("Sandbox database, both paid events and test acquiring are configured. Demo receipts:",data["demoReceipts"])
 PY
+dc exec -T app node < "incoming-$release/verify.cjs"
 # Validate a candidate based on the exact current Caddy config before live reload.
 caddy=$(sudo docker ps -q --filter label=com.docker.compose.project=mesto --filter label=com.docker.compose.service=caddy)
 [[ -n "$caddy" && "$caddy" != *$'\n'* ]]
