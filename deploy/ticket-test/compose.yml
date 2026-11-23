@@ -1,0 +1,45 @@
+name: mesto-ticket-test
+services:
+  db:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: ticket_test
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?}
+    volumes:
+      - ticket_db:/var/lib/postgresql/data
+    mem_limit: 320m
+    restart: unless-stopped
+  rest:
+    image: postgrest/postgrest:v12.2.3
+    environment:
+      PGRST_DB_URI: postgres://ticket_rest:${REST_PASSWORD:?}@db:5432/ticket_test
+      PGRST_DB_SCHEMAS: public
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_DB_POOL: 4
+      PGRST_JWT_SECRET: ${SUPABASE_JWT_SECRET:?}
+    mem_limit: 128m
+    restart: unless-stopped
+  gateway:
+    image: caddy:2.8
+    volumes:
+      - ./database.Caddyfile:/etc/caddy/Caddyfile:ro
+    mem_limit: 64m
+    restart: unless-stopped
+  app:
+    image: mesto-ticket-test:${RELEASE_SHA:?}
+    env_file: ./app.env
+    ports:
+      - "127.0.0.1:3087:3000"
+    mem_limit: 640m
+    restart: unless-stopped
+  refunds:
+    image: mesto-ticket-test:${RELEASE_SHA:?}
+    environment:
+      CRON_SECRET: ${CRON_SECRET:?}
+    command: ["node", "/worker.cjs"]
+    volumes:
+      - ./worker.cjs:/worker.cjs:ro
+    mem_limit: 96m
+    restart: unless-stopped
+volumes:
+  ticket_db:

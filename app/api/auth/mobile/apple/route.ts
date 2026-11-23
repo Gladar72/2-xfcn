@@ -40,6 +40,11 @@ export async function POST(req: NextRequest) {
   if (lookupError) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   // Первый вход через Apple, но почта (подтверждённая Apple) уже есть в профиле — это тот же человек.
   const email = apple.email && apple.emailVerified && !apple.privateEmail ? apple.email : null;
+  if (!user && process.env.TICKET_SANDBOX === "1") {
+    const { data: guestId, error } = await admin.rpc("ticket_test_guest", { p_sub: apple.sub });
+    if (error || !guestId) return NextResponse.json({ error: "sandbox_unavailable" }, { status: 503 });
+    return NextResponse.json(await mobileSessionPayload(admin, { id: guestId, telegram_id: null }));
+  }
   if (!user && email) {
     const { data: byEmail, error } = await admin
       .from("users")

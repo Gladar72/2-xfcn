@@ -1,0 +1,53 @@
+name: Тестовый сервер билетов для TestFlight
+on:
+  workflow_dispatch:
+  push:
+    branches: [testflight/ticket-checkout-053]
+    paths: [.github/workflows/ticket-test-stand.yml, 'deploy/ticket-test/**']
+permissions:
+  contents: read
+concurrency:
+  group: mesto-ticket-test-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.repository == 'Gladar72/2-xfcn' && github.ref == 'refs/heads/testflight/ticket-checkout-053'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Собрать сервер вне рабочего хоста
+        run: |
+          docker build -t "mesto-ticket-test:$GITHUB_SHA" \
+            --build-arg NEXT_PUBLIC_SUPABASE_URL=http://gateway:8000 \
+            --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY=build-only \
+            --build-arg SUPABASE_SERVICE_ROLE_KEY=build-only .
+      - name: Развернуть отдельную базу и приложение
+        env:
+          HOST: ${{ secrets.YC_HOST }}
+          SSH_KEY: ${{ secrets.YC_SSH_KEY }}
+          HOST_KEYS: ${{ secrets.YC_KNOWN_HOSTS }}
+          SHOP_TEST_KEY: ${{ secrets.TICKET_TEST_SECRET_KEY }}
+          DEMO_RECEIPT_PASSWORD: ${{ secrets.ATOL_DEMO_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ "$SHOP_TEST_KEY" == test_* && -n "$SSH_KEY" && -n "$HOST" ]]
+          stage=$(mktemp -d)
+          trap 'rm -rf "$stage"' EXIT
+          printf '%s\n' "$SSH_KEY" > "$stage/key"
+          if [[ -n "$HOST_KEYS" ]]; then printf '%s\n' "$HOST_KEYS" > "$stage/known_hosts"; else ssh-keyscan -T 12 -H "$HOST" > "$stage/known_hosts" 2>/dev/null; fi
+          remote=(ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o "UserKnownHostsFile=$stage/known_hosts" -i "$stage/key" "deploy@$HOST")
+          "${remote[@]}" "umask 077; install -d -m 700 /opt/mesto/ticket-test/incoming-$GITHUB_SHA"
+          mkdir "$stage/files"
+          cp deploy/ticket-test/*.{sql,sh,yml,py,cjs,Caddyfile} "$stage/files/"
+          mkdir "$stage/files/migrations"
+          cp supabase/migrations/{0009_seed_categories,0010_seed_interests,0013_accept_application_seat,0038_ticket_numbers,0052_redesign_categories,0091_event_ticket_checkout,0092_ticket_refunds}.sql "$stage/files/migrations/"
+          printf 'TICKET_TEST_SECRET_KEY=%s\nATOL_DEMO_PASSWORD=%s\n' "$SHOP_TEST_KEY" "$DEMO_RECEIPT_PASSWORD" > "$stage/files/payment.env"
+          tar -C "$stage/files" -czf - . | "${remote[@]}" "umask 077; tar -xzf - -C /opt/mesto/ticket-test/incoming-$GITHUB_SHA"
+          docker save "mesto-ticket-test:$GITHUB_SHA" | gzip -1 | "${remote[@]}" 'sudo docker load >/dev/null'
+          "${remote[@]}" "bash /opt/mesto/ticket-test/incoming-$GITHUB_SHA/deploy.sh $GITHUB_SHA"
+      - name: Проверить доступ снаружи
+        run: |
+          curl --fail --silent --show-error --max-time 12 https://mesto-go.ru/ticket-test/ticket-test-health |
+            python3 -c 'import json,sys; d=json.load(sys.stdin); assert d["environment"]=="ticket-test" and d["ready"] is True'
