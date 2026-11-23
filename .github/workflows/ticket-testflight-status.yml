@@ -2,7 +2,7 @@ name: Доступность билетной сборки в TestFlight
 on:
   push:
     branches: [testflight/ticket-checkout-053]
-    paths: [.github/workflows/ticket-testflight-status.yml]
+    paths: [.github/workflows/ticket-testflight-status.yml, .github/scripts/ticket_beta.py]
   workflow_dispatch:
 permissions:
   contents: read

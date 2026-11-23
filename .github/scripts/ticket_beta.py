@@ -28,9 +28,19 @@ if build["attributes"].get("usesNonExemptEncryption") is None:
         "attributes":{"usesNonExemptEncryption":False}}})
 def groups(path):
     return [g for g in api(path)["data"] if g["attributes"].get("isInternalGroup")]
-attached = groups(f"/v1/builds/{bid}/betaGroups")
-if not attached:
-    candidates = groups(f"/v1/apps/{APP}/betaGroups?limit=100")
+candidates = groups(f"/v1/apps/{APP}/betaGroups?limit=100")
+def matching_groups():
+    found = []
+    for group in candidates:
+        if group["attributes"].get("hasAccessToAllBuilds"):
+            found.append(group)
+            continue
+        builds = api("/v1/betaGroups/" + group["id"] + "/builds?limit=200")["data"]
+        if any(item["id"] == bid for item in builds):
+            found.append(group)
+    return found
+
+if not matching_groups():
     group = next((g for g in candidates if g["attributes"]["name"] == "Команда"), None)
     if group is None and len(candidates) == 1:
         group = candidates[0]
@@ -39,7 +49,7 @@ if not attached:
     api("/v1/betaGroups/" + group["id"] + "/relationships/builds", "POST",
         {"data":[{"type":"builds","id":bid}]})
 for _ in range(20):
-    attached = groups(f"/v1/builds/{bid}/betaGroups")
+    attached = matching_groups()
     state = api(f"/v1/builds/{bid}/buildBetaDetail")["data"]["attributes"]["internalBuildState"]
     print("TestFlight:", state, [g["attributes"]["name"] for g in attached], flush=True)
     if attached and state == "IN_BETA_TESTING":
