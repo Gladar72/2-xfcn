@@ -44,6 +44,11 @@ async function check() {
     assert.ok(receipt.ok && (await receipt.json()).token,"ATOL demo authentication");
     console.log("ATOL demo authentication: OK");
   }
+  const worker = await fetch("http://127.0.0.1:3000/api/cron/ticket-refunds", {
+    headers:{Authorization:"Bearer " + process.env.CRON_SECRET},
+  });
+  assert.equal(worker.status,200,"Background payment and refund verification");
+  console.log("Background payment and refund verification: OK");
   console.log("YooKassa test authentication: OK");
   console.log("Authenticated iPhone API: both events, agreement, price and reservation status verified");
 }

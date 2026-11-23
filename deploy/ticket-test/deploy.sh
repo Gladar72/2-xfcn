@@ -62,4 +62,14 @@ if ! curl -fsS --max-time 10 --resolve mesto-go.ru:443:127.0.0.1 https://mesto-g
   sudo docker exec "$caddy" caddy reload --adapter caddyfile --config /etc/caddy/Caddyfile
   exit 1
 fi
+# Persist the validated route only when it matches the merged main configuration.
+live_cfg=/opt/mesto/app/deploy/yandex/Caddyfile
+if ! cmp -s candidate.Caddyfile "$live_cfg"; then
+  cmp -s previous.Caddyfile "$live_cfg" || { echo "Base Caddyfile changed; refusing to overwrite"; exit 1; }
+  git -C /opt/mesto/app fetch --quiet --no-tags origin main
+  git -C /opt/mesto/app show FETCH_HEAD:deploy/yandex/Caddyfile | cmp -s - candidate.Caddyfile
+  new_cfg=$(mktemp "${live_cfg}.XXXXXX")
+  install -m 644 candidate.Caddyfile "$new_cfg"
+  mv -f "$new_cfg" "$live_cfg"
+fi
 echo "Isolated HTTPS ticket API is ready"
