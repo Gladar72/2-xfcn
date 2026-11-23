@@ -1,9 +1,20 @@
 name: Доступность билетной сборки в TestFlight
 on:
-  push:
-    branches: [testflight/ticket-checkout-053]
-    paths: [.github/workflows/ticket-testflight-status.yml, .github/scripts/ticket_beta.py]
+  workflow_call:
+    inputs:
+      build:
+        required: true
+        type: string
+    secrets:
+      ASC_KEY_ID: { required: true }
+      ASC_ISSUER_ID: { required: true }
+      ASC_KEY_P8: { required: true }
   workflow_dispatch:
+    inputs:
+      build:
+        description: Номер загруженной сборки 0.5.3
+        required: true
+        type: string
 permissions:
   contents: read
 jobs:
@@ -19,7 +30,7 @@ jobs:
           ISS: ${{ secrets.ASC_ISSUER_ID }}
           SIGNING_KEY: ${{ secrets.ASC_KEY_P8 }}
           MARKETING_VERSION: '0.5.3'
-          BUILD: '61'
+          BUILD: ${{ inputs.build }}
         run: |
           umask 077
           export KEY="$RUNNER_TEMP/ticket-status.p8"

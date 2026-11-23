@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { Linking, Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Sheet } from "@/components/Sheet";
 import { Btn } from "@/components/brand";
+import { Icon } from "@/components/Icon";
 import { api } from "@/lib/api";
-import { colors, FONT } from "@/lib/theme";
+import { colors, FONT, f } from "@/lib/theme";
 
 export interface OnlineCheckout {
   priceKopecks: number; supplier: string; terms: string; termsVersion: string; state: string | null;
@@ -50,8 +51,9 @@ export function TicketCheckout({ eventId, checkout, onPaid }: { eventId: string;
     } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   }
   const waiting = state === "pending";
+  const canPay = accepted && !!email.trim() && !busy;
   return <>
-    <Btn title={waiting ? "Проверяем оплату" : state === "review" ? "Проверить заказ" : "Оплатить билет · " + price} onPress={() => setOpen(true)} />
+    <Btn kind="w" style={styles.payButton} title={waiting ? "Проверяем оплату" : state === "review" ? "Проверить заказ" : "Оплатить билет · " + price} onPress={() => setOpen(true)} />
     <Sheet visible={open} onClose={() => setOpen(false)}>
       <ScrollView keyboardShouldPersistTaps="handled" style={{ maxHeight: 450 }}>
         <View style={{ gap: 12, paddingVertical: 10 }}>
@@ -59,18 +61,25 @@ export function TicketCheckout({ eventId, checkout, onPaid }: { eventId: string;
           <Text>Продавец · {checkout.supplier}</Text><Text>К оплате · {price}</Text>
           {waiting ? <>
             <Text>Ждём подтверждения ЮKassa. Билет появится здесь после оплаты.</Text>
-            {url && <Btn title="Продолжить оплату" onPress={() => Linking.openURL(url).catch(() => setError("Не удалось открыть ЮKassa"))} />}
+            {url && <Btn kind="w" style={styles.payButton} title="Продолжить оплату" onPress={() => Linking.openURL(url).catch(() => setError("Не удалось открыть ЮKassa"))} />}
             <Btn title="Проверить статус" kind="o" onPress={refresh} />
           </> : state === "review" ? <Text>Платёж получен. Для проверки заказа обратись в поддержку.</Text> : <>
             {state === "canceled" && <Text>Предыдущая оплата отменена. Можно попробовать снова.</Text>}
-            <Btn title="Договор покупки билета" kind="o" onPress={() => setShowTerms(!showTerms)} />
-            {showTerms && <Text selectable>{checkout.terms}</Text>}<Text>Тестовая почта для чека</Text>
+            <Text>Тестовая почта для чека</Text>
             <TextInput value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" placeholder="buyer@example.invalid"
               style={{ backgroundColor: "#f4f1f6", borderRadius: 12, padding: 12 }} />
-            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: accepted }} onPress={() => setAccepted(!accepted)}>
-              <Text>{accepted ? "☑" : "☐"} Принимаю договор покупки билета и правила возврата</Text>
+            <Btn title="Договор покупки билета" kind="o" onPress={() => setShowTerms(!showTerms)} />
+            {showTerms && <Text selectable>{checkout.terms}</Text>}
+            <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: accepted }}
+              accessibilityLabel="Принимаю договор покупки билета и правила возврата"
+              style={({ pressed }) => [styles.consent, pressed && styles.consentPressed]}
+              onPress={() => setAccepted(value => !value)}>
+              <View style={[styles.checkbox, accepted && styles.checkboxChecked]}>
+                {accepted && <Icon name="check" size={24} strokeWidth={3} color="#fff" />}
+              </View>
+              <Text style={styles.consentLabel}>Принимаю договор покупки билета и правила возврата</Text>
             </Pressable>
-            <Btn title={"Оплатить " + price} onPress={pay} loading={busy} disabled={!accepted || !email.trim() || busy} />
+            <Btn kind="w" style={[styles.payButton, !canPay && styles.payDisabled]} title={"Оплатить " + price} onPress={pay} loading={busy} disabled={!canPay} />
           </>}
           {!!error && <Text accessibilityRole="alert">{error}</Text>}
         </View>
@@ -78,3 +87,13 @@ export function TicketCheckout({ eventId, checkout, onPaid }: { eventId: string;
     </Sheet>
   </>;
 }
+
+const styles = StyleSheet.create({
+  payButton: { minHeight: 54, height: "auto", paddingVertical: 14, backgroundColor: "#F4F0FF", borderWidth: 1.5, borderColor: "#79659A" },
+  payDisabled: { backgroundColor: colors.pearl2, borderColor: "#B3ACBD", opacity: 0.75 },
+  consent: { flexDirection: "row", alignItems: "center", minHeight: 52, paddingVertical: 7, paddingHorizontal: 4, gap: 12, borderRadius: 12 },
+  consentPressed: { backgroundColor: colors.lav },
+  checkbox: { width: 32, height: 32, borderRadius: 9, borderWidth: 2, borderColor: colors.ink2, backgroundColor: "#fff", alignItems: "center", justifyContent: "center" },
+  checkboxChecked: { borderColor: colors.ink, backgroundColor: colors.ink },
+  consentLabel: { flex: 1, ...f("500"), fontSize: 15, lineHeight: 21, color: colors.ink },
+});
