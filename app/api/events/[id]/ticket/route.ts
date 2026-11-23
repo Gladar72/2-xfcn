@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -42,10 +43,15 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     .eq("event_id", eventId)
     .maybeSingle();
 
+  const paidOrder = await admin.from("ticket_orders").select("price_kopecks,qr_token").eq("event_id",eventId)
+    .eq("user_id",currentUser.userId).eq("state","paid").maybeSingle();
+  if (paidOrder.error) return NextResponse.json({ error: "ticket_unavailable" }, { status: 503 });
   const organizer = event.organizer as unknown as { name: string } | null;
 
   return NextResponse.json({
     ticketCode: member.ticket_code,
+    paidKopecks: paidOrder.data?.price_kopecks ?? null,
+    qrImage: paidOrder.data ? await QRCode.toDataURL(paidOrder.data.qr_token, { width: 320, margin: 4 }) : null,
     checkedInAt: member.checked_in_at,
     conversationId: conversation?.id ?? null,
     event: {
@@ -92,6 +98,9 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (eventStartsAt.getTime() <= Date.now()) {
     return NextResponse.json({ error: "event_already_started" }, { status: 422 });
   }
+
+  const online = await admin.from("ticket_orders").select("id").eq("event_id", eventId).eq("user_id", currentUser.userId).maybeSingle();
+  if (online.error || online.data) return NextResponse.json({ error: "ticket_support_required", message: "Для отмены оплаченного билета обратись в поддержку." }, { status: 409 });
 
   const { data: removed } = await admin
     .from("event_members")

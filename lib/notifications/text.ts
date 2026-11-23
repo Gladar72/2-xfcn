@@ -10,6 +10,10 @@ export function buildNotificationText(type: string, eventTitle: string | undefin
   switch (type) {
     case "new_application":
       return `Новый отклик на ${title}`;
+    case "ticket_approved":
+      return `Заявка на ${title} одобрена. Можно оплатить билет.`;
+    case "ticket_paid":
+      return `Билет на ${title} оплачен и доступен в событии.`;
     case "application_accepted":
       return `Организатор подтвердил твою заявку на ${title} 🎉 Ты в событии!`;
     case "application_rejected":

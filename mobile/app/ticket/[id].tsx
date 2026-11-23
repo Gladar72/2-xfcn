@@ -15,6 +15,8 @@ import { brandGradient, colors, FONT, gradientEnd, gradientStart, f } from "@/li
 
 interface TicketResp {
   ticketCode: string;
+  paidKopecks?: number | null;
+  qrImage?: string | null;
   checkedInAt: string | null;
   conversationId: string | null;
   event: {
@@ -85,7 +87,7 @@ export default function TicketScreen() {
   }
 
   const e = t.event;
-  const pay =
+  const pay = t.paidKopecks != null ? `Оплачено онлайн · ${t.paidKopecks / 100} ₽` :
     e.businessPricingType === "free" || !e.businessPricingDetails?.trim()
       ? "Вход свободный"
       : e.businessPricingType === "ticket"
@@ -138,6 +140,7 @@ export default function TicketScreen() {
               onLongPress={() => Share.share({ message: `Мой билет: ${t.ticketCode} — ${e.title}` }).catch(() => {})}
               style={styles.codeBox}
             >
+              {t.qrImage && <Image source={{ uri: t.qrImage }} style={{ width: 160, height: 160, alignSelf: "center" }} accessibilityLabel="QR-код билета" />}
               <Text style={styles.codeLabel}>Номер билета</Text>
               <Text style={styles.code} selectable>
                 {t.ticketCode}

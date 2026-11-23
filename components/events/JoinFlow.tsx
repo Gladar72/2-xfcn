@@ -5,6 +5,7 @@ import { Cover, Ic, Overlay, Sheet, dayLong, eventIcon } from "@/components/prot
 import { confetti } from "@/lib/mosya/confetti";
 
 export interface JoinEvent {
+  onlineCheckout?: { priceKopecks: number } | null;
   id: string;
   title: string;
   eventDate: string;
@@ -85,7 +86,7 @@ export function JoinFlow({
     );
   }
 
-  const ticketNote =
+  const ticketNote = event?.onlineCheckout ? "После одобрения заявки ты сможешь оплатить билет в МЕСТО." :
     event?.isBusiness &&
     `После подтверждения придёт номер билета. ${
       event.businessPricingType === "ticket" && event.businessPricingDetails ? `Оплата ${event.businessPricingDetails} — организатору лично, на месте.` : "Вход свободный."

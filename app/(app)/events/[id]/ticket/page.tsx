@@ -12,6 +12,8 @@ import { goBack } from "@/lib/nav/back";
 
 interface TicketData {
   ticketCode: string;
+  paidKopecks?: number | null;
+  qrImage?: string | null;
   checkedInAt: string | null;
   conversationId: string | null;
   event: {
@@ -104,7 +106,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
   const when = e
     ? `${new Date(e.eventDate).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" })}, ${e.eventTime.slice(0, 5)}${e.eventEndTime ? `–${e.eventEndTime.slice(0, 5)}` : ""}`
     : "";
-  const pay =
+  const pay = data?.paidKopecks != null ? `Оплачено онлайн · ${data.paidKopecks / 100} ₽` :
     e?.businessPricingType === "ticket" && e.businessPricingDetails
       ? `Оплата ${e.businessPricingDetails} — организатору на месте`
       : e?.businessPricingType === "custom" && e.businessPricingDetails
@@ -143,6 +145,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
               <div className="tcode">
                 <small>Номер билета</small>
                 <div>
+                  {data.qrImage && <img src={data.qrImage} width={160} height={160} alt="QR-код билета" />}
                   <b>{data.ticketCode}</b>
                   <button className="rb gl" style={{ width: 40, height: 40 }} onClick={copyCode} aria-label="Скопировать номер">
                     <Ic n={copied ? "check" : "copy"} c="s" />

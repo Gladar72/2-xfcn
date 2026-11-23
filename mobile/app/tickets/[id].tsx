@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { CameraView, useCameraPermissions } from "expo-camera";
+import { useRef, useCallback, useMemo, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, Pressable, RefreshControl, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,6 +19,7 @@ interface Ticket {
 }
 interface Resp {
   event: { id: string; title: string; eventDate: string; eventTime: string; isBusiness: boolean };
+  onlineSales?: boolean;
   tickets: Ticket[];
 }
 type Filter = "all" | "wait" | "came";
@@ -35,6 +37,9 @@ export default function TicketsScreen() {
   const [data, setData] = useState<Resp | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const scanning = useRef(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -93,9 +98,26 @@ export default function TicketsScreen() {
     Share.share({ message: `${data?.event.title ?? "Гости"}\n\n${text}` }).catch(() => {});
   }
 
+  async function scan(value: string) {
+    if (scanning.current) return;
+    scanning.current = true; setCameraOpen(false);
+    try {
+      await api(`/api/events/${id}/tickets`, {method:"PATCH",body:{qrToken:value,checkedIn:true}});
+      tapOk(); Alert.alert("Можно проходить"); await load();
+    } catch (err) { tapWarn(); Alert.alert("Проверка билета",manageErrorText(err)); }
+  }
+  if (cameraOpen) return <View style={{flex:1,paddingTop:insets.top}}>
+    <CameraView style={{flex:1}} barcodeScannerSettings={{barcodeTypes:["qr"]}} onBarcodeScanned={({data})=>{void scan(data);}} />
+    <Pressable onPress={()=>setCameraOpen(false)} style={{padding:20}}><Text>Вернуться к списку</Text></Pressable>
+  </View>;
   return (
     <View style={{ flex: 1 }}>
       <Aurora />
+      {data?.onlineSales && <Pressable style={{padding:16,marginTop:insets.top,alignItems:"center"}} onPress={async()=>{
+        const allowed = permission?.granted || (await requestPermission()).granted;
+        if (!allowed) { Alert.alert("Нет доступа к камере","Можно найти билет по номеру в списке."); return; }
+        scanning.current=false; setCameraOpen(true);
+      }}><Text style={{fontFamily:FONT,color:colors.ink}}>Сканировать QR-код</Text></Pressable>}
       <FlatList
         data={shown}
         keyExtractor={(t) => t.userId}
