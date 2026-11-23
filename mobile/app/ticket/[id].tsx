@@ -107,7 +107,8 @@ export default function TicketScreen() {
   const active = e.status === "published" || e.status === "closed";
   const hasCoords = e.latitude != null && e.longitude != null;
   const online = t.refund != null || t.paidKopecks != null;
-  const qrSize = Math.min(width - 72, height < 740 ? 188 : 204);
+  const shortTicket = online && height < 740;
+  const qrSize = Math.min(width - 72, shortTicket ? 188 : 204);
   const when = `${formatEventDate(e.eventDate, e.eventTime)}${e.eventEndTime ? ` – ${e.eventEndTime.slice(0, 5)}` : ""}`;
   const where = [e.placeName, e.address].filter(Boolean).join(", ") || "Место уточняется";
 
@@ -124,7 +125,7 @@ export default function TicketScreen() {
         <View style={styles.group}>
           <Animated.View style={{ transform: [{ scale: pop }] }}>
             <Glass strong style={styles.card}>
-              <View style={[styles.cover, online && styles.onlineCover]}>
+              <View style={[styles.cover, online && styles.onlineCover, shortTicket && styles.shortCover]}>
                 {e.photoUrl ? <Image source={{ uri: e.photoUrl }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
                 <LinearGradient
                   colors={e.photoUrl ? (["rgba(0,0,0,0)", "rgba(20,8,50,0.7)"] as const) : brandGradient}
@@ -142,7 +143,7 @@ export default function TicketScreen() {
                 </Text>
               </View>
 
-              <View style={[styles.body, online && styles.onlineBody]}>
+              <View style={[styles.body, online && styles.onlineBody, shortTicket && styles.shortBody]}>
                 <Row icon="cal" text={when} compact={online} />
                 <Row icon="pin" text={where} compact={online} />
                 {e.organizerName ? <Row icon="user" text={`Организатор: ${e.organizerName}`} compact={online} /> : null}
@@ -157,7 +158,7 @@ export default function TicketScreen() {
 
               <Pressable
                 onLongPress={() => Share.share({ message: `Мой билет: ${t.ticketCode} — ${e.title}` }).catch(() => {})}
-                style={[styles.codeBox, online && styles.onlineCodeBox]}
+                style={[styles.codeBox, online && styles.onlineCodeBox, shortTicket && styles.shortCodeBox]}
               >
                 {t.qrImage && (
                   <Image source={{ uri: t.qrImage }} style={{ width: qrSize, height: qrSize, backgroundColor: "#fff" }} contentFit="contain" accessibilityLabel="QR-код билета" />
@@ -221,12 +222,14 @@ const styles = StyleSheet.create({
   card: { backgroundColor: "#FAF9FC", borderRadius: 30, overflow: "hidden" },
   cover: { minHeight: 200, paddingTop: 54, paddingBottom: 38, justifyContent: "flex-end", padding: 16, gap: 10, overflow: "hidden" },
   onlineCover: { minHeight: 92, paddingTop: 10, paddingBottom: 16, gap: 6 },
+  shortCover: { minHeight: 72, paddingTop: 7, paddingBottom: 10, gap: 3 },
   badge: { position: "absolute", top: 14, left: 14, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#fff", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 6 },
   badgeText: { fontSize: 12.5, ...f("600"), color: colors.ok },
   onlineBadge: { position: "relative", left: 0, top: 0, alignSelf: "flex-start", paddingVertical: 4 },
   title: { fontSize: 24, lineHeight: 28, ...f("500"), color: "#fff", letterSpacing: -0.5 },
   body: { paddingHorizontal: 16, paddingTop: 5, paddingBottom: 16, gap: 10 },
   onlineBody: { paddingTop: 7, paddingBottom: 7, gap: 2 },
+  shortBody: { paddingTop: 4, paddingBottom: 4, gap: 1 },
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   ic: { width: 30, height: 30, borderRadius: 10, backgroundColor: colors.lav, alignItems: "center", justifyContent: "center" },
   compactIcon: { width: 22, height: 22, borderRadius: 7 },
@@ -235,6 +238,7 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: "rgba(23,20,31,0.18)" },
   codeBox: { alignItems: "center", paddingVertical: 20, paddingHorizontal: 16, gap: 4 },
   onlineCodeBox: { paddingVertical: 8, gap: 2 },
+  shortCodeBox: { paddingVertical: 4 },
   onlineCodeLabel: { fontSize: 12, letterSpacing: 0.8 },
   onlineCode: { fontSize: 26, letterSpacing: 2 },
   codeLabel: { fontFamily: FONT, fontSize: 13, color: colors.grey, textTransform: "uppercase", letterSpacing: 1 },
