@@ -38,68 +38,73 @@ def find_build():
     return r["data"][0] if r["data"] else None
 
 
-b = None
-for i in range(60):
-    b = find_build()
-    if b and b["attributes"]["processingState"] == "VALID":
-        break
-    print("ждём обработку…"); time.sleep(30)
-if not b or b["attributes"]["processingState"] != "VALID":
-    raise SystemExit("сборка не обработана")
-bid = b["id"]
-print("СБОРКА", b["attributes"]["version"], "готова")
+def main():
+    b = None
+    for i in range(60):
+        b = find_build()
+        if b and b["attributes"]["processingState"] == "VALID":
+            break
+        print("ждём обработку…"); time.sleep(30)
+    if not b or b["attributes"]["processingState"] != "VALID":
+        raise SystemExit("сборка не обработана")
+    bid = b["id"]
+    print("СБОРКА", b["attributes"]["version"], "готова")
 
-if b["attributes"].get("usesNonExemptEncryption") is None:
-    api(f"/v1/builds/{bid}", "PATCH", {"data": {"type": "builds", "id": bid, "attributes": {"usesNonExemptEncryption": False}}})
-    print("шифрование: только стандартное (HTTPS) — отмечено")
+    if b["attributes"].get("usesNonExemptEncryption") is None:
+        api(f"/v1/builds/{bid}", "PATCH", {"data": {"type": "builds", "id": bid, "attributes": {"usesNonExemptEncryption": False}}})
+        print("шифрование: только стандартное (HTTPS) — отмечено")
 
-groups = api(f"/v1/apps/{APP}/betaGroups?limit=50")["data"]
-for g in groups:
-    print("GROUP", g["id"][:6], g["attributes"]["name"], "internal", g["attributes"].get("isInternalGroup"), "all", g["attributes"].get("hasAccessToAllBuilds"))
-internal = [g for g in groups if g["attributes"].get("isInternalGroup")]
-if not internal:
-    g = api("/v1/betaGroups", "POST", {"data": {"type": "betaGroups", "attributes": {"name": "Команда", "isInternalGroup": True, "hasAccessToAllBuilds": True},
-                                                 "relationships": {"app": {"data": {"type": "apps", "id": APP}}}}})["data"]
-    internal = [g]
-    print("создана внутренняя группа «Команда»")
-g = internal[0]
-# Все пользователи аккаунта — во внутренние тестировщики.
-users = api("/v1/users?limit=50")["data"]
-testers = api(f"/v1/betaGroups/{g['id']}/betaTesters?limit=200")["data"]
-have = {(t["attributes"].get("email") or "").lower() for t in testers}
-for u in users:
-    em = (u["attributes"].get("username") or "").lower()
-    if em and em not in have:
+    groups = api(f"/v1/apps/{APP}/betaGroups?limit=50")["data"]
+    for g in groups:
+        print("GROUP", g["id"][:6], g["attributes"]["name"], "internal", g["attributes"].get("isInternalGroup"), "all", g["attributes"].get("hasAccessToAllBuilds"))
+    internal = [g for g in groups if g["attributes"].get("isInternalGroup")]
+    if not internal:
+        g = api("/v1/betaGroups", "POST", {"data": {"type": "betaGroups", "attributes": {"name": "Команда", "isInternalGroup": True, "hasAccessToAllBuilds": True},
+                                                     "relationships": {"app": {"data": {"type": "apps", "id": APP}}}}})["data"]
+        internal = [g]
+        print("создана внутренняя группа «Команда»")
+    g = internal[0]
+    # Все пользователи аккаунта — во внутренние тестировщики.
+    users = api("/v1/users?limit=50")["data"]
+    testers = api(f"/v1/betaGroups/{g['id']}/betaTesters?limit=200")["data"]
+    have = {(t["attributes"].get("email") or "").lower() for t in testers}
+    for u in users:
+        em = (u["attributes"].get("username") or "").lower()
+        if em and em not in have:
+            try:
+                api("/v1/betaTesters", "POST", {"data": {"type": "betaTesters", "attributes": {"email": em, "firstName": u["attributes"].get("firstName") or "", "lastName": u["attributes"].get("lastName") or ""},
+                                                           "relationships": {"betaGroups": {"data": [{"type": "betaGroups", "id": g["id"]}]}}}})
+                print("тестировщик добавлен")
+            except Exception:
+                print("тестировщика добавить не удалось")
+    ts = api(f"/v1/betaGroups/{g['id']}/betaTesters?limit=200")["data"]
+    print("тестировщиков в группе:", len(ts))
+    for t in ts:
+        a = t["attributes"]
+        print("TESTER", a.get("inviteType"), a.get("state"), "почта на", (a.get("email") or "")[:3] + "…")
+        # Повторно отправить приглашение в TestFlight — только если ещё не принято.
+        if os.environ.get("RESEND") != "1":
+            continue
         try:
-            api("/v1/betaTesters", "POST", {"data": {"type": "betaTesters", "attributes": {"email": em, "firstName": u["attributes"].get("firstName") or "", "lastName": u["attributes"].get("lastName") or ""},
-                                                       "relationships": {"betaGroups": {"data": [{"type": "betaGroups", "id": g["id"]}]}}}})
-            print("тестировщик добавлен")
+            api("/v1/betaTesterInvitations", "POST", {"data": {"type": "betaTesterInvitations", "relationships": {
+                "app": {"data": {"type": "apps", "id": APP}}, "betaTester": {"data": {"type": "betaTesters", "id": t["id"]}}}}})
+            print("приглашение отправлено повторно")
         except Exception:
-            print("тестировщика добавить не удалось")
-ts = api(f"/v1/betaGroups/{g['id']}/betaTesters?limit=200")["data"]
-print("тестировщиков в группе:", len(ts))
-for t in ts:
-    a = t["attributes"]
-    print("TESTER", a.get("inviteType"), a.get("state"), "почта на", (a.get("email") or "")[:3] + "…")
-    # Повторно отправить приглашение в TestFlight — только если ещё не принято.
-    if os.environ.get("RESEND") != "1":
-        continue
+            print("повторное приглашение не ушло")
+    if not g["attributes"].get("hasAccessToAllBuilds"):
+        try:
+            api(f"/v1/betaGroups/{g['id']}/relationships/builds", "POST", {"data": [{"type": "builds", "id": bid}]})
+            print("сборка выдана группе")
+        except Exception:
+            pass
     try:
-        api("/v1/betaTesterInvitations", "POST", {"data": {"type": "betaTesterInvitations", "relationships": {
-            "app": {"data": {"type": "apps", "id": APP}}, "betaTester": {"data": {"type": "betaTesters", "id": t["id"]}}}}})
-        print("приглашение отправлено повторно")
-    except Exception:
-        print("повторное приглашение не ушло")
-if not g["attributes"].get("hasAccessToAllBuilds"):
-    try:
-        api(f"/v1/betaGroups/{g['id']}/relationships/builds", "POST", {"data": [{"type": "builds", "id": bid}]})
-        print("сборка выдана группе")
+        bg = api(f"/v1/builds/{bid}/betaGroups")["data"]
+        print("сборка в группах:", [x["attributes"]["name"] for x in bg])
     except Exception:
         pass
-try:
-    bg = api(f"/v1/builds/{bid}/betaGroups")["data"]
-    print("сборка в группах:", [x["attributes"]["name"] for x in bg])
-except Exception:
-    pass
-st = api(f"/v1/builds/{bid}/buildBetaDetail")["data"]["attributes"]
-print("TESTFLIGHT", json.dumps(st))
+    st = api(f"/v1/builds/{bid}/buildBetaDetail")["data"]["attributes"]
+    print("TESTFLIGHT", json.dumps(st))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,30 @@
+name: Доступность билетной сборки в TestFlight
+on:
+  push:
+    branches: [testflight/ticket-checkout-053]
+    paths: [.github/workflows/ticket-testflight-status.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    if: github.ref == 'refs/heads/testflight/ticket-checkout-053'
+    runs-on: ubuntu-latest
+    timeout-minutes: 48
+    steps:
+      - uses: actions/checkout@v4
+      - name: Проверить обработку Apple и доступ внутренней группы
+        env:
+          KID: ${{ secrets.ASC_KEY_ID }}
+          ISS: ${{ secrets.ASC_ISSUER_ID }}
+          SIGNING_KEY: ${{ secrets.ASC_KEY_P8 }}
+          MARKETING_VERSION: '0.5.3'
+          BUILD: '61'
+        run: |
+          umask 077
+          export KEY="$RUNNER_TEMP/ticket-status.p8"
+          trap 'rm -f "$KEY"' EXIT
+          printf '%s\n' "$SIGNING_KEY" > "$KEY"
+          unset SIGNING_KEY
+          pip -q install pyjwt cryptography
+          python3 .github/scripts/ticket_beta.py
