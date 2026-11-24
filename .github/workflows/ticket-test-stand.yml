@@ -42,7 +42,7 @@ jobs:
           mkdir "$stage/files"
           cp deploy/ticket-test/*.{sql,sh,yml,py,cjs,Caddyfile} "$stage/files/"
           mkdir "$stage/files/migrations"
-          cp supabase/migrations/{0009_seed_categories,0010_seed_interests,0013_accept_application_seat,0038_ticket_numbers,0052_redesign_categories,0091_event_ticket_checkout,0092_ticket_refunds}.sql "$stage/files/migrations/"
+          cp supabase/migrations/{0009_seed_categories,0010_seed_interests,0013_accept_application_seat,0038_ticket_numbers,0052_redesign_categories,0091_event_ticket_checkout,0092_ticket_refunds,0093_ticket_checkout_choices}.sql "$stage/files/migrations/"
           if [[ -z "$DEMO_RECEIPT_PASSWORD" ]]; then
             DEMO_RECEIPT_PASSWORD=$(python3 deploy/ticket-test/atol-demo.py)
           fi

@@ -27,6 +27,8 @@ if [[ $ready != t ]]; then
   dc exec -T db rm -rf /tmp/ticket-install
   rm "incoming-$release/schema.dump"
 fi
+dc exec -T db psql -Xq -v ON_ERROR_STOP=1 --single-transaction -U postgres -d ticket_test -f - \
+  < "incoming-$release/migrations/0093_ticket_checkout_choices.sql"
 # Hex-only locally generated password: never print the statement or pass credentials via argv.
 python3 - <<'PY' | dc exec -T db psql -Xq -v ON_ERROR_STOP=1 -U postgres -d ticket_test >/dev/null
 from pathlib import Path

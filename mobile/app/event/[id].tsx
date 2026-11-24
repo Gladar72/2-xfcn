@@ -253,7 +253,7 @@ export default function EventScreen() {
         );
       case "accepted":
         if (event.onlineCheckout?.state && event.onlineCheckout.state !== "paid") {
-          return <TicketCheckout eventId={event.id} checkout={event.onlineCheckout} onPaid={load} />;
+          return <TicketCheckout eventId={event.id} eventTitle={event.title} checkout={event.onlineCheckout} onPaid={load} />;
         }
         if (event.isBusiness && event.ticketCode) {
           return <Btn title="Открыть билет" icon={<Icon name="doc" color="#fff" size={20} />} onPress={() => router.push(`/ticket/${event.id}` as Href)} />;

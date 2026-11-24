@@ -29,6 +29,13 @@ describe("ticket payments", () => {
       expect(JSON.parse(init.body)).toMatchObject({amount:payment.amount,metadata:payment.metadata,capture:true});
     }
   });
+  it.each(["bank_card", "sbp"] as const)("sends the chosen %s method on creation and retry", async method => {
+    reply(payment); reply(payment);
+    for (let i = 0; i < 2; i++) {
+      await reconcileTicket(db, {...order, checkout_method:method});
+      expect(JSON.parse(fetcher.mock.calls[i]?.[1].body).payment_method_data).toEqual({type:method});
+    }
+  });
   it("verifies at the provider before sending a successful payment to the database",async()=>{
     reply({...payment,status:"succeeded",paid:true});
     expect(await reconcileTicket(db,order,payment.id)).toEqual({state:"paid",confirmationUrl:null});

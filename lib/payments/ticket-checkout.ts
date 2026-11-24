@@ -5,6 +5,7 @@ type Db = ReturnType<typeof createAdminClient>;
 export interface TicketOrder {
   id: string; user_id: string; event_id: string; attempt_id: string;
   attempted_at: string; price_kopecks: number; buyer_email: string;
+  checkout_method?: "bank_card" | "sbp" | null;
   provider_id: string | null; state: string; event_title: string;
 }
 
@@ -51,6 +52,7 @@ export async function reconcileTicket(db: Db, order: TicketOrder, notifiedId?: s
       body: JSON.stringify({
         amount: { value: amount, currency: "RUB" }, capture: true,
         description: ("Билет · " + order.event_title).slice(0, 128),
+        ...(order.checkout_method && { payment_method_data: { type: order.checkout_method } }),
         confirmation: { type: "redirect", return_url: origin + "/e/" + order.event_id },
         metadata: { ticket_order: order.id, ticket_attempt: order.attempt_id },
       }),

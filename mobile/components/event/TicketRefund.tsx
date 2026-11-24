@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
-import { Sheet } from "@/components/Sheet";
+import { Pressable, StyleSheet, Text, TextInput, useWindowDimensions, View } from "react-native";
+import { TicketPanel, TicketAmounts, ticketStyles } from "./TicketPanel";
 import { Btn, Glass } from "@/components/brand";
 import { Icon, type IconName } from "@/components/Icon";
 import { colors,f } from "@/lib/theme";
@@ -12,6 +12,8 @@ export interface RefundDetail {
 }
 export function TicketRefund({eventId,title,code,price,info,refresh}:{eventId:string;title:string;code:string;price:number;info:RefundDetail;refresh:()=>void}) {
   const [panel,setPanel]=useState<"support"|"refund"|"terms"|null>(null);
+  const [termsFromRefund, setTermsFromRefund] = useState(false);
+  const [reason, setReason] = useState("");
   const [message,setMessage]=useState("");
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState("");
@@ -23,9 +25,15 @@ export function TicketRefund({eventId,title,code,price,info,refresh}:{eventId:st
     setBusy(true);setError("");
     try {
       if(panel==="support") await api("/api/support/ask",{body:{human:true,ticketEventId:eventId,message}});
-      else await api(`/api/events/${eventId}/refund`,{method:"POST",body:{}});
-      setMessage("");setPanel(null);refresh();
+      else await api(`/api/events/${eventId}/refund`,{method:"POST",body:{note:reason.trim()}});
+      setMessage("");setReason("");setPanel(null);refresh();
     } catch(e){setError((e as Error).message);refresh();} finally{setBusy(false);}
+  }
+  function back() {
+    if (busy) return;
+    if (panel === "terms" && termsFromRefund) {
+      setTermsFromRefund(false);setPanel("refund");
+    } else setPanel(null);
   }
   const status=info.state==="refunded" ? "Возврат оформлен" : info.state==="refund_pending" ? "Оформляем возврат" :
     info.state==="refund_review" ? "Возврат на проверке" : null;
@@ -41,25 +49,36 @@ export function TicketRefund({eventId,title,code,price,info,refresh}:{eventId:st
       {info.canRefund && <Action compact={sideBySide} icon="reply" title="Запросить возврат" onPress={()=>{setError("");setPanel("refund");}} />}
       {!info.canRefund && info.state!=="refund_pending" && <Action compact={sideBySide} icon="help" title="Обратиться по билету" onPress={()=>{setError("");setPanel("support");}} />}
       {(info.canRefund || info.state!=="refund_pending") && <View style={sideBySide ? styles.verticalDivider : styles.divider} />}
-      <Action compact={sideBySide} icon="doc" title="Договор покупки билета" onPress={()=>setPanel("terms")} />
+      <Action compact={sideBySide} icon="doc" title="Договор покупки билета" onPress={()=>{setTermsFromRefund(false);setPanel("terms");}} />
     </View>
   </Glass>
-    <Sheet visible={panel!==null} onClose={()=>{if(!busy)setPanel(null);}}>
-      <ScrollView keyboardShouldPersistTaps="handled" style={{maxHeight:450}}>
-        <View style={{gap:14,paddingVertical:10}}><Text style={{fontSize:22,...f("500")}}>
-          {panel==="terms" ? "Договор покупки билета" : panel==="refund" ? "Возврат билета" : "Обращение по билету"}</Text>
-        {panel==="terms" ? <Text selectable>{info.terms}</Text> : <>
-          <Text>{title} · {code}</Text>
-          {panel==="refund" ? <Text>К возврату {amount}. Деньги вернутся тем же способом, которым ты оплатил билет.</Text> :
-            <TextInput multiline accessibilityLabel="Что произошло?" placeholder="Что произошло?" value={message} onChangeText={setMessage}
-              maxLength={900} style={{backgroundColor:colors.lav,padding:12,borderRadius:12,minHeight:80}} />}
-          {!!error && <Text accessibilityRole="alert">{error}</Text>}
-          <Btn title={panel==="refund" ? "Отправить заявление" : "Отправить обращение"} loading={busy}
-            disabled={busy || (panel==="support" && message.trim().length<2)} onPress={send} /></>}
-        <Btn kind="o" title={panel==="refund" ? "Оставить билет" : "К билету"} disabled={busy} onPress={()=>setPanel(null)} />
+    <TicketPanel visible={panel !== null} subtitle={title} busy={busy} onBack={back}
+      title={panel === "terms" ? "Договор покупки " : panel === "refund" ? "Возврат " : "Обращение "}
+      accent={panel === "support" ? "по билету" : "билета"}
+      footer={<>
+        {panel !== "terms" && <Btn title={panel === "refund" ? "Отправить заявление" : "Отправить обращение"} loading={busy}
+          disabled={busy || (panel === "support" ? message.trim().length < 2 : !info.canRefund)} onPress={send} />}
+        <Btn kind="w" title={panel === "refund" ? "Оставить билет" : panel === "terms" && termsFromRefund ? "К заявлению" : "К билету"} disabled={busy} onPress={back} />
+      </>}>
+      {panel === "terms" ? <Text selectable style={ticketStyles.body}>{info.terms}</Text> : panel === "refund" ? <>
+        <TicketAmounts rows={[["Билет",code],["Оплачено",amount],["К возврату",amount]]} />
+        <View style={ticketStyles.card}>
+          <Text style={ticketStyles.fieldLabel}>Причина обращения · необязательно</Text>
+          <TextInput multiline maxLength={500} editable={!busy} accessibilityLabel="Причина обращения"
+            value={reason} onChangeText={setReason} style={ticketStyles.input} placeholder="Например, не смогу прийти" />
         </View>
-      </ScrollView>
-    </Sheet>
+        <Text style={ticketStyles.note}>Деньги вернутся тем же способом, которым ты оплатил билет.</Text>
+        <Pressable accessibilityRole="button" disabled={busy} style={styles.termsLink}
+          onPress={() => {setTermsFromRefund(true);setPanel("terms");}}>
+          <Text style={ticketStyles.body}>Договор и правила возврата</Text>
+        </Pressable>
+      </> : <>
+        <TicketAmounts rows={[["Билет",code],["Оплачено",amount]]} />
+        <TextInput multiline accessibilityLabel="Что произошло?" placeholder="Что произошло?" value={message}
+          editable={!busy} onChangeText={setMessage} maxLength={900} style={[ticketStyles.card, ticketStyles.body, {minHeight:80}]} />
+      </>}
+      {!!error && <Text accessibilityRole="alert" style={ticketStyles.body}>{error}</Text>}
+    </TicketPanel>
   </>;
 }
 
@@ -73,6 +92,7 @@ function Action({ compact, icon, title, onPress }: { compact: boolean; icon: Ico
 }
 
 const styles = StyleSheet.create({
+  termsLink: { minHeight: 44, flexDirection: "row", alignItems: "center", alignSelf: "center" },
   card: { borderRadius: 24, overflow: "hidden" },
   actionsAcross: { flexDirection: "row" },
   compactAction: { flex: 1, paddingHorizontal: 12, gap: 7 },
