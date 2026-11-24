@@ -2,6 +2,6 @@
 
 Sign in: tap «Войти по почте» (Sign in with email), enter the demo e-mail from the Sign-In Information section and the 4-digit code given there as the password — no real e-mail is sent for this account. Sign in with Apple is also available.
 
-This iOS version has no purchases of any kind: no In-App Purchase, no prices, no buy buttons and no links to external payment. Every account gets the «Старт» plan for free, so all features are available.
+Event tickets grant admission to in-person events at the date and physical venue shown in the event listing. To buy a ticket, open a ticketed event, enter a receipt email, accept the ticket terms, and choose a bank card or the Faster Payments System (SBP). YooKassa handles payment. The QR code is presented at the venue entrance. The ticket does not unlock digital content or subscription features (App Review Guideline 3.1.3(e)).
 
 User-generated content: users can report or block any profile (flag icon on the profile) and any event; reports are reviewed within 24 hours. Account deletion: Profile → Settings → «Удалить аккаунт».

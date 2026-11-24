@@ -150,8 +150,8 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "https://mesto-go.ru/ticket-test",
-      "ticketSandbox": true,
+      "apiUrl": "https://mesto-go.ru",
+      "ticketSandbox": false,
       "eas": {
         "projectId": ""
       },
