@@ -1,0 +1,33 @@
+name: Attach ticket build to App Store draft
+on:
+  push:
+    branches: [release/ticket-checkout-053-appstore]
+    paths: ['.github/workflows/attach-ticket-store-draft.yml', '.github/scripts/attach_store_draft.py']
+permissions:
+  contents: read
+jobs:
+  attach:
+    if: contains(github.event.head_commit.message, '[attach-store-64]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Confirm production app configuration
+        run: |
+          node -e "const a = require('./mobile/app.json').expo; if (a.version !== '0.5.3' || a.extra.ticketSandbox !== false || a.extra.apiUrl !== 'https://mesto-go.ru' || a.ios.bundleIdentifier !== 'ru.mesto.app') process.exit(1)"
+      - run: pip -q install pyjwt cryptography
+      - name: Attach processed build 64 to the existing 0.5.3 draft
+        env:
+          KID: ${{ secrets.ASC_KEY_ID }}
+          ISS: ${{ secrets.ASC_ISSUER_ID }}
+          SIGNING_KEY: ${{ secrets.ASC_KEY_P8 }}
+          MARKETING_VERSION: '0.5.3'
+          BUILD: '64'
+        run: |
+          set -eu
+          umask 077
+          export KEY="$RUNNER_TEMP/store-draft.p8"
+          trap 'rm -f "$KEY"' EXIT
+          printf '%s\n' "$SIGNING_KEY" > "$KEY"
+          unset SIGNING_KEY
+          python3 .github/scripts/attach_store_draft.py
