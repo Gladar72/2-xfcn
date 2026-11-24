@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useGuide } from "@/lib/mosya/guide";
 import Link from "next/link";
 import { CATEGORY_ICON } from "@/lib/data/category-icons";
@@ -10,8 +10,13 @@ import { apiErrorText } from "@/lib/validation/api-error-text";
 import { getTelegramWebApp } from "@/lib/telegram/webapp-client";
 import { goBack } from "@/lib/nav/back";
 
+import { TicketRefund, type RefundDetail } from "@/components/events/TicketRefund";
+
 interface TicketData {
+  refund?: RefundDetail | null;
   ticketCode: string;
+  paidKopecks?: number | null;
+  qrImage?: string | null;
   checkedInAt: string | null;
   conversationId: string | null;
   event: {
@@ -45,7 +50,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch(`/api/events/${params.id}/ticket`)
       .then(async (res) => {
         const body = await res.json().catch(() => ({}));
@@ -58,6 +63,11 @@ export default function TicketPage({ params }: { params: { id: string } }) {
       .catch(() => setError("Проблема с соединением — попробуй ещё раз."));
   }, [params.id]);
 
+  useEffect(() => {load();},[load]);
+  useEffect(() => {
+    if (!data?.refund || (data.refund.state!=="refund_pending" && !data.refund.inquiry && !(data.refund.state==="refunded" && !data.refund.receiptNumber))) return;
+    const timer=setInterval(load,10000);return ()=>clearInterval(timer);
+  },[load,data?.refund?.state,data?.refund?.inquiry?.created_at,data?.refund?.receiptNumber]);
   function copyCode() {
     if (!data) return;
     navigator.clipboard
@@ -104,7 +114,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
   const when = e
     ? `${new Date(e.eventDate).toLocaleDateString("ru-RU", { weekday: "short", day: "numeric", month: "long" })}, ${e.eventTime.slice(0, 5)}${e.eventEndTime ? `–${e.eventEndTime.slice(0, 5)}` : ""}`
     : "";
-  const pay =
+  const pay = data?.paidKopecks != null ? `Оплачено онлайн · ${data.paidKopecks / 100} ₽` :
     e?.businessPricingType === "ticket" && e.businessPricingDetails
       ? `Оплата ${e.businessPricingDetails} — организатору на месте`
       : e?.businessPricingType === "custom" && e.businessPricingDetails
@@ -130,7 +140,7 @@ export default function TicketPage({ params }: { params: { id: string } }) {
             <div className="tkt gl">
               <div className="okp">
                 <Ic n="check" c="s" />
-                {data.checkedInAt ? "Отмечен на входе" : "Участие подтверждено"}
+                {data.refund && data.refund.state !== "paid" ? "Билет закрыт для входа" : e.status === "completed" ? "Событие завершилось" : data.checkedInAt ? "Отмечен на входе" : "Участие подтверждено"}
               </div>
               <Cover photoUrl={e.photoUrl} icon={CATEGORY_ICON.business ?? ""} cls="tph" thumb={800} />
               <div className="tin">
@@ -143,18 +153,19 @@ export default function TicketPage({ params }: { params: { id: string } }) {
               <div className="tcode">
                 <small>Номер билета</small>
                 <div>
+                  {data.qrImage && <img src={data.qrImage} width={160} height={160} alt="QR-код билета" />}
                   <b>{data.ticketCode}</b>
                   <button className="rb gl" style={{ width: 40, height: 40 }} onClick={copyCode} aria-label="Скопировать номер">
                     <Ic n={copied ? "check" : "copy"} c="s" />
                   </button>
                 </div>
-                <span>Назови номер организатору на входе</span>
+                {(!data.refund || data.qrImage) && <span>Назови номер организатору на входе</span>}
                 <span className="payn">
                   <Ic n="wallet" c="xs" /> {pay}
                 </span>
               </div>
             </div>
-            {e.status === "published" || e.status === "closed" ? (
+            {data.refund ? <TicketRefund info={data.refund} price={data.paidKopecks!} title={e.title} code={data.ticketCode} eventId={params.id} refresh={load} /> : e.status === "published" || e.status === "closed" ? (
               <button className="report" style={{ marginTop: 6 }} onClick={() => setConfirmingCancel(true)}>
                 Отменить участие
               </button>

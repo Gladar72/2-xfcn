@@ -49,7 +49,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (application.status !== "pending") {
       return NextResponse.json({ error: "cannot_cancel_processed_application" }, { status: 422 });
     }
-    await admin.from("applications").update({ status: "cancelled" }).eq("id", applicationId);
+    const changed = await admin.from("applications").update({ status: "cancelled" }).eq("id", applicationId).eq("status", "pending").select("id").maybeSingle();
+    if (!changed.data) return NextResponse.json({ error: "already_processed" }, { status: 409 });
     return NextResponse.json({ status: "cancelled" });
   }
 
@@ -62,7 +63,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (action === "reject") {
-    await admin.from("applications").update({ status: "rejected" }).eq("id", applicationId);
+    const changed = await admin.from("applications").update({ status: "rejected" }).eq("id", applicationId).eq("status", "pending").select("id").maybeSingle();
+    if (!changed.data) return NextResponse.json({ error: "already_processed" }, { status: 409 });
 
     // Сообщаем человеку, что заявку не подтвердили — и в приложении
     // (экран «Уведомления»), и сразу в Telegram, как при принятии. Иначе он
@@ -91,6 +93,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     return NextResponse.json({ status: "rejected" });
   }
+
+  const online = await admin.rpc("approve_online_ticket", { p_application: applicationId, p_organizer: currentUser.userId });
+  if (online.error) return NextResponse.json({ error: "approval_unavailable" }, { status: 503 });
+  if (online.data === "approved") {
+    await sendPushToUsers(admin, [application.user_id], {
+      title: "Заявка одобрена", body: "Теперь можно оплатить билет на «" + shortTitle(eventTitle) + "».",
+      data: { type: "ticket_approved", eventId: application.event_id, url: "/event/" + application.event_id },
+    });
+    return NextResponse.json({ status: "accepted", ticketStatus: "approved" });
+  }
+  if (online.data !== "offline") return NextResponse.json({ error: online.data ?? "approval_unavailable" }, { status: 409 });
 
   // action === "accept" — атомарно занимаем место, чтобы не превысить seats_total
   const { data: seatAccepted } = await admin.rpc("accept_event_seat", { p_event_id: application.event_id });

@@ -1,3 +1,4 @@
+import QRCode from "qrcode";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/telegram/current-user";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -13,7 +14,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({noStore:true});
   const eventId = params.id;
 
   const [{ data: member }, { data: event }] = await Promise.all([
@@ -27,14 +28,14 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     admin
       .from("events")
       .select(
-        "id, title, photo_url, event_date, event_time, event_end_time, place_name, address, latitude, longitude, status, is_business, has_chat, business_pricing_type, business_pricing_details, organizer:users(name)"
+        "id, title, photo_url, event_date, event_time, event_end_time, city, place_name, address, latitude, longitude, status, is_business, has_chat, business_pricing_type, business_pricing_details, organizer:users(name)"
       )
       .eq("id", eventId)
       .maybeSingle(),
   ]);
 
   if (!event) return NextResponse.json({ error: "event_not_found" }, { status: 404 });
-  if (!member || !member.ticket_code) return NextResponse.json({ error: "ticket_not_found" }, { status: 404 });
+
 
   const { data: conversation } = await admin
     .from("conversations")
@@ -42,12 +43,29 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     .eq("event_id", eventId)
     .maybeSingle();
 
+  const paidOrder = await admin.from("ticket_orders").select("id,state,price_kopecks,qr_token,accepted_terms,purchase_terms,full_refund_before_start,purchased_start,refund_requested_at,refund_receipt_number,archived_code")
+    .eq("event_id",eventId).eq("user_id",currentUser.userId).in("state",["paid","refunded","refund_pending","refund_review"]).maybeSingle();
+  if (paidOrder.error) return NextResponse.json({error:"ticket_unavailable"},{status:503});
+  const o = paidOrder.data;
+  if (!member?.ticket_code && !o) return NextResponse.json({error:"ticket_not_found"},{status:404});
+  const start = eventTiming(event).start.getTime();
+  const moved = !!o?.purchased_start && Date.parse(o.purchased_start) !== start;
+  const active = ["published","closed"].includes(event.status);
+  const canRefund = o?.state === "paid" && !member?.checked_in_at && active &&
+    Date.now()<start && (moved || o.full_refund_before_start);
+  const inquiry = o ? await admin.from("support_tickets").select("created_at,admin_reply").eq("ticket_order_id",o.id)
+    .eq("user_id",currentUser.userId).order("created_at",{ascending:false}).limit(1).maybeSingle() : null;
   const organizer = event.organizer as unknown as { name: string } | null;
 
   return NextResponse.json({
-    ticketCode: member.ticket_code,
-    checkedInAt: member.checked_in_at,
-    conversationId: conversation?.id ?? null,
+    ticketCode: member?.ticket_code || o?.archived_code || o?.id,
+    refund: o ? {state:event.status === "cancelled" && o.state==="paid" ? "refund_pending" : o.state,canRefund,
+      requestedAt:o.refund_requested_at,terms:o.accepted_terms || o.purchase_terms,receiptNumber:o.refund_receipt_number,
+      inquiry:inquiry?.data ?? null} : null,
+    paidKopecks: paidOrder.data?.price_kopecks ?? null,
+    qrImage: o?.state === "paid" && active && !member?.checked_in_at ? await QRCode.toDataURL(o.qr_token, { width: 320, margin: 4 }) : null,
+    checkedInAt: member?.checked_in_at ?? null,
+    conversationId: member && active && (!o || o.state === "paid") ? conversation?.id ?? null : null,
     event: {
       id: event.id,
       title: event.title,
@@ -77,7 +95,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const admin = createAdminClient();
+  const admin = createAdminClient({noStore:true});
   const eventId = params.id;
 
   const { data: event } = await admin
@@ -92,6 +110,9 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (eventStartsAt.getTime() <= Date.now()) {
     return NextResponse.json({ error: "event_already_started" }, { status: 422 });
   }
+
+  const online = await admin.from("ticket_orders").select("id").eq("event_id", eventId).eq("user_id", currentUser.userId).maybeSingle();
+  if (online.error || online.data) return NextResponse.json({ error: "ticket_support_required", message: "Для отмены оплаченного билета обратись в поддержку." }, { status: 409 });
 
   const { data: removed } = await admin
     .from("event_members")
