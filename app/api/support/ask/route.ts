@@ -18,11 +18,19 @@ export async function POST(req: NextRequest) {
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
-  const message = typeof body?.message === "string" ? body.message.trim().slice(0, 1000) : "";
+  let message = typeof body?.message === "string" ? body.message.trim().slice(0, 1000) : "";
   const wantsHuman = body?.human === true;
   if (message.length < 2) return NextResponse.json({ error: "empty" }, { status: 400 });
 
   const admin = createAdminClient();
+  let orderId: string | null = null;
+  if (body.ticketEventId) {
+    const order = await admin.from("ticket_orders").select("id,event_title").eq("event_id",body.ticketEventId)
+      .eq("user_id",currentUser.userId).in("state",["paid","refund_pending","refund_review","refunded"]).maybeSingle();
+    if (order.error || !order.data || !wantsHuman) return NextResponse.json({error:"ticket_not_found"},{status:404});
+    orderId=order.data.id;
+    message = "По билету на «"+order.data.event_title+"», заказ "+orderId+". "+message;
+  }
   const { data: user } = await admin
     .from("users")
     .select("name, telegram_username, telegram_id, phone, email")
@@ -71,6 +79,7 @@ export async function POST(req: NextRequest) {
         message,
         bot_reply: ai.reply,
         source: "app",
+        ...(orderId ? {ticket_order_id:orderId} : {}),
       })
       .select("id, created_at")
       .single();
@@ -79,6 +88,7 @@ export async function POST(req: NextRequest) {
     console.error("support ask: не удалось сохранить обращение", err);
   }
 
+  if (orderId && !ticketId) return NextResponse.json({message:"Не удалось сохранить обращение."},{status:503});
   const adminRaw = (process.env.ADMIN_TELEGRAM_IDS ?? "").split(",")[0]?.trim();
   const adminId = adminRaw && !Number.isNaN(Number(adminRaw)) ? Number(adminRaw) : null;
   if (ai.needsHuman && adminId) {

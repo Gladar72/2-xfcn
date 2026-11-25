@@ -26,6 +26,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     .eq("role", "participant")
     .order("joined_at", { ascending: true });
 
+  const sale = await admin.from("ticket_sales").select("event_id").eq("event_id", event.id).maybeSingle();
+  if (sale.error) return NextResponse.json({error: "ticket_unavailable"}, {status: 503});
   const tickets = (rows ?? []).map((r) => {
     const user = r.user as unknown as { id: string; name: string; avatar_url: string | null };
     return {
@@ -39,7 +41,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   return NextResponse.json({
     event: { id: event.id, title: event.title, eventDate: event.event_date, eventTime: event.event_time, isBusiness: event.is_business },
-    tickets,
+    onlineSales: !!sale.data, tickets,
   });
 }
 
@@ -51,8 +53,8 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   const currentUser = await getCurrentUser();
   if (!currentUser) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
-  const body = (await req.json().catch(() => null)) as { userId?: unknown; checkedIn?: unknown } | null;
-  if (!body || typeof body.userId !== "string" || typeof body.checkedIn !== "boolean") {
+  const body = (await req.json().catch(() => null)) as { userId?: unknown; qrToken?: unknown; checkedIn?: unknown } | null;
+  if (!body || (typeof body.userId !== "string" && typeof body.qrToken !== "string") || typeof body.checkedIn !== "boolean") {
     return NextResponse.json({ error: "invalid_input", message: "Не удалось отметить билет." }, { status: 400 });
   }
 
@@ -65,6 +67,17 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
   if (!event) return NextResponse.json({ error: "event_not_found" }, { status: 404 });
   if (event.organizer_id !== currentUser.userId) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
+  const sale = await admin.from("ticket_sales").select("event_id").eq("event_id",event.id).maybeSingle();
+  if (sale.error) return NextResponse.json({ error: "ticket_unavailable" }, { status: 503 });
+  if (sale.data) {
+    if (!body.checkedIn) return NextResponse.json({ error: "already_checked", message: "По этому билету гость уже прошёл." }, { status: 409 });
+    const result = await admin.rpc("check_online_ticket", { p_event: event.id, p_host: currentUser.userId,
+      p_user: body.userId ?? null, p_qr: body.qrToken ?? null });
+    if (result.error || result.data?.state === "invalid") return NextResponse.json({ error: "invalid_ticket", message: "Билет не найден среди оплаченных билетов этого события." }, { status: 422 });
+    if (result.data.state === "already_checked") return NextResponse.json({ error: "already_checked", message: "По этому билету гость уже прошёл." }, { status: 409 });
+    return NextResponse.json(result.data);
+  }
+  if (typeof body.userId !== "string") return NextResponse.json({ error: "invalid_ticket" }, { status: 400 });
   const checkedInAt = body.checkedIn ? new Date().toISOString() : null;
   const { data: updated } = await admin
     .from("event_members")

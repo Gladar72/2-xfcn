@@ -23,6 +23,7 @@ interface Ticket {
  */
 export default function EventTicketsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
+  const [onlineSales,setOnlineSales] = useState(false);
   const [title, setTitle] = useState("");
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,6 +42,7 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
           return;
         }
         setTitle(body.event.title);
+        setOnlineSales(!!body.onlineSales);
         setTickets(body.tickets);
       })
       .catch(() => setError("Проблема с соединением — попробуй ещё раз."))
@@ -168,7 +170,7 @@ export default function EventTicketsPage({ params }: { params: { id: string } })
               <b>{t.ticketCode ?? "—"}</b>
               <span>{t.name}</span>
             </div>
-            <button className={`sm ${t.checkedInAt ? "done" : "yes"}`} disabled={savingId === t.userId} onClick={() => toggle(t)}>
+            <button className={`sm ${t.checkedInAt ? "done" : "yes"}`} disabled={savingId === t.userId || (onlineSales && !!t.checkedInAt)} onClick={() => toggle(t)}>
               {t.checkedInAt ? (
                 <>
                   <Ic n="check" c="xs" /> Пришёл

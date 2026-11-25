@@ -1,0 +1,39 @@
+name: Проверка оплаты билета в Test
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/approved-event-ticket-payments]
+    paths: [.github/workflows/ticket-shop-test.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Создать заказ на тестовом магазине
+        env:
+          TICKET_TEST_SHOP_ID: "1466532"
+          TICKET_TEST_SECRET_KEY: ${{ secrets.TICKET_TEST_SECRET_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_CREATED_AT=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" --jq .created_at)
+          export RUN_CREATED_AT
+          node_modules/.bin/tsx tests/ops/ticket-shop.ts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: test-checkout
+          path: test-checkout.txt
+          retention-days: 1
+      - name: Дождаться подтверждения в платёжной форме
+        env:
+          TICKET_TEST_SHOP_ID: "1466532"
+          TICKET_TEST_SECRET_KEY: ${{ secrets.TICKET_TEST_SECRET_KEY }}
+        run: node_modules/.bin/tsx tests/ops/ticket-shop.ts --wait

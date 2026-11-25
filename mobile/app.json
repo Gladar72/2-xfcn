@@ -25,7 +25,7 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Чтобы показать встречи рядом с тобой на карте.",
         "NSPhotoLibraryUsageDescription": "Чтобы выбрать фото для профиля и встречи.",
-        "NSCameraUsageDescription": "Чтобы сделать фото для профиля.",
+        "NSCameraUsageDescription": "Чтобы сделать фото для профиля и проверить QR-код билета.",
         "CFBundleDevelopmentRegion": "ru",
         "CFBundleLocalizations": [
           "ru"
@@ -120,6 +120,7 @@
     },
     "plugins": [
       "expo-router",
+      ["expo-camera", {"cameraPermission": "Чтобы проверить QR-код билета на входе.", "recordAudioAndroid": false}],
       "@maplibre/maplibre-react-native",
       "expo-secure-store",
       "expo-web-browser",

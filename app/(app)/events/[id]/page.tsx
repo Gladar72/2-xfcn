@@ -1,5 +1,6 @@
 "use client";
 
+import { TicketCheckout, type OnlineCheckout } from "@/components/events/TicketCheckout";
 import { anonymousTag } from "@/lib/events/anonymity";
 import { EventParticipants } from "@/components/events/EventParticipants";
 import { EventPlaceMap } from "@/components/events/EventPlaceMap";
@@ -27,6 +28,7 @@ import { PromoDone, PromoteSheet, loadPromoInfo, type PromoStatus } from "@/comp
 import { promoClock } from "@/lib/promotions/config";
 
 interface EventDetails {
+  onlineCheckout?: OnlineCheckout | null;
   id: string;
   fireCount?: number;
   myFire?: boolean;
@@ -523,7 +525,9 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
   const invitePending = !mine && active && event.myInvite?.status === "pending" && st !== "accepted";
 
   let ctaBtn: React.ReactNode;
-  if (invitePending) {
+  if (["paid","refunded","refund_pending","refund_review"].includes(event.onlineCheckout?.state || "")) {
+    ctaBtn = <Link className="btn o" href={`/events/${event.id}/ticket`}>Открыть билет</Link>;
+  } else if (invitePending) {
     ctaBtn = (
       <div style={{ display: "flex", gap: 8 }}>
         <button className="btn o" onClick={() => answerInvite("decline")} disabled={answering}>
@@ -546,6 +550,8 @@ export default function EventDetailsPage({ params }: EventDetailsPageProps) {
         {event.status === "completed" ? "Встреча завершена" : "Встреча отменена"}
       </button>
     );
+  } else if (st === "accepted" && event.onlineCheckout?.state && event.onlineCheckout.state !== "paid") {
+    ctaBtn = <TicketCheckout eventId={event.id} checkout={event.onlineCheckout} />;
   } else if (st === "accepted") {
     ctaBtn = event.isBusiness ? (
       <Link className="btn ok" href={`/events/${event.id}/ticket`}>

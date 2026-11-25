@@ -1,3 +1,4 @@
+import { TicketCheckout, type OnlineCheckout } from "@/components/event/TicketCheckout";
 import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Clipboard from "expo-clipboard";
@@ -51,6 +52,7 @@ type Detail = EventDetail & {
   myApplicationId?: string | null;
   pendingApplicationsCount?: number;
   /** Номер билета (бизнес-встреча, участник принят). */
+  onlineCheckout?: OnlineCheckout | null;
   ticketCode?: string | null;
   /** Чат встречи — для организатора и принятых участников. */
   conversationId?: string | null;
@@ -185,6 +187,8 @@ export default function EventScreen() {
   const catLabel = event.isBusiness ? "Для бизнеса" : event.trainingType?.name ?? (event.category ? CATEGORY_SHORT[event.category.slug] ?? event.category.name : "Встреча");
 
   const action = (() => {
+    if (["paid","refunded","refund_pending","refund_review"].includes(event.onlineCheckout?.state || ""))
+      return <Btn title="Открыть билет" onPress={() => router.push(`/ticket/${event.id}` as Href)} />;
     if (event.status === "completed") return <Btn kind="o" title="Встреча завершена" disabled />;
     if (event.status === "cancelled") return <Btn kind="o" title="Встреча отменена" disabled />;
     switch (event.viewerStatus) {
@@ -204,6 +208,9 @@ export default function EventScreen() {
           <Btn kind="o" title="Это твоя встреча" disabled />
         );
       case "accepted":
+        if (event.onlineCheckout?.state && event.onlineCheckout.state !== "paid") {
+          return <TicketCheckout eventId={event.id} checkout={event.onlineCheckout} onPaid={load} />;
+        }
         if (event.isBusiness && event.ticketCode) {
           return <Btn title="Открыть билет" icon={<Icon name="doc" color="#fff" size={20} />} onPress={() => router.push(`/ticket/${event.id}` as Href)} />;
         }
@@ -511,7 +518,7 @@ export default function EventScreen() {
               <Text style={styles.quietText}>Отозвать заявку</Text>
             </Pressable>
           ) : null}
-          {event.viewerStatus === "accepted" && open && !started ? (
+          {event.viewerStatus === "accepted" && !event.onlineCheckout && open && !started ? (
             <Pressable onPress={() => setConfirm("leave")} style={({ pressed }) => [styles.quietLink, pressed && { transform: [{ scale: 0.97 }] }]}>
               <Text style={styles.quietText}>{event.isBusiness ? "Отменить участие" : "Не смогу пойти"}</Text>
             </Pressable>

@@ -1,3 +1,4 @@
+import { ticketContract } from "@/lib/payments/ticket-terms";
 import { telegramNotificationUsers } from "@/lib/notify/channel";
 import { BIZ_KEYS } from "@/lib/events/biz-categories";
 import { NextResponse } from "next/server";
@@ -138,6 +139,19 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
   // Для приложения: сколько новых заявок ждёт организатора, номер билета
   // участника и id чата встречи (чтобы открыть его одной кнопкой).
   let pendingApplicationsCount = 0;
+  let onlineCheckout: { priceKopecks: number; supplier: string; terms: string; termsVersion: string; state: string | null } | null = null;
+  if (event.is_business) {
+    const sale = await admin.from("ticket_sales").select("price_kopecks,supplier_name,purchase_terms,full_refund_before_start").eq("event_id", eventId).maybeSingle();
+    if (sale.error) return NextResponse.json({ error: "event_unavailable" }, { status: 503 });
+    if (sale.data) {
+      const order = currentUser ? await admin.from("ticket_orders")
+        .select("state,price_kopecks,supplier_name,purchase_terms,accepted_terms").eq("event_id", eventId).eq("user_id", currentUser.userId).maybeSingle() : null;
+      if (order?.error) return NextResponse.json({ error: "event_unavailable" }, { status: 503 });
+      const terms = order?.data ?? sale.data;
+      const contract = ticketContract(event, terms, sale.data.full_refund_before_start ?? event.biz_category === "party");
+      onlineCheckout = { termsVersion:contract.version, priceKopecks: terms.price_kopecks, supplier: terms.supplier_name, terms: order?.data?.accepted_terms || contract.text, state: order?.data?.state ?? null };
+    }
+  }
   let ticketCode: string | null = null;
   let conversationId: string | null = null;
   if (currentUser && viewerStatus === "organizer") {
@@ -242,6 +256,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     invites,
     myApplicationId: viewerStatus === "pending" ? myApplicationId : null,
     pendingApplicationsCount,
+    onlineCheckout,
     ticketCode,
     conversationId,
   });
@@ -293,7 +308,9 @@ export async function PATCH(req: Request, { params }: { params: { id: string } }
       return NextResponse.json({ error: "cannot_cancel" }, { status: 422 });
     }
 
-    await admin.from("events").update({ status: "cancelled" }).eq("id", eventId);
+    const cancelled = await admin.from("events").update({status:"cancelled"}).eq("id",eventId)
+      .in("status",["published","closed"]).select("id").maybeSingle();
+    if (cancelled.error || !cancelled.data) return NextResponse.json({error:"cannot_cancel"},{status:409});
 
     // Push участникам в мобильное приложение (в Telegram об отмене раньше не писали).
     const { data: cancelMembers } = await admin

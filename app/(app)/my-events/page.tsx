@@ -29,7 +29,7 @@ interface MyEvent {
   isBusiness: boolean;
   photoUrl: string | null;
   role: "organizer" | "participant";
-  myStatus?: "member" | "pending";
+  myStatus?: "member" | "pending" | "refunded";
   pendingApplicationsCount: number;
 }
 interface Reviewable {
@@ -164,7 +164,7 @@ export default function MyEventsPage() {
           const past = scope === "archive";
           const rv = reviewable.find((r) => r.eventId === e.id)?.reviewableMembers[0];
           const pill: [string, string] =
-            e.status === "cancelled"
+            e.myStatus === "refunded" ? ["Билет возвращён","k-ok"] : e.status === "cancelled"
               ? ["Отменена", "k-wait"]
               : past
                 ? rv
@@ -180,10 +180,10 @@ export default function MyEventsPage() {
           return (
             <Link
               key={e.id}
-              href={`/events/${e.id}`}
+              href={e.myStatus === "refunded" ? `/events/${e.id}/ticket` : `/events/${e.id}`}
               className="k-li k-g k-pr"
               onClick={(ev) => {
-                if (past && rv) {
+                if (e.myStatus !== "refunded" && past && rv) {
                   ev.preventDefault();
                   setReview({ eventId: e.id, title: e.title, member: rv });
                 }
